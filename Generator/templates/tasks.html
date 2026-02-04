@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Выбор задач</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f6fa;
+            padding: 40px;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+        }
+
+        .counter {
+            font-size: 18px;
+            margin-bottom: 30px;
+            font-weight: bold;
+        }
+
+        .task {
+            background: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+
+        .task-title {
+            flex: 1;
+            margin-left: 15px;
+        }
+
+        .controls {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .controls button {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 6px;
+            font-size: 18px;
+            cursor: pointer;
+        }
+
+        .plus {
+            background: #7ed321;
+            color: white;
+        }
+
+        .minus {
+            background: #d0021b;
+            color: white;
+        }
+
+        .count {
+            width: 30px;
+            text-align: center;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+<h1>{{ subject }}</h1>
+<h2>Список заданий</h2>
+<div class="counter">
+    Выбрано задач: <span id="total">0</span>
+</div>
+{% for task in task_list %}
+<div class="task">
+    <div class="controls">
+        <button class="minus" onclick="changeCount(this, -1)">−</button>
+        <span class="count">0</span>
+        <button class="plus" onclick="changeCount(this, 1)">+</button>
+    </div>
+
+    <div class="task-title">
+        {{ task }}
+    </div>
+</div>
+{% endfor %}
+
+
+<script>
+    function changeCount(button, delta) {
+        const controls = button.parentElement;
+        const countSpan = controls.querySelector('.count');
+        let count = parseInt(countSpan.textContent);
+
+        if (count + delta < 0) return;
+
+        count += delta;
+        countSpan.textContent = count;
+
+        updateTotal();
+    }
+
+    function updateTotal() {
+        let total = 0;
+        document.querySelectorAll('.count').forEach(span => {
+            total += parseInt(span.textContent);
+        });
+        document.getElementById('total').textContent = total;
+    }
+</script>
+
+</body>
+</html>
