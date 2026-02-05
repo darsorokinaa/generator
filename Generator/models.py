@@ -24,4 +24,5 @@ class Task(models.Model):
     task_text = models.TextField(max_length=4000)
 
     def __str__(self):
+
         return f'{self.id}: {self.task_text[:100]}'
