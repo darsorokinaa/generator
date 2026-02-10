@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
     <meta charset="UTF-8">
-    <title>Выбор экзамена</title>
+    <title>Выбор предмета</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -40,15 +41,14 @@
             border-radius: 8px;
             font-size: 18px;
             font-weight: bold;
-            min-width: 140px;
         }
 
-        .oge {
+        .math {
+            background-color: #4a90e2;
+        }
+
+        .informatics {
             background-color: #7ed321;
-        }
-
-        .ege {
-            background-color: #f5a623;
         }
 
         a:hover {
@@ -56,16 +56,16 @@
         }
     </style>
 </head>
+
 <body>
+    <div class="container">
+        <h1>Выберите предмет</h1>
+        <div class="buttons">
+            <a href="/{{ level }}/math" class="math">Математика</a>
+            <a href="/{{ level }}/inf" class="informatics">Информатика</a>
+        </div>
 
-<div class="container">
-    <h1>Выберите экзамен</h1>
-
-    <div class="buttons">
-        <a href="oge" class="oge">ОГЭ</a>
-        <a href="ege" class="ege">ЕГЭ</a>
     </div>
-</div>
-
 </body>
+
 </html>

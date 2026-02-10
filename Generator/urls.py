@@ -5,8 +5,9 @@ from Generator import views
 urlpatterns = [
 
     path('', views.index, name='index'),
-    path('tasks/<subject>/', views.tasks, name='tasks'),
-    path('tasks/<subject>/variant/', views.variant, name='variant'),
+    path('<level>', views.subject, name='subject'),
+    path('<level>/<subject>/variant/', views.variant, name='variant'),
+    path('<level>/<subject>', views.tasks, name='tasks'),
     path('admin/', admin.site.urls),
 
 ]

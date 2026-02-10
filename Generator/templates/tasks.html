@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
     <meta charset="UTF-8">
     <title>Выбор задач</title>
@@ -126,104 +127,107 @@
         }
     </style>
 </head>
+
 <body>
-<h1>{{ subject_name }}</h1>
-<h2>Список заданий</h2>
-<div class="counter">
-    Выбрано задач: <span id="total">0</span>
-</div>
+    <h1>{{ subject_name }}</h1>
+    <h2>Список заданий</h2>
+    <div class="counter">
+        Выбрано задач: <span id="total">0</span>
+    </div>
 
-<ul class="task-list">
-    {% for task in task_list %}
-    <li class="task">
-        <div class="controls">
-            <button class="minus" onclick="changeCount(this, -1)">−</button>
-            <span class="count" data-task-id="{{ task.id }}">0</span>
-            <button class="plus" onclick="changeCount(this, 1)">+</button>
-        </div>
-        <div class="task-title">
-            {{ task.task_title }}
-        </div>
-    </li>
-    {% endfor %}
-</ul>
+    <ul class="task-list">
+        {% for task in task_list %}
+        <li class="task">
+            <div class="controls">
+                <button class="minus" onclick="changeCount(this, -1)">−</button>
+                <span class="count" data-task-id="{{ task.id }}">0</span>
+                <button class="plus" onclick="changeCount(this, 1)">+</button>
+            </div>
+            <div class="task-title">
+                {{ task.task_title }}
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
 
-<!-- Обычная кнопка вместо формы -->
-<button type="button" class="add-button" onclick="generateVariant()">Добавить</button>
+    <!-- Обычная кнопка вместо формы -->
+    <button type="button" class="add-button" onclick="generateVariant()">Добавить</button>
 
-<script>
-let data = {};
+    <script>
+        let data = {};
 
-function getCookie(name) {
-    let cookieValue = null;
-    if (document.cookie && document.cookie !== '') {
-        const cookies = document.cookie.split(';');
-        for (let i = 0; i < cookies.length; i++) {
-            const cookie = cookies[i].trim();
-            if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                break;
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
             }
+            return cookieValue;
         }
-    }
-    return cookieValue;
-}
 
-function changeCount(button, delta) {
-    const countSpan = button.parentNode.querySelector('.count');
-    let count = parseInt(countSpan.textContent, 10) || 0;
-    count += delta;
-    if (count < 0) count = 0;
-    countSpan.textContent = count;
+        function changeCount(button, delta) {
+            const countSpan = button.parentNode.querySelector('.count');
+            let count = parseInt(countSpan.textContent, 10) || 0;
+            count += delta;
+            if (count < 0) count = 0;
+            countSpan.textContent = count;
 
-    const taskId = countSpan.getAttribute('data-task-id');
+            const taskId = countSpan.getAttribute('data-task-id');
 
-    if (count > 0) {
-        data[taskId] = count;
-    } else {
-        delete data[taskId]; // если стало 0 — удаляем id из объекта!
-    }
+            if (count > 0) {
+                data[taskId] = count;
+            } else {
+                delete data[taskId]; // если стало 0 — удаляем id из объекта!
+            }
 
-    updateTotal();
-    console.log(data);
-}
+            updateTotal();
+            console.log(data);
+        }
 
-function updateTotal() {
-    const allCounts = document.querySelectorAll('.count');
-    let total = 0;
-    allCounts.forEach(span => {
-        total += parseInt(span.textContent, 10) || 0;
-    });
-    document.getElementById('total').textContent = total;
-}
+        function updateTotal() {
+            const allCounts = document.querySelectorAll('.count');
+            let total = 0;
+            allCounts.forEach(span => {
+                total += parseInt(span.textContent, 10) || 0;
+            });
+            document.getElementById('total').textContent = total;
+        }
 
-function generateVariant() {
-    // Проверка, выбраны ли задачи
-    if (Object.keys(data).length === 0) {
-        alert('Пожалуйста, выберите хотя бы одну задачу!');
-        return;
-    }
+        function generateVariant() {
+            // Проверка, выбраны ли задачи
+            if (Object.keys(data).length === 0) {
+                alert('Пожалуйста, выберите хотя бы одну задачу!');
+                return;
+            }
 
-    const subject = "{{ subject_short }}";
-    const url = `/tasks/${subject}/variant/`;
-    const csrftoken = getCookie('csrftoken');
+            const subject = "{{ subject_short }}";
+            const level = "{{ level }}";
+            const url = `/${level}/${subject}/variant/`;
+            const csrftoken = getCookie('csrftoken');
 
-    fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrftoken  // <-- обязательно это поле
-            },
-            body: JSON.stringify(data) // здесь только те id, где count > 0!
-        })
-        .then(response => response.json())
-        .then(respData => {
-            console.log('Сервер ответил: ' + JSON.stringify(respData));
-            window.location.href = url;
-        });
-}
-</script>
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken  // <-- обязательно это поле
+                },
+                body: JSON.stringify(data) // здесь только те id, где count > 0!
+            })
+                .then(response => response.json())
+                .then(respData => {
+                    console.log('Сервер ответил: ' + JSON.stringify(respData));
+                    window.location.href = url;
+                });
+        }
+    </script>
 
 
 </body>
+
 </html>
