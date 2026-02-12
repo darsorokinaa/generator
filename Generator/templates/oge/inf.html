@@ -1,145 +1,323 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ОГЭ 2026 — Информатика</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ОГЭ 2026 — Информатика</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-<style>
-@page {
-    size: A4;
-    margin: 20mm 15mm;
-}
+    <style>
+        @page {
+            size: A4;
+            margin: 20mm 15mm;
+        }
 
-body {
-    margin: 0;
-    background: #fff;
-    font-family: "Times New Roman", serif;
-    font-size: 14px;
-    color: #000;
-}
+        body {
+            font-family: 'Times New Roman', serif;
+            padding: 40px;
+            margin: 0;
+            line-height: 1.6;
+        }
 
-.page {
-    max-width: 210mm;
-    margin: 0 auto;
-    padding: 0;
-}
+        .page {
+            max-width: 210mm;
+            margin: 0 auto;
+            padding: 0;
+        }
 
-/* Задание */
-.task {
-    display: flex;
-    align-items: flex-start;
-    margin-bottom: 18px;
-}
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
 
-.task-number {
-    width: 28px;
-    height: 28px;
-    border: 1px solid #000;
-    text-align: center;
-    line-height: 26px;
-    font-weight: bold;
-    margin-right: 10px;
-    flex-shrink: 0;
-}
+        .header h1 {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
 
-.task-body {
-    flex: 1;
-    text-align: justify;
-}
+        .header p {
+            font-size: 14px;
+            margin: 5px 0;
+        }
 
-/* Цитаты */
-.quote {
-    margin: 8px 0 8px 20px;
-    font-style: italic;
-}
+        .part-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin: 30px 0 20px 0;
+        }
 
-/* Ответ */
-.answer {
-    margin-top: 8px;
-}
+        .instruction {
+            background-color: #f5f5f5;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-left: 4px solid #333;
+            font-size: 14px;
+        }
 
-/* Таблицы */
-.table {
-    border-collapse: collapse;
-    margin: 8px 0;
-    max-width: 100%;
-}
+        /* Задание */
+        .task {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 35px;
+            page-break-inside: avoid;
+        }
 
-.table td {
-    border: 1px solid #000;
-    padding: 4px 10px;
-    text-align: center;
-    white-space: nowrap;
-}
+        .task-left {
+            width: 42px;
+            text-align: center;
+            flex-shrink: 0;
+        }
 
-/* ---------- МОБИЛЬНАЯ АДАПТАЦИЯ ---------- */
-@media (max-width: 768px) {
+        .task-number {
+            width: 30px;
+            height: 30px;
+            border: 2px solid #000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 16px;
+            margin: 0 auto;
+        }
 
-    body {
-        font-size: 13px;
-    }
+        .task-id {
+            margin-top: 4px;
+            font-size: 11px;
+            font-style: italic;
+            color: #8c8c8c;
+        }
 
-    .page {
-        padding: 10px;
-    }
+        .task-content {
+            flex: 1;
+        }
 
-    .task-number {
-        width: 24px;
-        height: 24px;
-        line-height: 22px;
-        font-size: 13px;
-        margin-right: 8px;
-    }
+        .task-text {
+            font-size: 14px;
+            line-height: 1.4;
+            text-align: justify;
+        }
 
-    .quote {
-        margin-left: 12px;
-    }
+        .task-text p {
+            margin: 6px 0;
+            text-indent: 0;
+        }
 
-    .table {
-        width: 100%;
-        overflow-x: auto;
-        display: block;
-    }
 
-    .table td {
-        padding: 4px 6px;
-        font-size: 12px;
-    }
-}
+        .task-image {
+            margin: 15px 0;
+            text-align: center;
+        }
 
-/* ---------- ПЕЧАТЬ ---------- */
-@media print {
-    body {
-        font-size: 14px;
-    }
+        .task-image img {
+            max-width: 70%;
+            height: auto;
+        }
 
-    .page {
-        padding: 0;
-        max-width: none;
-    }
+        /* Форматирование текста */
+        .task-text strong {
+            font-weight: bold;
+        }
 
-    .task {
-        page-break-inside: avoid;
-    }
-}
-</style>
+        .task-text em {
+            font-style: italic;
+        }
+
+        .task-text .morse {
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            letter-spacing: 3px;
+            display: block;
+            margin: 10px 0;
+        }
+
+        /* Цитаты / примеры */
+        .quote {
+            margin: 12px 0 12px 20px;
+            padding: 10px;
+            background-color: #fafafa;
+            border-left: 3px solid #ccc;
+        }
+
+        /* Код */
+        .code-block {
+            background-color: #f9f9f9;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            overflow-x: auto;
+            white-space: pre-wrap;
+        }
+
+        pre {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            background-color: #f9f9f9;
+            padding: 10px;
+            border: 1px solid #ddd;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+
+        /* Таблицы */
+        .table-container {
+            margin: 15px 0;
+            overflow-x: auto;
+        }
+
+        table {
+            border-collapse: collapse;
+            margin: 15px auto;
+        }
+
+        table td,
+        table th {
+            border: 1px solid #000;
+            padding: 8px 12px;
+            text-align: center;
+        }
+
+        table th {
+            background-color: #f5f5f5;
+            font-weight: bold;
+        }
+
+        /* Ответ */
+        .answer {
+            margin-top: 12px;
+            font-size: 14px;
+        }
+
+        .answer-line {
+            display: inline-block;
+            border-bottom: 1px solid #000;
+            min-width: 250px;
+        }
+
+        /* Нижний индекс */
+        .sub {
+            font-size: 10px;
+            vertical-align: sub;
+        }
+
+        /* ---------- МОБИЛЬНАЯ АДАПТАЦИЯ ---------- */
+        @media (max-width: 768px) {
+            body {
+                padding: 15px;
+                font-size: 13px;
+            }
+
+            .page {
+                padding: 10px;
+            }
+
+            .task {
+                gap: 8px;
+            }
+
+            .task-number {
+                width: 26px;
+                height: 26px;
+                font-size: 14px;
+            }
+
+            .task-image img {
+                max-width: 100%;
+            }
+
+            .quote {
+                margin-left: 10px;
+            }
+
+            table {
+                font-size: 12px;
+            }
+
+            table td,
+            table th {
+                padding: 6px 8px;
+            }
+        }
+
+        /* ---------- ПЕЧАТЬ ---------- */
+        @media print {
+            body {
+                padding: 0;
+                font-size: 14px;
+            }
+
+            .page {
+                padding: 0;
+                max-width: none;
+            }
+
+            .task {
+                page-break-inside: avoid;
+            }
+
+            .task-id {
+                display: none;
+            }
+        }
+    </style>
 </head>
 
 <body>
-<div class="page">
-{% for task in tasks %}
-<div class="task">
-    <div class="task-number">1</div>
-    <div class="task-body">
-        {{ task.task_text | safe }}
-        
-        <div class="answer">
-            Ответ: ____________________
+    <div class="page">
+
+        <div class="header">
+            <h1>Вариант ОГЭ № </h1>
+            <p><strong>ИНФОРМАТИКА, 9 класс</strong></p>
         </div>
+
+        <div class="part-title">Часть 1</div>
+
+        <div class="instruction">
+            Ответами к заданиям 1–10 являются число, слово, последовательность букв или цифр. Ответы сначала укажите в
+            тексте работы, а затем перенесите в БЛАНК ОТВЕТОВ № 1 справа от номера соответствующего задания, начиная с
+            первой клеточки, без пробелов, запятых и других дополнительных символов. Каждый символ пишите в отдельной
+            клеточке в соответствии с приведёнными в бланке образцами.
+        </div>
+
+        {% for task in tasks %}
+        <section class="task">
+
+            <!-- Левая колонка -->
+            <aside class="task-left">
+                <div class="task-number">
+                    {{ task.task.task_number }}
+                </div>
+                <div class="task-id">
+                    {{ task.id }}
+                </div>
+            </aside>
+
+            <!-- Правая часть -->
+            <article class="task-content">
+                <div class="task-text">
+                    {{ task.rendered_text|safe }}
+                </div>
+
+                <div class="answer">
+    Ответ: <span class="answer-line"></span>.
+</div>
+
+            </article>
+
+        </section>
+        {% endfor %}
+
+        <div
+            style="margin-top: 50px; padding-top: 20px; border-top: 2px solid #000; text-align: center; font-size: 12px;">
+            © 2026 
+        </div>
+
     </div>
-</div>
-{% endfor %}
-</div>
 </body>
+
 </html>
