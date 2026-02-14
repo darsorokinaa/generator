@@ -1,8 +1,9 @@
 from django.http import JsonResponse
-from django.shortcuts import render
-from .models import Subject, TaskImage, TaskList, Task, Level
+from django.shortcuts import render, get_object_or_404, redirect
+from .models import Subject, TaskList, Task, Level, Variant, VariantContent
 import json
 import re
+from django.views.decorators.http import require_http_methods
 
 
 def index(request):
@@ -94,33 +95,60 @@ def parse_task_text(text, images):
     return text
 
 
-def variant(request, level, subject):
-    
-    # сохраняем выбранные параметры
-    if request.method == 'POST':
-        request.session['variant_data'] = json.loads(request.body)
-        return JsonResponse({'status': 'ok'})
+def generate_variant(request, level, subject):
 
-    data = request.session.get('variant_data', {})
+    subject_instance = Subject.objects.get(subject_short=subject)
+    level_instance = Level.objects.get(level=level)
+
+    data = json.loads(request.body)
+
     selected_tasks = []
 
-    # выбираем случайные задачи с подгрузкой изображений
     for tasklist_id, count in data.items():
         random_tasks = list(
             Task.objects
             .filter(task_id=tasklist_id)
-            .prefetch_related('images')
             .order_by('?')[:int(count)]
         )
         selected_tasks.extend(random_tasks)
 
-    # парсинг текста с заменой маркеров
-    for task in selected_tasks:
-        images = list(task.images.all())
-        task.rendered_text = parse_task_text(task.task_text, images)
+    new_variant = Variant.objects.create(
+        var_subject=subject_instance,
+        level=level_instance,
+        created_by="ADMIN"
+    )
+
+    for index, task in enumerate(selected_tasks, start=1):
+        VariantContent.objects.create(
+            variant=new_variant,
+            task=task,
+            order=index
+        )
+
+    return JsonResponse({
+        'variant_id': new_variant.id
+    })
+
+
+def variant_detail(request, level, subject, variant_id):
+
+    variant = get_object_or_404(Variant, id=variant_id)
+
+    contents = (
+        VariantContent.objects
+        .filter(variant=variant)
+        .select_related('task')
+        .order_by('order')
+    )
+
+    tasks = [item.task for item in contents]
 
     return render(
         request,
-        f'{level}/{subject}.html',
-        {'tasks': selected_tasks}
+        'exam.html',
+        {
+            'tasks': tasks,
+            'variant': variant
+        }
     )
+

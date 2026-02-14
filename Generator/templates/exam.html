@@ -1,0 +1,192 @@
+{% extends 'base.html' %}
+
+{% block title %}Вариант № {{ variant.id }}{% endblock %}
+
+{% block header_title %}Вариант № {{ variant.id }}{% endblock %}
+{% block header_subtitle %}Экзаменационный вариант{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page">
+
+        <div class="header">
+            <div class="header-left">
+                <h1>Вариант № {{ variant.id }}</h1>
+            </div>
+            <div class="header-right">
+                <div class="score-counter" id="scoreCounter" style="display: none;">
+                    <span class="score-label">Правильных ответов:</span>
+                    <span class="score-value"><span id="correctCount">0</span> / <span id="totalCount">{{ tasks|length }}</span></span>
+                </div>
+                <button class="btn-check-answers" id="checkButton" onclick="checkAllAnswers()">
+                    Проверить ответы
+                </button>
+            </div>
+        </div>
+
+        {% for task in tasks %}
+        <section class="task" data-task-index="{{ forloop.counter0 }}">
+
+            <!-- Левая колонка -->
+            <aside class="task-left">
+                <div class="task-number">
+                    {{ task.task.task_number }}
+                </div>
+                <div class="task-id">
+                    {{ task.id }}
+                </div>
+            </aside>
+
+            <!-- Правая часть -->
+            <article class="task-content">
+                <div class="task-text">
+                    {{ task.task_template|safe }}
+                </div>
+
+                <div class="answer-section">
+                    <label class="answer-label">Ваш ответ:</label>
+                    <div class="answer-input-wrapper">
+                        <input 
+                            type="text" 
+                            class="answer-input" 
+                            data-correct-answer="{{ task.answer }}"
+                            placeholder="Введите ответ"
+                            autocomplete="off"
+                        />
+                        <span class="answer-status"></span>
+                    </div>
+                    <div class="correct-answer-display" style="display: none;">
+                        <span class="correct-answer-label">Правильный ответ:</span>
+                        <span class="correct-answer-value">{{ task.answer }}</span>
+                    </div>
+                </div>
+
+            </article>
+
+        </section>
+        {% endfor %}
+
+    </div>
+</div>
+
+<script>
+    window.MathJax = {
+        tex: {
+            inlineMath: [['$', '$'], ['\\(', '\\)']]
+        }
+    };
+    document.addEventListener("DOMContentLoaded", function () {
+        if (window.MathJax) {
+            MathJax.typesetPromise();
+        }
+    });
+
+    let isChecked = false;
+
+    function normalizeAnswer(answer) {
+        // Нормализация ответа: убираем пробелы, приводим к нижнему регистру
+        return answer.toString().trim().toLowerCase().replace(/\s+/g, '');
+    }
+
+    function checkAllAnswers() {
+        if (isChecked) {
+            // Если уже проверено - сброс
+            resetAnswers();
+            return;
+        }
+
+        const inputs = document.querySelectorAll('.answer-input');
+        let correctCount = 0;
+        
+        inputs.forEach(input => {
+            const userAnswer = normalizeAnswer(input.value);
+            const correctAnswer = normalizeAnswer(input.dataset.correctAnswer);
+            const statusIcon = input.parentElement.querySelector('.answer-status');
+            const taskSection = input.closest('.task');
+            const correctAnswerDisplay = taskSection.querySelector('.correct-answer-display');
+            
+            // Блокируем поле ввода
+            input.disabled = true;
+            
+            if (userAnswer === '') {
+                // Пустой ответ
+                statusIcon.innerHTML = '—';
+                statusIcon.className = 'answer-status status-empty';
+                taskSection.classList.add('task-empty');
+                input.classList.add('input-empty');
+            } else if (userAnswer === correctAnswer) {
+                // Правильный ответ
+                statusIcon.innerHTML = '✓';
+                statusIcon.className = 'answer-status status-correct';
+                taskSection.classList.add('task-correct');
+                input.classList.add('input-correct');
+                correctCount++;
+            } else {
+                // Неправильный ответ
+                statusIcon.innerHTML = '✗';
+                statusIcon.className = 'answer-status status-incorrect';
+                taskSection.classList.add('task-incorrect');
+                input.classList.add('input-incorrect');
+                // Показываем правильный ответ
+                correctAnswerDisplay.style.display = 'block';
+            }
+        });
+        
+        // Показываем счетчик
+        document.getElementById('correctCount').textContent = correctCount;
+        document.getElementById('scoreCounter').style.display = 'flex';
+        
+        // Меняем текст кнопки
+        const checkButton = document.getElementById('checkButton');
+        checkButton.innerHTML = 'Сбросить';
+        checkButton.style.borderColor = '#94a3b8';
+        checkButton.style.color = '#64748b';
+        
+        isChecked = true;
+        
+        // Анимация счетчика
+        const scoreValue = document.querySelector('.score-value');
+        scoreValue.classList.add('score-updated');
+        setTimeout(() => {
+            scoreValue.classList.remove('score-updated');
+        }, 300);
+    }
+
+    function resetAnswers() {
+        const inputs = document.querySelectorAll('.answer-input');
+        
+        inputs.forEach(input => {
+            const statusIcon = input.parentElement.querySelector('.answer-status');
+            const taskSection = input.closest('.task');
+            const correctAnswerDisplay = taskSection.querySelector('.correct-answer-display');
+            
+            // Разблокируем поле ввода
+            input.disabled = false;
+            input.value = '';
+            
+            // Убираем все классы и иконки
+            statusIcon.innerHTML = '';
+            statusIcon.className = 'answer-status';
+            taskSection.classList.remove('task-correct', 'task-incorrect', 'task-empty');
+            input.classList.remove('input-correct', 'input-incorrect', 'input-empty');
+            
+            // Скрываем правильный ответ
+            correctAnswerDisplay.style.display = 'none';
+        });
+        
+        // Скрываем счетчик
+        document.getElementById('scoreCounter').style.display = 'none';
+        
+        // Меняем текст кнопки
+        const checkButton = document.getElementById('checkButton');
+        checkButton.innerHTML = 'Проверить ответы';
+        checkButton.style.borderColor = '';
+        checkButton.style.color = '';
+        
+        isChecked = false;
+    }
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+{% endblock %}

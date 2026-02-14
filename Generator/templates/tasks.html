@@ -1,166 +1,53 @@
-<!DOCTYPE html>
-<html lang="ru">
+{% extends 'base.html' %}
 
-<head>
-    <meta charset="UTF-8">
-    <title>Выбор задач</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+{% block title %} Выбор уровня {% endblock %}
 
-    <style>
-        body {
-            font-family: 'Times New Roman', serif;
-            background: #f5f6fa;
-            padding: 40px;
-            margin: 0;
-        }
+{% block content %}
 
+<div class="container">
 
-        h1 {
-            margin-bottom: 20px;
-            font-size: 28px;
-        }
+    <div class="card">
 
-        h2 {
-            font-size: 20px;
-            margin-bottom: 15px;
-        }
+        <div class="page-header">
+            <h1>{{ subject_name }}</h1>
+            <h2>Список заданий</h2>
+        </div>
 
-        .counter {
-            font-size: 18px;
-            margin-bottom: 30px;
-            font-weight: bold;
-            padding: 10px;
-            background-color: #e3f7c1;
-            border: 1px solid #cde2a8;
-            border-radius: 5px;
-        }
+        <div class="counter">
+            Выбрано задач: <span id="total">0</span>
+        </div>
 
-        .task-list {
-            list-style-type: none;
-            padding: 0;
-        }
+        <div class="actions">
+            <button type="button" class="add-button" onclick="selectAll()">
+                Выбрать все
+            </button>
 
-        .task {
-            background: white;
-            padding: 15px 20px;
-            border-radius: 8px;
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-        }
+            <button type="button" class="add-button" onclick="generateVariant()">
+                Сформировать вариант
+            </button>
+        </div>
 
-        .task-title {
-            flex: 1;
-            margin-left: 15px;
-            font-size: 16px;
-            font-weight: bold;
-        }
+        <ul class="task-list">
+            {% for task in task_list %}
+            <li class="task">
+                <div class="task-left">
+                    <div class="controls">
+                        <button class="minus" onclick="changeCount(this, -1)">−</button>
+                        <span class="count" data-task-id="{{ task.id }}">0</span>
+                        <button class="plus" onclick="changeCount(this, 1)">+</button>
+                    </div>
+                </div>
 
-        .controls {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
+                <div class="task-title">
+                    {{ task.task_title }}
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
 
-        .controls button {
-            width: 36px;
-            height: 36px;
-            border: none;
-            border-radius: 5px;
-            font-size: 20px;
-            line-height: 36px;
-            display: inline-block;
-            cursor: pointer;
-            color: white;
-        }
-
-        .minus {
-            background: #d86e6e;
-        }
-
-        .minus:hover {
-            background: #c65757;
-        }
-
-        .plus {
-            background: #68c271;
-        }
-
-        .plus:hover {
-            background: #57a95e;
-        }
-
-        .count {
-            width: 36px;
-            height: 36px;
-            text-align: center;
-            font-size: 16px;
-            font-weight: bold;
-            line-height: 36px;
-            background: #f7f7f7;
-            border-radius: 5px;
-            border: 1px solid #ddd;
-        }
-
-        .add-button {
-            display: inline-block;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            padding: 10px 15px;
-            font-size: 16px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
-
-        .add-button:hover {
-            background-color: #45a049;
-        }
-
-        .add-button:active {
-            background-color: #3e8e41;
-        }
-
-        .add-button:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-        }
-    </style>
-</head>
-
-<body>
-    <h1>{{ subject_name }}</h1>
-    <h2>Список заданий</h2>
-    <div class="counter">
-        Выбрано задач: <span id="total">0</span>
     </div>
-    <button type="button" class="add-button" onclick="selectAll()">
-        Выбрать все
-    </button>
-    <button type="button" class="add-button" onclick="generateVariant()">Добавить</button>
 
-
-
-    <ul class="task-list">
-        {% for task in task_list %}
-        <li class="task">
-            <div class="controls">
-                <button class="minus" onclick="changeCount(this, -1)">−</button>
-                <span class="count" data-task-id="{{ task.id }}">0</span>
-                <button class="plus" onclick="changeCount(this, 1)">+</button>
-            </div>
-            <div class="task-title">
-                {{ task.task_title }}
-            </div>
-        </li>
-        {% endfor %}
-    </ul>
-
+</div>
     <script>
         let data = {};
 
@@ -215,7 +102,7 @@
             }
 
             const subject = "{{ subject_short }}";
-            const level = "{{ level }}";
+            const level = "{{ level.level }}";
             const url = `/${level}/${subject}/variant/`;
             const csrftoken = getCookie('csrftoken');
 
@@ -223,15 +110,15 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': csrftoken  // <-- обязательно это поле
+                    'X-CSRFToken': csrftoken
                 },
-                body: JSON.stringify(data) // здесь только те id, где count > 0!
+                body: JSON.stringify(data)
             })
                 .then(response => response.json())
                 .then(respData => {
-                    console.log('Сервер ответил: ' + JSON.stringify(respData));
-                    window.location.href = url;
+                    window.location.href = `/${level}/${subject}/variant/${respData.variant_id}/`;
                 });
+
         }
         function selectAll() {
             const allCounts = document.querySelectorAll('.count');
@@ -249,7 +136,4 @@
 
     </script>
 
-
-</body>
-
-</html>
+{% endblock %}

@@ -1,71 +1,40 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-    <meta charset="UTF-8">
-    <title>Выбор экзамена</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f5f6fa;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-        }
+{% extends 'base.html' %}
 
-        .container {
-            background: white;
-            padding: 40px 60px;
-            border-radius: 12px;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-            text-align: center;
-        }
+{% block title %}Выбор экзамена{% endblock %}
 
-        h1 {
-            margin-bottom: 30px;
-        }
+{% block header_title %}Выбор экзамена{% endblock %}
 
-        .buttons {
-            display: flex;
-            gap: 20px;
-            justify-content: center;
-        }
-
-        a {
-            display: inline-block;
-            padding: 15px 30px;
-            text-decoration: none;
-            color: white;
-            border-radius: 8px;
-            font-size: 18px;
-            font-weight: bold;
-            min-width: 140px;
-        }
-
-        .oge {
-            background-color: #7ed321;
-        }
-
-        .ege {
-            background-color: #f5a623;
-        }
-
-        a:hover {
-            opacity: 0.9;
-        }
-    </style>
-</head>
-<body>
-
+{% block content %}
 <div class="container">
-    <h1>Выберите экзамен</h1>
-
-    <div class="buttons">
-        <a href="oge" class="oge">ОГЭ</a>
-        <a href="ege" class="ege">ЕГЭ</a>
+    
+    <div class="hero">
+        <h1>Добро пожаловать!</h1>
+        <p>Начните подготовку к экзаменам прямо сейчас. Выберите нужный формат и достигайте отличных результатов вместе с нами.</p>
     </div>
-</div>
 
-</body>
-</html>
+    <div class="exam-grid">
+        
+        <a href="oge" class="exam-card exam-card-oge">
+            <div class="exam-icon">📝</div>
+            <h3 class="exam-title">ОГЭ</h3>
+            <p class="exam-description">Основной государственный экзамен для 9 класса</p>
+            <div class="exam-footer">
+                <span class="exam-badge">9 класс</span>
+                <span class="exam-arrow">→</span>
+            </div>
+        </a>
+
+        <a href="ege" class="exam-card exam-card-ege">
+            <div class="exam-icon">🎓</div>
+            <h3 class="exam-title">ЕГЭ</h3>
+            <p class="exam-description">Единый государственный экзамен для 11 класса</p>
+            <div class="exam-footer">
+                <span class="exam-badge">11 класс</span>
+                <span class="exam-arrow">→</span>
+            </div>
+        </a>
+
+    </div>
+
+</div>
+{% endblock %}

@@ -1,71 +1,40 @@
-<!DOCTYPE html>
-<html lang="ru">
+{% extends 'base.html' %}
 
-<head>
-    <meta charset="UTF-8">
-    <title>Выбор предмета</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background: #f5f6fa;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-        }
+{% block title %}Выбор предмета - Learno{% endblock %}
 
-        .container {
-            background: white;
-            padding: 40px 60px;
-            border-radius: 12px;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-            text-align: center;
-        }
+{% block header_title %}Выбор предмета{% endblock %}
 
-        h1 {
-            margin-bottom: 30px;
-        }
+{% block content %}
+<div class="container">
 
-        .buttons {
-            display: flex;
-            gap: 20px;
-            justify-content: center;
-        }
+    <div class="hero">
+        <h1>Выбор предмета</h1>
+        <p>Выберите предмет для подготовки к экзамену. Мы предлагаем качественные материалы для эффективной подготовки.</p>
+    </div>
 
-        a {
-            display: inline-block;
-            padding: 15px 30px;
-            text-decoration: none;
-            color: white;
-            border-radius: 8px;
-            font-size: 18px;
-            font-weight: bold;
-        }
+    <div class="exam-grid">
+        
+        <a href="math" class="exam-card exam-card-math">
+            <div class="exam-icon exam-icon-math">🔢</div>
+            <h3 class="exam-title">Математика</h3>
+            <p class="exam-description">Алгебра, геометрия, теория вероятностей и математический анализ</p>
+            <div class="exam-footer">
+                <span class="exam-badge exam-badge-math">Все разделы</span>
+                <span class="exam-arrow">→</span>
+            </div>
+        </a>
 
-        .math {
-            background-color: #4a90e2;
-        }
-
-        .informatics {
-            background-color: #7ed321;
-        }
-
-        a:hover {
-            opacity: 0.9;
-        }
-    </style>
-</head>
-
-<body>
-    <div class="container">
-        <h1>Выберите предмет</h1>
-        <div class="buttons">
-            <a href="/{{ level }}/math" class="math">Математика</a>
-            <a href="/{{ level }}/inf" class="informatics">Информатика</a>
-        </div>
+        <a href="inf" class="exam-card exam-card-inf">
+            <div class="exam-icon exam-icon-inf">💻</div>
+            <h3 class="exam-title">Информатика</h3>
+            <p class="exam-description">Алгоритмы, программирование, логика и компьютерные системы</p>
+            <div class="exam-footer">
+                <span class="exam-badge exam-badge-inf">Все темы</span>
+                <span class="exam-arrow">→</span>
+            </div>
+        </a>
 
     </div>
-</body>
 
-</html>
+</div>
+{% endblock %}
