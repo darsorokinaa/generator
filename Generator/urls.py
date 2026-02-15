@@ -30,7 +30,6 @@ urlpatterns = [
          name='subject'),
 
     path('ckeditor/', include('ckeditor_uploader.urls')),
-    path('check-answers/<int:variant_id>/', views.check_answers, name='check_answers'),
 ]
 
 if settings.DEBUG:

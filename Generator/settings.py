@@ -125,9 +125,9 @@ USE_TZ = True
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATICFILES_DIRS = [
-    BASE_DIR / "Generator/static"  # Укажите путь к папке, где лежат ваши статические файлы
+    BASE_DIR / "static"  # Укажите путь к папке, где лежат ваши статические файлы
 ]
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

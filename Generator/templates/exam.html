@@ -1,192 +1,269 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Вариант № {{ variant.id }}{% endblock %}
 
-{% block header_title %}Вариант № {{ variant.id }}{% endblock %}
-{% block header_subtitle %}Экзаменационный вариант{% endblock %}
-
 {% block content %}
-<div class="container">
-    <div class="page">
 
-        <div class="header">
-            <div class="header-left">
-                <h1>Вариант № {{ variant.id }}</h1>
-            </div>
-            <div class="header-right">
-                <div class="score-counter" id="scoreCounter" style="display: none;">
-                    <span class="score-label">Правильных ответов:</span>
-                    <span class="score-value"><span id="correctCount">0</span> / <span id="totalCount">{{ tasks|length }}</span></span>
+<style>
+
+
+</style>
+
+
+<button id="open-board">
+    Доска
+</button>
+
+<div class="main-wrapper" id="main-wrapper">
+    <div class="content-area">
+        <div class="container">
+            <div class="page">
+
+                <div class="header">
+                    <div class="header-left">
+                        <h1>Вариант № {{ variant.id }}</h1>
+                    </div>
+                    <div class="header-right">
+                        <div class="score-counter" id="scoreCounter" style="display:none;">
+                            <span>Правильных ответов:</span>
+                            <span>
+                                <span id="correctCount">0</span> /
+                                <span id="totalCount">{{ tasks|length }}</span>
+                            </span>
+                        </div>
+                        <button id="checkButton" onclick="checkAllAnswers()">
+                            Проверить ответы
+                        </button>
+                    </div>
                 </div>
-                <button class="btn-check-answers" id="checkButton" onclick="checkAllAnswers()">
-                    Проверить ответы
-                </button>
+
+                {% for task in tasks %}
+                <section class="task">
+                    <aside class="task-left">
+                        <div class="task-number">
+                            {{ task.task.task_number }}
+                        </div>
+                        <div class="task-id">
+                            {{ task.id }}
+                        </div>
+                    </aside>
+
+                    <article class="task-content">
+                        <div class="task-text">
+                            {{ task.task_template|safe }}
+                        </div>
+
+                        <div class="answer-section">
+                            <input 
+                                type="text"
+                                class="answer-input"
+                                data-correct-answer="{{ task.answer }}"
+                                placeholder="Введите ответ"
+                            />
+                            <span class="answer-status"></span>
+
+                            <div class="correct-answer-display" style="display:none;">
+                                Правильный ответ: {{ task.answer }}
+                            </div>
+                        </div>
+                    </article>
+                </section>
+                {% endfor %}
+
             </div>
         </div>
-
-        {% for task in tasks %}
-        <section class="task" data-task-index="{{ forloop.counter0 }}">
-
-            <!-- Левая колонка -->
-            <aside class="task-left">
-                <div class="task-number">
-                    {{ task.task.task_number }}
-                </div>
-                <div class="task-id">
-                    {{ task.id }}
-                </div>
-            </aside>
-
-            <!-- Правая часть -->
-            <article class="task-content">
-                <div class="task-text">
-                    {{ task.task_template|safe }}
-                </div>
-
-                <div class="answer-section">
-                    <label class="answer-label">Ваш ответ:</label>
-                    <div class="answer-input-wrapper">
-                        <input 
-                            type="text" 
-                            class="answer-input" 
-                            data-correct-answer="{{ task.answer }}"
-                            placeholder="Введите ответ"
-                            autocomplete="off"
-                        />
-                        <span class="answer-status"></span>
-                    </div>
-                    <div class="correct-answer-display" style="display: none;">
-                        <span class="correct-answer-label">Правильный ответ:</span>
-                        <span class="correct-answer-value">{{ task.answer }}</span>
-                    </div>
-                </div>
-
-            </article>
-
-        </section>
-        {% endfor %}
-
     </div>
 </div>
 
+<div id="board-sidebar" class="board-sidebar">
+    <div class="resize-handle" id="resize-handle"></div>
+    <div class="board-header">
+        <span class="board-title">📝 Доска для рисования</span>
+        <div class="board-controls">
+            <span class="width-display" id="width-display">50%</span>
+            <button id="close-board">✕ Закрыть</button>
+        </div>
+    </div>
+    <iframe 
+        id="excalidraw-iframe"
+        src="https://excalidraw.com"
+        allow="clipboard-read; clipboard-write"
+        loading="lazy">
+    </iframe>
+</div>
+
 <script>
-    window.MathJax = {
-        tex: {
-            inlineMath: [['$', '$'], ['\\(', '\\)']]
-        }
-    };
-    document.addEventListener("DOMContentLoaded", function () {
-        if (window.MathJax) {
-            MathJax.typesetPromise();
+document.addEventListener("DOMContentLoaded", function () {
+
+    /* =========================
+       ДОСКА И ИЗМЕНЕНИЕ РАЗМЕРА
+    ========================== */
+
+    const mainWrapper = document.getElementById("main-wrapper");
+    const sidebar = document.getElementById("board-sidebar");
+    const openBtn = document.getElementById("open-board");
+    const closeBtn = document.getElementById("close-board");
+    const resizeHandle = document.getElementById("resize-handle");
+    const widthDisplay = document.getElementById("width-display");
+
+    let boardWidth = 50; // процент от ширины экрана
+    let isResizing = false;
+
+    function setBoardWidth(widthPercent) {
+        // Ограничиваем от 20% до 80%
+        widthPercent = Math.max(20, Math.min(80, widthPercent));
+        boardWidth = widthPercent;
+        
+        const widthValue = `${widthPercent}vw`;
+        document.documentElement.style.setProperty('--board-width', widthValue);
+        widthDisplay.textContent = `${Math.round(widthPercent)}%`;
+        
+        // Сохраняем в localStorage
+        localStorage.setItem('boardWidth', widthPercent);
+    }
+
+    function openBoard() {
+        sidebar.classList.add("active");
+        mainWrapper.classList.add("board-open");
+        openBtn.classList.add("hidden");
+    }
+
+    function closeBoard() {
+        sidebar.classList.remove("active");
+        mainWrapper.classList.remove("board-open");
+        openBtn.classList.remove("hidden");
+    }
+
+    // Загружаем сохраненную ширину
+    const savedWidth = localStorage.getItem('boardWidth');
+    if (savedWidth) {
+        setBoardWidth(parseFloat(savedWidth));
+    } else {
+        setBoardWidth(50);
+    }
+
+    openBtn.addEventListener("click", openBoard);
+    closeBtn.addEventListener("click", closeBoard);
+
+    document.addEventListener("keydown", function(e) {
+        if (e.key === "Escape" && sidebar.classList.contains("active")) {
+            closeBoard();
         }
     });
+
+    // Изменение размера доски
+    resizeHandle.addEventListener("mousedown", function(e) {
+        isResizing = true;
+        resizeHandle.classList.add("dragging");
+        sidebar.classList.add("resizing");
+        mainWrapper.classList.add("resizing");
+        document.body.style.cursor = "ew-resize";
+        document.body.style.userSelect = "none";
+    });
+
+    document.addEventListener("mousemove", function(e) {
+        if (!isResizing) return;
+
+        const windowWidth = window.innerWidth;
+        const mouseX = e.clientX;
+        const widthInPixels = windowWidth - mouseX;
+        const widthPercent = (widthInPixels / windowWidth) * 100;
+
+        setBoardWidth(widthPercent);
+    });
+
+    document.addEventListener("mouseup", function() {
+        if (isResizing) {
+            isResizing = false;
+            resizeHandle.classList.remove("dragging");
+            sidebar.classList.remove("resizing");
+            mainWrapper.classList.remove("resizing");
+            document.body.style.cursor = "";
+            document.body.style.userSelect = "";
+        }
+    });
+
+    /* =========================
+       ПРОВЕРКА ОТВЕТОВ
+    ========================== */
 
     let isChecked = false;
 
     function normalizeAnswer(answer) {
-        // Нормализация ответа: убираем пробелы, приводим к нижнему регистру
         return answer.toString().trim().toLowerCase().replace(/\s+/g, '');
     }
 
-    function checkAllAnswers() {
+    window.checkAllAnswers = function () {
+
         if (isChecked) {
-            // Если уже проверено - сброс
             resetAnswers();
             return;
         }
 
         const inputs = document.querySelectorAll('.answer-input');
         let correctCount = 0;
-        
+
         inputs.forEach(input => {
-            const userAnswer = normalizeAnswer(input.value);
-            const correctAnswer = normalizeAnswer(input.dataset.correctAnswer);
-            const statusIcon = input.parentElement.querySelector('.answer-status');
-            const taskSection = input.closest('.task');
-            const correctAnswerDisplay = taskSection.querySelector('.correct-answer-display');
-            
-            // Блокируем поле ввода
-            input.disabled = true;
-            
-            if (userAnswer === '') {
-                // Пустой ответ
-                statusIcon.innerHTML = '—';
-                statusIcon.className = 'answer-status status-empty';
-                taskSection.classList.add('task-empty');
-                input.classList.add('input-empty');
-            } else if (userAnswer === correctAnswer) {
-                // Правильный ответ
-                statusIcon.innerHTML = '✓';
-                statusIcon.className = 'answer-status status-correct';
-                taskSection.classList.add('task-correct');
-                input.classList.add('input-correct');
-                correctCount++;
-            } else {
-                // Неправильный ответ
-                statusIcon.innerHTML = '✗';
-                statusIcon.className = 'answer-status status-incorrect';
-                taskSection.classList.add('task-incorrect');
-                input.classList.add('input-incorrect');
-                // Показываем правильный ответ
-                correctAnswerDisplay.style.display = 'block';
-            }
-        });
-        
-        // Показываем счетчик
-        document.getElementById('correctCount').textContent = correctCount;
-        document.getElementById('scoreCounter').style.display = 'flex';
-        
-        // Меняем текст кнопки
-        const checkButton = document.getElementById('checkButton');
-        checkButton.innerHTML = 'Сбросить';
-        checkButton.style.borderColor = '#94a3b8';
-        checkButton.style.color = '#64748b';
-        
-        isChecked = true;
-        
-        // Анимация счетчика
-        const scoreValue = document.querySelector('.score-value');
-        scoreValue.classList.add('score-updated');
-        setTimeout(() => {
-            scoreValue.classList.remove('score-updated');
-        }, 300);
+    const userAnswer = normalizeAnswer(input.value);
+    const correctAnswer = normalizeAnswer(input.dataset.correctAnswer);
+
+    const statusIcon = input.nextElementSibling;
+    const correctDisplay = input.parentElement.querySelector('.correct-answer-display');
+
+    input.disabled = true;
+
+    if (userAnswer !== "" && userAnswer === correctAnswer) {
+        if (statusIcon) statusIcon.textContent = "✓";
+        correctCount++;
+    } else {
+        if (statusIcon) statusIcon.textContent = "✗";
+        if (correctDisplay) correctDisplay.style.display = "block";
     }
+});
+
+
+        const correctCountEl = document.getElementById('correctCount');
+        const scoreCounter = document.getElementById('scoreCounter');
+        const checkButton = document.getElementById('checkButton');
+
+        if (correctCountEl) correctCountEl.textContent = correctCount;
+        if (scoreCounter) scoreCounter.style.display = 'flex';
+        if (checkButton) {checkButton.textContent = "Сбросить";
+checkButton.classList.add("reset-mode");}
+
+
+        isChecked = true;
+    };
 
     function resetAnswers() {
         const inputs = document.querySelectorAll('.answer-input');
-        
+
         inputs.forEach(input => {
-            const statusIcon = input.parentElement.querySelector('.answer-status');
-            const taskSection = input.closest('.task');
-            const correctAnswerDisplay = taskSection.querySelector('.correct-answer-display');
-            
-            // Разблокируем поле ввода
             input.disabled = false;
-            input.value = '';
+            input.value = "";
             
-            // Убираем все классы и иконки
-            statusIcon.innerHTML = '';
-            statusIcon.className = 'answer-status';
-            taskSection.classList.remove('task-correct', 'task-incorrect', 'task-empty');
-            input.classList.remove('input-correct', 'input-incorrect', 'input-empty');
+            const statusIcon = input.nextElementSibling;
+            const correctDisplay = input.parentElement.querySelector('.correct-answer-display');
             
-            // Скрываем правильный ответ
-            correctAnswerDisplay.style.display = 'none';
+            if (statusIcon) statusIcon.textContent = "";
+            if (correctDisplay) correctDisplay.style.display = "none";
         });
-        
-        // Скрываем счетчик
-        document.getElementById('scoreCounter').style.display = 'none';
-        
-        // Меняем текст кнопки
+
+        const scoreCounter = document.getElementById('scoreCounter');
         const checkButton = document.getElementById('checkButton');
-        checkButton.innerHTML = 'Проверить ответы';
-        checkButton.style.borderColor = '';
-        checkButton.style.color = '';
-        
+
+        if (scoreCounter) scoreCounter.style.display = 'none';
+        if (checkButton) {
+            checkButton.textContent = "Проверить ответы";
+checkButton.classList.remove("reset-mode");
+
+        }
+
         isChecked = false;
     }
-</script>
 
-<script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+});
+</script>
 
 {% endblock %}
