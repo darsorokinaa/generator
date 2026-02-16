@@ -4,7 +4,8 @@ from .models import Subject, TaskList, Task, Level, Variant, VariantContent
 import json
 import re
 from django.views.decorators.http import require_http_methods
-
+from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
+import secrets
 
 def index(request):
     return render(request, 'index.html')
@@ -12,6 +13,7 @@ def index(request):
 def subject(request, level):
     return render(request, 'subject.html', {'level':level})
 
+@ensure_csrf_cookie
 def tasks(request, level, subject):
     subject_instance = Subject.objects.get(subject_short=subject)
     level_instance = Level.objects.get(level=level)
@@ -74,7 +76,7 @@ def parse_task_text(text, images):
         
         html = '<table>'
         for i, row in enumerate(rows):
-            cells = [cell.strip() for cell in row.split('|') if cell.strip()]
+            cells = [cell.strip() for row in row.split('|') if cell.strip()]
             html += '<tr>'
             tag = 'th' if i == 0 else 'td'
             for cell in cells:
@@ -95,39 +97,47 @@ def parse_task_text(text, images):
     return text
 
 
+@require_http_methods(["POST"])
 def generate_variant(request, level, subject):
+    
+    try:
+        subject_instance = Subject.objects.get(subject_short=subject)
+        level_instance = Level.objects.get(level=level)
 
-    subject_instance = Subject.objects.get(subject_short=subject)
-    level_instance = Level.objects.get(level=level)
+        data = json.loads(request.body)
 
-    data = json.loads(request.body)
+        selected_tasks = []
 
-    selected_tasks = []
+        for tasklist_id, count in data.items():
+            random_tasks = list(
+                Task.objects
+                .filter(task_id=tasklist_id)
+                .order_by('?')[:int(count)]
+            )
+            selected_tasks.extend(random_tasks)
 
-    for tasklist_id, count in data.items():
-        random_tasks = list(
-            Task.objects
-            .filter(task_id=tasklist_id)
-            .order_by('?')[:int(count)]
-        )
-        selected_tasks.extend(random_tasks)
-
-    new_variant = Variant.objects.create(
-        var_subject=subject_instance,
-        level=level_instance,
-        created_by="ADMIN"
-    )
-
-    for index, task in enumerate(selected_tasks, start=1):
-        VariantContent.objects.create(
-            variant=new_variant,
-            task=task,
-            order=index
+        new_variant = Variant.objects.create(
+            var_subject=subject_instance,
+            level=level_instance,
+            created_by="ADMIN",
+            share_token = secrets.token_urlsafe(12)
         )
 
-    return JsonResponse({
-        'variant_id': new_variant.id
-    })
+        for index, task in enumerate(selected_tasks, start=1):
+            VariantContent.objects.create(
+                variant=new_variant,
+                task=task,
+                order=index,
+            )
+
+        return JsonResponse({
+            'variant_id': new_variant.id
+        })
+    
+    except Exception as e:
+        return JsonResponse({
+            'error': str(e)
+        }, status=400)
 
 
 def variant_detail(request, level, subject, variant_id):
@@ -152,3 +162,12 @@ def variant_detail(request, level, subject, variant_id):
         }
     )
 
+
+def shared_var(request, token):
+    variant = get_object_or_404(Variant, share_token = token)
+    return variant_detail(
+        request,
+        level=variant.level.level,
+        subject=variant.var_subject.subject_short,
+        variant_id=variant.id
+    )

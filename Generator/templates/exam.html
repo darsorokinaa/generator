@@ -6,13 +6,151 @@
 {% block content %}
 
 <style>
+/* Кнопка открытия доски */
+#open-board-btn {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    padding: 15px 25px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    border-radius: 50px;
+    font-weight: 600;
+    font-size: 16px;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    transition: all 0.3s ease;
+    z-index: 999;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
 
+#open-board-btn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+}
 
+#open-board-btn.hidden {
+    display: none;
+}
+
+/* Контейнер доски на весь экран */
+#board-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
+    display: none;
+    flex-direction: column;
+    pointer-events: none;
+}
+
+#board-container.active {
+    display: flex;
+}
+
+/* Toolbar доски */
+#board-toolbar {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 15px 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+    pointer-events: auto;
+}
+
+#board-toolbar button {
+    padding: 8px 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(10px);
+}
+
+#board-toolbar button:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.5);
+}
+
+#board-toolbar button.active {
+    background: white;
+    color: #667eea;
+    border-color: white;
+}
+
+.color-picker {
+    display: flex;
+    gap: 8px;
+}
+
+.color-btn {
+    width: 32px;
+    height: 32px;
+    border: 3px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.color-btn:hover {
+    transform: scale(1.15);
+    border-color: rgba(255, 255, 255, 0.6);
+}
+
+.color-btn.active {
+    border-color: white;
+    border-width: 3px;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+    transform: scale(1.1);
+}
+
+.divider {
+    width: 1px;
+    height: 24px;
+    background: rgba(255, 255, 255, 0.3);
+    margin: 0 5px;
+}
+
+#close-board-btn {
+    margin-left: auto;
+    background: rgba(244, 67, 54, 0.2) !important;
+    border-color: rgba(255, 255, 255, 0.4) !important;
+}
+
+#close-board-btn:hover {
+    background: rgba(244, 67, 54, 0.4) !important;
+}
+
+/* Canvas - прозрачный слой поверх всего */
+#board {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    cursor: crosshair;
+    pointer-events: auto;
+    z-index: 999;
+}
+
+/* При активной доске смещаем canvas вниз под toolbar */
+#board-container.active #board {
+    top: 65px; /* высота toolbar */
+    height: calc(100vh - 65px);
+}
 </style>
 
-
-<button id="open-board">
-    Доска
+<button id="open-board-btn" onclick="toggleBoard()">
+    ✏️ Открыть доску
 </button>
 
 <div class="main-wrapper" id="main-wrapper">
@@ -76,113 +214,325 @@
     </div>
 </div>
 
-<div id="board-sidebar" class="board-sidebar">
-    <div class="resize-handle" id="resize-handle"></div>
-    <div class="board-header">
-        <span class="board-title">📝 Доска для рисования</span>
-        <div class="board-controls">
-            <span class="width-display" id="width-display">50%</span>
-            <button id="close-board">✕ Закрыть</button>
+<!-- Доска на весь экран -->
+<div id="board-container">
+    <div id="board-toolbar">
+        <button id="penBtn" onclick="setTool('pen')" class="active">✏️ Ручка</button>
+        <button id="eraserBtn" onclick="setTool('eraser')">🧹 Ластик</button>
+        
+        <div class="divider"></div>
+        
+        <div class="color-picker">
+            <div class="color-btn active" style="background: #000000;" onclick="setColor('#000000')"></div>
+            <div class="color-btn" style="background: #2196F3;" onclick="setColor('#2196F3')"></div>
+            <div class="color-btn" style="background: #F44336;" onclick="setColor('#F44336')"></div>
         </div>
+        
+        <div class="divider"></div>
+        
+        <button id="clear-board-btn" onclick="clearBoard()">🗑️ Очистить</button>
+        
+        <button id="close-board-btn" onclick="toggleBoard()">✕ Закрыть</button>
     </div>
-    <iframe 
-        id="excalidraw-iframe"
-        src="https://excalidraw.com"
-        allow="clipboard-read; clipboard-write"
-        loading="lazy">
-    </iframe>
+    <canvas id="board"></canvas>
 </div>
 
 <script>
 document.addEventListener("DOMContentLoaded", function () {
 
     /* =========================
-       ДОСКА И ИЗМЕНЕНИЕ РАЗМЕРА
+       ДОСКА ДЛЯ РИСОВАНИЯ
     ========================== */
+    
+    const canvas = document.getElementById("board");
+    const ctx = canvas.getContext("2d");
+    const boardContainer = document.getElementById("board-container");
+    const openBoardBtn = document.getElementById("open-board-btn");
+    const toolbar = document.getElementById("board-toolbar");
 
-    const mainWrapper = document.getElementById("main-wrapper");
-    const sidebar = document.getElementById("board-sidebar");
-    const openBtn = document.getElementById("open-board");
-    const closeBtn = document.getElementById("close-board");
-    const resizeHandle = document.getElementById("resize-handle");
-    const widthDisplay = document.getElementById("width-display");
+    let drawing = false;
+    let tool = "pen";
+    let currentLine = null;
+    let objects = [];
+    let currentColor = "#000000";
+    let erasing = false;
+    let erasedIndices = new Set();
+    let scrollOffset = { x: 0, y: 0 };
 
-    let boardWidth = 50; // процент от ширины экрана
-    let isResizing = false;
+    const penBtn = document.getElementById("penBtn");
+    const eraserBtn = document.getElementById("eraserBtn");
 
-    function setBoardWidth(widthPercent) {
-        // Ограничиваем от 20% до 80%
-        widthPercent = Math.max(20, Math.min(80, widthPercent));
-        boardWidth = widthPercent;
+    // Устанавливаем размер canvas
+    function resizeCanvas() {
+        const toolbarHeight = toolbar.offsetHeight;
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight - toolbarHeight;
+        redraw();
+    }
+
+    // Получение координат с учетом скролла страницы
+    function getMousePos(e) {
+        const rect = canvas.getBoundingClientRect();
+        const scrollY = window.scrollY || window.pageYOffset;
+        const scrollX = window.scrollX || window.pageXOffset;
         
-        const widthValue = `${widthPercent}vw`;
-        document.documentElement.style.setProperty('--board-width', widthValue);
-        widthDisplay.textContent = `${Math.round(widthPercent)}%`;
+        return {
+            x: e.clientX - rect.left + scrollX,
+            y: e.clientY - rect.top + scrollY
+        };
+    }
+
+    window.toggleBoard = function() {
+        boardContainer.classList.toggle('active');
+        openBoardBtn.classList.toggle('hidden');
         
-        // Сохраняем в localStorage
-        localStorage.setItem('boardWidth', widthPercent);
-    }
+        if (boardContainer.classList.contains('active')) {
+            resizeCanvas();
+            // Сохраняем текущую позицию скролла
+            scrollOffset.x = window.scrollX;
+            scrollOffset.y = window.scrollY;
+        }
+    };
 
-    function openBoard() {
-        sidebar.classList.add("active");
-        mainWrapper.classList.add("board-open");
-        openBtn.classList.add("hidden");
-    }
-
-    function closeBoard() {
-        sidebar.classList.remove("active");
-        mainWrapper.classList.remove("board-open");
-        openBtn.classList.remove("hidden");
-    }
-
-    // Загружаем сохраненную ширину
-    const savedWidth = localStorage.getItem('boardWidth');
-    if (savedWidth) {
-        setBoardWidth(parseFloat(savedWidth));
-    } else {
-        setBoardWidth(50);
-    }
-
-    openBtn.addEventListener("click", openBoard);
-    closeBtn.addEventListener("click", closeBoard);
-
-    document.addEventListener("keydown", function(e) {
-        if (e.key === "Escape" && sidebar.classList.contains("active")) {
-            closeBoard();
+    // Отслеживаем скролл страницы
+    window.addEventListener('scroll', function() {
+        if (boardContainer.classList.contains('active')) {
+            scrollOffset.x = window.scrollX;
+            scrollOffset.y = window.scrollY;
+            redraw();
         }
     });
 
-    // Изменение размера доски
-    resizeHandle.addEventListener("mousedown", function(e) {
-        isResizing = true;
-        resizeHandle.classList.add("dragging");
-        sidebar.classList.add("resizing");
-        mainWrapper.classList.add("resizing");
-        document.body.style.cursor = "ew-resize";
-        document.body.style.userSelect = "none";
-    });
+    window.clearBoard = function() {
+        if (confirm('Очистить всю доску?')) {
+            objects = [];
+            redraw();
+            socket.send(JSON.stringify({
+                action: "clear_all"
+            }));
+        }
+    };
 
-    document.addEventListener("mousemove", function(e) {
-        if (!isResizing) return;
-
-        const windowWidth = window.innerWidth;
-        const mouseX = e.clientX;
-        const widthInPixels = windowWidth - mouseX;
-        const widthPercent = (widthInPixels / windowWidth) * 100;
-
-        setBoardWidth(widthPercent);
-    });
-
-    document.addEventListener("mouseup", function() {
-        if (isResizing) {
-            isResizing = false;
-            resizeHandle.classList.remove("dragging");
-            sidebar.classList.remove("resizing");
-            mainWrapper.classList.remove("resizing");
-            document.body.style.cursor = "";
-            document.body.style.userSelect = "";
+    // Изменение размера при ресайзе окна
+    window.addEventListener('resize', function() {
+        if (boardContainer.classList.contains('active')) {
+            resizeCanvas();
         }
     });
+
+    // Закрытие по Escape
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape' && boardContainer.classList.contains('active')) {
+            toggleBoard();
+        }
+    });
+
+    window.setTool = function(t) {
+        tool = t;
+        
+        penBtn.classList.remove('active');
+        eraserBtn.classList.remove('active');
+        
+        if(t === 'pen') {
+            penBtn.classList.add('active');
+            canvas.style.cursor = 'crosshair';
+        } else if(t === 'eraser') {
+            eraserBtn.classList.add('active');
+            canvas.style.cursor = 'pointer';
+        }
+    };
+
+    window.setColor = function(color) {
+        currentColor = color;
+        
+        document.querySelectorAll('.color-btn').forEach(btn => {
+            btn.classList.remove('active');
+        });
+        
+        event.target.classList.add('active');
+        
+        if(tool !== 'pen'){
+            setTool('pen');
+        }
+    };
+
+    const protocol = window.location.protocol === "https:" ? "wss://" : "ws://";
+    const socket = new WebSocket(
+        protocol + window.location.host + "/ws/board/test/"
+    );
+
+    canvas.addEventListener("mousedown", (e) => {
+        e.preventDefault();
+        const pos = getMousePos(e);
+        
+        drawing = true;
+
+        if(tool === "pen"){
+            currentLine = {
+                type: "line",
+                color: currentColor,
+                width: 3,
+                points: [pos]
+            };
+            redraw();
+        }
+
+        if(tool === "eraser"){
+            erasing = true;
+            erasedIndices.clear();
+            eraseAt(pos.x, pos.y);
+        }
+    });
+
+    canvas.addEventListener("mouseup", (e) => {
+        e.preventDefault();
+        if(currentLine){
+            objects.push(currentLine);
+            socket.send(JSON.stringify({
+                action: "add_object",
+                object: currentLine
+            }));
+            currentLine = null;
+        }
+        drawing = false;
+        erasing = false;
+        erasedIndices.clear();
+    });
+
+    canvas.addEventListener("mousemove", (e) => {
+        e.preventDefault();
+        if(!drawing) return;
+        
+        const pos = getMousePos(e);
+
+        if(tool === "pen" && currentLine){
+            currentLine.points.push(pos);
+            redraw();
+        }
+
+        if(tool === "eraser" && erasing){
+            eraseAt(pos.x, pos.y);
+        }
+    });
+
+    canvas.addEventListener("mouseleave", () => {
+        if(drawing && currentLine){
+            objects.push(currentLine);
+            socket.send(JSON.stringify({
+                action: "add_object",
+                object: currentLine
+            }));
+            currentLine = null;
+        }
+        drawing = false;
+        erasing = false;
+        erasedIndices.clear();
+    });
+
+    socket.onmessage = function(e){
+        const data = JSON.parse(e.data);
+
+        if(data.action === "add_object"){
+            objects.push(data.object);
+            redraw();
+        }
+
+        if(data.action === "remove_object"){
+            objects = objects.filter((_, index) => index !== data.index);
+            redraw();
+        }
+
+        if(data.action === "clear_all"){
+            objects = [];
+            redraw();
+        }
+    };
+
+    function drawSmoothLine(points, color, width) {
+        if (points.length < 1) return;
+        
+        ctx.strokeStyle = color;
+        ctx.lineWidth = width;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        
+        if (points.length === 1) {
+            ctx.beginPath();
+            ctx.arc(points[0].x - scrollOffset.x, points[0].y - scrollOffset.y, width / 2, 0, Math.PI * 2);
+            ctx.fillStyle = color;
+            ctx.fill();
+            return;
+        }
+        
+        ctx.beginPath();
+        ctx.moveTo(points[0].x - scrollOffset.x, points[0].y - scrollOffset.y);
+        
+        for (let i = 1; i < points.length - 1; i++) {
+            const xc = (points[i].x + points[i + 1].x) / 2 - scrollOffset.x;
+            const yc = (points[i].y + points[i + 1].y) / 2 - scrollOffset.y;
+            ctx.quadraticCurveTo(
+                points[i].x - scrollOffset.x, 
+                points[i].y - scrollOffset.y, 
+                xc, 
+                yc
+            );
+        }
+        
+        ctx.lineTo(
+            points[points.length - 1].x - scrollOffset.x, 
+            points[points.length - 1].y - scrollOffset.y
+        );
+        ctx.stroke();
+    }
+
+    function redraw(){
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        objects.forEach((obj) => {
+            if(obj.type === "line"){
+                drawSmoothLine(obj.points, obj.color, obj.width);
+            }
+        });
+
+        if(currentLine){
+            drawSmoothLine(currentLine.points, currentLine.color, currentLine.width);
+        }
+    }
+
+    function eraseAt(x, y){
+        const radius = 8;
+
+        for(let i = objects.length - 1; i >= 0; i--){
+            if(erasedIndices.has(i)) continue;
+            
+            const obj = objects[i];
+
+            if(obj.type === "line"){
+                let foundMatch = false;
+                for(let point of obj.points){
+                    const dx = point.x - x;
+                    const dy = point.y - y;
+                    const distance = Math.sqrt(dx*dx + dy*dy);
+                    
+                    if(distance < radius){
+                        foundMatch = true;
+                        break;
+                    }
+                }
+                
+                if(foundMatch){
+                    erasedIndices.add(i);
+                    objects.splice(i, 1);
+                    socket.send(JSON.stringify({
+                        action: "remove_object",
+                        index: i
+                    }));
+                    redraw();
+                    return;
+                }
+            }
+        }
+    }
 
     /* =========================
        ПРОВЕРКА ОТВЕТОВ
@@ -191,7 +541,7 @@ document.addEventListener("DOMContentLoaded", function () {
     let isChecked = false;
 
     function normalizeAnswer(answer) {
-        return answer.toString().trim().toLowerCase().replace(/\s+/g, '');
+        return String(answer).trim().toLowerCase().replace(/\s+/g, '');
     }
 
     window.checkAllAnswers = function () {
@@ -205,23 +555,23 @@ document.addEventListener("DOMContentLoaded", function () {
         let correctCount = 0;
 
         inputs.forEach(input => {
-    const userAnswer = normalizeAnswer(input.value);
-    const correctAnswer = normalizeAnswer(input.dataset.correctAnswer);
 
-    const statusIcon = input.nextElementSibling;
-    const correctDisplay = input.parentElement.querySelector('.correct-answer-display');
+            const userAnswer = normalizeAnswer(input.value);
+            const correctAnswer = normalizeAnswer(input.dataset.correctAnswer);
 
-    input.disabled = true;
+            const statusIcon = input.nextElementSibling;
+            const correctDisplay = input.parentElement.querySelector('.correct-answer-display');
 
-    if (userAnswer !== "" && userAnswer === correctAnswer) {
-        if (statusIcon) statusIcon.textContent = "✓";
-        correctCount++;
-    } else {
-        if (statusIcon) statusIcon.textContent = "✗";
-        if (correctDisplay) correctDisplay.style.display = "block";
-    }
-});
+            input.disabled = true;
 
+            if (userAnswer && userAnswer === correctAnswer) {
+                if (statusIcon) statusIcon.textContent = "✓";
+                correctCount++;
+            } else {
+                if (statusIcon) statusIcon.textContent = "✗";
+                if (correctDisplay) correctDisplay.style.display = "block";
+            }
+        });
 
         const correctCountEl = document.getElementById('correctCount');
         const scoreCounter = document.getElementById('scoreCounter');
@@ -229,23 +579,26 @@ document.addEventListener("DOMContentLoaded", function () {
 
         if (correctCountEl) correctCountEl.textContent = correctCount;
         if (scoreCounter) scoreCounter.style.display = 'flex';
-        if (checkButton) {checkButton.textContent = "Сбросить";
-checkButton.classList.add("reset-mode");}
 
+        if (checkButton) {
+            checkButton.textContent = "Сбросить";
+            checkButton.classList.add("reset-mode");
+        }
 
         isChecked = true;
     };
 
     function resetAnswers() {
+
         const inputs = document.querySelectorAll('.answer-input');
 
         inputs.forEach(input => {
             input.disabled = false;
             input.value = "";
-            
+
             const statusIcon = input.nextElementSibling;
             const correctDisplay = input.parentElement.querySelector('.correct-answer-display');
-            
+
             if (statusIcon) statusIcon.textContent = "";
             if (correctDisplay) correctDisplay.style.display = "none";
         });
@@ -254,10 +607,10 @@ checkButton.classList.add("reset-mode");}
         const checkButton = document.getElementById('checkButton');
 
         if (scoreCounter) scoreCounter.style.display = 'none';
+
         if (checkButton) {
             checkButton.textContent = "Проверить ответы";
-checkButton.classList.remove("reset-mode");
-
+            checkButton.classList.remove("reset-mode");
         }
 
         isChecked = false;

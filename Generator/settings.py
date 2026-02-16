@@ -38,9 +38,11 @@ INSTALLED_APPS = [
     'Generator',
     'ckeditor',
     'ckeditor_uploader',
-
+    'channels',
+    'Board',
 
 ]
+
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -70,6 +72,17 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'Generator.wsgi.application'
+
+ASGI_APPLICATION = "Generator.asgi.application"
+
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            "hosts": [('127.0.0.1', 6379)],
+        },
+    },
+}
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases

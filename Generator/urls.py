@@ -3,12 +3,19 @@ from django.urls import path, include
 from Generator import views
 from django.conf import settings
 from django.conf.urls.static import static
+from django.urls import path
 
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', views.index, name='index'),
-
+    path("", include("Board.urls")),
+    
+    
+    path('<str:level>/<str:subject>/variant/<int:variant_id>/share/<str:token>',
+         views.shared_var,
+         name='shared_var'),
+    
     # DETAIL ВАРИАНТА (самый конкретный)
     path('<str:level>/<str:subject>/variant/<int:variant_id>/',
          views.variant_detail,
@@ -30,6 +37,9 @@ urlpatterns = [
          name='subject'),
 
     path('ckeditor/', include('ckeditor_uploader.urls')),
+
+    
+
 ]
 
 if settings.DEBUG:

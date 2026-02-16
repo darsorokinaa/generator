@@ -48,92 +48,120 @@
     </div>
 
 </div>
-    <script>
-        let data = {};
 
-        function getCookie(name) {
-            let cookieValue = null;
-            if (document.cookie && document.cookie !== '') {
-                const cookies = document.cookie.split(';');
-                for (let i = 0; i < cookies.length; i++) {
-                    const cookie = cookies[i].trim();
-                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
-                        break;
-                    }
+<!-- Скрытое поле для CSRF токена -->
+<input type="hidden" id="csrf-token" value="{% csrf_token %}">
+
+<script>
+    let data = {};
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
                 }
             }
-            return cookieValue;
         }
+        return cookieValue;
+    }
 
-        function changeCount(button, delta) {
-            const countSpan = button.parentNode.querySelector('.count');
-            let count = parseInt(countSpan.textContent, 10) || 0;
-            count += delta;
-            if (count < 0) count = 0;
-            countSpan.textContent = count;
-
-            const taskId = countSpan.getAttribute('data-task-id');
-
-            if (count > 0) {
-                data[taskId] = count;
-            } else {
-                delete data[taskId]; // если стало 0 — удаляем id из объекта!
+    function getCSRFToken() {
+        // Сначала пробуем из cookie
+        let token = getCookie('csrftoken');
+        
+        // Если не нашли, берем из скрытого поля
+        if (!token) {
+            const hiddenInput = document.getElementById('csrf-token');
+            if (hiddenInput) {
+                token = hiddenInput.value;
             }
+        }
+        
+        return token;
+    }
 
-            updateTotal();
-            console.log(data);
+    function changeCount(button, delta) {
+        const countSpan = button.parentNode.querySelector('.count');
+        let count = parseInt(countSpan.textContent, 10) || 0;
+        count += delta;
+        if (count < 0) count = 0;
+        countSpan.textContent = count;
+
+        const taskId = countSpan.getAttribute('data-task-id');
+
+        if (count > 0) {
+            data[taskId] = count;
+        } else {
+            delete data[taskId];
         }
 
-        function updateTotal() {
-            const allCounts = document.querySelectorAll('.count');
-            let total = 0;
-            allCounts.forEach(span => {
-                total += parseInt(span.textContent, 10) || 0;
-            });
-            document.getElementById('total').textContent = total;
+        updateTotal();
+        console.log(data);
+    }
+
+    function updateTotal() {
+        const allCounts = document.querySelectorAll('.count');
+        let total = 0;
+        allCounts.forEach(span => {
+            total += parseInt(span.textContent, 10) || 0;
+        });
+        document.getElementById('total').textContent = total;
+    }
+
+    function generateVariant() {
+        if (Object.keys(data).length === 0) {
+            alert('Пожалуйста, выберите хотя бы одну задачу!');
+            return;
         }
 
-        function generateVariant() {
-            // Проверка, выбраны ли задачи
-            if (Object.keys(data).length === 0) {
-                alert('Пожалуйста, выберите хотя бы одну задачу!');
-                return;
+        const subject = "{{ subject_short }}";
+        const level = "{{ level.level }}";
+        const url = `/${level}/${subject}/variant/`;
+        const csrftoken = getCSRFToken();
+
+        console.log('CSRF Token:', csrftoken); // Для отладки
+
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
             }
+            return response.json();
+        })
+        .then(respData => {
+            window.location.href = `/${level}/${subject}/variant/${respData.variant_id}/`;
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Произошла ошибка при создании варианта');
+        });
+    }
 
-            const subject = "{{ subject_short }}";
-            const level = "{{ level.level }}";
-            const url = `/${level}/${subject}/variant/`;
-            const csrftoken = getCookie('csrftoken');
+    function selectAll() {
+        const allCounts = document.querySelectorAll('.count');
 
-            fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrftoken
-                },
-                body: JSON.stringify(data)
-            })
-                .then(response => response.json())
-                .then(respData => {
-                    window.location.href = `/${level}/${subject}/variant/${respData.variant_id}/`;
-                });
+        data = {};
 
-        }
-        function selectAll() {
-            const allCounts = document.querySelectorAll('.count');
+        allCounts.forEach(span => {
+            span.textContent = 1;
+            const taskId = span.getAttribute('data-task-id');
+            data[taskId] = 1;
+        });
 
-            data = {}; // очищаем объект
-
-            allCounts.forEach(span => {
-                span.textContent = 1; // ставим 1 каждой задаче
-                const taskId = span.getAttribute('data-task-id');
-                data[taskId] = 1;
-            });
-
-            updateTotal();
-        }
-
-    </script>
+        updateTotal();
+    }
+</script>
 
 {% endblock %}

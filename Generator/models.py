@@ -5,6 +5,7 @@ import os
 from uuid import uuid4
 from ckeditor.fields import RichTextField
 
+
 def task_url(instance, filename):
     ext = filename.split('.')[-1].lower()
 
@@ -65,7 +66,7 @@ class Variant(models.Model):
     level = models.ForeignKey(Level, on_delete=CASCADE)
     created_at = models.DateTimeField(default=datetime.today)
     created_by = models.CharField(default='ADMIN')
-
+    share_token = models.CharField(max_length=20, blank=True, null=True)
     def __str__(self):
         return f'Вариант {self.id} -  {self.var_subject}: {self.level}'
     
@@ -102,3 +103,11 @@ class Tag(models.Model):
 
     def __str__(self):
         return f'Task: {self.task.id}: {self.taskTag.tag}'
+
+class ExcalidrawBoard(models.Model):
+    variant = models.OneToOneField(Variant, on_delete=models.CASCADE, related_name='excalidraw_board')
+    elements = models.JSONField(default=list, blank=True)
+    app_state = models.JSONField(default=dict, blank=True)
+    files = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
