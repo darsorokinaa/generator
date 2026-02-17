@@ -17,7 +17,7 @@ def subject(request, level):
 def tasks(request, level, subject):
     subject_instance = Subject.objects.get(subject_short=subject)
     level_instance = Level.objects.get(level=level)
-    task_list = TaskList.objects.filter(subject=subject_instance).filter(level=level_instance)
+    task_list = Task.objects.filter(subject=subject_instance).filter(level=level_instance)
     return render(request, 'tasks.html', {
         'subject_short': subject_instance.subject_short,
         'subject_name': subject_instance.subject_name,
