@@ -40,19 +40,38 @@ INSTALLED_APPS = [
     'ckeditor_uploader',
     'channels',
     'Board',
+    'corsheaders'
 
 ]
 
-
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",  # 1. CORS — первым
     'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
-    'django.middleware.common.CommonMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',  # 2. Session — до Common
+    "django.middleware.common.CommonMiddleware",  # 3. Common — один раз
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+
+CORS_ALLOW_CREDENTIALS = True
+
+# 4. Разрешить React читать CSRF cookie
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+CSRF_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_HTTPONLY = False  # React должен читать cookie
+SESSION_COOKIE_SAMESITE = 'Lax'
 
 ROOT_URLCONF = 'Generator.urls'
 
