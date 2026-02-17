@@ -37,20 +37,27 @@ class Subject(models.Model):
     def __str__(self):
         return self.subject_short
 
+class Part(models.Model):
+    part_title = models.CharField(max_length=35, blank=True, null=True)
+    
+    def __str__(self):
+        return self.part_title
 
 class TaskList(models.Model):
     subject = models.ForeignKey(Subject, on_delete=CASCADE)
     level = models.ForeignKey(Level, on_delete=CASCADE)
+    part = models.ForeignKey(Part, on_delete=CASCADE, blank=True, null=True, default=1)
     task_number = models.IntegerField()
     task_title = models.CharField(max_length=100)
 
     def __str__(self):
-        return f'{self.subject}: {self.task_number} - {self.task_title}'
+        return f'{self.subject} {self.level}: {self.task_number} - {self.task_title}'
 
 # Банк задач
 class Task(models.Model):
     task = models.ForeignKey(TaskList, on_delete=CASCADE, null=True)
     task_template = RichTextField()
+    files = models.FileField(upload_to='task_files', blank=True, null=True)
 
     answer = models.TextField(max_length=500)
     
@@ -60,12 +67,17 @@ class Task(models.Model):
     def __str__(self):
         return f'{self.id}: {self.task_template[:100]}'
     
+class Tags(models.Model):
+    tag = models.CharField(max_length=20, null=True, blank=True, default="Экзамен")
 
+    def __str__(self):
+        return self.tag
+    
 class Variant(models.Model):
     var_subject = models.ForeignKey(Subject, on_delete=CASCADE)
     level = models.ForeignKey(Level, on_delete=CASCADE)
     created_at = models.DateTimeField(default=datetime.today)
-    created_by = models.CharField(default='ADMIN')
+    created_by = models.CharField(max_length=100, default='ADMIN')
     share_token = models.CharField(max_length=20, blank=True, null=True)
     def __str__(self):
         return f'Вариант {self.id} -  {self.var_subject}: {self.level}'
@@ -104,10 +116,3 @@ class Tag(models.Model):
     def __str__(self):
         return f'Task: {self.task.id}: {self.taskTag.tag}'
 
-class ExcalidrawBoard(models.Model):
-    variant = models.OneToOneField(Variant, on_delete=models.CASCADE, related_name='excalidraw_board')
-    elements = models.JSONField(default=list, blank=True)
-    app_state = models.JSONField(default=dict, blank=True)
-    files = models.JSONField(default=dict, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)

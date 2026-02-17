@@ -4,6 +4,7 @@
 
 :root {
     --primary-purple: #667eea;
+    --primary-purple2: #586fd7;
     --primary-purple-dark: #764ba2;
     --primary-pink: #ffb8a0;
     --primary-peach: #fff4e6;
@@ -49,6 +50,63 @@ h1, h2, h3, h4, h5, h6 {
     font-style: normal;
     line-height: 1.3;
     color: var(--text-primary);
+}
+
+header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    padding: 15px 0;
+    position: relative;
+    z-index: 100;
+}
+
+.header-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 1.5rem;
+}
+
+.logo a {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-decoration: none;
+    color: white;
+}
+
+.logo-icon {
+    width: 40px;
+    height: 40px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: bold;
+}
+
+.logo-text {
+    font-size: 20px;
+    font-weight: 700;
+}
+
+.nav-link {
+    color: white;
+    text-decoration: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.nav-link:hover,
+.nav-link.active {
+    background: rgba(255, 255, 255, 0.2);
 }
 
 /* ========================================
@@ -356,7 +414,6 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .counter {
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
     padding: 1rem 1.5rem;
     border-radius: var(--radius-md);
     font-size: 1.1rem;
@@ -379,7 +436,7 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .add-button {
-    background: linear-gradient(135deg, var(--primary-purple), var(--primary-purple-dark));
+    background: linear-gradient(135deg, var(--primary-purple), var(--primary-purple2));
     color: white;
     border: none;
     padding: 0.9rem 2rem;
@@ -413,7 +470,7 @@ h1, h2, h3, h4, h5, h6 {
     padding: 1.5rem;
     border-radius: var(--radius-md);
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 1.5rem;
     transition: all 0.2s ease;
     border: 1px solid rgba(102, 126, 234, 0.06);
@@ -437,14 +494,15 @@ h1, h2, h3, h4, h5, h6 {
     padding: 0.5rem 0.8rem;
     border-radius: var(--radius-sm);
     box-shadow: var(--shadow-sm);
+    border-color: var(--primary-purple-dark);
 }
 
 .controls button {
     width: 32px;
     height: 32px;
-    border: none;
-    background: linear-gradient(135deg, var(--primary-purple), var(--primary-purple-dark));
-    color: white;
+    background: white;
+    color: var(--primary-purple);
+    border: 1px solid rgba(102, 126, 234, 0.4);
     border-radius: 8px;
     cursor: pointer;
     font-size: 1.2rem;
@@ -584,18 +642,37 @@ h1, h2, h3, h4, h5, h6 {
 
 .score-counter {
     display: flex;
-    align-items: center;
-    gap: 0.8rem;
+    flex-direction: column;
+    gap: 0.5rem;
     background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
-    padding: 0.8rem 1.5rem;
-    border-radius: var(--radius-md);
+    padding: 1rem 1.5rem;
+    border-radius: 12px;
     font-weight: 600;
     color: var(--primary-purple);
+    min-width: 280px;
 }
 
 .score-counter #correctCount {
     font-size: 1.3rem;
     color: var(--primary-purple-dark);
+}
+
+.score-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+}
+
+.score-row .label {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.score-row .value {
+    font-size: 1.2rem;
+    color: var(--primary-purple-dark);
+    font-weight: 700;
 }
 
 #checkButton {
@@ -845,11 +922,288 @@ footer {
     border-top: 1px solid rgba(102, 126, 234, 0.08);
 }
 
+.task-text table {
+    border-collapse: collapse;
+    margin: 10px auto;
+}
+
+.task-text th,
+.task-text td {
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    padding: 6px 14px;
+    text-align: center;
+    font-size: 18px;
+    min-width: 40px;
+}
+
+.task-text th {
+    background-color: #e9e9e9;
+    font-weight: 600;
+}
+
+.task-files {
+    margin-top: 4px;
+}
+
+.task-files a {
+    text-decoration: none;
+    color: #5a6be0;
+    font-size: 14px;
+}
+
+.task-files a:hover {
+    text-decoration: none;
+    color: var(--primary-purple-dark)
+}
+
+.task-text p {
+    margin-bottom: 0;
+}
+
+.task-text p:last-child {
+    margin-bottom: 0;
+}
+
+/* ========================================
+   ГЛАВНАЯ СТРАНИЦА
+======================================== */
+
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+body.home,
+body.index {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+}
+
+body.home header,
+body.index header {
+    flex-shrink: 0;
+}
+
+body.home main,
+body.index main {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+    overflow: hidden;
+}
+
+body.home footer,
+body.index footer {
+    flex-shrink: 0;
+    margin-top: 0;
+    padding: 1rem;
+    font-size: 0.8rem;
+}
+
+body.home .container,
+body.index .container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+    max-height: 100%;
+}
+
+body.home .hero,
+body.index .hero {
+    text-align: center;
+    margin: 0;
+    padding: 2rem 2rem;
+    flex-shrink: 0;
+}
+
+body.home .hero h1,
+body.index .hero h1 {
+    font-size: 2rem;
+    margin-bottom: 0.8rem;
+}
+
+body.home .hero p,
+body.index .hero p {
+    font-size: 1rem;
+    line-height: 1.5;
+}
+
+body.home .exam-grid,
+body.index .exam-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+    margin: 0;
+    flex-shrink: 0;
+}
+
+body.home .exam-card,
+body.index .exam-card {
+    padding: 2rem 1.5rem;
+}
+
 /* ========================================
    АДАПТИВНОСТЬ
 ======================================== */
 
+/* MacBook Air и подобные */
+@media (max-height: 900px) {
+    body.home .hero,
+    body.index .hero {
+        padding: 1.5rem 2rem;
+    }
+    
+    body.home .hero h1,
+    body.index .hero h1 {
+        font-size: 1.8rem;
+        margin-bottom: 0.6rem;
+    }
+    
+    body.home .hero p,
+    body.index .hero p {
+        font-size: 0.95rem;
+    }
+    
+    body.home .container,
+    body.index .container {
+        gap: 1.5rem;
+        padding: 1.5rem;
+    }
+    
+    body.home .exam-card,
+    body.index .exam-card {
+        padding: 1.8rem 1.5rem;
+    }
+    
+    .exam-icon {
+        width: 70px;
+        height: 70px;
+        font-size: 2.5rem;
+    }
+    
+    .exam-title {
+        font-size: 1.5rem;
+    }
+    
+    .exam-description {
+        font-size: 0.9rem;
+    }
+}
+
+/* Для низких экранов (MacBook Air 13") */
+@media (max-height: 800px) {
+    body.home .hero,
+    body.index .hero {
+        padding: 1.2rem 1.5rem;
+    }
+    
+    body.home .hero h1,
+    body.index .hero h1 {
+        font-size: 1.6rem;
+        margin-bottom: 0.5rem;
+    }
+    
+    body.home .hero p,
+    body.index .hero p {
+        font-size: 0.9rem;
+        line-height: 1.4;
+    }
+    
+    body.home .container,
+    body.index .container {
+        gap: 1.2rem;
+        padding: 1.2rem;
+    }
+    
+    body.home .exam-grid,
+    body.index .exam-grid {
+        gap: 1.2rem;
+    }
+    
+    body.home .exam-card,
+    body.index .exam-card {
+        padding: 1.5rem 1.2rem;
+    }
+    
+    .exam-icon {
+        width: 60px;
+        height: 60px;
+        font-size: 2rem;
+    }
+    
+    .exam-title {
+        font-size: 1.4rem;
+    }
+    
+    body.home footer,
+    body.index footer {
+        padding: 0.8rem;
+        font-size: 0.75rem;
+    }
+}
+
+/* Очень низкие экраны */
+@media (max-height: 700px) {
+    body.home .hero,
+    body.index .hero {
+        padding: 1rem;
+    }
+    
+    body.home .hero h1,
+    body.index .hero h1 {
+        font-size: 1.5rem;
+    }
+    
+    body.home .container,
+    body.index .container {
+        gap: 1rem;
+    }
+    
+    body.home .exam-card,
+    body.index .exam-card {
+        padding: 1.2rem 1rem;
+    }
+}
+
+/* Мобильные устройства */
 @media (max-width: 768px) {
+    body.home,
+    body.index {
+        overflow-y: auto;
+    }
+    
+    body.home main,
+    body.index main {
+        align-items: flex-start;
+        overflow-y: auto;
+    }
+    
+    body.home .container,
+    body.index .container {
+        padding: 1.5rem 1rem;
+        gap: 2rem;
+    }
+    
+    body.home .hero,
+    body.index .hero {
+        padding: 1.5rem 1rem;
+    }
+    
+    body.home .exam-grid,
+    body.index .exam-grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+    
     .hero h1 {
         font-size: 2rem;
     }
@@ -906,6 +1260,31 @@ footer {
 }
 
 @media (max-width: 480px) {
+    body.home .container,
+    body.index .container {
+        padding: 1rem 0.8rem;
+        gap: 1.5rem;
+    }
+    
+    body.home .hero,
+    body.index .hero {
+        padding: 1rem;
+    }
+    
+    .exam-card {
+        padding: 1.5rem 1.2rem;
+    }
+    
+    .exam-icon {
+        font-size: 2.5rem;
+        width: 70px;
+        height: 70px;
+    }
+    
+    .exam-title {
+        font-size: 1.5rem;
+    }
+    
     .container {
         padding: 1.5rem 1rem;
     }
@@ -920,5 +1299,20 @@ footer {
     
     .task {
         padding: 1.5rem;
+    }
+}
+
+/* Для больших экранов */
+@media (min-width: 1400px) and (min-height: 900px) {
+    body.home .exam-grid,
+    body.index .exam-grid {
+        grid-template-columns: repeat(2, 1fr);
+        max-width: 900px;
+        margin: 0 auto;
+    }
+    
+    body.home .container,
+    body.index .container {
+        gap: 3rem;
     }
 }
