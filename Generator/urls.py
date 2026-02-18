@@ -23,6 +23,8 @@ urlpatterns = [
      path("api/<str:level>/<str:subject>/tasks/", views.api_tasks),
      path("api/<str:level>/<str:subject>/variant/", views.api_generate_variant),
      path("api/<str:level>/<str:subject>/variant/<int:variant_id>/", views.api_variant_detail),
+     path('<str:level>/<str:subject>/variant/<int:variant_id>/pdf/', views.variant_pdf),
+
 
 
 

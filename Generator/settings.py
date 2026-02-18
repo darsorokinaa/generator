@@ -15,6 +15,8 @@ from pathlib import Path
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+
+
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
@@ -23,8 +25,8 @@ SECRET_KEY = 'django-insecure-)&u-i%%%7kr6y6kx11pcr$fq6e1ita5)%ykv1aluxmvtbaln#7
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
+ALLOWED_HOSTS = ["127.0.0.1", "localhost"]
 
-ALLOWED_HOSTS = []
 
 # Application definition
 
@@ -38,9 +40,9 @@ INSTALLED_APPS = [
     'Generator',
     'ckeditor',
     'ckeditor_uploader',
-    'channels',
     'Board',
-    'corsheaders'
+    'corsheaders',
+    
 
 ]
 
@@ -92,16 +94,8 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'Generator.wsgi.application'
 
-ASGI_APPLICATION = "Generator.asgi.application"
+# ASGI_APPLICATION = "Generator.asgi.application"
 
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels_redis.core.RedisChannelLayer',
-        'CONFIG': {
-            "hosts": [('127.0.0.1', 6379)],
-        },
-    },
-}
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases

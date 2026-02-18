@@ -55,7 +55,7 @@ class TaskList(models.Model):
 
 # Банк задач
 class Task(models.Model):
-    task = models.ForeignKey(TaskList, on_delete=CASCADE, null=True)
+    task = models.ForeignKey(TaskList, on_delete=CASCADE, null=True, db_index=True)
     task_template = RichTextField()
     files = models.FileField(upload_to='task_files', blank=True, null=True)
 
