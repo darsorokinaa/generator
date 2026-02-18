@@ -3,7 +3,7 @@ from django.db.models import DO_NOTHING, CASCADE
 from datetime import datetime
 import os
 from uuid import uuid4
-from ckeditor.fields import RichTextField
+from django_ckeditor_5.fields import CKEditor5Field
 
 
 def task_url(instance, filename):
@@ -56,7 +56,7 @@ class TaskList(models.Model):
 # Банк задач
 class Task(models.Model):
     task = models.ForeignKey(TaskList, on_delete=CASCADE, null=True, db_index=True)
-    task_template = RichTextField()
+    task_template = CKEditor5Field("Task text", config_name='default')
     files = models.FileField(upload_to='task_files', blank=True, null=True)
 
     answer = models.TextField(max_length=500)

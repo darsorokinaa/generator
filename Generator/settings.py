@@ -38,14 +38,30 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'Generator',
-    'ckeditor',
-    'ckeditor_uploader',
     'Board',
     'corsheaders',
+     "django_ckeditor_5",
     
 
 ]
-
+CKEDITOR_5_CONFIGS = {
+    "default": {
+        "toolbar": [
+            "bold", "italic",
+            "link",
+            "bulletedList", "numberedList",
+            "imageUpload",
+            "undo", "redo"
+        ],
+        "image": {
+            "toolbar": [
+                "imageTextAlternative",
+                "imageStyle:full",
+                "imageStyle:side"
+            ]
+        },
+    }
+}
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",  # 1. CORS — первым
     'django.middleware.security.SecurityMiddleware',
@@ -151,6 +167,7 @@ USE_TZ = True
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [
     BASE_DIR / "static"  # Укажите путь к папке, где лежат ваши статические файлы
@@ -160,4 +177,3 @@ STATICFILES_DIRS = [
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-CKEDITOR_UPLOAD_PATH = "uploads/"

@@ -11,6 +11,8 @@ urlpatterns = [
     # =========================
     # ADMIN
     # =========================
+    path("ckeditor5/", include("django_ckeditor_5.urls")),
+
     path('admin/', admin.site.urls),
 
 
@@ -24,6 +26,7 @@ urlpatterns = [
      path("api/<str:level>/<str:subject>/variant/", views.api_generate_variant),
      path("api/<str:level>/<str:subject>/variant/<int:variant_id>/", views.api_variant_detail),
      path('<str:level>/<str:subject>/variant/<int:variant_id>/pdf/', views.variant_pdf),
+     path('<str:level>/<str:subject>/variant/<int:variant_id>/pdf/spring', views.variant_pdfSpring),
 
 
 
@@ -64,7 +67,6 @@ urlpatterns = [
         name='subject'
     ),
 
-    path('ckeditor/', include('ckeditor_uploader.urls')),
 ]
 
 
