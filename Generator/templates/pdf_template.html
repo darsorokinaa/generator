@@ -1,0 +1,55 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Вариант {{ variant.id }}</title>
+    {{ math_styles|safe }}
+    <link rel="stylesheet" href="{% static 'css/pdf.css' %}">
+</head>
+<body>
+
+<div class="tasks-wrapper">
+
+    {% for item in contents %}
+        <div class="task">
+            <div class="task-number">{{ item.order }}</div>
+            <div class="task-body">
+                {{ item.text|safe }}
+
+                {% if item.file_url %}
+                    <img src="{{ item.file_url }}">
+                {% endif %}
+
+                <div class="answer-line">
+                    Ответ: <span class="answer-field"></span>
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+
+</div>
+
+
+<!-- СТРАНИЦА ОТВЕТОВ -->
+<div class="answers-page">
+    <div class="answers-title">Ответы</div>
+
+    <table class="answers-table">
+        <tr>
+            <th>Номер задания</th>
+            {% for item in contents %}
+                <th>{{ item.order }}</th>
+            {% endfor %}
+        </tr>
+        <tr>
+            <td><strong>Ответ</strong></td>
+            {% for item in contents %}
+                <td>{{ item.answer }}</td>
+            {% endfor %}
+        </tr>
+    </table>
+</div>
+
+</body>
+</html>

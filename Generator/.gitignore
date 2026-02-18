@@ -1,9 +1,3 @@
-<<<<<<< HEAD
-node_modules/
-.venv/
-__pycache__/
-*.pyc
-=======
 # Python
 __pycache__/
 *.py[cod]
@@ -22,5 +16,4 @@ staticfiles/
 .env
 
 # OS
->>>>>>> 3c736b1aaeb096ff88029745392b45987f052d5d
 .DS_Store
