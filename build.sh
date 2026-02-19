@@ -8,7 +8,7 @@ npm install
 npm run build
 
 cd /home/runner/workspace/Generator
-python manage.py migrate --fake-initial --noinput
+python manage.py migrate --fake --noinput
 python manage.py collectstatic --noinput
 
 PGPASSWORD=$PGPASSWORD psql -h $PGHOST -p $PGPORT -U $PGUSER -d $PGDATABASE -c "SELECT count(*) FROM \"Generator_level\";" 2>/dev/null | grep -q "^ *0$" && {
