@@ -56,5 +56,5 @@ externalPort = 8000
 
 [deployment]
 deploymentTarget = "vm"
+build = ["bash", "-c", "pip install -r <(pip freeze) 2>/dev/null; pip install django django-cors-headers django-ckeditor-5 django-ckeditor weasyprint psycopg2-binary channels gunicorn && npm install --prefix frontend && npm run build --prefix frontend"]
 run = ["bash", "-c", "cd Generator && gunicorn --bind=0.0.0.0:5000 --reuse-port Generator.wsgi:application"]
-build = ["bash", "-c", "npm install --prefix frontend && npm run build --prefix frontend"]
