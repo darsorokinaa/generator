@@ -75,7 +75,7 @@ function ExamPage() {
     if (variant && window.MathJax) {
       window.MathJax.typesetPromise();
     }
-  }, [variant, boardOpen]);
+  }, [variant, boardOpen, userAnswers, checkedTasks, scores]);
 
 
   /* =========================
@@ -252,13 +252,6 @@ function ExamPage() {
   function checkTask(taskId, correctAnswer) {
     const isCorrect = normalize(userAnswers[taskId] || "") === normalize(correctAnswer || "");
     setCheckedTasks(prev => ({ ...prev, [taskId]: isCorrect }));
-    retypeset();
-  }
-
-  function retypeset() {
-    setTimeout(() => {
-      if (window.MathJax) window.MathJax.typesetPromise();
-    }, 0);
   }
 
   function resetTask(taskId) {
@@ -272,14 +265,12 @@ function ExamPage() {
       delete updated[taskId];
       return updated;
     });
-    retypeset();
   }
 
   function resetAllAnswers() {
     setUserAnswers({});
     setCheckedTasks({});
     setScores({});
-    retypeset();
   }
 
   function clearBoard() {
