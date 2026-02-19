@@ -5,6 +5,7 @@ import re
 import secrets
 
 from django.conf import settings as django_settings
+from django.contrib.staticfiles import finders
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
@@ -478,6 +479,16 @@ def process_latex(html_text: str) -> str:
 # PDF VIEW
 # =====================================================
 
+def _get_pdf_css():
+    css_path = finders.find('css/pdf.css')
+    if not css_path:
+        css_path = os.path.join(django_settings.STATIC_ROOT or '', 'css', 'pdf.css')
+    if css_path and os.path.exists(css_path):
+        with open(css_path, 'r', encoding='utf-8') as f:
+            return f.read()
+    return ''
+
+
 MATH_CSS = mark_safe("""<style>
 .math-display { display: block; text-align: center; margin: .8em 0; font-size: 1.1em; }
 .math-inline  { display: inline; }
@@ -537,6 +548,7 @@ def variant_pdf(request, level, subject, variant_id):
         "contents": processed_contents,
         "answers_parts": answers_parts,
         "math_styles": MATH_CSS,
+        "pdf_css": _get_pdf_css(),
     })
 
     pdf = WeasyHTML(
@@ -585,11 +597,18 @@ def variant_pdfSpring(request, level, subject, variant_id):
         if (p or "Без части") in answers_by_part
     ]
 
+    spring_img = finders.find('img/spring.png')
+    if not spring_img:
+        spring_img = os.path.join(django_settings.STATIC_ROOT or '', 'img', 'spring.png')
+    spring_img_url = f'file://{spring_img}' if spring_img and os.path.exists(spring_img) else ''
+
     html_string = render_to_string("pdf_templateSpring.html", {
         "variant": variant,
         "contents": processed_contents,
         "answers_parts": answers_parts,
         "math_styles": MATH_CSS,
+        "pdf_css": _get_pdf_css(),
+        "spring_img_path": spring_img_url,
     })
 
     pdf = WeasyHTML(
