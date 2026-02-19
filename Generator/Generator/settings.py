@@ -64,8 +64,9 @@ CKEDITOR_5_CONFIGS = {
     }
 }
 MIDDLEWARE = [
-    "corsheaders.middleware.CorsMiddleware",  # 1. CORS — первым
+    "corsheaders.middleware.CorsMiddleware",
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',  # 2. Session — до Common
     "django.middleware.common.CommonMiddleware",  # 3. Common — один раз
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -91,10 +92,12 @@ SESSION_COOKIE_SAMESITE = 'Lax'
 
 ROOT_URLCONF = 'Generator.urls'
 
+FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent / 'frontend' / 'dist'
+
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [FRONTEND_DIR],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -167,8 +170,10 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 
 STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_DIRS = [
-    BASE_DIR / "static"  # Укажите путь к папке, где лежат ваши статические файлы
+    BASE_DIR / "static",
+    FRONTEND_DIR,
 ]
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

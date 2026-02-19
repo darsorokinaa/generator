@@ -1,8 +1,10 @@
 import json
 import logging
+import os
 import re
 import secrets
 
+from django.conf import settings as django_settings
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
@@ -14,6 +16,14 @@ from weasyprint import HTML as WeasyHTML
 from .models import Level, Subject, Task, TaskList, Variant, VariantContent
 
 logger = logging.getLogger(__name__)
+
+
+def react_app(request):
+    index_path = os.path.join(django_settings.FRONTEND_DIR, 'index.html')
+    if os.path.exists(index_path):
+        with open(index_path, 'r') as f:
+            return HttpResponse(f.read(), content_type='text/html')
+    return HttpResponse("Frontend not built", status=500)
 
 
 # =====================================================
