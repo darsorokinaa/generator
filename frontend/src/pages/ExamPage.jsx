@@ -254,6 +254,12 @@ function ExamPage() {
     setCheckedTasks(prev => ({ ...prev, [taskId]: isCorrect }));
   }
 
+  function retypeset() {
+    setTimeout(() => {
+      if (window.MathJax) window.MathJax.typesetPromise();
+    }, 0);
+  }
+
   function resetTask(taskId) {
     setUserAnswers(prev => {
       const updated = { ...prev };
@@ -265,12 +271,14 @@ function ExamPage() {
       delete updated[taskId];
       return updated;
     });
+    retypeset();
   }
 
   function resetAllAnswers() {
     setUserAnswers({});
     setCheckedTasks({});
     setScores({});
+    retypeset();
   }
 
   function clearBoard() {
