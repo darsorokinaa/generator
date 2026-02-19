@@ -75,7 +75,7 @@ function ExamPage() {
     if (variant && window.MathJax) {
       window.MathJax.typesetPromise();
     }
-  }, [variant]);
+  }, [variant, boardOpen]);
 
 
   /* =========================
