@@ -4,7 +4,7 @@ function Layout() {
   return (
     <div
       style={{
-        backgroundImage: "url('/img/bg.png')",
+        backgroundImage: `url('${import.meta.env.BASE_URL}img/bg.png')`,
         backgroundRepeat: "repeat",
         backgroundAttachment: "fixed"
       }}
@@ -16,7 +16,7 @@ function Layout() {
         <Link to="/" className="logo-link">
           <img
             className="logo-img"
-            src="/img/logo.png"
+            src={`${import.meta.env.BASE_URL}img/logo.png`}
             alt="ЛАБОБОР"
           />
           <span className="logo-text">Название</span>
