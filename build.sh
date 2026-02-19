@@ -16,3 +16,18 @@ PGPASSWORD=$PGPASSWORD psql -h $PGHOST -p $PGPORT -U $PGUSER -d $PGDATABASE -c "
   PGPASSWORD=$PGPASSWORD psql -h $PGHOST -p $PGPORT -U $PGUSER -d $PGDATABASE -f /home/runner/workspace/attached_assets/data_dump_1771499076298.sql
   echo "Data loaded successfully"
 } || echo "Database already has data, skipping import"
+
+python -c "
+import django, os
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'Generator.settings')
+django.setup()
+from django.contrib.auth.models import User
+if not User.objects.filter(username='admin').exists():
+    User.objects.create_superuser('admin', '', 'admin')
+    print('Superuser created')
+else:
+    u = User.objects.get(username='admin')
+    u.set_password('admin')
+    u.save()
+    print('Superuser password reset')
+"
