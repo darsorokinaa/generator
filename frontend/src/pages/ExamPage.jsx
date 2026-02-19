@@ -301,13 +301,13 @@ function ExamPage() {
   const totalScore = correctCount + Object.values(scores).reduce((a, b) => a + b, 0);
   const openPdf = (variantId) => {
     window.open(
-      `http://127.0.0.1:8000/${level}/${subject}/variant/${variantId}/pdf/`,
+      `/api/${level}/${subject}/variant/${variantId}/pdf/`,
       "_blank"
     );
   };
   const openPdfSpring = (variantId) => {
     window.open(
-      `http://127.0.0.1:8000/${level}/${subject}/variant/${variantId}/pdf/spring`,
+      `/api/${level}/${subject}/variant/${variantId}/pdf/spring`,
       "_blank"
     );
   };

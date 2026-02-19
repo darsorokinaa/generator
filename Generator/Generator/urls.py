@@ -27,6 +27,8 @@ urlpatterns = [
      path("api/<str:level>/<str:subject>/variant/<int:variant_id>/", views.api_variant_detail),
      path('<str:level>/<str:subject>/variant/<int:variant_id>/pdf/', views.variant_pdf),
      path('<str:level>/<str:subject>/variant/<int:variant_id>/pdf/spring', views.variant_pdfSpring),
+     path('api/<str:level>/<str:subject>/variant/<int:variant_id>/pdf/', views.variant_pdf),
+     path('api/<str:level>/<str:subject>/variant/<int:variant_id>/pdf/spring', views.variant_pdfSpring),
 
 
 
