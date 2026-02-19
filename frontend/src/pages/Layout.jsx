@@ -10,17 +10,22 @@ function Layout() {
       }}
     >
       <header>
-        <div className="container">
-          <div className="header-wrapper">
-            <div className="logo">
-              <Link to="/">
-                <span className="logo-icon">∑</span>
-                <span className="logo-text">Название</span>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </header>
+  <div className="container">
+    <div className="header-wrapper">
+      <div className="logo-block">
+        <Link to="/" className="logo-link">
+          <img
+            className="logo-img"
+            src="/img/logo.png"
+            alt="ЛАБОБОР"
+          />
+          <span className="logo-text">Название</span>
+        </Link>
+      </div>
+    </div>
+  </div>
+</header>
+
 
       <aside>
         {/* боковое меню */}

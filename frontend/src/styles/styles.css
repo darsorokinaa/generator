@@ -1583,3 +1583,28 @@ body.index .exam-card {
   box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3);
   transform: translateY(-2px);
 }
+
+.logo-block {
+  display: flex;
+  align-items: center;
+}
+
+.logo-link {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  gap: 10px;
+}
+
+.logo-img {
+  height: 36px;       /* можно 32–40px */
+  width: auto;
+  display: block;
+}
+
+.logo-text {
+  font-size: 20px;
+  font-weight: 600;
+  color: white;     /* при необходимости поменяй */
+  letter-spacing: 0.5px;
+}
