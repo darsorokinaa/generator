@@ -252,6 +252,7 @@ function ExamPage() {
   function checkTask(taskId, correctAnswer) {
     const isCorrect = normalize(userAnswers[taskId] || "") === normalize(correctAnswer || "");
     setCheckedTasks(prev => ({ ...prev, [taskId]: isCorrect }));
+    retypeset();
   }
 
   function retypeset() {
