@@ -1,76 +1,34 @@
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, include, re_path
 from django.conf import settings
 from django.conf.urls.static import static
-
 from Generator import views
 
-
 urlpatterns = [
-
-    # =========================
-    # ADMIN
-    # =========================
+    # CKEDITOR + ADMIN
     path("ckeditor5/", include("django_ckeditor_5.urls")),
+    path("admin/", admin.site.urls),
 
-    path('admin/', admin.site.urls),
-
-
-    # =========================
-    # API ROUTES (ВСЕ API ВЫШЕ!)
-    # =========================
-
-    # Получить список задач
+    # API
     path("api/csrf/", views.api_csrf, name="api_csrf"),
-     path("api/<str:level>/<str:subject>/tasks/", views.api_tasks),
-     path("api/<str:level>/<str:subject>/variant/", views.api_generate_variant),
-     path("api/<str:level>/<str:subject>/variant/<int:variant_id>/", views.api_variant_detail),
-     path('<str:level>/<str:subject>/variant/<int:variant_id>/pdf/', views.variant_pdf),
-     path('<str:level>/<str:subject>/variant/<int:variant_id>/pdf/spring', views.variant_pdfSpring),
-     path('api/<str:level>/<str:subject>/variant/<int:variant_id>/pdf/', views.variant_pdf),
-     path('api/<str:level>/<str:subject>/variant/<int:variant_id>/pdf/spring', views.variant_pdfSpring),
+    path("api/<str:level>/<str:subject>/tasks/", views.api_tasks),
+    path("api/<str:level>/<str:subject>/variant/", views.api_generate_variant),
+    path("api/<str:level>/<str:subject>/variant/<int:variant_id>/",
+         views.api_variant_detail),
 
+    # PDF (серверный рендеринг)
+    path("<str:level>/<str:subject>/variant/<int:variant_id>/pdf/spring",
+         views.variant_pdfSpring),
+    path("<str:level>/<str:subject>/variant/<int:variant_id>/pdf/",
+         views.variant_pdf),
 
+    # Board
+    path("board/", include("Board.urls")),
 
-
-    # =========================
-    # HTML ROUTES (старые шаблоны)
-    # =========================
-
-    path('', views.index, name='index'),
-
-    path("", include("Board.urls")),
-
-    # Страница варианта (HTML)
-    path(
-        '<str:level>/<str:subject>/variant/<int:variant_id>/',
-        views.variant_detail,
-        name='variant_detail'
-    ),
-
-    # Генерация варианта (HTML POST)
-    path(
-        '<str:level>/<str:subject>/variant/',
-        views.generate_variant,
-        name='variant'
-    ),
-
-    # Список задач (HTML)
-    path(
-        '<str:level>/<str:subject>/',
-        views.tasks,
-        name='tasks'
-    ),
-
-    # Выбор предмета
-    path(
-        '<str:level>/',
-        views.subject,
-        name='subject'
-    ),
-
+    # React — всё остальное отдаём React-приложению
+    re_path(r"^.*$", views.react_app, name="index"),
 ]
 
-
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns += static(settings.MEDIA_URL,
+                          document_root=settings.MEDIA_ROOT)
