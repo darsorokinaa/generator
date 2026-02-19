@@ -5,3 +5,56 @@ expertMode = true
 [nix]
 channel = "stable-25_05"
 packages = ["fontconfig", "ghostscript", "glib", "gobject-introspection", "harfbuzz", "pango"]
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Django Backend"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Frontend"
+
+[[workflows.workflow]]
+name = "Django Backend"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd /home/runner/workspace/Generator && python manage.py runserver 0.0.0.0:8000"
+waitForPort = 8000
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow]]
+name = "Frontend"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd /home/runner/workspace/frontend && npm run dev"
+waitForPort = 5000
+
+[workflows.workflow.metadata]
+outputType = "webview"
+
+[[ports]]
+localPort = 5000
+externalPort = 80
+
+[[ports]]
+localPort = 8000
+externalPort = 8000
+
+[deployment]
+deploymentTarget = "vm"
+run = ["bash", "-c", "cd /home/runner/workspace/Generator && gunicorn --bind=0.0.0.0:5000 --reuse-port Generator.wsgi:application"]
+build = ["bash", "-c", "cd /home/runner/workspace/frontend && npm run build"]

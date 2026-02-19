@@ -1,17 +1,10 @@
-<<<<<<< HEAD
-node_modules/
-.venv/
-__pycache__/
-*.pyc
-=======
 # Python
 __pycache__/
 *.py[cod]
 *.sqlite3
-
-# Virtualenv
 .venv/
 venv/
+.pythonlibs/
 
 # Django
 *.log
@@ -21,6 +14,14 @@ staticfiles/
 # Environment variables
 .env
 
+# Node
+node_modules/
+
 # OS
->>>>>>> 3c736b1aaeb096ff88029745392b45987f052d5d
 .DS_Store
+
+# IDE
+.idea/
+
+# Replit
+.cache/
