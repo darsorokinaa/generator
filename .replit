@@ -56,5 +56,5 @@ externalPort = 8000
 
 [deployment]
 deploymentTarget = "vm"
-run = ["bash", "-c", "cd /home/runner/workspace/Generator && gunicorn --bind=0.0.0.0:5000 --reuse-port Generator.wsgi:application"]
-build = ["bash", "-c", "cd /home/runner/workspace/frontend && npm run build"]
+run = ["bash", "-c", "cd Generator && gunicorn --bind=0.0.0.0:5000 --reuse-port Generator.wsgi:application"]
+build = ["bash", "-c", "cd frontend && npm install && npm run build"]
