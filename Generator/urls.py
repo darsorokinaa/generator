@@ -3,6 +3,7 @@ from django.urls import path, include, re_path
 from django.conf import settings
 from django.conf.urls.static import static
 from Generator import views
+from django.views.generic import TemplateView
 
 urlpatterns = [
     # CKEDITOR + ADMIN
@@ -24,11 +25,9 @@ urlpatterns = [
 
     # Board
     path("board/", include("Board.urls")),
-
-    # React — всё остальное отдаём React-приложению
-    re_path(r"^.*$", views.react_app, name="index"),
+    re_path(r"^(?!api/).*$", TemplateView.as_view(template_name="index.html")),
 ]
 
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL,
-                          document_root=settings.MEDIA_ROOT)
+     urlpatterns += static(settings.MEDIA_URL,
+                           document_root=settings.MEDIA_ROOT)
