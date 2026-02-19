@@ -26,9 +26,10 @@ def task_url(instance, filename):
 
 class Level(models.Model):
     level = models.CharField(max_length=10)
+    level_rus = models.CharField(max_length=50, default='')
     def __str__(self):
         return self.level
-    
+
 
 class Subject(models.Model):
     subject_short = models.CharField(max_length=50)
@@ -39,7 +40,7 @@ class Subject(models.Model):
 
 class Part(models.Model):
     part_title = models.CharField(max_length=35, blank=True, null=True)
-    
+
     def __str__(self):
         return self.part_title
 
@@ -59,20 +60,22 @@ class Task(models.Model):
     task_template = CKEditor5Field("Task text", config_name='default')
     files = models.FileField(upload_to='task_files', blank=True, null=True)
 
-    answer = models.TextField(max_length=500)
-    
+    answer = CKEditor5Field("Task answer", config_name='default')
+
+    author = models.TextField(max_length=500, blank=True, null=True)
+
     added_at = models.DateTimeField(default=datetime.today)
     created_by =models.CharField(default='ADMIN')
 
     def __str__(self):
         return f'{self.id}: {self.task_template[:100]}'
-    
+
 class Tags(models.Model):
     tag = models.CharField(max_length=20, null=True, blank=True, default="Экзамен")
 
     def __str__(self):
         return self.tag
-    
+
 class Variant(models.Model):
     var_subject = models.ForeignKey(Subject, on_delete=CASCADE)
     level = models.ForeignKey(Level, on_delete=CASCADE)
@@ -81,7 +84,7 @@ class Variant(models.Model):
     share_token = models.CharField(max_length=20, blank=True, null=True)
     def __str__(self):
         return f'Вариант {self.id} -  {self.var_subject}: {self.level}'
-    
+
 
 class VariantContent(models.Model):
     variant = models.ForeignKey(Variant, on_delete=CASCADE)

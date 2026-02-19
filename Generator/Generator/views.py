@@ -548,6 +548,7 @@ def variant_pdf(request, level, subject, variant_id):
         "contents": processed_contents,
         "answers_parts": answers_parts,
         "math_styles": MATH_CSS,
+        'subject' : subject,
         "pdf_css": _get_pdf_css(),
     })
 
@@ -586,6 +587,7 @@ def variant_pdfSpring(request, level, subject, variant_id):
             "text": rendered_text,
             "answer": item.task.answer,
             "part": part,
+            'subject' : subject,
             "file_url": request.build_absolute_uri(item.task.files.url) if item.task.files else None,
         }
         processed_contents.append(entry)

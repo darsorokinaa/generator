@@ -1,44 +1,51 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <title>Вариант {{ variant.id }}</title>
     {{ math_styles|safe }}
-    <style>{{ pdf_css }}</style>
+    <link rel="stylesheet" href="{% static 'css/pdf.css' %}">
 </head>
 <body>
 
 <div class="tasks-wrapper">
-
     {% for item in contents %}
         <div class="task">
-            <div class="task-number">{{ item.order }}</div>
+            <div class="ta">
+                {% if item.subject == "inf" and item.order == 19 %}
+                    19–21
+                {% else %}
+                    {{ item.order }}
+                {% endif %}
+            </div>
             <div class="task-body">
                 {{ item.text|safe }}
-
                 {% if item.file_url %}
                     <img src="{{ item.file_url }}">
                 {% endif %}
-
                 <div class="answer-line">
                     Ответ: <span class="answer-field"></span>
                 </div>
             </div>
         </div>
     {% endfor %}
-
 </div>
-
 
 <!-- СТРАНИЦА ОТВЕТОВ -->
 <div class="answers-page">
     <div class="answers-title">Ответы</div>
-
     <table class="answers-table">
         <tr>
             <th>Номер задания</th>
             {% for item in contents %}
-                <th>{{ item.order }}</th>
+                <th>
+                    {% if item.subject == "inf" and item.order == 19 %}
+                        19–21
+                    {% else %}
+                        {{ item.order }}
+                    {% endif %}
+                </th>
             {% endfor %}
         </tr>
         <tr>
