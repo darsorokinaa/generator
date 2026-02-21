@@ -1,13 +1,17 @@
+import html as html_lib
 import json
 import logging
 import os
 import re
 import secrets
+import shutil
+import subprocess
+from functools import lru_cache
 
 from django.conf import settings as django_settings
 from django.contrib.staticfiles import finders
-from django.http import HttpResponse, JsonResponse
-from django.shortcuts import get_object_or_404, render
+from django.http import FileResponse, HttpResponse, JsonResponse
+from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
 from django.utils.safestring import mark_safe
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
@@ -25,20 +29,6 @@ def react_app(request):
         with open(index_path, 'r') as f:
             return HttpResponse(f.read(), content_type='text/html')
     return HttpResponse("Frontend not built", status=500)
-
-
-# =====================================================
-# HELPERS
-# =====================================================
-
-def _build_variant_data(variant, request=None):
-    """Общая логика сборки данных варианта для API и PDF."""
-    contents = (
-        variant.variantcontent_set
-        .select_related('task', 'task__task', 'task__task__part')
-        .order_by('order')
-    )
-    return contents
 
 
 def _create_variant(subject_short, level_str, body_bytes):
@@ -61,68 +51,6 @@ def _create_variant(subject_short, level_str, body_bytes):
         for index, task in enumerate(selected_tasks, start=1)
     ])
     return new_variant
-
-
-# =====================================================
-# HTML VIEWS
-# =====================================================
-
-def index(request):
-    return render(request, 'index.html')
-
-
-def subject(request, level):
-    return render(request, 'subject.html', {'level': level})
-
-
-@ensure_csrf_cookie
-def tasks(request, level, subject):
-    subject_instance = get_object_or_404(Subject, subject_short=subject)
-    level_instance = get_object_or_404(Level, level=level)
-    task_list = (
-        TaskList.objects
-        .filter(subject=subject_instance, level=level_instance)
-        .order_by('task_number')
-    )
-    return render(request, 'tasks.html', {
-        'subject_short': subject_instance.subject_short,
-        'subject_name': subject_instance.subject_name,
-        'task_list': task_list,
-        'level': level_instance,
-    })
-
-
-@require_http_methods(["POST"])
-def generate_variant(request, level, subject):
-    try:
-        new_variant = _create_variant(subject, level, request.body)
-        return JsonResponse({'variant_id': new_variant.id})
-    except Exception as e:
-        return JsonResponse({'error': str(e)}, status=400)
-
-
-def variant_detail(request, level, subject, variant_id):
-    variant = get_object_or_404(Variant, id=variant_id)
-    contents = (
-        VariantContent.objects
-        .filter(variant=variant)
-        .select_related('task')
-        .order_by('order')
-    )
-    return render(request, 'exam.html', {
-        'tasks': [item.task for item in contents],
-        'variant': variant,
-    })
-
-
-def shared_var(request, token):
-    variant = get_object_or_404(Variant, share_token=token)
-    return variant_detail(
-        request,
-        level=variant.level.level,
-        subject=variant.var_subject.subject_short,
-        variant_id=variant.id,
-    )
 
 
 # =====================================================
@@ -174,11 +102,12 @@ def api_variant_detail(request, level, subject, variant_id):
 
     for item in contents:
         raw_html = str(item.task.task_template or "")
+        processed_html = process_latex(raw_html)
 
         tasks_data.append({
             "id": item.task.id,
             "number": item.order,
-            "text": raw_html,  # HTML отдаем как есть (включая <img>)
+            "text": processed_html,
             "answer": item.task.answer,
             "part": item.task.task.part_id if item.task.task else None,
             "file": request.build_absolute_uri(item.task.files.url)
@@ -203,8 +132,9 @@ MATH_SYMBOLS = {
     r'\partial': '∂', r'\nabla': '∇', r'\exists': '∃', r'\forall': '∀',
     r'\in': '∈', r'\notin': '∉', r'\subset': '⊂', r'\supset': '⊃',
     r'\cup': '∪', r'\cap': '∩', r'\emptyset': '∅',
-    r'\rightarrow': '→', r'\leftarrow': '←',
+    r'\rightarrow': '→', r'\leftarrow': '←', r'\to': '→',
     r'\Rightarrow': '⇒', r'\Leftarrow': '⇐', r'\leftrightarrow': '↔',
+    r'\land': '∧', r'\lor': '∨', r'\neg': '¬', r'\lnot': '¬',
     r'\alpha': 'α', r'\beta': 'β', r'\gamma': 'γ', r'\delta': 'δ',
     r'\epsilon': 'ε', r'\zeta': 'ζ', r'\eta': 'η', r'\theta': 'θ',
     r'\lambda': 'λ', r'\mu': 'μ', r'\nu': 'ν', r'\xi': 'ξ',
@@ -246,6 +176,10 @@ _RE_ENV = re.compile(
     r'\\begin\{(aligned|align\*?|cases|gather\*?|equation\*?)\}(.*?)\\end\{\1\}',
     re.DOTALL,
 )
+_RE_ARRAY = re.compile(
+    r'\\begin\{array\}\{[^}]*\}(.*?)\\end\{array\}',
+    re.DOTALL,
+)
 _RE_POWER_GROUP = re.compile(r'\^\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}')
 _RE_INDEX_GROUP = re.compile(r'_\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}')
 _RE_POWER_SINGLE = re.compile(r'\^([0-9a-zA-Zα-ωΑ-Ω])')
@@ -264,6 +198,56 @@ _RE_BRACES = re.compile(r'[{}]')
 _RE_FUNC = re.compile(
     r'\\(' + '|'.join(sorted(MATH_FUNCTIONS, key=len, reverse=True)) + r')\b'
 )
+_RE_MATH_SPAN = re.compile(
+    r'<span[^>]*data-type=["\']math["\'][^>]*data-latex=["\']([^"\']+)["\'][^>]*>.*?</span>',
+    re.DOTALL,
+)
+
+MATHJAX_RENDER_SCRIPT = django_settings.BASE_DIR / "frontend" / "render_mathjax.cjs"
+MATHJAX_NODE = shutil.which("node")
+MATHJAX_AVAILABLE = bool(MATHJAX_NODE and MATHJAX_RENDER_SCRIPT.exists())
+
+
+@lru_cache(maxsize=2048)
+def _render_mathjax_svg(latex: str, display: bool) -> str:
+    if not MATHJAX_AVAILABLE:
+        raise RuntimeError("MathJax renderer is not available")
+    payload = json.dumps({"latex": latex, "display": display})
+    result = subprocess.run(
+        [MATHJAX_NODE, str(MATHJAX_RENDER_SCRIPT)],
+        input=payload,
+        text=True,
+        capture_output=True,
+        check=True,
+        timeout=5,
+    )
+    return result.stdout.strip()
+
+
+def _wrap_math_output(html: str, display: bool) -> str:
+    if not html:
+        return ""
+    tag = "div" if display else "span"
+    class_name = "math-display" if display else "math-inline"
+    return f'<{tag} class="{class_name}">{html}</{tag}>'
+
+
+def _is_display_math(latex: str, span_html: str = "") -> bool:
+    if 'data-display="true"' in span_html or "data-display='true'" in span_html:
+        return True
+    return any(cmd in latex for cmd in (
+        r'\begin', r'\[', r'\dfrac', r'\displaystyle', r'\begin{array}',
+    ))
+
+
+def _render_math_block(latex: str, display: bool) -> str:
+    if MATHJAX_AVAILABLE:
+        try:
+            svg = _render_mathjax_svg(latex, display)
+            return _wrap_math_output(svg, display)
+        except Exception:
+            logger.exception("MathJax render failed, falling back to parser")
+    return _convert_math_block(latex, display=display)
 
 
 def _extract_balanced(text: str, pos: int) -> tuple[str, int]:
@@ -356,6 +340,19 @@ def _convert_sqrt(text: str) -> str:
 
 
 def _convert_environments(text: str) -> str:
+    def replace_array(m):
+        rows = re.split(r'\\\\', m.group(1))
+        rows_html = []
+        for row in rows:
+            cells = [c.strip() for c in row.split('&')]
+            if not any(cells):
+                continue
+            row_html = ''.join(f'<td class="array-cell">{cell}</td>' for cell in cells)
+            rows_html.append(f'<tr class="array-row">{row_html}</tr>')
+        if not rows_html:
+            return ''
+        return f'<table class="array-table"><tbody>{"".join(rows_html)}</tbody></table>'
+
     def replace_env(m):
         env_name = m.group(1)
         rows = re.split(r'\\\\', m.group(2))
@@ -382,6 +379,7 @@ def _convert_environments(text: str) -> str:
         )
         return f'<div class="math-env">{html_rows}</div>'
 
+    text = _RE_ARRAY.sub(replace_array, text)
     return _RE_ENV.sub(replace_env, text)
 
 
@@ -452,25 +450,27 @@ def process_latex(html_text: str) -> str:
         return html_text
 
     def replace_math_span(m):
-        latex = m.group(1)
-        # Блочные формулы: cases, align, или формула стоит одна в абзаце
-        display = any(cmd in latex for cmd in (
-            r'\begin', r'\[', r'\dfrac',
-        ))
-        return _convert_math_block(latex, display=display)
+        span_html = m.group(0)
+        latex = html_lib.unescape(m.group(1))
+        display = _is_display_math(latex, span_html)
+        return _render_math_block(latex, display)
 
     # Заменяем <span data-type="math" data-latex="...">...</span>
-    html_text = re.sub(
-        r'<span[^>]*data-type=["\']math["\'][^>]*data-latex=["\']([^"\']+)["\'][^>]*>.*?</span>',
-        replace_math_span,
-        html_text,
-        flags=re.DOTALL,
-    )
+    html_text = _RE_MATH_SPAN.sub(replace_math_span, html_text)
     # Поддержка обратной совместимости со старым форматом \[...\] и $...$
     # (если задачи были введены в старом CKEditor)
-    html_text = _RE_DISPLAY.sub(lambda m: _convert_math_block(m.group(1), display=True), html_text)
-    html_text = _RE_INLINE_PAREN.sub(lambda m: _convert_math_block(m.group(1)), html_text)
-    html_text = _RE_INLINE_DOLLAR.sub(lambda m: _convert_math_block(m.group(1)), html_text)
+    html_text = _RE_DISPLAY.sub(
+        lambda m: _render_math_block(html_lib.unescape(m.group(1)), True),
+        html_text,
+    )
+    html_text = _RE_INLINE_PAREN.sub(
+        lambda m: _render_math_block(html_lib.unescape(m.group(1)), False),
+        html_text,
+    )
+    html_text = _RE_INLINE_DOLLAR.sub(
+        lambda m: _render_math_block(html_lib.unescape(m.group(1)), False),
+        html_text,
+    )
 
     return html_text
 
@@ -501,15 +501,31 @@ MATH_CSS = mark_safe("""<style>
 .cases-table  { display: inline-table; vertical-align: middle; border-collapse: collapse; margin: .3em 0; }
 .cases-brace  { font-size: 2.2em; line-height: 1; padding-right: .15em; vertical-align: middle; font-family: serif; font-weight: 100; }
 .cases-row    { padding: .15em 0; }
+.array-table  { display: inline-table; border-collapse: collapse; margin: .3em 0; }
+.array-cell   { padding: 0 .4em; text-align: center; }
+.array-row    { }
 .mf           { font-style: normal; }
 sup { font-size: .75em; vertical-align: super; }
 sub { font-size: .75em; vertical-align: sub; }
 </style>""")
 
 
-def variant_pdf(request, level, subject, variant_id):
-    variant = get_object_or_404(Variant, id=variant_id)
+def _resolve_background_image(filename: str, request=None) -> str:
+    if not filename:
+        return ""
+    img_path = finders.find(filename)
+    if not img_path:
+        img_path = os.path.join(django_settings.STATIC_ROOT or "", filename)
+    if img_path and os.path.exists(img_path):
+        return f"file://{img_path}"
+    if request:
+        base = (django_settings.STATIC_URL or "/").rstrip("/")
+        rel = filename.lstrip("/")
+        return request.build_absolute_uri(f"{base}/{rel}")
+    return ""
 
+
+def _build_pdf_context(request, variant, subject):
     contents = (
         variant.variantcontent_set
         .select_related('task', 'task__task', 'task__task__part')
@@ -532,6 +548,7 @@ def variant_pdf(request, level, subject, variant_id):
             "text": rendered_text,
             "answer": item.task.answer,
             "part": part,
+            "subject": subject,
             "file_url": request.build_absolute_uri(item.task.files.url) if item.task.files else None,
         }
         processed_contents.append(entry)
@@ -543,81 +560,73 @@ def variant_pdf(request, level, subject, variant_id):
         if (p or "Без части") in answers_by_part
     ]
 
-    html_string = render_to_string("pdf_template.html", {
+    subject_label = {
+        "inf": "ИНФОРМАТИКА",
+    }.get(subject, str(subject).upper())
+    grade_label = f"{subject_label}, {variant.level.level}"
+    if isinstance(variant.level.level, str) and variant.level.level.isdigit():
+        grade_label = f"{subject_label}, {variant.level.level} класс"
+    header_left = f"Демонстрационный вариант ЕГЭ 2026 г. {grade_label}."
+    footer_left = "© 2026 Федеральная служба по надзору в сфере образования и науки"
+
+    return {
         "variant": variant,
         "contents": processed_contents,
         "answers_parts": answers_parts,
         "math_styles": MATH_CSS,
-        'subject' : subject,
         "pdf_css": _get_pdf_css(),
-    })
+        "subject": subject,
+        "header_left": header_left,
+        "footer_left": footer_left,
+    }
 
+
+def _get_pdf_cache_path(variant_id, theme):
+    safe_theme = theme or "default"
+    base_dir = django_settings.MEDIA_ROOT or os.path.join(django_settings.BASE_DIR, "media")
+    cache_dir = os.path.join(base_dir, "pdfs")
+    os.makedirs(cache_dir, exist_ok=True)
+    filename = f"variant_{variant_id}_{safe_theme}.pdf"
+    return os.path.join(cache_dir, filename)
+
+
+def _render_variant_pdf(request, level, subject, variant_id, background_url="", theme="default"):
+    cache_path = _get_pdf_cache_path(variant_id, theme)
+    if os.path.exists(cache_path):
+        return FileResponse(open(cache_path, "rb"), content_type="application/pdf")
+
+    variant = get_object_or_404(Variant, id=variant_id)
+    context = _build_pdf_context(request, variant, subject)
+    context["background_url"] = background_url
+
+    html_string = render_to_string("pdf_template.html", context)
     pdf = WeasyHTML(
         string=html_string,
         base_url=request.build_absolute_uri('/'),
     ).write_pdf()
 
+    with open(cache_path, "wb") as f:
+        f.write(pdf)
+
     response = HttpResponse(pdf, content_type="application/pdf")
     response["Content-Disposition"] = f'inline; filename="variant_{variant_id}.pdf"'
     return response
+
+
+def variant_pdf(request, level, subject, variant_id):
+    theme = request.GET.get("theme", "").lower()
+    background_url = ""
+    if theme == "spring":
+        background_url = _resolve_background_image("img/spring.png", request=request)
+    return _render_variant_pdf(
+        request,
+        level,
+        subject,
+        variant_id,
+        background_url=background_url,
+        theme=theme or "default",
+    )
 
 
 def variant_pdfSpring(request, level, subject, variant_id):
-    variant = get_object_or_404(Variant, id=variant_id)
-
-    contents = (
-        variant.variantcontent_set
-        .select_related('task', 'task__task', 'task__task__part')
-        .order_by('order')
-    )
-
-    processed_contents = []
-    seen_parts = []
-    answers_by_part = {}
-
-    for item in contents:
-        rendered_text = mark_safe(process_latex(str(item.task.task_template)))
-        part = item.task.task.part.part_title if item.task.task.part else None
-
-        if part not in seen_parts:
-            seen_parts.append(part)
-
-        entry = {
-            "order": item.order,
-            "text": rendered_text,
-            "answer": item.task.answer,
-            "part": part,
-            'subject' : subject,
-            "file_url": request.build_absolute_uri(item.task.files.url) if item.task.files else None,
-        }
-        processed_contents.append(entry)
-        answers_by_part.setdefault(part or "Без части", []).append(entry)
-
-    answers_parts = [
-        {"part": p, "items": answers_by_part[p]}
-        for p in seen_parts
-        if (p or "Без части") in answers_by_part
-    ]
-
-    spring_img = finders.find('img/spring.png')
-    if not spring_img:
-        spring_img = os.path.join(django_settings.STATIC_ROOT or '', 'img', 'spring.png')
-    spring_img_url = f'file://{spring_img}' if spring_img and os.path.exists(spring_img) else ''
-
-    html_string = render_to_string("pdf_templateSpring.html", {
-        "variant": variant,
-        "contents": processed_contents,
-        "answers_parts": answers_parts,
-        "math_styles": MATH_CSS,
-        "pdf_css": _get_pdf_css(),
-        "spring_img_path": spring_img_url,
-    })
-
-    pdf = WeasyHTML(
-        string=html_string,
-        base_url=request.build_absolute_uri('/'),
-    ).write_pdf()
-
-    response = HttpResponse(pdf, content_type="application/pdf")
-    response["Content-Disposition"] = f'inline; filename="variant_{variant_id}.pdf"'
-    return response
+    return variant_pdf(request, level, subject, variant_id)

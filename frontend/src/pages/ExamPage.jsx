@@ -7,24 +7,6 @@ const COLORS = [
   { value: "#F44336", label: "Красный" },
 ];
 
-function isPointOnStroke(px, py, obj, hitRadius = 8) {
-  const pts = obj.points;
-  for (let i = 1; i < pts.length; i++) {
-    const ax = pts[i - 1].x, ay = pts[i - 1].y;
-    const bx = pts[i].x, by = pts[i].y;
-    const dx = bx - ax, dy = by - ay;
-    const lenSq = dx * dx + dy * dy;
-    if (lenSq === 0) {
-      if (Math.hypot(px - ax, py - ay) <= hitRadius) return true;
-      continue;
-    }
-    const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq));
-    const cx = ax + t * dx, cy = ay + t * dy;
-    if (Math.hypot(px - cx, py - cy) <= hitRadius) return true;
-  }
-  return false;
-}
-
 function ExamPage() {
   const { level, subject, variant_id } = useParams();
 
@@ -86,8 +68,6 @@ function ExamPage() {
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
-    const toolbar = document.getElementById("board-toolbar");
-
     const protocol = window.location.protocol === "https:" ? "wss://" : "ws://";
     const socket = new WebSocket(protocol + window.location.host + "/ws/board/test/");
     socketRef.current = socket;
@@ -307,7 +287,7 @@ function ExamPage() {
   };
   const openPdfSpring = (variantId) => {
     window.open(
-      `/api/${level}/${subject}/variant/${variantId}/pdf/spring`,
+      `/api/${level}/${subject}/variant/${variantId}/pdf/?theme=spring`,
       "_blank"
     );
   };

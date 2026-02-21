@@ -16,7 +16,19 @@ const html = mathjax.document('', {InputJax: tex, OutputJax: svg});
 let input = '';
 process.stdin.on('data', (c) => input += c);
 process.stdin.on('end', () => {
-  const node = html.convert(input, {display: true});
+  const raw = input.trim();
+  let latex = raw;
+  let display = true;
+
+  try {
+    const parsed = JSON.parse(raw);
+    latex = parsed.latex || '';
+    display = Boolean(parsed.display);
+  } catch (err) {
+    // Backwards-compatible: treat raw stdin as latex.
+  }
+
+  const node = html.convert(latex, {display});
   const out = adaptor.outerHTML(node);
   process.stdout.write(out);
 });
