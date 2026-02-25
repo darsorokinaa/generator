@@ -14,12 +14,8 @@ function Layout() {
     <div className="header-wrapper">
       <div className="logo-block">
         <Link to="/" className="logo-link">
-          <img
-            className="logo-img"
-            src={`${import.meta.env.BASE_URL}img/logo.png`}
-            alt="ЛАБОБОР"
-          />
-          <span className="logo-text">Название</span>
+          <span className="logo-icon-sum" aria-hidden="true">∑</span>
+          <span className="logo-text">Генератор</span>
         </Link>
       </div>
     </div>

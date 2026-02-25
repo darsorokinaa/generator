@@ -16,6 +16,8 @@ ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "*").split(",")
 
 # Application definition
 INSTALLED_APPS = [
+    "daphne",
+    "channels",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -76,7 +78,13 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "Generator.wsgi.application"
-# Если вам нужен Channels/ASGI — переключите на ASGI_APPLICATION и настройте отдельно
+ASGI_APPLICATION = "Generator.asgi.application"
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer"
+    }
+}
 
 # Database
 # На Replit чаще используют SQLite или внешний Postgres.

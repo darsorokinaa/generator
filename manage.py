@@ -3,6 +3,11 @@
 import os
 import sys
 
+# Используем конфиг из Generator/ (как Generator/manage.py)
+_GENERATOR_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'Generator')
+if _GENERATOR_DIR not in sys.path:
+    sys.path.insert(0, _GENERATOR_DIR)
+
 
 def main():
     """Run administrative tasks."""

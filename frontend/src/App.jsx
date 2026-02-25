@@ -1,10 +1,22 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 
 import Layout from "./pages/Layout";
 import IndexPage from "./pages/IndexPage";
 import SubjectPage from "./pages/SubjectPage";
 import TasksPage from "./pages/TasksPage";
 import ExamPage from "./pages/ExamPage";
+import SearchTaskPage from "./pages/SearchTaskPage";
+import SearchVariantPage from "./pages/SearchVariantPage";
+
+function SearchTaskWithKey() {
+  const location = useLocation();
+  return <SearchTaskPage key={location.search} />;
+}
+
+function SearchVariantWithKey() {
+  const location = useLocation();
+  return <SearchVariantPage key={location.search} />;
+}
 
 function App() {
   return (
@@ -14,6 +26,9 @@ function App() {
         <Route element={<Layout />}>
 
           <Route path="/" element={<IndexPage />} />
+
+          <Route path="/search/tasks" element={<SearchTaskWithKey />} />
+          <Route path="/search-variant" element={<SearchVariantWithKey />} />
 
           <Route path="/:level" element={<SubjectPage />} />
 

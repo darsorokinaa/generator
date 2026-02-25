@@ -1,0 +1,348 @@
+"""LaTeX → HTML converter for TipTap math, CKEditor 5, and WeasyPrint."""
+import html as html_lib
+import json
+from pathlib import Path
+import logging
+import re
+import shutil
+import subprocess
+from functools import lru_cache
+
+from django.conf import settings as django_settings
+
+logger = logging.getLogger(__name__)
+
+MATH_SYMBOLS = {
+    r'\times': '×', r'\div': '÷', r'\pm': '±', r'\mp': '∓',
+    r'\cdot': '·', r'\neq': '≠', r'\leq': '≤', r'\geq': '≥',
+    r'\approx': '≈', r'\equiv': '≡', r'\infty': '∞',
+    r'\partial': '∂', r'\nabla': '∇', r'\exists': '∃', r'\forall': '∀',
+    r'\in': '∈', r'\notin': '∉', r'\subset': '⊂', r'\supset': '⊃',
+    r'\cup': '∪', r'\cap': '∩', r'\emptyset': '∅',
+    r'\rightarrow': '→', r'\leftarrow': '←', r'\to': '→',
+    r'\Rightarrow': '⇒', r'\Leftarrow': '⇐', r'\leftrightarrow': '↔',
+    r'\land': '∧', r'\lor': '∨', r'\neg': '¬', r'\lnot': '¬',
+    r'\alpha': 'α', r'\beta': 'β', r'\gamma': 'γ', r'\delta': 'δ',
+    r'\epsilon': 'ε', r'\zeta': 'ζ', r'\eta': 'η', r'\theta': 'θ',
+    r'\lambda': 'λ', r'\mu': 'μ', r'\nu': 'ν', r'\xi': 'ξ',
+    r'\pi': 'π', r'\rho': 'ρ', r'\sigma': 'σ', r'\tau': 'τ',
+    r'\phi': 'φ', r'\chi': 'χ', r'\psi': 'ψ', r'\omega': 'ω',
+    r'\Gamma': 'Γ', r'\Delta': 'Δ', r'\Theta': 'Θ', r'\Lambda': 'Λ',
+    r'\Pi': 'Π', r'\Sigma': 'Σ', r'\Phi': 'Φ', r'\Psi': 'Ψ', r'\Omega': 'Ω',
+    r'\circ': '∘', r'\bullet': '•', r'\ldots': '…', r'\cdots': '⋯',
+    r'\qquad': '\u00a0\u00a0', r'\quad': '\u00a0',
+    r'\ ': ' ', r'\,': '\u2009', r'\;': '\u2004',
+}
+
+MATH_FUNCTIONS = (
+    'arcsin', 'arccos', 'arctan', 'arccot',
+    'sinh', 'cosh', 'tanh', 'coth',
+    'sin', 'cos', 'tan', 'cot', 'sec', 'csc',
+    'ln', 'log', 'lg', 'exp',
+    'lim', 'max', 'min', 'sup', 'inf',
+    'gcd', 'lcm', 'det', 'dim', 'ker', 'tr',
+)
+
+BRACKET_MAP = {
+    r'\left(': '(', r'\right)': ')',
+    r'\left[': '[', r'\right]': ']',
+    r'\left\{': '{', r'\right\}': '}',
+    r'\left|': '|', r'\right|': '|',
+    r'\lbrace': '{', r'\rbrace': '}',
+    r'\langle': '⟨', r'\rangle': '⟩',
+}
+
+_RE_HTML_TAGS = re.compile(r'<[^>]+>')
+_RE_NEWLINES = re.compile(r'[\r\n]+')
+_RE_MULTI_SPACE = re.compile(r'  +')
+_RE_DISPLAY = re.compile(r'\\\[(.*?)\\\]', re.DOTALL)
+_RE_DISPLAY_DOUBLE = re.compile(r'\$\$(.+?)\$\$', re.DOTALL)
+_RE_INLINE_PAREN = re.compile(r'\\\((.*?)\\\)', re.DOTALL)
+_RE_INLINE_DOLLAR = re.compile(r'\$(.+?)\$')
+_RE_ENV = re.compile(
+    r'\\begin\{(aligned|align\*?|cases|gather\*?|equation\*?)\}(.*?)\\end\{\1\}',
+    re.DOTALL,
+)
+_RE_ARRAY = re.compile(r'\\begin\{array\}\{[^}]*\}(.*?)\\end\{array\}', re.DOTALL)
+_RE_POWER_GROUP = re.compile(r'\^\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}')
+_RE_INDEX_GROUP = re.compile(r'_\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}')
+_RE_POWER_SINGLE = re.compile(r'\^([0-9a-zA-Zα-ωΑ-Ω])')
+_RE_INDEX_SINGLE = re.compile(r'_([0-9a-zA-Zα-ωΑ-Ω])')
+_RE_TEXTBF = re.compile(r'\\textbf\{([^{}]+)\}')
+_RE_TEXTIT = re.compile(r'\\textit\{([^{}]+)\}')
+_RE_TEXT = re.compile(r'\\(?:text|mathrm)\{([^{}]+)\}')
+_RE_MATHBF = re.compile(r'\\mathbf\{([^{}]+)\}')
+_RE_MATHIT = re.compile(r'\\mathit\{([^{}]+)\}')
+_RE_OVERLINE = re.compile(r'\\overline\{([^{}]+)\}')
+_RE_UNDERLINE = re.compile(r'\\underline\{([^{}]+)\}')
+_RE_SPACING = re.compile(r'\\[,;!: ]|\\(?:thinspace|medspace|thickspace)')
+_RE_STYLE = re.compile(r'\\(?:displaystyle|textstyle|scriptstyle|limits)\b')
+_RE_UNKNOWN_CMD = re.compile(r'\\[a-zA-Z]+')
+_RE_BRACES = re.compile(r'[{}]')
+_RE_FUNC = re.compile(
+    r'\\(' + '|'.join(sorted(MATH_FUNCTIONS, key=len, reverse=True)) + r')\b'
+)
+# TipTap/ProseMirror: data-type="math" + data-latex (any attribute order)
+_RE_MATH_SPAN = re.compile(
+    r'<span[^>]*(?:data-type=["\']math["\'][^>]*data-latex=["\']([^"\']+)["\']|data-latex=["\']([^"\']+)["\'][^>]*data-type=["\']math["\'])[^>]*>.*?</span>',
+    re.DOTALL | re.IGNORECASE,
+)
+# CKEditor 5 / MathType: math-tex class + data-latex
+_RE_MATH_TEX_SPAN = re.compile(
+    r'<span[^>]*class=["\'][^"\']*math-tex[^"\']*["\'][^>]*data-latex=["\']([^"\']+)["\'][^>]*>.*?</span>',
+    re.DOTALL | re.IGNORECASE,
+)
+# CKEditor 5: math-tex with data-formula (alternative attribute)
+_RE_MATH_FORMULA_SPAN = re.compile(
+    r'<span[^>]*class=["\'][^"\']*math-tex[^"\']*["\'][^>]*data-formula=["\']([^"\']+)["\'][^>]*>.*?</span>',
+    re.DOTALL | re.IGNORECASE,
+)
+
+_fd = getattr(django_settings, 'FRONTEND_DIR', None)
+_basedir = getattr(django_settings, 'BASE_DIR', Path(__file__).resolve().parent.parent)
+# render_mathjax.cjs lives in frontend/ (parent of frontend/dist when FRONTEND_DIR is set)
+_frontend_dir = _fd.parent if _fd else (_basedir / "frontend")
+MATHJAX_RENDER_SCRIPT = _frontend_dir / "render_mathjax.cjs"
+MATHJAX_NODE = shutil.which("node")
+MATHJAX_AVAILABLE = bool(MATHJAX_NODE and MATHJAX_RENDER_SCRIPT.exists())
+
+
+def _extract_balanced(text: str, pos: int) -> tuple[str, int]:
+    assert text[pos] == '{'
+    depth = 0
+    start = pos + 1
+    for i in range(pos, len(text)):
+        if text[i] == '{':
+            depth += 1
+        elif text[i] == '}':
+            depth -= 1
+            if depth == 0:
+                return text[start:i], i + 1
+    return text[start:], len(text)
+
+
+def _convert_frac(text: str) -> str:
+    result = []
+    i = 0
+    while i < len(text):
+        fi, di = text.find(r'\frac', i), text.find(r'\dfrac', i)
+        if fi == -1 and di == -1:
+            result.append(text[i:])
+            break
+        if di != -1 and (fi == -1 or di <= fi):
+            m_start, cmd_len = di, len(r'\dfrac')
+        else:
+            m_start, cmd_len = fi, len(r'\frac')
+        result.append(text[i:m_start])
+        i = m_start + cmd_len
+        while i < len(text) and text[i] == ' ':
+            i += 1
+        if i >= len(text) or text[i] != '{':
+            result.append(text[m_start:i])
+            continue
+        num, i = _extract_balanced(text, i)
+        while i < len(text) and text[i] == ' ':
+            i += 1
+        if i >= len(text) or text[i] != '{':
+            result.append(f'\\frac{{{num}}}')
+            continue
+        den, i = _extract_balanced(text, i)
+        num_html = _convert_frac(num)
+        den_html = _convert_frac(den)
+        result.append(
+            f'<span class="frac"><span class="num">{num_html}</span>'
+            f'<span class="den">{den_html}</span></span>'
+        )
+    return ''.join(result)
+
+
+def _convert_sqrt(text: str) -> str:
+    result = []
+    i = 0
+    while i < len(text):
+        m = text.find(r'\sqrt', i)
+        if m == -1:
+            result.append(text[i:])
+            break
+        result.append(text[i:m])
+        i = m + len(r'\sqrt')
+        degree = ''
+        if i < len(text) and text[i] == '[':
+            end = text.find(']', i)
+            if end != -1:
+                degree = text[i + 1:end]
+                i = end + 1
+        if i < len(text) and text[i] == '{':
+            arg, i = _extract_balanced(text, i)
+            prefix = f'<sup>{degree}</sup>' if degree else ''
+            result.append(f'{prefix}√<span class="sqrt-arg">{arg}</span>')
+        else:
+            result.append(r'\sqrt')
+    return ''.join(result)
+
+
+def _convert_environments(text: str) -> str:
+    def replace_array(m):
+        rows = re.split(r'\\\\', m.group(1))
+        rows_html = []
+        for row in rows:
+            cells = [c.strip() for c in row.split('&')]
+            if not any(cells):
+                continue
+            row_html = ''.join(f'<td class="array-cell">{cell}</td>' for cell in cells)
+            rows_html.append(f'<tr class="array-row">{row_html}</tr>')
+        return f'<table class="array-table"><tbody>{"".join(rows_html)}</tbody></table>' if rows_html else ''
+
+    def replace_env(m):
+        env_name = m.group(1)
+        rows = re.split(r'\\\\', m.group(2))
+        cleaned = [row.replace('&', ' ').strip() for row in rows if row.strip()]
+        if env_name == 'cases':
+            rows_html = ''.join(f'<tr><td class="cases-row">{row}</td></tr>' for row in cleaned)
+            return (
+                f'<table class="cases-table"><tbody><tr>'
+                f'<td class="cases-brace" rowspan="{len(cleaned)}">{{</td>'
+                f'<td><table><tbody>{rows_html}</tbody></table></td></tr></tbody></table>'
+            )
+        return f'<div class="math-env">' + ''.join(f'<div class="math-row">{row}</div>' for row in cleaned) + '</div>'
+
+    text = _RE_ARRAY.sub(replace_array, text)
+    return _RE_ENV.sub(replace_env, text)
+
+
+def _clean_html(text: str) -> str:
+    text = text.replace('<br>', ' ').replace('<br/>', ' ').replace('<br />', ' ')
+    text = _RE_HTML_TAGS.sub('', text)
+    text = text.replace('&nbsp;', ' ').replace('&amp;', '&').replace('&lt;', '<').replace('&gt;', '>')
+    text = _RE_NEWLINES.sub(' ', text)
+    return _RE_MULTI_SPACE.sub(' ', text).strip()
+
+
+def _convert_math_block(content: str, display: bool = False) -> str:
+    content = _clean_html(content)
+    content = _convert_environments(content)
+    content = _RE_TEXTBF.sub(r'<b>\1</b>', content)
+    content = _RE_TEXTIT.sub(r'<i>\1</i>', content)
+    content = _RE_TEXT.sub(r'\1', content)
+    content = _RE_MATHBF.sub(r'<b>\1</b>', content)
+    content = _RE_MATHIT.sub(r'<i>\1</i>', content)
+    content = _RE_OVERLINE.sub(r'<span style="text-decoration:overline">\1</span>', content)
+    content = _RE_UNDERLINE.sub(r'<u>\1</u>', content)
+    content = _convert_frac(content)
+    content = _convert_sqrt(content)
+    content = _RE_POWER_GROUP.sub(r'<sup>\1</sup>', content)
+    content = _RE_INDEX_GROUP.sub(r'<sub>\1</sub>', content)
+    content = _RE_POWER_SINGLE.sub(r'<sup>\1</sup>', content)
+    content = _RE_INDEX_SINGLE.sub(r'<sub>\1</sub>', content)
+    for latex, sym in MATH_SYMBOLS.items():
+        content = content.replace(latex, sym)
+    content = _RE_FUNC.sub(lambda m: f'<span class="mf">{m.group(1)}</span>', content)
+    for latex, sym in BRACKET_MAP.items():
+        content = content.replace(latex, sym)
+    content = _RE_SPACING.sub('\u2009', content)
+    content = _RE_STYLE.sub('', content)
+    content = _RE_UNKNOWN_CMD.sub('', content)
+    content = _RE_BRACES.sub('', content)
+    content = content.strip()
+    tag = 'div class="math-display"' if display else 'span class="math-inline"'
+    close = tag.split()[0]
+    return f'<{tag}>{content}</{close}>'
+
+
+@lru_cache(maxsize=2048)
+def _render_mathjax_svg(latex: str, display: bool) -> str:
+    if not MATHJAX_AVAILABLE:
+        raise RuntimeError("MathJax renderer is not available")
+    payload = json.dumps({"latex": latex, "display": display})
+    result = subprocess.run(
+        [MATHJAX_NODE, str(MATHJAX_RENDER_SCRIPT)],
+        input=payload,
+        text=True,
+        capture_output=True,
+        check=True,
+        timeout=5,
+    )
+    return result.stdout.strip()
+
+
+def _wrap_math_output(html: str, display: bool) -> str:
+    if not html:
+        return ""
+    tag = "div" if display else "span"
+    class_name = "math-display" if display else "math-inline"
+    return f'<{tag} class="{class_name}">{html}</{tag}>'
+
+
+def _is_display_math(latex: str, span_html: str = "") -> bool:
+    if 'data-display="true"' in span_html or "data-display='true'" in span_html:
+        return True
+    return any(cmd in latex for cmd in (
+        r'\begin', r'\[', r'\dfrac', r'\displaystyle', r'\begin{array}',
+    ))
+
+
+def _render_math_block(latex: str, display: bool) -> str:
+    if MATHJAX_AVAILABLE:
+        try:
+            svg = _render_mathjax_svg(latex, display)
+            return _wrap_math_output(svg, display)
+        except Exception:
+            logger.exception("MathJax render failed, falling back to parser")
+    return _convert_math_block(latex, display=display)
+
+
+def _normalize_latex(s: str) -> str:
+    """Normalize LaTeX from HTML: unescape entities, clean BR tags in content."""
+    if not s:
+        return s
+    s = html_lib.unescape(s)
+    s = s.replace('<br>', ' ').replace('<br/>', ' ').replace('<br />', ' ')
+    return s.strip()
+
+
+def process_latex(html_text: str) -> str:
+    if not html_text:
+        return html_text
+
+    def replace_math_span(m):
+        span_html = m.group(0)
+        latex = _normalize_latex(m.group(1) or m.group(2) or "")
+        if not latex:
+            return span_html
+        display = _is_display_math(latex, span_html)
+        return _render_math_block(latex, display)
+
+    def replace_math_tex(m):
+        latex = _normalize_latex(m.group(1) or "")
+        if not latex:
+            return m.group(0)
+        display = _is_display_math(latex, m.group(0))
+        return _render_math_block(latex, display)
+
+    # 1. TipTap/ProseMirror span
+    html_text = _RE_MATH_SPAN.sub(replace_math_span, html_text)
+    # 2. CKEditor math-tex with data-latex
+    html_text = _RE_MATH_TEX_SPAN.sub(replace_math_tex, html_text)
+    # 3. CKEditor math-tex with data-formula
+    html_text = _RE_MATH_FORMULA_SPAN.sub(replace_math_tex, html_text)
+    # 4. Display math \[...\] (including with <br> inside)
+    html_text = _RE_DISPLAY.sub(
+        lambda m: _render_math_block(_normalize_latex(m.group(1)), True),
+        html_text,
+    )
+    # 4b. Display math $$...$$
+    html_text = _RE_DISPLAY_DOUBLE.sub(
+        lambda m: _render_math_block(_normalize_latex(m.group(1)), True),
+        html_text,
+    )
+    # 5. Inline \(...\)
+    html_text = _RE_INLINE_PAREN.sub(
+        lambda m: _render_math_block(_normalize_latex(m.group(1)), False),
+        html_text,
+    )
+    # 6. Inline $...$
+    html_text = _RE_INLINE_DOLLAR.sub(
+        lambda m: _render_math_block(_normalize_latex(m.group(1)), False),
+        html_text,
+    )
+    return html_text
