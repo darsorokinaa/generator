@@ -105,12 +105,20 @@ def build_pdf_context(request, variant, subject):
     if level_val.isdigit():
         level_label = f"{level_val} класс"
     header_subject_level = f"{subject_label}, {level_label}"
-    header_logo = "∑ Генератор"
-    footer_left = "© 2026 Федеральная служба по надзору в сфере образования и науки"
+    header_logo = "Примерная версия экзамена"
+    footer_left = "© ∑ Генератор"
+
+    # Разбиваем ответы на блоки по 10 для переноса таблицы на несколько строк
+    chunk_size = 10
+    answers_chunks = [
+        processed_contents[i:i + chunk_size]
+        for i in range(0, len(processed_contents), chunk_size)
+    ]
 
     return {
         "variant": variant,
         "contents": processed_contents,
+        "answers_chunks": answers_chunks,
         "answers_parts": answers_parts,
         "math_styles": MATH_CSS,
         "pdf_css": get_pdf_css(),

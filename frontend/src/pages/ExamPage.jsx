@@ -449,7 +449,6 @@ function ExamPage() {
   const showLinkedGroup = part2Linked1921.length === 3;
 
   const correctCount = Object.values(checkedTasks).filter(Boolean).length;
-  const totalScore = correctCount + Object.values(scores).reduce((a, b) => a + b, 0);
 
   const openPdf = (variantId) => {
     window.open(`/api/${level}/${subject}/variant/${variantId}/pdf/`, "_blank");
@@ -548,11 +547,6 @@ function ExamPage() {
                       <span className="variant-score-val">
                         {correctCount} <span className="variant-score-total">/ {part1Tasks.length}</span>
                       </span>
-                    </div>
-                    <div className="variant-score-divider" />
-                    <div className="variant-score-row">
-                      <span className="variant-score-label">Всего баллов</span>
-                      <span className="variant-score-val accent">{totalScore}</span>
                     </div>
                   </div>
 

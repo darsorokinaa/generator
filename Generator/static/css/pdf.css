@@ -122,6 +122,14 @@ body {
     background: none;
     font-weight: bold;
 }
+
+.answers-page .answers-table {
+    margin-bottom: 12pt;
+}
+
+.answers-page .answers-table:last-child {
+    margin-bottom: 0;
+}
 .tasks-wrapper {
     column-count: 2;
     column-gap: 20pt;

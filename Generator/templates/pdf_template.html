@@ -80,20 +80,22 @@
 <div class="answers-page">
     <div class="answers-title">Ответы</div>
 
+    {% for chunk in answers_chunks %}
     <table class="answers-table">
         <tr>
             <th>Номер задания</th>
-            {% for item in contents %}
+            {% for item in chunk %}
                 <th>{{ item.order }}</th>
             {% endfor %}
         </tr>
         <tr>
             <td><strong>Ответ</strong></td>
-            {% for item in contents %}
+            {% for item in chunk %}
                 <td>{{ item.answer }}</td>
             {% endfor %}
         </tr>
     </table>
+    {% endfor %}
 </div>
 
 </body>
