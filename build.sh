@@ -9,6 +9,8 @@ npm run build
 
 cd /home/runner/workspace/Generator
 python manage.py migrate --fake-initial --noinput
+python manage.py migrate Generator --fake --noinput || true
+python manage.py migrate --noinput
 python manage.py collectstatic --noinput
 
 echo "Loading data from dump..."
