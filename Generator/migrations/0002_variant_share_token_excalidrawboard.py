@@ -11,10 +11,15 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='variant',
-            name='share_token',
-            field=models.CharField(blank=True, max_length=20, null=True),
+        migrations.SeparateDatabaseAndState(
+            state_operations=[
+                migrations.AddField(
+                    model_name='variant',
+                    name='share_token',
+                    field=models.CharField(blank=True, max_length=20, null=True),
+                ),
+            ],
+            database_operations=[],
         ),
         migrations.CreateModel(
             name='ExcalidrawBoard',
