@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { wrapPureLatex } from "../utils/latex";
 
 const COLORS = [
   { value: "#000000", label: "Чёрный" },
@@ -87,13 +86,9 @@ function ExamPage() {
         if (window.MathJax.typesetClear) {
           window.MathJax.typesetClear();
         }
-        if (window.MathJax.typesetPromise) {
-          window.MathJax.typesetPromise();
-        }
-      } catch (err) {
-        console.error("MathJax error:", err);
-      }
-    }, 100);
+        window.MathJax.typesetPromise?.();
+      } catch (_) {}
+    }, 50);
     return () => clearTimeout(timer);
   }, [variant, boardOpen, userAnswers, checkedTasks, scores]);
 
@@ -596,7 +591,7 @@ function ExamPage() {
                   </aside>
 
                   <article className="task-content">
-                    <div className="task-text" dangerouslySetInnerHTML={{ __html: wrapPureLatex(task.text) }} />
+                    <div className="task-text" dangerouslySetInnerHTML={{ __html: task.text }} />
 
                     {task.file && (
                       <div className="task-files">

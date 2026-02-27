@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { wrapPureLatex } from "../utils/latex";
 
 function SearchVariantPage() {
   const location = useLocation();
@@ -36,14 +35,7 @@ function SearchVariantPage() {
 
   useEffect(() => {
     if (data.tasks.length > 0 && window.MathJax) {
-      setTimeout(() => {
-        try {
-          if (window.MathJax.typesetClear) window.MathJax.typesetClear();
-          if (window.MathJax.typesetPromise) window.MathJax.typesetPromise();
-        } catch (err) {
-          console.error("MathJax error:", err);
-        }
-      }, 100);
+      window.MathJax.typesetPromise();
     }
   }, [data]);
 
@@ -102,7 +94,7 @@ function SearchVariantPage() {
               <tr key={t.number}>
                 <td className="search-variant-id">{t.id}</td>
                 <td>{t.number}</td>
-                <td dangerouslySetInnerHTML={{ __html: wrapPureLatex(t.answer) }} />
+                <td>{t.answer}</td>
               </tr>
             ))}
           </tbody>
