@@ -17,6 +17,10 @@ echo "Loading data from dump..."
 psql "$DATABASE_URL" -f /home/runner/workspace/load_data.sql
 echo "Data loaded successfully"
 
+echo "Resetting sequences..."
+python manage.py sqlsequencereset Generator | psql "$DATABASE_URL"
+echo "Sequences reset"
+
 python -c "
 import django, os
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'Generator.settings')
