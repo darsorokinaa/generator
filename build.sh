@@ -8,8 +8,8 @@ npm install
 npm run build
 
 cd /home/runner/workspace/Generator
-python manage.py migrate --fake-initial --noinput
-python manage.py migrate Generator --fake --noinput || true
+echo "Resetting database schema..."
+psql "$DATABASE_URL" -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
 python manage.py migrate --noinput
 python manage.py collectstatic --noinput
 
