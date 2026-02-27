@@ -4,6 +4,7 @@ django-ckeditor==6.7.3
 django-ckeditor-5==0.2.19
 django-js-asset==3.1.2
 channels==4.3.2
+daphne==4.2.0
 gunicorn==25.1.0
 psycopg2-binary==2.9.11
 weasyprint==68.1

@@ -73,12 +73,55 @@ class Tags(models.Model):
     def __str__(self):
         return self.tag
     
+# Связанные задания (напр. 19–21 в ЕГЭ информатика): один сценарий = одна группа
+class LinkedTaskGroup(models.Model):
+    """Определяет, какие номера заданий идут одной связанной группой (напр. 19, 20, 21)."""
+    subject = models.ForeignKey(Subject, on_delete=CASCADE)
+    level = models.ForeignKey(Level, on_delete=CASCADE)
+    task_numbers = models.JSONField(default=list)  # [19, 20, 21] — номера в порядке появления
+
+    class Meta:
+        unique_together = [("subject", "level")]
+        verbose_name = "Связанная группа номеров"
+
+    def __str__(self):
+        return f"{self.subject} / {self.level}: {self.task_numbers}"
+
+
+class TaskGroup(models.Model):
+    """Один «набор» связанных задач (один сценарий: напр. три задания 19, 20, 21)."""
+    subject = models.ForeignKey(Subject, on_delete=CASCADE)
+    level = models.ForeignKey(Level, on_delete=CASCADE)
+
+    class Meta:
+        verbose_name = "Группа заданий"
+
+    def __str__(self):
+        return f"Группа {self.id} ({self.subject} / {self.level})"
+
+
+class TaskGroupMember(models.Model):
+    """Связь группы с конкретной задачей и её номером в группе (19, 20, 21)."""
+    task_group = models.ForeignKey(TaskGroup, on_delete=CASCADE)
+    task = models.ForeignKey(Task, on_delete=CASCADE)
+    task_number = models.IntegerField()  # номер в варианте: 19, 20, 21
+
+    class Meta:
+        ordering = ["task_number"]
+        unique_together = [("task_group", "task_number")]
+        verbose_name = "Задание в группе"
+
+    def __str__(self):
+        return f"Группа {self.task_group_id}: №{self.task_number}"
+
+
 class Variant(models.Model):
     var_subject = models.ForeignKey(Subject, on_delete=CASCADE)
     level = models.ForeignKey(Level, on_delete=CASCADE)
     created_at = models.DateTimeField(default=datetime.today)
     created_by = models.CharField(max_length=100, default='ADMIN')
     share_token = models.CharField(max_length=20, blank=True, null=True)
+    content = models.JSONField(default=dict, blank=True)  # {tasklist_id: count} для поиска дубликатов
     def __str__(self):
         return f'Вариант {self.id} -  {self.var_subject}: {self.level}'
     
@@ -93,6 +136,8 @@ class VariantContent(models.Model):
 
     def __str__(self):
         return f'Вариант {str(self.variant.id)} задание {self.task_id} ({self.variant.var_subject.subject_name} {self.variant.level})'
+    
+
 
 class TagsList(models.Model):
     tag = models.CharField(max_length=20)

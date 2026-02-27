@@ -9,9 +9,16 @@
     <style>{{ pdf_css }}</style>
     <style>
         @page {
+            margin-top: 18mm;
             @top-left {
-                content: "{{ header_left }}";
+                content: "{{ header_subject_level }}";
                 font-size: 9pt;
+                font-weight: bold;
+            }
+            @top-center {
+                content: "{{ header_logo }}";
+                font-size: 10pt;
+                font-weight: bold;
             }
             @top-right {
                 content: counter(page) " / " counter(pages);
@@ -53,14 +60,14 @@
         <div class="task">
             <div class="task-number">{{ item.order }}</div>
             <div class="task-body">
-                {{ item.text|safe }}
+                {% if item.text %}{{ item.text|safe }}{% else %}<p>&nbsp;</p>{% endif %}
 
                 {% if item.file_url %}
                     <img src="{{ item.file_url }}">
                 {% endif %}
 
                 <div class="answer-line">
-                    Ответ: <span class="answer-field"></span>
+                    Ответ: <span class="answer-field">&nbsp;</span>
                 </div>
             </div>
         </div>
@@ -73,20 +80,22 @@
 <div class="answers-page">
     <div class="answers-title">Ответы</div>
 
+    {% for chunk in answers_chunks %}
     <table class="answers-table">
         <tr>
             <th>Номер задания</th>
-            {% for item in contents %}
+            {% for item in chunk %}
                 <th>{{ item.order }}</th>
             {% endfor %}
         </tr>
         <tr>
             <td><strong>Ответ</strong></td>
-            {% for item in contents %}
+            {% for item in chunk %}
                 <td>{{ item.answer }}</td>
             {% endfor %}
         </tr>
     </table>
+    {% endfor %}
 </div>
 
 </body>

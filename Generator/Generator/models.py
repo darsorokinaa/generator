@@ -76,12 +76,52 @@ class Tags(models.Model):
     def __str__(self):
         return self.tag
 
+
+class LinkedTaskGroup(models.Model):
+    subject = models.ForeignKey(Subject, on_delete=CASCADE)
+    level = models.ForeignKey(Level, on_delete=CASCADE)
+    task_numbers = models.JSONField(default=list)
+
+    class Meta:
+        unique_together = [("subject", "level")]
+        verbose_name = "Связанная группа номеров"
+
+    def __str__(self):
+        return f"{self.subject} / {self.level}: {self.task_numbers}"
+
+
+class TaskGroup(models.Model):
+    subject = models.ForeignKey(Subject, on_delete=CASCADE)
+    level = models.ForeignKey(Level, on_delete=CASCADE)
+
+    class Meta:
+        verbose_name = "Группа заданий"
+
+    def __str__(self):
+        return f"Группа {self.id} ({self.subject} / {self.level})"
+
+
+class TaskGroupMember(models.Model):
+    task_group = models.ForeignKey(TaskGroup, on_delete=CASCADE)
+    task = models.ForeignKey(Task, on_delete=CASCADE)
+    task_number = models.IntegerField()
+
+    class Meta:
+        ordering = ["task_number"]
+        unique_together = [("task_group", "task_number")]
+        verbose_name = "Задание в группе"
+
+    def __str__(self):
+        return f"Группа {self.task_group_id}: №{self.task_number}"
+
+
 class Variant(models.Model):
     var_subject = models.ForeignKey(Subject, on_delete=CASCADE)
     level = models.ForeignKey(Level, on_delete=CASCADE)
     created_at = models.DateTimeField(default=datetime.today)
     created_by = models.CharField(max_length=100, default='ADMIN')
     share_token = models.CharField(max_length=20, blank=True, null=True)
+    content = models.JSONField(default=dict, blank=True, null=True)  # {tasklist_id: count}
     def __str__(self):
         return f'Вариант {self.id} -  {self.var_subject}: {self.level}'
 

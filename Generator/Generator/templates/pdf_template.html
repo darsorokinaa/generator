@@ -8,6 +8,29 @@
     <link rel="stylesheet" href="{% static 'css/pdf.css' %}">
     {{ math_styles|safe }}
     <style>{{ pdf_css }}</style>
+    <style>
+        @page {
+            margin-top: 18mm;
+            @top-left {
+                content: "{{ header_subject_level }}";
+                font-size: 9pt;
+                font-weight: bold;
+            }
+            @top-center {
+                content: "{{ header_logo }}";
+                font-size: 10pt;
+                font-weight: bold;
+            }
+            @top-right {
+                content: counter(page) " / " counter(pages);
+                font-size: 9pt;
+            }
+            @bottom-left {
+                content: "{{ footer_left }}";
+                font-size: 8pt;
+            }
+        }
+    </style>
     {% if background_url %}
     <style>
         body::before {
@@ -37,22 +60,18 @@
         <div class="task">
 
             <div class="ta">
-                {% if subject == "inf" and item.order == 19 %}
-                    19–21
-                {% else %}
-                    {{ item.order }}
-                {% endif %}
+                {{ item.order }}
             </div>
 
             <div class="task-body">
-                {{ item.text|safe }}
+                {% if item.text %}{{ item.text|safe }}{% else %}<p>&nbsp;</p>{% endif %}
 
                 {% if item.file_url %}
                     <img src="{{ item.file_url }}" style="max-width:100%;">
                 {% endif %}
 
                 <div class="answer-line">
-                    Ответ: <span class="answer-field"></span>
+                    Ответ: <span class="answer-field">&nbsp;</span>
                 </div>
             </div>
 
@@ -69,13 +88,7 @@
         <tr>
             <th>Номер задания</th>
             {% for item in contents %}
-                <th>
-                {% if subject == "inf" and item.order == 19 %}
-                        19–21
-                    {% else %}
-                        {{ item.order }}
-                    {% endif %}
-                </th>
+                <th>{{ item.order }}</th>
             {% endfor %}
         </tr>
 
