@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
+import { wrapPureLatex } from "../utils/latex";
 
 const COLORS = [
   { value: "#000000", label: "Чёрный" },
@@ -595,7 +596,7 @@ function ExamPage() {
                   </aside>
 
                   <article className="task-content">
-                    <div className="task-text" dangerouslySetInnerHTML={{ __html: task.text }} />
+                    <div className="task-text" dangerouslySetInnerHTML={{ __html: wrapPureLatex(task.text) }} />
 
                     {task.file && (
                       <div className="task-files">

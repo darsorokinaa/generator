@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
+import { wrapPureLatex } from "../utils/latex";
 
 function SearchVariantPage() {
   const location = useLocation();
@@ -101,7 +102,7 @@ function SearchVariantPage() {
               <tr key={t.number}>
                 <td className="search-variant-id">{t.id}</td>
                 <td>{t.number}</td>
-                <td>{t.answer}</td>
+                <td dangerouslySetInnerHTML={{ __html: wrapPureLatex(t.answer) }} />
               </tr>
             ))}
           </tbody>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
+import { wrapPureLatex } from "../utils/latex";
 
 function SearchTaskPage() {
   const location = useLocation();
@@ -90,7 +91,7 @@ function SearchTaskPage() {
               <div className="search-task-card-body">
                 <div className="search-task-section">
                   <h4>Условие</h4>
-                  <div className="search-task-condition" dangerouslySetInnerHTML={{ __html: t.task_text || "" }} />
+                  <div className="search-task-condition" dangerouslySetInnerHTML={{ __html: wrapPureLatex(t.task_text || "") }} />
                 </div>
                 {t.answer && (
                   <div className="search-task-section search-task-answer">
