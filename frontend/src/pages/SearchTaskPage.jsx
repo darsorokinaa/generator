@@ -33,6 +33,12 @@ function SearchTaskPage() {
       .finally(() => setLoading(false));
   }, [q]);
 
+  useEffect(() => {
+    if (tasks.length > 0 && window.MathJax) {
+      window.MathJax.typesetPromise();
+    }
+  }, [tasks]);
+
   if (!q) {
     return (
       <div className="container search-task-page">

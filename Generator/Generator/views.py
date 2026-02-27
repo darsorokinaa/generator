@@ -82,32 +82,36 @@ def _create_variant(subject_short, level_str, body_bytes):
     selected_tasks = []
     handled_tasklist_ids = set()
 
-    def take_linked_group(linked):
+    def take_linked_groups(linked):
+        """Поддерживает count>1: выбирает N групп и возвращает задачи подряд."""
         task_numbers = linked.task_numbers or []
         if not task_numbers:
             return None, None
         ids_for_group = [id_by_number.get(n) for n in task_numbers]
         if any(i is None for i in ids_for_group):
             return None, None
-        if not all(content.get(str(i)) == 1 for i in ids_for_group):
+        num_groups = min(content.get(str(i), 0) for i in ids_for_group)
+        if num_groups <= 0:
             return None, None
-        group = (
+        groups = list(
             TaskGroup.objects.filter(
                 subject=subject_instance,
                 level=level_instance,
                 taskgroupmember__task_number__in=task_numbers,
             )
-            .annotate(cnt=Count("taskgroupmember"))
-            .filter(cnt=len(task_numbers))
-            .order_by("?")
-            .first()
+            .annotate(mcnt=Count("taskgroupmember"))
+            .filter(mcnt=len(task_numbers))
+            .order_by("?")[: int(num_groups)]
         )
-        if not group:
+        if len(groups) < int(num_groups):
             return None, None
-        members = list(
-            TaskGroupMember.objects.filter(task_group=group).order_by("task_number")
-        )
-        return [m.task for m in members], ids_for_group
+        all_tasks = []
+        for group in groups:
+            members = list(
+                TaskGroupMember.objects.filter(task_group=group).order_by("task_number")
+            )
+            all_tasks.extend(m.task for m in members)
+        return all_tasks, ids_for_group
 
     linked_defs = list(
         LinkedTaskGroup.objects.filter(
@@ -127,7 +131,7 @@ def _create_variant(subject_short, level_str, body_bytes):
         for linked in linked_defs:
             nums = linked.task_numbers or []
             if nums and nums[0] == tasklist.task_number:
-                group_tasks, group_ids = take_linked_group(linked)
+                group_tasks, group_ids = take_linked_groups(linked)
                 break
         if group_tasks is not None and group_ids is not None:
             selected_tasks.extend(group_tasks)
@@ -166,33 +170,77 @@ def api_tasks(request, level, subject):
     subject_instance = get_object_or_404(Subject, subject_short=subject)
     level_instance = get_object_or_404(Level, level=level)
 
-    # Все задачи (count_task = число Task в банке для этого TaskList)
     tasks_qs = TaskList.objects.filter(
         subject=subject_instance,
         level=level_instance
     ).annotate(count_task=Count("task")).order_by('task_number')
+    id_by_number = {tl.task_number: tl.id for tl in tasks_qs}
 
-    # Все группы
+    # Связанные группы (LinkedTaskGroup): 19–21 — один элемент в тренажёре, данные из TaskGroup
+    linked_defs = list(
+        LinkedTaskGroup.objects.filter(
+            subject=subject_instance,
+            level=level_instance,
+        )
+    )
+    linked_tasklist_ids = set()
+    linked_group_items = []
+
+    for linked in linked_defs:
+        task_numbers = linked.task_numbers or []
+        if not task_numbers:
+            continue
+        ids_for_group = [id_by_number.get(n) for n in task_numbers]
+        if any(i is None for i in ids_for_group):
+            continue
+        groups_count = (
+            TaskGroup.objects.filter(
+                subject=subject_instance,
+                level=level_instance,
+                taskgroupmember__task_number__in=task_numbers,
+            )
+            .annotate(mcnt=Count("taskgroupmember"))
+            .filter(mcnt=len(task_numbers))
+            .count()
+        )
+        if groups_count == 0:
+            continue
+        linked_tasklist_ids.update(ids_for_group)
+        tasklists = list(
+            TaskList.objects.filter(
+                id__in=ids_for_group,
+                subject=subject_instance,
+                level=level_instance,
+            ).order_by("task_number")
+        )
+        linked_group_items.append({
+            "type": "linked_group",
+            "linked_key": "_".join(str(n) for n in task_numbers),
+            "task_numbers": task_numbers,
+            "tasks": [
+                {
+                    "tasklist_id": tl.id,
+                    "task_number": tl.task_number,
+                    "task_title": tl.task_title,
+                    "part": tl.part_id,
+                }
+                for tl in tasklists
+            ],
+            "count_available": groups_count,
+        })
+
     groups = TaskGroup.objects.filter(
         subject=subject_instance,
-        level=level_instance
+        level=level_instance,
     )
-
-    # Получаем всех членов групп
     group_members = TaskGroupMember.objects.filter(
         task_group__in=groups
     ).select_related("task_group", "task", "task__task")
 
-    # Словарь: group_id → список задач
     group_dict = {}
-    # TaskList ids, которые входят в группы (чтобы не показывать их как single)
-    grouped_tasklist_ids = set()
+    grouped_tasklist_ids = set(linked_tasklist_ids)
 
-    # Счётчики Task по tasklist_id для групп
-    group_tasklist_ids = [
-        m.task.task_id for m in group_members
-        if m.task.task_id
-    ]
+    group_tasklist_ids = [m.task.task_id for m in group_members if m.task.task_id]
     tasklist_counts = dict(
         TaskList.objects.filter(id__in=group_tasklist_ids)
         .annotate(count_task=Count("task"))
@@ -201,16 +249,16 @@ def api_tasks(request, level, subject):
 
     for member in group_members:
         group_id = member.task_group_id
-
+        tl_id = member.task.task_id
+        if tl_id and tl_id in linked_tasklist_ids:
+            continue
         if group_id not in group_dict:
             group_dict[group_id] = {
                 "type": "group",
                 "group_id": group_id,
-                "tasks": []
+                "tasks": [],
             }
-
         tl = member.task.task
-        tl_id = member.task.task_id
         group_dict[group_id]["tasks"].append({
             "id": member.task.id,
             "tasklist_id": tl_id,
@@ -219,17 +267,13 @@ def api_tasks(request, level, subject):
             "part": tl.part_id if tl else None,
             "count_task": tasklist_counts.get(tl_id, 0),
         })
-
         if tl_id:
             grouped_tasklist_ids.add(tl_id)
 
-    # Формируем финальный список
     result = []
-
     for t in tasks_qs:
         if t.id in grouped_tasklist_ids:
-            continue  # уже добавлена через группу
-
+            continue
         result.append({
             "type": "single",
             "id": t.id,
@@ -239,13 +283,14 @@ def api_tasks(request, level, subject):
             "count_task": t.count_task,
         })
 
-    # Добавляем группы
     result.extend(group_dict.values())
+    result.extend(linked_group_items)
 
-    # Сортируем по минимальному номеру внутри элемента
     def sort_key(item):
         if item["type"] == "single":
             return item["task_number"]
+        if item["type"] == "linked_group":
+            return min(item["task_numbers"])
         return min(task["task_number"] for task in item["tasks"])
 
     result = sorted(result, key=sort_key)

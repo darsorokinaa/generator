@@ -45,11 +45,11 @@ function TasksPage() {
   const matchesSearch = (item) => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
-    if (item.type === "group") {
+    if (item.type === "group" || item.type === "linked_group") {
       return (item.tasks || []).some(
-      (t) =>
-        (/^\d+$/.test(q) && t.task_number === parseInt(q, 10)) ||
-        ((t.task_title || "").toLowerCase()).includes(q)
+        (t) =>
+          (/^\d+$/.test(q) && t.task_number === parseInt(q, 10)) ||
+          ((t.task_title || "").toLowerCase()).includes(q)
       );
     }
     if (/^\d+$/.test(q) && item.task_number === parseInt(q, 10)) return true;
@@ -57,7 +57,9 @@ function TasksPage() {
   };
 
   const getItemPart = (item) =>
-    item.type === "group" ? item.tasks?.[0]?.part : item.part;
+    item.type === "group" || item.type === "linked_group"
+      ? item.tasks?.[0]?.part
+      : item.part;
 
   const part1Tasks = tasks.filter((item) => getItemPart(item) === 1 && matchesSearch(item));
   const part2Tasks = tasks.filter((item) => getItemPart(item) === 2 && matchesSearch(item));
@@ -85,6 +87,10 @@ function TasksPage() {
         item.tasks.forEach((t) => {
           const tid = t.tasklist_id ?? t.id;
           payload[String(tid)] = 1;
+        });
+      } else if (item.type === "linked_group" && item.tasks?.length) {
+        item.tasks.forEach((t) => {
+          payload[String(t.tasklist_id)] = 1;
         });
       } else {
         payload[String(item.id)] = 1;
@@ -131,6 +137,12 @@ function TasksPage() {
       if (identifier.startsWith("task_")) {
         content[String(item.id)] = c;
         tasksList.push({ tasklist_id: item.id, task_number: item.task_number, count: c });
+      } else if (identifier.startsWith("linked_") && item.tasks?.length) {
+        const nums = item.task_numbers || item.tasks.map((t) => t.task_number);
+        item.tasks.forEach((t) => {
+          content[String(t.tasklist_id)] = (content[String(t.tasklist_id)] ?? 0) + c;
+        });
+        tasksList.push({ task_numbers: nums, count: c });
       } else if (identifier.startsWith("group_") && item.tasks?.length) {
         const nums = item.tasks.map((t) => t.task_number);
         item.tasks.forEach((t) => {
@@ -152,16 +164,22 @@ function TasksPage() {
       .finally(() => setSubmitBlock2(false));
   };
 
-  const getIdentifier = (item) =>
-    (item.type === "group" ? `group_${item.group_id}` : `task_${item.id}`);
+  const getIdentifier = (item) => {
+    if (item.type === "linked_group") return `linked_${item.linked_key}`;
+    if (item.type === "group") return `group_${item.group_id}`;
+    return `task_${item.id}`;
+  };
 
   const getTestCount = (identifier) => testCounts[identifier] ?? 0;
 
   const getMaxCount = (item) => {
-    if (item.type !== "group") return Number(item.count_task) || 0;
-    if (!item.tasks?.length) return 0;
-    const counts = item.tasks.map((t) => Number(t.count_task) || 0);
-    return Math.min(...counts, Infinity);
+    if (item.type === "linked_group") return Number(item.count_available) || 0;
+    if (item.type === "group") {
+      if (!item.tasks?.length) return 0;
+      const counts = item.tasks.map((t) => Number(t.count_task) || 0);
+      return Math.min(...counts, Infinity);
+    }
+    return Number(item.count_task) || 0;
   };
 
   const changeTestCount = (item, delta) => {
@@ -181,8 +199,8 @@ function TasksPage() {
   const testSelectedIds = Object.keys(testCounts).filter((id) => (testCounts[id] ?? 0) > 0);
 
   const getLabel = (item) => {
-    if (item.type === "group" && item.tasks?.length) {
-      const nums = item.tasks.map((t) => t.task_number);
+    if ((item.type === "group" || item.type === "linked_group") && item.tasks?.length) {
+      const nums = item.task_numbers || item.tasks.map((t) => t.task_number);
       return `${Math.min(...nums)}–${Math.max(...nums)}`;
     }
     return String(item.task_number ?? item.id);
@@ -194,8 +212,8 @@ function TasksPage() {
   const identifierToSortKey = Object.fromEntries(
     tasks.map((item) => [
       getIdentifier(item),
-      item.type === "group" && item.tasks?.length
-        ? Math.min(...item.tasks.map((t) => t.task_number))
+      (item.type === "group" || item.type === "linked_group") && item.tasks?.length
+        ? Math.min(...(item.task_numbers || item.tasks.map((t) => t.task_number)))
         : (item.task_number ?? 0),
     ])
   );

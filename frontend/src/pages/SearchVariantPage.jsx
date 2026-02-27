@@ -33,6 +33,12 @@ function SearchVariantPage() {
       .finally(() => setLoading(false));
   }, [q]);
 
+  useEffect(() => {
+    if (data.tasks.length > 0 && window.MathJax) {
+      window.MathJax.typesetPromise();
+    }
+  }, [data]);
+
   if (!q) {
     return (
       <div className="container search-variant-page">

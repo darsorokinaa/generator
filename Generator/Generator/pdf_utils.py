@@ -1,5 +1,7 @@
 """PDF generation helpers."""
 import os
+import re
+from pathlib import Path
 
 from django.conf import settings as django_settings
 from django.contrib.staticfiles import finders
@@ -19,10 +21,10 @@ def get_pdf_css():
 
 
 MATH_CSS = mark_safe("""<style>
-/* MathJax SVG output */
-.math-display { display: block; text-align: center; margin: .8em 0; font-size: 1.1em; }
+/* MathJax SVG output — color для WeasyPrint (currentColor заменяется в latex_utils) */
+.math-display { display: block; text-align: center; margin: .8em 0; font-size: 1.1em; color: #000; }
 .math-display svg { display: inline-block; vertical-align: middle; max-width: 100%; }
-.math-inline { display: inline; vertical-align: middle; }
+.math-inline { display: inline; vertical-align: middle; color: #000; }
 .math-inline svg { display: inline-block; vertical-align: middle; }
 /* Fallback: HTML math (frac, sqrt, etc.) when MathJax unavailable */
 .frac { display: inline-block; vertical-align: middle; text-align: center; margin: 0 .15em; }
@@ -34,12 +36,45 @@ MATH_CSS = mark_safe("""<style>
 .cases-table { display: inline-table; vertical-align: middle; border-collapse: collapse; margin: .3em 0; }
 .cases-brace { font-size: 2.2em; line-height: 1; padding-right: .15em; vertical-align: middle; font-family: serif; font-weight: 100; }
 .cases-row { padding: .15em 0; }
-.array-table { display: inline-table; border-collapse: collapse; margin: .3em 0; }
-.array-cell { padding: 0 .4em; text-align: center; }
+.array-table { display: inline-table; border-collapse: collapse; margin: .3em 0; table-layout: fixed; }
+.array-cell { padding: 0 .4em; text-align: center; width: 1%; }
 .mf { font-style: normal; }
 sup { font-size: .75em; vertical-align: super; }
 sub { font-size: .75em; vertical-align: sub; }
+/* verbatim (код) — MathJax не поддерживает */
+.latex-verbatim { display: block; margin: .5em 0; font-family: monospace; font-size: 0.9em; background: #f5f5f5; padding: .5em; border-radius: 4px; }
 </style>""")
+
+
+_RE_IMG_SRC = re.compile(r'src=["\']([^"\']+)["\']', re.IGNORECASE)
+
+
+def _resolve_image_url(url: str, request=None) -> str:
+    """Преобразует URL изображения в file:// для надёжной загрузки WeasyPrint."""
+    if not url:
+        return url
+    url = url.strip()
+    if url.startswith("data:") or url.startswith("http://") or url.startswith("https://"):
+        return url
+    if url.startswith("/media/"):
+        rel_path = url[len("/media/"):].lstrip("/")
+        media_root = django_settings.MEDIA_ROOT
+        local_path = os.path.join(str(media_root), rel_path.replace("/", os.sep))
+        if os.path.exists(local_path):
+            return Path(local_path).as_uri()
+        if request:
+            return request.build_absolute_uri(url)
+    return url
+
+
+def rewrite_content_image_urls(html: str, request=None) -> str:
+    """Заменяет относительные URL изображений на file:// для PDF."""
+    def replacer(m):
+        old_url = m.group(1)
+        new_url = _resolve_image_url(old_url, request)
+        safe_url = new_url.replace('"', "%22")
+        return f'src="{safe_url}"'
+    return _RE_IMG_SRC.sub(replacer, html)
 
 
 def resolve_background_image(filename: str, request=None) -> str:
@@ -73,7 +108,9 @@ def build_pdf_context(request, variant, subject):
         if not raw_text:
             rendered_text = mark_safe("<p>&nbsp;</p>")
         else:
-            rendered_text = mark_safe(process_latex(raw_text))
+            html = process_latex(raw_text, for_pdf=True)
+            html = rewrite_content_image_urls(html, request)
+            rendered_text = mark_safe(html)
         part = item.task.task.part.part_title if item.task.task.part else None
 
         if part not in seen_parts:

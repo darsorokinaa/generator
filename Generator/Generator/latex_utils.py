@@ -15,13 +15,17 @@ logger = logging.getLogger(__name__)
 MATH_SYMBOLS = {
     r'\times': '×', r'\div': '÷', r'\pm': '±', r'\mp': '∓',
     r'\cdot': '·', r'\neq': '≠', r'\leq': '≤', r'\geq': '≥',
-    r'\approx': '≈', r'\equiv': '≡', r'\infty': '∞',
+    r'\approx': '≈', r'\sim': '∼', r'\simeq': '≃', r'\cong': '≅',
+    r'\equiv': '≡', r'\infty': '∞',
     r'\partial': '∂', r'\nabla': '∇', r'\exists': '∃', r'\forall': '∀',
     r'\in': '∈', r'\notin': '∉', r'\subset': '⊂', r'\supset': '⊃',
+    r'\subseteq': '⊆', r'\supseteq': '⊇',
     r'\cup': '∪', r'\cap': '∩', r'\emptyset': '∅',
     r'\rightarrow': '→', r'\leftarrow': '←', r'\to': '→',
     r'\Rightarrow': '⇒', r'\Leftarrow': '⇐', r'\leftrightarrow': '↔',
     r'\land': '∧', r'\lor': '∨', r'\neg': '¬', r'\lnot': '¬',
+    r'\oplus': '⊕', r'\otimes': '⊗', r'\ne': '≠', r'\le': '≤', r'\ge': '≥',
+    r'\leqslant': '≤', r'\geqslant': '≥',
     r'\alpha': 'α', r'\beta': 'β', r'\gamma': 'γ', r'\delta': 'δ',
     r'\epsilon': 'ε', r'\zeta': 'ζ', r'\eta': 'η', r'\theta': 'θ',
     r'\lambda': 'λ', r'\mu': 'μ', r'\nu': 'ν', r'\xi': 'ξ',
@@ -64,12 +68,15 @@ _RE_ENV = re.compile(
     re.DOTALL,
 )
 _RE_ARRAY = re.compile(r'\\begin\{array\}\{[^}]*\}(.*?)\\end\{array\}', re.DOTALL)
+_RE_TABULAR = re.compile(r'\\begin\{tabular\}\{[^}]*\}(.*?)\\end\{tabular\}', re.DOTALL)
+_RE_VERBATIM = re.compile(r'\\begin\{verbatim\}(.*?)\\end\{verbatim\}', re.DOTALL)
 _RE_POWER_GROUP = re.compile(r'\^\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}')
 _RE_INDEX_GROUP = re.compile(r'_\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}')
 _RE_POWER_SINGLE = re.compile(r'\^([0-9a-zA-Zα-ωΑ-Ω])')
 _RE_INDEX_SINGLE = re.compile(r'_([0-9a-zA-Zα-ωΑ-Ω])')
 _RE_TEXTBF = re.compile(r'\\textbf\{([^{}]+)\}')
 _RE_TEXTIT = re.compile(r'\\textit\{([^{}]+)\}')
+_RE_TEXTTT = re.compile(r'\\texttt\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}')
 _RE_TEXT = re.compile(r'\\(?:text|mathrm)\{([^{}]+)\}')
 _RE_MATHBF = re.compile(r'\\mathbf\{([^{}]+)\}')
 _RE_MATHIT = re.compile(r'\\mathit\{([^{}]+)\}')
@@ -96,6 +103,16 @@ _RE_MATH_TEX_SPAN = re.compile(
 _RE_MATH_FORMULA_SPAN = re.compile(
     r'<span[^>]*class=["\'][^"\']*math-tex[^"\']*["\'][^>]*data-formula=["\']([^"\']+)["\'][^>]*>.*?</span>',
     re.DOTALL | re.IGNORECASE,
+)
+# CKEditor / pasted LaTeX: math-tex span with LaTeX in body (no data-latex/data-formula)
+_RE_MATH_TEX_BODY = re.compile(
+    r'<span[^>]*class=["\'][^"\']*math-tex[^"\']*["\'][^>]*>(.*?)</span>',
+    re.DOTALL | re.IGNORECASE,
+)
+# Naked LaTeX in text (no $, no span): e.g. "уравнения 5^{x-4}=\frac{1}{125}."
+# Negative lookbehind: skip if inside our output (&#92;( = \( in entities)
+_RE_NAKED_INLINE = re.compile(
+    r'(?<!&#92;\()([^\s<>]*(?:\\frac\{[^}]*\}\{[^}]*\}|\^\{[^}]*\}|_\{[^}]*\}|\\sqrt(?:\[[^\]]*\])?\{[^}]*\})[^\s<>]*?)(?=[.,;:\s<>]|$|&#41;)',
 )
 
 _fd = getattr(django_settings, 'FRONTEND_DIR', None)
@@ -186,6 +203,9 @@ def _convert_environments(text: str) -> str:
         rows = re.split(r'\\\\', m.group(1))
         rows_html = []
         for row in rows:
+            row = row.replace(r'\hline', '').strip()
+            if not row:
+                continue
             cells = [c.strip() for c in row.split('&')]
             if not any(cells):
                 continue
@@ -207,6 +227,7 @@ def _convert_environments(text: str) -> str:
         return f'<div class="math-env">' + ''.join(f'<div class="math-row">{row}</div>' for row in cleaned) + '</div>'
 
     text = _RE_ARRAY.sub(replace_array, text)
+    text = _RE_TABULAR.sub(replace_array, text)
     return _RE_ENV.sub(replace_env, text)
 
 
@@ -223,6 +244,7 @@ def _convert_math_block(content: str, display: bool = False) -> str:
     content = _convert_environments(content)
     content = _RE_TEXTBF.sub(r'<b>\1</b>', content)
     content = _RE_TEXTIT.sub(r'<i>\1</i>', content)
+    content = _RE_TEXTTT.sub(r'<code>\1</code>', content)
     content = _RE_TEXT.sub(r'\1', content)
     content = _RE_MATHBF.sub(r'<b>\1</b>', content)
     content = _RE_MATHIT.sub(r'<i>\1</i>', content)
@@ -262,7 +284,14 @@ def _render_mathjax_svg(latex: str, display: bool) -> str:
         check=True,
         timeout=5,
     )
-    return result.stdout.strip()
+    svg_html = result.stdout.strip()
+    # WeasyPrint не поддерживает currentColor в SVG — заменяем на явный цвет
+    if svg_html:
+        svg_html = svg_html.replace('fill="currentColor"', 'fill="#000"')
+        svg_html = svg_html.replace("fill='currentColor'", "fill='#000'")
+        svg_html = svg_html.replace('stroke="currentColor"', 'stroke="#000"')
+        svg_html = svg_html.replace("stroke='currentColor'", "stroke='#000'")
+    return svg_html
 
 
 def _wrap_math_output(html: str, display: bool) -> str:
@@ -281,28 +310,48 @@ def _is_display_math(latex: str, span_html: str = "") -> bool:
     ))
 
 
-def _render_math_block(latex: str, display: bool) -> str:
+def _render_math_block(latex: str, display: bool, for_pdf: bool = False) -> str:
+    if for_pdf and (r'\begin{array}' in latex or r'\begin{tabular}' in latex):
+        return _convert_math_block(latex, display=display)
     if MATHJAX_AVAILABLE:
         try:
             svg = _render_mathjax_svg(latex, display)
             return _wrap_math_output(svg, display)
         except Exception:
             logger.exception("MathJax render failed, falling back to parser")
-    return _convert_math_block(latex, display=display)
+    if for_pdf:
+        return _convert_math_block(latex, display=display)
+    # Для веба: LaTeX в сущностях, чтобы наш regex \(...\) не перехватывал повторно
+    escaped = html_lib.escape(latex)
+    if display:
+        return f'<span class="math-display">&#92;[{escaped}&#92;]</span>'
+    return f'<span class="math-inline">&#92;({escaped}&#41;</span>'
 
 
 def _normalize_latex(s: str) -> str:
-    """Normalize LaTeX from HTML: unescape entities, clean BR tags in content."""
+    """Normalize LaTeX from HTML: unescape entities, clean BR/newlines so \\frac{1}\\n{125} works."""
     if not s:
         return s
     s = html_lib.unescape(s)
     s = s.replace('<br>', ' ').replace('<br/>', ' ').replace('<br />', ' ')
+    s = _RE_NEWLINES.sub(' ', s)
     return s.strip()
 
 
-def process_latex(html_text: str) -> str:
+def _replace_verbatim(m):
+    """Replace \\begin{verbatim}...\\end{verbatim} with HTML (MathJax не поддерживает verbatim)."""
+    content = m.group(1)
+    content = html_lib.escape(content)
+    content = content.replace('\n', '<br>')
+    return f'<pre class="latex-verbatim"><code>{content}</code></pre>'
+
+
+def process_latex(html_text: str, for_pdf: bool = False) -> str:
     if not html_text:
         return html_text
+
+    # 0. Verbatim — до обработки math (MathJax не поддерживает verbatim)
+    html_text = _RE_VERBATIM.sub(_replace_verbatim, html_text)
 
     def replace_math_span(m):
         span_html = m.group(0)
@@ -310,14 +359,14 @@ def process_latex(html_text: str) -> str:
         if not latex:
             return span_html
         display = _is_display_math(latex, span_html)
-        return _render_math_block(latex, display)
+        return _render_math_block(latex, display, for_pdf=for_pdf)
 
     def replace_math_tex(m):
         latex = _normalize_latex(m.group(1) or "")
         if not latex:
             return m.group(0)
         display = _is_display_math(latex, m.group(0))
-        return _render_math_block(latex, display)
+        return _render_math_block(latex, display, for_pdf=for_pdf)
 
     # 1. TipTap/ProseMirror span
     html_text = _RE_MATH_SPAN.sub(replace_math_span, html_text)
@@ -325,24 +374,48 @@ def process_latex(html_text: str) -> str:
     html_text = _RE_MATH_TEX_SPAN.sub(replace_math_tex, html_text)
     # 3. CKEditor math-tex with data-formula
     html_text = _RE_MATH_FORMULA_SPAN.sub(replace_math_tex, html_text)
+
+    def replace_math_tex_body(m):
+        """LaTeX in span body (no data-latex): strip HTML, normalize, render."""
+        body = _clean_html(m.group(1) or "")
+        latex = _normalize_latex(body)
+        if not latex:
+            return m.group(0)
+        display = _is_display_math(latex, m.group(0))
+        return _render_math_block(latex, display, for_pdf=for_pdf)
+
+    # 3b. math-tex span with LaTeX in body (no data-latex) — after 2,3 so we don't double-process
+    html_text = _RE_MATH_TEX_BODY.sub(replace_math_tex_body, html_text)
+    def replace_display(m):
+        content = _normalize_latex(m.group(1))
+        # Если внутри оказался verbatim (уже заменён на <pre>), не отправляем в MathJax
+        if '<pre class="latex-verbatim">' in content:
+            return content
+        return _render_math_block(content, True, for_pdf=for_pdf)
+
     # 4. Display math \[...\] (including with <br> inside)
-    html_text = _RE_DISPLAY.sub(
-        lambda m: _render_math_block(_normalize_latex(m.group(1)), True),
-        html_text,
-    )
+    html_text = _RE_DISPLAY.sub(replace_display, html_text)
     # 4b. Display math $$...$$
-    html_text = _RE_DISPLAY_DOUBLE.sub(
-        lambda m: _render_math_block(_normalize_latex(m.group(1)), True),
-        html_text,
-    )
+    html_text = _RE_DISPLAY_DOUBLE.sub(replace_display, html_text)
     # 5. Inline \(...\)
     html_text = _RE_INLINE_PAREN.sub(
-        lambda m: _render_math_block(_normalize_latex(m.group(1)), False),
+        lambda m: _render_math_block(_normalize_latex(m.group(1)), False, for_pdf=for_pdf),
         html_text,
     )
     # 6. Inline $...$
     html_text = _RE_INLINE_DOLLAR.sub(
-        lambda m: _render_math_block(_normalize_latex(m.group(1)), False),
+        lambda m: _render_math_block(_normalize_latex(m.group(1)), False, for_pdf=for_pdf),
         html_text,
     )
+    # 6b. Naked LaTeX in text (no delimiters) — e.g. "5^{x-4}=\frac{1}{125}"
+    # Skip when inside our math output (after &#92;() to avoid double-processing
+    def replace_naked(m):
+        latex = _normalize_latex(m.group(1))
+        if not latex or len(latex) < 3:
+            return m.group(0)
+        return _render_math_block(latex, False, for_pdf=for_pdf)
+
+    html_text = _RE_NAKED_INLINE.sub(replace_naked, html_text)
+    # 7. \texttt{...} в оставшемся plain HTML → моноширинный код (после math, чтобы не трогать data-latex)
+    html_text = _RE_TEXTTT.sub(r'<code>\1</code>', html_text)
     return html_text

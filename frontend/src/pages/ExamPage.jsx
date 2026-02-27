@@ -80,9 +80,16 @@ function ExamPage() {
      MathJax
   ========================== */
   useEffect(() => {
-    if (variant && window.MathJax) {
-      window.MathJax.typesetPromise();
-    }
+    if (!variant || !window.MathJax) return;
+    const timer = setTimeout(() => {
+      try {
+        if (window.MathJax.typesetClear) {
+          window.MathJax.typesetClear();
+        }
+        window.MathJax.typesetPromise?.();
+      } catch (_) {}
+    }, 50);
+    return () => clearTimeout(timer);
   }, [variant, boardOpen, userAnswers, checkedTasks, scores]);
 
   /* =========================
