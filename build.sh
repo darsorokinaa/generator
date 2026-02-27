@@ -10,16 +10,16 @@ npm run build
 cd /home/runner/workspace/Generator
 echo "Resetting database schema..."
 psql "$DATABASE_URL" -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
-python manage.py migrate --noinput
-python manage.py collectstatic --noinput
 
-echo "Loading data from dump..."
+echo "Loading full database dump..."
 psql "$DATABASE_URL" -f /home/runner/workspace/load_data.sql
-echo "Data loaded successfully"
+echo "Dump loaded successfully"
 
-echo "Resetting sequences..."
-python manage.py sqlsequencereset Generator | psql "$DATABASE_URL"
-echo "Sequences reset"
+echo "Syncing Django migration state..."
+psql "$DATABASE_URL" -c "TRUNCATE django_migrations;"
+python manage.py migrate --fake-initial --noinput
+
+python manage.py collectstatic --noinput
 
 python -c "
 import django, os
