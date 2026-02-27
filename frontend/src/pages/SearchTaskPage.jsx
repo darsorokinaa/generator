@@ -35,7 +35,14 @@ function SearchTaskPage() {
 
   useEffect(() => {
     if (tasks.length > 0 && window.MathJax) {
-      window.MathJax.typesetPromise();
+      setTimeout(() => {
+        try {
+          if (window.MathJax.typesetClear) window.MathJax.typesetClear();
+          if (window.MathJax.typesetPromise) window.MathJax.typesetPromise();
+        } catch (err) {
+          console.error("MathJax error:", err);
+        }
+      }, 100);
     }
   }, [tasks]);
 

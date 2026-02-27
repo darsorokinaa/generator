@@ -86,9 +86,13 @@ function ExamPage() {
         if (window.MathJax.typesetClear) {
           window.MathJax.typesetClear();
         }
-        window.MathJax.typesetPromise?.();
-      } catch (_) {}
-    }, 50);
+        if (window.MathJax.typesetPromise) {
+          window.MathJax.typesetPromise();
+        }
+      } catch (err) {
+        console.error("MathJax error:", err);
+      }
+    }, 100);
     return () => clearTimeout(timer);
   }, [variant, boardOpen, userAnswers, checkedTasks, scores]);
 
