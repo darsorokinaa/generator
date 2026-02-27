@@ -17,7 +17,7 @@ echo "Dump loaded successfully"
 
 echo "Syncing Django migration state..."
 psql "$DATABASE_URL" -c "TRUNCATE django_migrations;"
-python manage.py migrate --fake-initial --noinput
+python manage.py migrate --fake --noinput
 
 python manage.py collectstatic --noinput
 
