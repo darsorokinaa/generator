@@ -28,5 +28,11 @@ A Django + React application for exam preparation (ОГЭ/ЕГЭ). Users can sel
   - Added API-prefixed PDF URL routes in Django for Vite proxy compatibility
 
 ## Workflows
-- **Django Backend**: `cd Generator && python manage.py runserver 0.0.0.0:8000` (port 8000)
+- **Django Backend**: `python manage.py runserver 0.0.0.0:8000` (port 8000, runs from project root)
 - **Frontend**: `cd frontend && npm run dev` (port 5000, webview)
+
+## Environment Setup (Replit)
+- Database: Replit built-in PostgreSQL, credentials set via PGHOST/PGUSER/PGPASSWORD/PGDATABASE/PGPORT env vars
+- Migrations applied: all 28 migrations (Generator app + Django built-ins)
+- Python deps installed via pip from requirements.txt
+- Node deps installed via npm in frontend/
