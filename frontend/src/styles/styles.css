@@ -1733,12 +1733,17 @@ header .container {
 
 .task-text {
     margin-bottom: 1.5rem;
+    font-size: 1.125rem;
     line-height: 1.8;
     color: var(--text-primary);
     max-width: 100%;
     overflow-wrap: break-word;
     word-wrap: break-word;
     word-break: break-word;
+}
+
+mjx-container {
+    font-size: 120% !important;
 }
 
 .task-text table {
