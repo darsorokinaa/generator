@@ -80,17 +80,19 @@ function ExamPage() {
      MathJax
   ========================== */
   useEffect(() => {
-    if (!variant || !window.MathJax) return;
-    const timer = setTimeout(() => {
-      try {
-        if (window.MathJax.typesetClear) {
-          window.MathJax.typesetClear();
-        }
-        window.MathJax.typesetPromise?.();
-      } catch (_) {}
-    }, 50);
-    return () => clearTimeout(timer);
-  }, [variant, boardOpen, userAnswers, checkedTasks, scores]);
+    if (!variant) return;
+    let cancelled = false;
+    const tryTypeset = () => {
+      if (cancelled) return;
+      if (window.MathJax?.typesetPromise) {
+        try { window.MathJax.typesetPromise(); } catch (_) {}
+      } else {
+        setTimeout(tryTypeset, 100);
+      }
+    };
+    const timer = setTimeout(tryTypeset, 50);
+    return () => { cancelled = true; clearTimeout(timer); };
+  }, [variant]);
 
   /* =========================
      Canvas + WebSocket
