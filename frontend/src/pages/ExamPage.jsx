@@ -99,7 +99,7 @@ function ExamPage() {
     if (!variant || !window.MathJax?.typesetPromise) return;
     const timer = setTimeout(() => {
       try { window.MathJax.typesetPromise(); } catch (_) {}
-    }, 300);
+    }, 100);
     return () => clearTimeout(timer);
   }, [userAnswers, checkedTasks, scores]);
 
