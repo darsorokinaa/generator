@@ -1,6 +1,25 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 
+function MathContent({ html, className }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!ref.current) return;
+    ref.current.innerHTML = html;
+    const el = ref.current;
+    const run = () => {
+      if (window.MathJax?.typesetPromise) {
+        window.MathJax.typesetPromise([el]).catch(() => {});
+      } else {
+        const id = setTimeout(run, 100);
+        return () => clearTimeout(id);
+      }
+    };
+    run();
+  }, [html]);
+  return <div ref={ref} className={className} />;
+}
+
 const COLORS = [
   { value: "#000000", label: "Чёрный" },
   { value: "#2196F3", label: "Синий" },
@@ -94,14 +113,6 @@ function ExamPage() {
     const timer = setTimeout(tryTypeset, delay);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [variant]);
-
-  useEffect(() => {
-    if (!variant || !window.MathJax?.typesetPromise) return;
-    const timer = setTimeout(() => {
-      try { window.MathJax.typesetPromise(); } catch (_) {}
-    }, 10);
-    return () => clearTimeout(timer);
-  }, [userAnswers, checkedTasks, scores]);
 
   /* =========================
      Canvas + WebSocket
@@ -602,7 +613,7 @@ function ExamPage() {
                   </aside>
 
                   <article className="task-content">
-                    <div className="task-text" dangerouslySetInnerHTML={{ __html: task.text }} />
+                    <MathContent html={task.text} className="task-text" />
 
                     {task.file && (
                       <div className="task-files">
@@ -764,7 +775,7 @@ function ExamPage() {
                           </aside>
 
                           <article className="task-content">
-                            <div className="task-text" dangerouslySetInnerHTML={{ __html: task.text }} />
+                            <MathContent html={task.text} className="task-text" />
 
                             <div className="answer-section">
                               {useTableHere && rowsHere > 0 && colsHere > 0 ? (
@@ -872,7 +883,7 @@ function ExamPage() {
                     </aside>
 
                     <article className="task-content">
-                      <div className="task-text" dangerouslySetInnerHTML={{ __html: task.text }} />
+                      <MathContent html={task.text} className="task-text" />
 
                       <div className="answer-section">
                         <div className="score-label">Выставьте баллы за решение:</div>
