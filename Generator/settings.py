@@ -1,3 +1,4 @@
+from logging import DEBUG
 from pathlib import Path
 import os
 
@@ -9,7 +10,8 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-insecure-secret-key")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.environ.get("DJANGO_DEBUG", "1") == "1"
+# DEBUG = os.environ.get("DJANGO_DEBUG", "1") == "1"
+DEBUG = False
 
 # Для Replit домен не localhost, поэтому либо "*" (для демо), либо конкретный домен repl
 ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "*").split(",")

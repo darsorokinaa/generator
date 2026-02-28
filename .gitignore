@@ -8,8 +8,8 @@ venv/
 
 # Django
 *.log
-media/
 staticfiles/
+Generator/media/pdfs/
 
 # Environment variables
 .env
