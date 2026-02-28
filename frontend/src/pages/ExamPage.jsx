@@ -90,9 +90,18 @@ function ExamPage() {
         setTimeout(tryTypeset, 100);
       }
     };
-    const timer = setTimeout(tryTypeset, 50);
+    const delay = variant ? 50 : 0;
+    const timer = setTimeout(tryTypeset, delay);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [variant]);
+
+  useEffect(() => {
+    if (!variant || !window.MathJax?.typesetPromise) return;
+    const timer = setTimeout(() => {
+      try { window.MathJax.typesetPromise(); } catch (_) {}
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [userAnswers, checkedTasks, scores]);
 
   /* =========================
      Canvas + WebSocket
