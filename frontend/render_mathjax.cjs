@@ -1,17 +1,17 @@
 // render_mathjax.js — supports both single formula and batch array mode
-const {mathjax} = require('mathjax-full/js/mathjax.js');
-const {TeX} = require('mathjax-full/js/input/tex.js');
-const {SVG} = require('mathjax-full/js/output/svg.js');
-const {liteAdaptor} = require('mathjax-full/js/adaptors/liteAdaptor.js');
-const {RegisterHTMLHandler} = require('mathjax-full/js/handlers/html.js');
-const {AllPackages} = require('mathjax-full/js/input/tex/AllPackages.js');
+const { mathjax } = require('mathjax-full/js/mathjax.js');
+const { TeX } = require('mathjax-full/js/input/tex.js');
+const { SVG } = require('mathjax-full/js/output/svg.js');
+const { liteAdaptor } = require('mathjax-full/js/adaptors/liteAdaptor.js');
+const { RegisterHTMLHandler } = require('mathjax-full/js/handlers/html.js');
+const { AllPackages } = require('mathjax-full/js/input/tex/AllPackages.js');
 
 const adaptor = liteAdaptor();
 RegisterHTMLHandler(adaptor);
 
-const tex = new TeX({packages: AllPackages});
-const svg = new SVG({fontCache: 'none'}); // важно для WeasyPrint
-const doc = mathjax.document('', {InputJax: tex, OutputJax: svg});
+const tex = new TeX({ packages: AllPackages });
+const svg = new SVG({ fontCache: 'none', scale: 0.9 }); // важно для WeasyPrint
+const doc = mathjax.document('', { InputJax: tex, OutputJax: svg });
 
 let input = '';
 process.stdin.on('data', (c) => input += c);
@@ -23,9 +23,9 @@ process.stdin.on('end', () => {
 
     if (Array.isArray(parsed)) {
       // Batch mode: [{latex, display}, ...] → JSON array of SVG strings
-      const results = parsed.map(({latex, display}) => {
+      const results = parsed.map(({ latex, display }) => {
         try {
-          const node = doc.convert(latex || '', {display: Boolean(display)});
+          const node = doc.convert(latex || '', { display: Boolean(display) });
           return adaptor.outerHTML(node);
         } catch (e) {
           return '';
@@ -36,12 +36,12 @@ process.stdin.on('end', () => {
       // Single mode: {latex, display} → SVG string (backward compatible)
       const latex = parsed.latex || '';
       const display = Boolean(parsed.display);
-      const node = doc.convert(latex, {display});
+      const node = doc.convert(latex, { display });
       process.stdout.write(adaptor.outerHTML(node));
     }
   } catch (err) {
     // Backwards-compatible: treat raw stdin as latex (display mode)
-    const node = doc.convert(raw, {display: true});
+    const node = doc.convert(raw, { display: true });
     process.stdout.write(adaptor.outerHTML(node));
   }
 });
