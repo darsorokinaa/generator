@@ -271,6 +271,29 @@ def _convert_math_block(content: str, display: bool = False) -> str:
     return f'<{tag}>{content}</{close}>'
 
 
+PDF_MATH_SCALE = 1.4
+
+_RE_SVG_WIDTH = re.compile(r'(<svg\b[^>]*\s)width="([\d.]+)ex"')
+_RE_SVG_HEIGHT = re.compile(r'(<svg\b[^>]*\s)height="([\d.]+)ex"')
+_RE_SVG_VALIGN = re.compile(r'vertical-align:\s*(-?[\d.]+)ex')
+
+
+def _scale_svg(svg_html: str, scale: float) -> str:
+    def scale_width(m):
+        return f'{m.group(1)}width="{float(m.group(2)) * scale:.3f}ex"'
+
+    def scale_height(m):
+        return f'{m.group(1)}height="{float(m.group(2)) * scale:.3f}ex"'
+
+    def scale_valign(m):
+        return f'vertical-align: {float(m.group(1)) * scale:.3f}ex'
+
+    svg_html = _RE_SVG_WIDTH.sub(scale_width, svg_html)
+    svg_html = _RE_SVG_HEIGHT.sub(scale_height, svg_html)
+    svg_html = _RE_SVG_VALIGN.sub(scale_valign, svg_html)
+    return svg_html
+
+
 @lru_cache(maxsize=2048)
 def _render_mathjax_svg(latex: str, display: bool) -> str:
     if not MATHJAX_AVAILABLE:
@@ -291,6 +314,7 @@ def _render_mathjax_svg(latex: str, display: bool) -> str:
         svg_html = svg_html.replace("fill='currentColor'", "fill='#000'")
         svg_html = svg_html.replace('stroke="currentColor"', 'stroke="#000"')
         svg_html = svg_html.replace("stroke='currentColor'", "stroke='#000'")
+        svg_html = _scale_svg(svg_html, PDF_MATH_SCALE)
     return svg_html
 
 
