@@ -64,7 +64,7 @@ function TasksPage() {
   const part1Tasks = tasks.filter((item) => getItemPart(item) === 1 && matchesSearch(item));
   const part2Tasks = tasks.filter((item) => getItemPart(item) === 2 && matchesSearch(item));
 
-  const postVariant = (payload) => {
+  const postVariant = (payload, mode = "variant") => {
     const body = JSON.stringify(payload);
     return fetch(`/api/${level}/${subject}/variant/`, {
       method: "POST",
@@ -76,7 +76,7 @@ function TasksPage() {
         return res.json();
       })
       .then((data) => {
-        navigate(`/${level}/${subject}/variant/${data.variant_id}`);
+        navigate(`/${level}/${subject}/variant/${data.variant_id}`, { state: { mode } });
       });
   };
 
@@ -106,19 +106,19 @@ function TasksPage() {
     const payload = payloadFromTasks(part1Tasks);
     if (Object.keys(payload).length === 0) return;
     setSubmitBlock1(true);
-    postVariant(payload).catch((err) => setError(err.message)).finally(() => setSubmitBlock1(false));
+    postVariant(payload, "part1").catch((err) => setError(err.message)).finally(() => setSubmitBlock1(false));
   };
   const onPart2 = () => {
     const payload = payloadFromTasks(part2Tasks);
     if (Object.keys(payload).length === 0) return;
     setSubmitBlock1(true);
-    postVariant(payload).catch((err) => setError(err.message)).finally(() => setSubmitBlock1(false));
+    postVariant(payload, "part2").catch((err) => setError(err.message)).finally(() => setSubmitBlock1(false));
   };
   const onChooseAll = () => {
     const payload = payloadFromTasks(tasks);
     if (Object.keys(payload).length === 0) return;
     setSubmitBlock1(true);
-    postVariant(payload).catch((err) => setError(err.message)).finally(() => setSubmitBlock1(false));
+    postVariant(payload, "variant").catch((err) => setError(err.message)).finally(() => setSubmitBlock1(false));
   };
 
   
@@ -159,7 +159,7 @@ function TasksPage() {
     const payload = buildPayloadFromTestCounts();
     if (!payload.tasks?.length) return;
     setSubmitBlock2(true);
-    postVariant(payload)
+    postVariant(payload, "test")
       .catch((err) => setError(err.message))
       .finally(() => setSubmitBlock2(false));
   };

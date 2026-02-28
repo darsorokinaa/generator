@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useLocation } from "react-router-dom";
 
 function MathContent({ html, className }) {
   const ref = useRef(null);
@@ -38,6 +38,8 @@ const LEVEL_NAMES = {
 
 function ExamPage() {
   const { level, subject, variant_id } = useParams();
+  const location = useLocation();
+  const mode = location.state?.mode || "variant";
   const subjectLabel = SUBJECT_NAMES[subject] || subject;
   const levelLabel = LEVEL_NAMES[level] || level.toUpperCase();
 
@@ -509,15 +511,19 @@ function ExamPage() {
               <div className="variant-hero-bg" />
               <div className="variant-hero-content">
                 <div className="variant-hero-left">
-                  <div className="variant-label">Тестирование по {subjectLabel} {levelLabel}</div>
+                  <div className="variant-label">
+                    {mode === "test" ? `Тестирование по ${subjectLabel} ${levelLabel}` : `${subjectLabel} ${levelLabel}`}
+                  </div>
                   <div className="variant-number">
-                    {(() => {
+                    {mode === "test" ? (() => {
                       const nums = [...new Set(variant.tasks.map((t) => t.number).filter(Boolean))].sort((a, b) => a - b);
                       if (nums.length === 0) return `№ ${variant.id}`;
                       if (nums.length === 1) return `Задание ${nums[0]}`;
                       if (nums.length <= 4) return `Задания ${nums.join(", ")}`;
                       return `Задания ${nums[0]}–${nums[nums.length - 1]}`;
-                    })()}
+                    })() : mode === "part1" ? `Вариант № ${variant.id} / Часть 1`
+                      : mode === "part2" ? `Вариант № ${variant.id} / Часть 2`
+                      : `Вариант № ${variant.id}`}
                   </div>
                 </div>
 
