@@ -1,8 +1,13 @@
 import { useParams, Link, useNavigate } from "react-router-dom";
+import NotFoundPage from "./NotFoundPage";
+
+const KNOWN_LEVELS = ["oge", "ege"];
 
 function SubjectPage() {
   const { level } = useParams();
   const navigate = useNavigate();
+
+  if (!KNOWN_LEVELS.includes(level)) return <NotFoundPage />;
 
   function handleSearchTask(e) {
     e.preventDefault();

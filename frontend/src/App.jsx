@@ -7,6 +7,7 @@ import TasksPage from "./pages/TasksPage";
 import ExamPage from "./pages/ExamPage";
 import SearchTaskPage from "./pages/SearchTaskPage";
 import SearchVariantPage from "./pages/SearchVariantPage";
+import NotFoundPage from "./pages/NotFoundPage";
 
 function SearchTaskWithKey() {
   const location = useLocation();
@@ -38,6 +39,8 @@ function App() {
             path="/:level/:subject/variant/:variant_id"
             element={<ExamPage />}
           />
+
+          <Route path="*" element={<NotFoundPage />} />
 
         </Route>
 
