@@ -11,14 +11,12 @@ cd /home/runner/workspace/Generator
 echo "Resetting database schema..."
 psql "$DATABASE_URL" -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
 
-echo "Loading full database dump..."
-psql "$DATABASE_URL" -f /home/runner/workspace/load_data.sql
-echo "Dump loaded successfully"
-
-echo "Syncing Django migration state..."
-psql "$DATABASE_URL" -c "TRUNCATE django_migrations;"
-python manage.py migrate --fake --noinput
+echo "Running Django migrations to create schema..."
 python manage.py migrate --noinput
+
+echo "Loading task bank data..."
+psql "$DATABASE_URL" -f /home/runner/workspace/load_data.sql
+echo "Data loaded successfully"
 
 python manage.py collectstatic --noinput
 
