@@ -310,10 +310,10 @@ def _is_display_math(latex: str, span_html: str = "") -> bool:
     ))
 
 
-def _render_math_block(latex: str, display: bool, for_pdf: bool = False) -> str:
+def _render_math_block(latex: str, display: bool, for_pdf: bool = False, for_browser: bool = False) -> str:
     if for_pdf and (r'\begin{array}' in latex or r'\begin{tabular}' in latex):
         return _convert_math_block(latex, display=display)
-    if MATHJAX_AVAILABLE:
+    if MATHJAX_AVAILABLE and not for_browser:
         try:
             svg = _render_mathjax_svg(latex, display)
             return _wrap_math_output(svg, display)
@@ -322,10 +322,11 @@ def _render_math_block(latex: str, display: bool, for_pdf: bool = False) -> str:
     if for_pdf:
         return _convert_math_block(latex, display=display)
     # Для веба: LaTeX в сущностях, чтобы наш regex \(...\) не перехватывал повторно
+    # &#92; = \, &#91; = [, &#93; = ], &#41; = ) — encoding prevents regex re-matching
     escaped = html_lib.escape(latex)
     if display:
         return f'<span class="math-display">&#92;[{escaped}&#92;]</span>'
-    return f'<span class="math-inline">&#92;({escaped}&#41;</span>'
+    return f'<span class="math-inline">&#92;({escaped}&#92;&#41;</span>'
 
 
 def _normalize_latex(s: str) -> str:
@@ -347,7 +348,7 @@ def _replace_verbatim(m):
 
 
 @lru_cache(maxsize=4096)
-def process_latex(html_text: str, for_pdf: bool = False) -> str:
+def process_latex(html_text: str, for_pdf: bool = False, for_browser: bool = False) -> str:
     if not html_text:
         return html_text
 
@@ -360,14 +361,14 @@ def process_latex(html_text: str, for_pdf: bool = False) -> str:
         if not latex:
             return span_html
         display = _is_display_math(latex, span_html)
-        return _render_math_block(latex, display, for_pdf=for_pdf)
+        return _render_math_block(latex, display, for_pdf=for_pdf, for_browser=for_browser)
 
     def replace_math_tex(m):
         latex = _normalize_latex(m.group(1) or "")
         if not latex:
             return m.group(0)
         display = _is_display_math(latex, m.group(0))
-        return _render_math_block(latex, display, for_pdf=for_pdf)
+        return _render_math_block(latex, display, for_pdf=for_pdf, for_browser=for_browser)
 
     # 1. TipTap/ProseMirror span
     html_text = _RE_MATH_SPAN.sub(replace_math_span, html_text)
@@ -383,16 +384,16 @@ def process_latex(html_text: str, for_pdf: bool = False) -> str:
         if not latex:
             return m.group(0)
         display = _is_display_math(latex, m.group(0))
-        return _render_math_block(latex, display, for_pdf=for_pdf)
+        return _render_math_block(latex, display, for_pdf=for_pdf, for_browser=for_browser)
 
     # 3b. math-tex span with LaTeX in body (no data-latex) — after 2,3 so we don't double-process
     html_text = _RE_MATH_TEX_BODY.sub(replace_math_tex_body, html_text)
+
     def replace_display(m):
         content = _normalize_latex(m.group(1))
-        # Если внутри оказался verbatim (уже заменён на <pre>), не отправляем в MathJax
         if '<pre class="latex-verbatim">' in content:
             return content
-        return _render_math_block(content, True, for_pdf=for_pdf)
+        return _render_math_block(content, True, for_pdf=for_pdf, for_browser=for_browser)
 
     # 4. Display math \[...\] (including with <br> inside)
     html_text = _RE_DISPLAY.sub(replace_display, html_text)
@@ -400,21 +401,20 @@ def process_latex(html_text: str, for_pdf: bool = False) -> str:
     html_text = _RE_DISPLAY_DOUBLE.sub(replace_display, html_text)
     # 5. Inline \(...\)
     html_text = _RE_INLINE_PAREN.sub(
-        lambda m: _render_math_block(_normalize_latex(m.group(1)), False, for_pdf=for_pdf),
+        lambda m: _render_math_block(_normalize_latex(m.group(1)), False, for_pdf=for_pdf, for_browser=for_browser),
         html_text,
     )
     # 6. Inline $...$
     html_text = _RE_INLINE_DOLLAR.sub(
-        lambda m: _render_math_block(_normalize_latex(m.group(1)), False, for_pdf=for_pdf),
+        lambda m: _render_math_block(_normalize_latex(m.group(1)), False, for_pdf=for_pdf, for_browser=for_browser),
         html_text,
     )
     # 6b. Naked LaTeX in text (no delimiters) — e.g. "5^{x-4}=\frac{1}{125}"
-    # Skip when inside our math output (after &#92;() to avoid double-processing
     def replace_naked(m):
         latex = _normalize_latex(m.group(1))
         if not latex or len(latex) < 3:
             return m.group(0)
-        return _render_math_block(latex, False, for_pdf=for_pdf)
+        return _render_math_block(latex, False, for_pdf=for_pdf, for_browser=for_browser)
 
     html_text = _RE_NAKED_INLINE.sub(replace_naked, html_text)
     # 7. \texttt{...} в оставшемся plain HTML → моноширинный код (после math, чтобы не трогать data-latex)

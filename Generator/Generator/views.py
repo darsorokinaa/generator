@@ -334,7 +334,7 @@ def api_variant_detail(request, level, subject, variant_id):
         tasks_data.append({
             "id": item.task.id,
             "number": item.order,
-            "text": str(item.task.task_template or ""),
+            "text": process_latex(str(item.task.task_template or ""), for_browser=True),
             "answer": item.task.answer,
             "part": item.task.task.part_id if item.task.task else None,
             "file": request.build_absolute_uri(item.task.files.url)
@@ -408,7 +408,7 @@ def search_task(request):
         "tasks": [{
             "id": task.id,
             "task_number": task.task.task_number,
-            "task_text": str(task.task_template or ""),
+            "task_text": process_latex(str(task.task_template or ""), for_browser=True),
             "answer": task.answer,
         }]
     })
