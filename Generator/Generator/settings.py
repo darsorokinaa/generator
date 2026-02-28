@@ -125,6 +125,11 @@ DATABASES = {
         'PASSWORD': os.environ.get('PGPASSWORD', 'postgres'),
         'HOST': os.environ.get('PGHOST', 'localhost'),
         'PORT': os.environ.get('PGPORT', '5432'),
+        'CONN_MAX_AGE': 60,
+        'CONN_HEALTH_CHECKS': True,
+        'OPTIONS': {
+            'connect_timeout': 5,
+        },
     }
 }
 # DATABASES = {

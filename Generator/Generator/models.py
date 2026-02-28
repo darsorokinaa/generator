@@ -51,6 +51,11 @@ class TaskList(models.Model):
     task_number = models.IntegerField()
     task_title = models.CharField(max_length=100)
 
+    class Meta:
+        indexes = [
+            models.Index(fields=['subject', 'level'], name='tasklist_subject_level_idx'),
+        ]
+
     def __str__(self):
         return f'{self.subject} {self.level}: {self.task_number} - {self.task_title}'
 
@@ -96,6 +101,9 @@ class TaskGroup(models.Model):
 
     class Meta:
         verbose_name = "Группа заданий"
+        indexes = [
+            models.Index(fields=['subject', 'level'], name='taskgroup_subject_level_idx'),
+        ]
 
     def __str__(self):
         return f"Группа {self.id} ({self.subject} / {self.level})"
@@ -133,6 +141,9 @@ class VariantContent(models.Model):
 
     class Meta:
         ordering = ['order']
+        indexes = [
+            models.Index(fields=['variant', 'order'], name='vc_variant_order_idx'),
+        ]
 
     def __str__(self):
         return f'Вариант {str(self.variant.id)} задание {self.task_id} ({self.variant.var_subject.subject_name} {self.variant.level})'
