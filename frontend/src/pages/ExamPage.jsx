@@ -127,7 +127,7 @@ function ExamPage() {
     const delay = variant ? 50 : 0;
     const timer = setTimeout(tryTypeset, delay);
     return () => { cancelled = true; clearTimeout(timer); };
-  }, [variant]);
+  }, [variant, boardOpen]);
 
   /* =========================
      Canvas + WebSocket
@@ -935,8 +935,7 @@ function ExamPage() {
       </div>
 
       {/* ===== КНОПКА ДОСКИ ===== */}
-      {!boardOpen && (
-        <button id="open-board-btn" onClick={() => setBoardOpen(true)}>
+      <button id="open-board-btn" onClick={() => setBoardOpen(true)} style={{ display: boardOpen ? "none" : undefined }}>
           <svg
             className="board-icon"
             viewBox="0 0 24 24"
@@ -952,11 +951,9 @@ function ExamPage() {
           </svg>
           <span>Открыть доску</span>
         </button>
-      )}
 
       {/* ===== ДОСКА ===== */}
-      {boardOpen && (
-        <div id="board-container" className="active">
+      <div id="board-container" className={boardOpen ? "active" : ""}>
           <div id="board-toolbar">
             <button
               id="penBtn"
@@ -1056,7 +1053,6 @@ function ExamPage() {
 
           <canvas ref={canvasRef} id="board" style={{ cursor: tool === "eraser" ? "pointer" : "crosshair" }} />
         </div>
-      )}
     </div>
   );
 }
