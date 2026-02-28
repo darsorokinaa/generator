@@ -346,6 +346,7 @@ def _replace_verbatim(m):
     return f'<pre class="latex-verbatim"><code>{content}</code></pre>'
 
 
+@lru_cache(maxsize=4096)
 def process_latex(html_text: str, for_pdf: bool = False) -> str:
     if not html_text:
         return html_text

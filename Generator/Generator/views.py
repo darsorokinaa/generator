@@ -320,7 +320,7 @@ def api_variant_lookup(request, variant_id):
 
 
 def api_variant_detail(request, level, subject, variant_id):
-    variant = get_object_or_404(Variant, id=variant_id)
+    variant = get_object_or_404(Variant.objects.select_related('level', 'var_subject'), id=variant_id)
 
     contents = (
         VariantContent.objects

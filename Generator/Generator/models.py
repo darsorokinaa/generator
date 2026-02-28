@@ -25,14 +25,14 @@ def task_url(instance, filename):
 
 
 class Level(models.Model):
-    level = models.CharField(max_length=10)
+    level = models.CharField(max_length=10, db_index=True)
     level_rus = models.CharField(max_length=50, default='')
     def __str__(self):
         return self.level
 
 
 class Subject(models.Model):
-    subject_short = models.CharField(max_length=50)
+    subject_short = models.CharField(max_length=50, db_index=True)
     subject_name = models.CharField(max_length=200)
 
     def __str__(self):
