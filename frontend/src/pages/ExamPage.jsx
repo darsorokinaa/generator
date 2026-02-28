@@ -63,6 +63,9 @@ function ExamPage() {
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [timerStatus, setTimerStatus] = useState("idle"); // "idle" | "running" | "paused"
 
+  // Загрузка PDF
+  const [pdfLoading, setPdfLoading] = useState(null); // null | "default" | "spring"
+
   const canvasRef = useRef(null);
   const socketRef = useRef(null);
   const objectsRef = useRef([]);
@@ -494,16 +497,72 @@ function ExamPage() {
 
   const correctCount = Object.values(checkedTasks).filter(Boolean).length;
 
-  const openPdf = (variantId) => {
-    window.open(`/api/${level}/${subject}/variant/${variantId}/pdf/`, "_blank");
+  const openPdf = async (variantId) => {
+    setPdfLoading("default");
+    try {
+      const url = `/api/${level}/${subject}/variant/${variantId}/pdf/`;
+      const res = await fetch(url, { credentials: "same-origin" });
+      if (!res.ok) throw new Error("Ошибка загрузки PDF");
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = `variant-${variantId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+    } catch (err) {
+      const a = document.createElement("a");
+      a.href = `/api/${level}/${subject}/variant/${variantId}/pdf/`;
+      a.download = `variant-${variantId}.pdf`;
+      a.target = "_blank";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } finally {
+      setPdfLoading(null);
+    }
   };
 
-  const openPdfSpring = (variantId) => {
-    window.open(`/api/${level}/${subject}/variant/${variantId}/pdf/?theme=spring`, "_blank");
+  const openPdfSpring = async (variantId) => {
+    setPdfLoading("spring");
+    try {
+      const url = `/api/${level}/${subject}/variant/${variantId}/pdf/?theme=spring`;
+      const res = await fetch(url, { credentials: "same-origin" });
+      if (!res.ok) throw new Error("Ошибка загрузки PDF");
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = `variant-${variantId}-spring.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
+    } catch (err) {
+      const a = document.createElement("a");
+      a.href = `/api/${level}/${subject}/variant/${variantId}/pdf/?theme=spring`;
+      a.download = `variant-${variantId}-spring.pdf`;
+      a.target = "_blank";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    } finally {
+      setPdfLoading(null);
+    }
   };
 
   return (
     <div className="main-wrapper exam-page" id="main-wrapper">
+      {pdfLoading && (
+        <div className="pdf-loading-overlay" role="status" aria-live="polite">
+          <div className="pdf-loading-toast">
+            <span className="pdf-loading-spinner" aria-hidden="true" />
+            <span>Подождите немного, файл создаётся…</span>
+          </div>
+        </div>
+      )}
       <div className="content-area">
         <div className="container exam-page-container">
           <div className="page">
@@ -611,10 +670,18 @@ function ExamPage() {
                     <button className="variant-btn-danger" onClick={resetAllAnswers}>
                       ↺ Сбросить всё
                     </button>
-                    <button className="variant-btn-primary" onClick={() => openPdf(variant.id)}>
+                    <button
+                      className="variant-btn-primary"
+                      onClick={() => openPdf(variant.id)}
+                      disabled={!!pdfLoading}
+                    >
                       ⬇ Скачать PDF
                     </button>
-                    <button className="variant-btn-spring" onClick={() => openPdfSpring(variant.id)}>
+                    <button
+                      className="variant-btn-spring"
+                      onClick={() => openPdfSpring(variant.id)}
+                      disabled={!!pdfLoading}
+                    >
                       🌸 Весенний вариант
                     </button>
                   </div>

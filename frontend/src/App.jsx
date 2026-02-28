@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 
 import Layout from "./pages/Layout";
@@ -8,6 +9,14 @@ import ExamPage from "./pages/ExamPage";
 import SearchTaskPage from "./pages/SearchTaskPage";
 import SearchVariantPage from "./pages/SearchVariantPage";
 import NotFoundPage from "./pages/NotFoundPage";
+
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+}
 
 function SearchTaskWithKey() {
   const location = useLocation();
@@ -22,6 +31,7 @@ function SearchVariantWithKey() {
 function App() {
   return (
     <BrowserRouter>
+      <ScrollToTop />
       <Routes>
 
         <Route element={<Layout />}>

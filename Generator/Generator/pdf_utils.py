@@ -154,8 +154,9 @@ def build_pdf_context(request, variant, subject):
     if level_val.isdigit():
         level_label = f"{level_val} класс"
     header_subject_level = f"{subject_label}, {level_label}"
-    header_logo = "Примерная версия экзамена"
-    footer_left = "© ∑ Генератор"
+    header_logo = ""
+    base_url = request.build_absolute_uri("/").rstrip("/") or "/"
+    footer_left = mark_safe(f'© <a href="{base_url}" class="pdf-footer-link">Генератор</a>')
 
     # Разбиваем ответы на блоки по 10 для переноса таблицы на несколько строк
     chunk_size = 10
