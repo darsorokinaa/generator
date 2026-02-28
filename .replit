@@ -59,6 +59,6 @@ localPort = 8000
 externalPort = 8000
 
 [deployment]
-deploymentTarget = "vm"
+deploymentTarget = "autoscale"
 build = ["bash", "build.sh"]
-run = ["bash", "-c", "cd Generator && gunicorn --bind=0.0.0.0:5000 --reuse-port Generator.wsgi:application"]
+run = ["gunicorn", "--chdir", "/home/runner/workspace/Generator", "--bind=0.0.0.0:5000", "--reuse-port", "--workers=3", "--timeout=120", "Generator.wsgi:application"]
