@@ -2,7 +2,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict kg9dJQ9gaFjliXSfLIGCVho6HNomVJEPPO0x7swld52il7Tck6CRyybpK5nVFWn
+\restrict 0n93Oav4InXdEovSotmQf7DWqiq04f3w8VCxGdzytmlxe4CSMZwR5DSfVA7LuWp
 
 -- Dumped from database version 16.10
 -- Dumped by pg_dump version 16.10
@@ -2650,6 +2650,7 @@ COPY public.django_content_type (id, app_label, model) FROM stdin;
 --
 
 COPY public.django_migrations (id, app, name, applied) FROM stdin;
+34	Generator	0002_add_indexes_level_subject	2026-02-28 00:05:26.337057+00
 2	contenttypes	0001_initial	2026-02-14 12:45:43.074275+00
 3	auth	0001_initial	2026-02-14 12:45:43.118819+00
 4	admin	0001_initial	2026-02-14 12:45:43.128131+00
@@ -2668,6 +2669,7 @@ COPY public.django_migrations (id, app, name, applied) FROM stdin;
 17	auth	0011_update_proxy_permissions	2026-02-14 12:45:43.201597+00
 18	auth	0012_alter_user_first_name_max_length	2026-02-14 12:45:43.206176+00
 19	sessions	0001_initial	2026-02-14 12:45:43.21259+00
+35	Generator	0003_add_composite_indexes	2026-02-28 07:50:57.394876+00
 21	Generator	0003_part_tasklist_part_delete_excalidrawboard	2026-02-16 17:08:29.92233+00
 22	Generator	0004_alter_tasklist_part	2026-02-16 17:09:40.583385+00
 23	Generator	0005_task_files	2026-02-16 17:38:04.69899+00
@@ -2770,14 +2772,14 @@ SELECT pg_catalog.setval('public."Generator_tasklist_id_seq"', 87, true);
 -- Name: Generator_variant_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public."Generator_variant_id_seq"', 1, false);
+SELECT pg_catalog.setval('public."Generator_variant_id_seq"', 1, true);
 
 
 --
 -- Name: Generator_variantcontent_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public."Generator_variantcontent_id_seq"', 1, false);
+SELECT pg_catalog.setval('public."Generator_variantcontent_id_seq"', 5, true);
 
 
 --
@@ -2840,7 +2842,7 @@ SELECT pg_catalog.setval('public.django_content_type_id_seq', 20, true);
 -- Name: django_migrations_id_seq; Type: SEQUENCE SET; Schema: public; Owner: -
 --
 
-SELECT pg_catalog.setval('public.django_migrations_id_seq', 33, true);
+SELECT pg_catalog.setval('public.django_migrations_id_seq', 35, true);
 
 
 --
@@ -3092,6 +3094,20 @@ ALTER TABLE ONLY public.django_session
 
 
 --
+-- Name: Generator_level_level_a5214adf; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "Generator_level_level_a5214adf" ON public."Generator_level" USING btree (level);
+
+
+--
+-- Name: Generator_level_level_a5214adf_like; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "Generator_level_level_a5214adf_like" ON public."Generator_level" USING btree (level varchar_pattern_ops);
+
+
+--
 -- Name: Generator_linkedtaskgroup_level_id_7c3b1bd9; Type: INDEX; Schema: public; Owner: -
 --
 
@@ -3103,6 +3119,20 @@ CREATE INDEX "Generator_linkedtaskgroup_level_id_7c3b1bd9" ON public."Generator_
 --
 
 CREATE INDEX "Generator_linkedtaskgroup_subject_id_ad8f132e" ON public."Generator_linkedtaskgroup" USING btree (subject_id);
+
+
+--
+-- Name: Generator_subject_subject_short_f20b8c49; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "Generator_subject_subject_short_f20b8c49" ON public."Generator_subject" USING btree (subject_short);
+
+
+--
+-- Name: Generator_subject_subject_short_f20b8c49_like; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "Generator_subject_subject_short_f20b8c49_like" ON public."Generator_subject" USING btree (subject_short varchar_pattern_ops);
 
 
 --
@@ -3292,6 +3322,27 @@ CREATE INDEX django_session_expire_date_a5c62663 ON public.django_session USING 
 --
 
 CREATE INDEX django_session_session_key_c0390e0f_like ON public.django_session USING btree (session_key varchar_pattern_ops);
+
+
+--
+-- Name: taskgroup_subject_level_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX taskgroup_subject_level_idx ON public."Generator_taskgroup" USING btree (subject_id, level_id);
+
+
+--
+-- Name: tasklist_subject_level_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX tasklist_subject_level_idx ON public."Generator_tasklist" USING btree (subject_id, level_id);
+
+
+--
+-- Name: vc_variant_order_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX vc_variant_order_idx ON public."Generator_variantcontent" USING btree (variant_id, "order");
 
 
 --
@@ -3498,5 +3549,5 @@ ALTER TABLE ONLY public.django_admin_log
 -- PostgreSQL database dump complete
 --
 
-\unrestrict kg9dJQ9gaFjliXSfLIGCVho6HNomVJEPPO0x7swld52il7Tck6CRyybpK5nVFWn
+\unrestrict 0n93Oav4InXdEovSotmQf7DWqiq04f3w8VCxGdzytmlxe4CSMZwR5DSfVA7LuWp
 
