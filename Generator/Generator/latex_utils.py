@@ -321,9 +321,10 @@ def _render_math_block(latex: str, display: bool, for_pdf: bool = False, for_bro
             logger.exception("MathJax render failed, falling back to parser")
     if for_pdf:
         return _convert_math_block(latex, display=display)
-    # Для веба: LaTeX в сущностях, чтобы наш regex \(...\) не перехватывал повторно
-    # &#92; = \, &#91; = [, &#93; = ], &#41; = ) — encoding prevents regex re-matching
-    escaped = html_lib.escape(latex)
+    # Для веба: LaTeX в сущностях, чтобы последующие regex не перехватывали повторно.
+    # &#92; = \, &#123; = {, &#125; = } — браузер декодирует обратно при innerHTML,
+    # MathJax видит оригинальный LaTeX, но _RE_NAKED_INLINE и другие regex его не трогают.
+    escaped = html_lib.escape(latex).replace('\\', '&#92;').replace('{', '&#123;').replace('}', '&#125;')
     if display:
         return f'<span class="math-display">&#92;[{escaped}&#92;]</span>'
     return f'<span class="math-inline">&#92;({escaped}&#92;&#41;</span>'
