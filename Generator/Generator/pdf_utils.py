@@ -8,7 +8,7 @@ from django.conf import settings as django_settings
 from django.contrib.staticfiles import finders
 from django.utils.safestring import mark_safe
 
-from .latex_utils import process_latex
+from .latex_utils import process_latex, batch_render_mathjax, extract_latex_formulas
 
 
 @lru_cache(maxsize=1)
@@ -95,11 +95,21 @@ def resolve_background_image(filename: str, request=None) -> str:
 
 
 def build_pdf_context(request, variant, subject):
-    contents = (
+    contents = list(
         variant.variantcontent_set
         .select_related('task', 'task__task', 'task__task__part')
         .order_by('order')
     )
+
+    # Batch-render all LaTeX formulas in one Node.js call before processing
+    all_formulas = []
+    for item in contents:
+        raw = str(item.task.task_template or "").strip()
+        if raw:
+            all_formulas.extend(extract_latex_formulas(raw))
+    if all_formulas:
+        unique_formulas = list(dict.fromkeys(all_formulas))
+        batch_render_mathjax(unique_formulas)
 
     processed_contents = []
     seen_parts = []

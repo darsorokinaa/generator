@@ -294,8 +294,23 @@ def _scale_svg(svg_html: str, scale: float) -> str:
     return svg_html
 
 
-@lru_cache(maxsize=2048)
+_svg_cache: dict[tuple[str, bool], str] = {}
+
+
+def _postprocess_svg(svg_html: str) -> str:
+    if not svg_html:
+        return svg_html
+    svg_html = svg_html.replace('fill="currentColor"', 'fill="#000"')
+    svg_html = svg_html.replace("fill='currentColor'", "fill='#000'")
+    svg_html = svg_html.replace('stroke="currentColor"', 'stroke="#000"')
+    svg_html = svg_html.replace("stroke='currentColor'", "stroke='#000'")
+    return _scale_svg(svg_html, PDF_MATH_SCALE)
+
+
 def _render_mathjax_svg(latex: str, display: bool) -> str:
+    key = (latex, display)
+    if key in _svg_cache:
+        return _svg_cache[key]
     if not MATHJAX_AVAILABLE:
         raise RuntimeError("MathJax renderer is not available")
     payload = json.dumps({"latex": latex, "display": display})
@@ -305,17 +320,73 @@ def _render_mathjax_svg(latex: str, display: bool) -> str:
         text=True,
         capture_output=True,
         check=True,
-        timeout=5,
+        timeout=10,
     )
-    svg_html = result.stdout.strip()
-    # WeasyPrint не поддерживает currentColor в SVG — заменяем на явный цвет
-    if svg_html:
-        svg_html = svg_html.replace('fill="currentColor"', 'fill="#000"')
-        svg_html = svg_html.replace("fill='currentColor'", "fill='#000'")
-        svg_html = svg_html.replace('stroke="currentColor"', 'stroke="#000"')
-        svg_html = svg_html.replace("stroke='currentColor'", "stroke='#000'")
-        svg_html = _scale_svg(svg_html, PDF_MATH_SCALE)
+    svg_html = _postprocess_svg(result.stdout.strip())
+    _svg_cache[key] = svg_html
     return svg_html
+
+
+def batch_render_mathjax(formulas: list[tuple[str, bool]]) -> None:
+    """Render multiple LaTeX formulas in a single Node.js subprocess call.
+
+    Populates _svg_cache so subsequent _render_mathjax_svg calls are instant.
+    """
+    if not MATHJAX_AVAILABLE or not formulas:
+        return
+    to_render = [(latex, display) for latex, display in formulas if (latex, display) not in _svg_cache]
+    if not to_render:
+        return
+    payload = json.dumps([{"latex": latex, "display": display} for latex, display in to_render])
+    try:
+        result = subprocess.run(
+            [MATHJAX_NODE, str(MATHJAX_RENDER_SCRIPT)],
+            input=payload,
+            text=True,
+            capture_output=True,
+            check=True,
+            timeout=120,
+        )
+        svgs = json.loads(result.stdout)
+        for (latex, display), svg_html in zip(to_render, svgs):
+            _svg_cache[(latex, display)] = _postprocess_svg(svg_html)
+    except Exception:
+        logger.exception("Batch MathJax render failed, formulas will be rendered one by one")
+
+
+def extract_latex_formulas(html_text: str) -> list[tuple[str, bool]]:
+    """Extract all LaTeX formulas from HTML text as (latex, is_display) pairs."""
+    if not html_text:
+        return []
+    formulas = []
+
+    def add(latex_raw: str, display: bool, span_html: str = "") -> None:
+        latex = _normalize_latex(latex_raw)
+        if latex:
+            formulas.append((latex, _is_display_math(latex, span_html) if not display else display))
+
+    for m in _RE_MATH_SPAN.finditer(html_text):
+        add(m.group(1) or m.group(2) or "", False, m.group(0))
+    for m in _RE_MATH_TEX_SPAN.finditer(html_text):
+        add(m.group(1) or "", False, m.group(0))
+    for m in _RE_MATH_FORMULA_SPAN.finditer(html_text):
+        add(m.group(1) or "", False, m.group(0))
+    for m in _RE_MATH_TEX_BODY.finditer(html_text):
+        body = _clean_html(m.group(1) or "")
+        add(body, False, m.group(0))
+    for m in _RE_DISPLAY.finditer(html_text):
+        add(m.group(1), True)
+    for m in _RE_DISPLAY_DOUBLE.finditer(html_text):
+        add(m.group(1), True)
+    for m in _RE_INLINE_PAREN.finditer(html_text):
+        add(m.group(1), False)
+    for m in _RE_INLINE_DOLLAR.finditer(html_text):
+        add(m.group(1), False)
+    for m in _RE_NAKED_INLINE.finditer(html_text):
+        latex = _normalize_latex(m.group(1))
+        if latex and len(latex) >= 3:
+            formulas.append((latex, False))
+    return formulas
 
 
 def _wrap_math_output(html: str, display: bool) -> str:
