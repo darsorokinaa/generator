@@ -1,6 +1,6 @@
 from django.db import models
 from django.db.models import DO_NOTHING, CASCADE
-from datetime import datetime
+from django.utils import timezone
 import os
 from uuid import uuid4
 from django_ckeditor_5.fields import CKEditor5Field
@@ -69,7 +69,7 @@ class Task(models.Model):
 
     author = models.TextField(max_length=500, blank=True, null=True)
 
-    added_at = models.DateTimeField(default=datetime.today)
+    added_at = models.DateTimeField(default=timezone.now)
     created_by =models.CharField(default='ADMIN')
 
     def __str__(self):
@@ -126,7 +126,7 @@ class TaskGroupMember(models.Model):
 class Variant(models.Model):
     var_subject = models.ForeignKey(Subject, on_delete=CASCADE)
     level = models.ForeignKey(Level, on_delete=CASCADE)
-    created_at = models.DateTimeField(default=datetime.today)
+    created_at = models.DateTimeField(default=timezone.now)
     created_by = models.CharField(max_length=100, default='ADMIN')
     share_token = models.CharField(max_length=20, blank=True, null=True)
     content = models.JSONField(default=dict, blank=True, null=True)  # {tasklist_id: count}
