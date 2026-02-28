@@ -26,8 +26,20 @@ const COLORS = [
   { value: "#F44336", label: "Красный" },
 ];
 
+const SUBJECT_NAMES = {
+  math: "математике",
+  inf: "информатике",
+};
+
+const LEVEL_NAMES = {
+  ege: "ЕГЭ",
+  oge: "ОГЭ",
+};
+
 function ExamPage() {
   const { level, subject, variant_id } = useParams();
+  const subjectLabel = SUBJECT_NAMES[subject] || subject;
+  const levelLabel = LEVEL_NAMES[level] || level.toUpperCase();
 
   const [variant, setVariant] = useState(null);
   const [error, setError] = useState(null);
@@ -497,7 +509,7 @@ function ExamPage() {
               <div className="variant-hero-bg" />
               <div className="variant-hero-content">
                 <div className="variant-hero-left">
-                  <div className="variant-label">Вариант</div>
+                  <div className="variant-label">Тестирование по {subjectLabel} {levelLabel}</div>
                   <div className="variant-number">№ {variant.id}</div>
                 </div>
 
