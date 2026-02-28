@@ -40,8 +40,9 @@ function ExamPage() {
   const { level, subject, variant_id } = useParams();
   const location = useLocation();
   const mode = location.state?.mode || "variant";
-  const subjectLabel = SUBJECT_NAMES[subject] || subject;
+  const subjectLabel = location.state?.subjectName || SUBJECT_NAMES[subject] || subject;
   const levelLabel = LEVEL_NAMES[level] || level.toUpperCase();
+  const testTaskLabels = location.state?.testTaskLabels || [];
 
   const [variant, setVariant] = useState(null);
   const [error, setError] = useState(null);
@@ -516,11 +517,12 @@ function ExamPage() {
                   </div>
                   <div className="variant-number">
                     {mode === "test" ? (() => {
-                      const nums = [...new Set(variant.tasks.map((t) => t.number).filter(Boolean))].sort((a, b) => a - b);
-                      if (nums.length === 0) return `№ ${variant.id}`;
-                      if (nums.length === 1) return `Задание ${nums[0]}`;
-                      if (nums.length <= 4) return `Задания ${nums.join(", ")}`;
-                      return `Задания ${nums[0]}–${nums[nums.length - 1]}`;
+                      const labels = testTaskLabels.length > 0
+                        ? testTaskLabels
+                        : [...new Set(variant.tasks.map((t) => t.number).filter(Boolean))].sort((a, b) => a - b).map(String);
+                      if (labels.length === 0) return `№ ${variant.id}`;
+                      if (labels.length === 1) return `Задание ${labels[0]}`;
+                      return `Задания ${labels.join(", ")}`;
                     })() : mode === "part1" ? `Вариант № ${variant.id} / Часть 1`
                       : mode === "part2" ? `Вариант № ${variant.id} / Часть 2`
                       : `Вариант № ${variant.id}`}

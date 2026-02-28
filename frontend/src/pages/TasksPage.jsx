@@ -64,7 +64,7 @@ function TasksPage() {
   const part1Tasks = tasks.filter((item) => getItemPart(item) === 1 && matchesSearch(item));
   const part2Tasks = tasks.filter((item) => getItemPart(item) === 2 && matchesSearch(item));
 
-  const postVariant = (payload, mode = "variant") => {
+  const postVariant = (payload, mode = "variant", extra = {}) => {
     const body = JSON.stringify(payload);
     return fetch(`/api/${level}/${subject}/variant/`, {
       method: "POST",
@@ -76,7 +76,9 @@ function TasksPage() {
         return res.json();
       })
       .then((data) => {
-        navigate(`/${level}/${subject}/variant/${data.variant_id}`, { state: { mode } });
+        navigate(`/${level}/${subject}/variant/${data.variant_id}`, {
+          state: { mode, subjectName: subjectNameFromApi, ...extra },
+        });
       });
   };
 
@@ -159,7 +161,8 @@ function TasksPage() {
     const payload = buildPayloadFromTestCounts();
     if (!payload.tasks?.length) return;
     setSubmitBlock2(true);
-    postVariant(payload, "test")
+    const testTaskLabels = testSelectedIdsSorted.map((id) => identifierToLabel[id] ?? id);
+    postVariant(payload, "test", { testTaskLabels })
       .catch((err) => setError(err.message))
       .finally(() => setSubmitBlock2(false));
   };
