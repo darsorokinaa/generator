@@ -510,7 +510,15 @@ function ExamPage() {
               <div className="variant-hero-content">
                 <div className="variant-hero-left">
                   <div className="variant-label">Тестирование по {subjectLabel} {levelLabel}</div>
-                  <div className="variant-number">№ {variant.id}</div>
+                  <div className="variant-number">
+                    {(() => {
+                      const nums = [...new Set(variant.tasks.map((t) => t.number).filter(Boolean))].sort((a, b) => a - b);
+                      if (nums.length === 0) return `№ ${variant.id}`;
+                      if (nums.length === 1) return `Задание ${nums[0]}`;
+                      if (nums.length <= 4) return `Задания ${nums.join(", ")}`;
+                      return `Задания ${nums[0]}–${nums[nums.length - 1]}`;
+                    })()}
+                  </div>
                 </div>
 
                 <div className="variant-timer">

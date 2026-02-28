@@ -339,12 +339,13 @@ def api_variant_detail(request, level, subject, variant_id):
 
     tasks_data = []
     for item in contents:
+        task_list = item.task.task
         tasks_data.append({
             "id": item.task.id,
-            "number": item.order,
+            "number": task_list.task_number if task_list else item.order,
             "text": process_latex(str(item.task.task_template or ""), for_browser=True),
             "answer": item.task.answer,
-            "part": item.task.task.part_id if item.task.task else None,
+            "part": task_list.part_id if task_list else None,
             "file": request.build_absolute_uri(item.task.files.url)
                     if item.task.files else None,
         })
