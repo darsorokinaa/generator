@@ -5,7 +5,7 @@ import re
 import secrets
 
 from django.conf import settings as django_settings
-from django.db.models import Count
+from django.db.models import Count, Q
 from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
@@ -83,7 +83,6 @@ def _create_variant(subject_short, level_str, body_bytes):
     handled_tasklist_ids = set()
 
     def take_linked_groups(linked):
-        """Поддерживает count>1: выбирает N групп и возвращает задачи подряд."""
         task_numbers = linked.task_numbers or []
         if not task_numbers:
             return None, None
@@ -161,31 +160,28 @@ def api_csrf(request):
     return JsonResponse({"detail": "CSRF cookie set"})
 
 
-from django.http import JsonResponse
-from django.shortcuts import get_object_or_404
-from .models import Subject, Level, TaskList, TaskGroup, TaskGroupMember
-
-
 def api_tasks(request, level, subject):
     subject_instance = get_object_or_404(Subject, subject_short=subject)
     level_instance = get_object_or_404(Level, level=level)
 
-    tasks_qs = TaskList.objects.filter(
-        subject=subject_instance,
-        level=level_instance
-    ).annotate(count_task=Count("task")).order_by('task_number')
+    tasks_qs = list(
+        TaskList.objects.filter(
+            subject=subject_instance,
+            level=level_instance,
+        ).annotate(count_task=Count("task")).order_by('task_number')
+    )
     id_by_number = {tl.task_number: tl.id for tl in tasks_qs}
+    tl_by_id = {tl.id: tl for tl in tasks_qs}
 
-    # Связанные группы (LinkedTaskGroup): 19–21 — один элемент в тренажёре, данные из TaskGroup
     linked_defs = list(
         LinkedTaskGroup.objects.filter(
             subject=subject_instance,
             level=level_instance,
         )
     )
-    linked_tasklist_ids = set()
-    linked_group_items = []
 
+    # Collect all task_numbers from linked groups to batch-count in one query
+    linked_number_sets = []
     for linked in linked_defs:
         task_numbers = linked.task_numbers or []
         if not task_numbers:
@@ -193,25 +189,37 @@ def api_tasks(request, level, subject):
         ids_for_group = [id_by_number.get(n) for n in task_numbers]
         if any(i is None for i in ids_for_group):
             continue
-        groups_count = (
-            TaskGroup.objects.filter(
-                subject=subject_instance,
-                level=level_instance,
-                taskgroupmember__task_number__in=task_numbers,
+        linked_number_sets.append((linked, task_numbers, ids_for_group))
+
+    # Batch count available groups for all linked defs in one query per unique set
+    linked_counts = {}
+    for linked, task_numbers, ids_for_group in linked_number_sets:
+        key = tuple(task_numbers)
+        if key not in linked_counts:
+            linked_counts[key] = (
+                TaskGroup.objects.filter(
+                    subject=subject_instance,
+                    level=level_instance,
+                    taskgroupmember__task_number__in=task_numbers,
+                )
+                .annotate(mcnt=Count("taskgroupmember"))
+                .filter(mcnt=len(task_numbers))
+                .count()
             )
-            .annotate(mcnt=Count("taskgroupmember"))
-            .filter(mcnt=len(task_numbers))
-            .count()
-        )
+
+    linked_tasklist_ids = set()
+    linked_group_items = []
+
+    for linked, task_numbers, ids_for_group in linked_number_sets:
+        key = tuple(task_numbers)
+        groups_count = linked_counts.get(key, 0)
         if groups_count == 0:
             continue
         linked_tasklist_ids.update(ids_for_group)
-        tasklists = list(
-            TaskList.objects.filter(
-                id__in=ids_for_group,
-                subject=subject_instance,
-                level=level_instance,
-            ).order_by("task_number")
+        # Reuse already-loaded tasklist data instead of a new DB query
+        tasklists = sorted(
+            [tl_by_id[i] for i in ids_for_group if i in tl_by_id],
+            key=lambda tl: tl.task_number,
         )
         linked_group_items.append({
             "type": "linked_group",
@@ -312,7 +320,7 @@ def api_generate_variant(request, level, subject):
 
 
 def api_variant_lookup(request, variant_id):
-    variant = get_object_or_404(Variant, id=variant_id)
+    variant = get_object_or_404(Variant.objects.select_related('level', 'var_subject'), id=variant_id)
     return JsonResponse({
         "level": variant.level.level,
         "subject": variant.var_subject.subject_short,
@@ -391,10 +399,6 @@ def variant_pdf(request, level, subject, variant_id):
     )
 
 
-def variant_pdfSpring(request, level, subject, variant_id):
-    return variant_pdf(request, level, subject, variant_id)
-
-
 def search_task(request):
     q = (request.GET.get("q") or "").strip()
     if not q or not q.isdigit():
@@ -426,7 +430,7 @@ def search_variant(request):
     contents = (
         VariantContent.objects
         .filter(variant=variant)
-        .select_related("task", "task__task")
+        .select_related("task")
         .order_by("order")
     )
     tasks = [
@@ -442,5 +446,3 @@ def search_variant(request):
         },
         "tasks": tasks,
     })
-
-

@@ -1,6 +1,7 @@
 """PDF generation helpers."""
 import os
 import re
+from functools import lru_cache
 from pathlib import Path
 
 from django.conf import settings as django_settings
@@ -10,6 +11,7 @@ from django.utils.safestring import mark_safe
 from .latex_utils import process_latex
 
 
+@lru_cache(maxsize=1)
 def get_pdf_css():
     css_path = finders.find('css/pdf.css')
     if not css_path:
