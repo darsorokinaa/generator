@@ -8,15 +8,34 @@ npm install
 npm run build
 
 cd /home/runner/workspace/Generator
+
+echo "Checking current production database state..."
+TASK_COUNT=$(psql "$DATABASE_URL" -t -c 'SELECT COUNT(*) FROM "Generator_task"' 2>/dev/null | tr -d ' \n' || echo "0")
+echo "Current task count: $TASK_COUNT"
+
+if [ "$TASK_COUNT" -gt "0" ]; then
+  echo "Backing up production data ($TASK_COUNT tasks)..."
+  pg_dump --data-only --no-privileges --no-owner "$DATABASE_URL" \
+    | grep -v '\\restrict' | grep -v '\\unrestrict' \
+    > /tmp/prod_backup.sql
+  echo "Backup created"
+fi
+
 echo "Resetting database schema..."
 psql "$DATABASE_URL" -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
 
 echo "Running Django migrations to create schema..."
 python manage.py migrate --noinput
 
-echo "Loading task bank data..."
-psql "$DATABASE_URL" -f /home/runner/workspace/load_data.sql
-echo "Data loaded successfully"
+if [ "$TASK_COUNT" -gt "0" ]; then
+  echo "Restoring production data ($TASK_COUNT tasks)..."
+  psql "$DATABASE_URL" -f /tmp/prod_backup.sql
+  echo "Production data restored successfully"
+else
+  echo "Loading initial task bank from load_data.sql..."
+  psql "$DATABASE_URL" -f /home/runner/workspace/load_data.sql
+  echo "Data loaded successfully"
+fi
 
 python manage.py collectstatic --noinput
 
