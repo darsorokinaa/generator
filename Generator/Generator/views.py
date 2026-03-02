@@ -447,23 +447,3 @@ def search_variant(request):
         },
         "tasks": tasks,
     })
-
-
-def tmp_dump_db(request):
-    import subprocess, os
-    from django.http import HttpResponse, HttpResponseForbidden
-    if request.GET.get("key") != "rVS9hUfTxQtb74N8rGPQ1XuYo8A8SlaY":
-        return HttpResponseForbidden("Forbidden")
-    db_url = os.environ.get("DATABASE_URL", "")
-    result = subprocess.run(
-        ["pg_dump", "--data-only", "--no-privileges", "--no-owner", db_url],
-        capture_output=True, text=True, timeout=120
-    )
-    lines = [
-        line for line in result.stdout.splitlines()
-        if not line.startswith("\\restrict") and not line.startswith("\\unrestrict")
-    ]
-    sql = "\n".join(lines)
-    response = HttpResponse(sql, content_type="text/plain; charset=utf-8")
-    response["Content-Disposition"] = 'attachment; filename="prod_dump.sql"'
-    return response

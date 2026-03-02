@@ -23,7 +23,6 @@ urlpatterns = [
     # path('api/<str:level>/<str:subject>/variant/<int:variant_id>/pdf/spring', views.variant_pdfSpring),
 
     path("", include("Board.urls")),
-    path("api/tmp-dump-db/", views.tmp_dump_db, name="tmp_dump_db"),
 
 ]
 
