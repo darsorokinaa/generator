@@ -22,6 +22,10 @@ args = "Django Backend"
 task = "workflow.run"
 args = "Frontend"
 
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Sync from Prod"
+
 [[workflows.workflow]]
 name = "Django Backend"
 author = "agent"
@@ -45,6 +49,17 @@ outputType = "webview"
 task = "shell.exec"
 args = "cd frontend && npm run dev"
 waitForPort = 5000
+
+[[workflows.workflow]]
+name = "Sync from Prod"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "python3 sync_from_prod.py"
+
+[workflows.workflow.metadata]
+outputType = "console"
 
 [[ports]]
 localPort = 5000
