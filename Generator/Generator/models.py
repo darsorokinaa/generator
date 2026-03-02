@@ -69,8 +69,8 @@ class Task(models.Model):
 
     author = models.TextField(max_length=500, blank=True, null=True)
 
-    added_at = models.DateTimeField(default=timezone.now)
-    created_by =models.CharField(default='ADMIN')
+    added_at = models.DateTimeField(default=timezone.now, db_index=True)
+    created_by = models.CharField(default='ADMIN', db_index=True)
 
     def __str__(self):
         return f'{self.id}: {self.task_template[:100]}'

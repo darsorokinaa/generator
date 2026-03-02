@@ -31,6 +31,8 @@ class SubjectAdmin(admin.ModelAdmin):
     list_display = ("subject_short", "subject_name")
     list_filter = ("subject_short",)
     search_fields = ("subject_short", "subject_name")
+    list_per_page = 50
+    show_full_result_count = False
 
 
 @admin.register(TaskList)
@@ -38,6 +40,9 @@ class TaskListAdmin(SearchByIdMixin, admin.ModelAdmin):
     list_display = ("id", "task_number", "task_title", "subject", "level", "part")
     list_filter = ("subject", "level", "part")
     search_fields = ("task_title",)
+    list_select_related = ("subject", "level", "part")
+    list_per_page = 25
+    show_full_result_count = False
 
 
 @admin.register(Level)
@@ -52,6 +57,10 @@ class TaskAdmin(SearchByIdMixin, admin.ModelAdmin):
     list_filter = ("task__subject", "task__level", "task__part", "created_by", "added_at")
     search_fields = ("answer",)
     date_hierarchy = "added_at"
+    list_select_related = ("task__subject", "task__level", "task__part")
+    list_per_page = 25
+    show_full_result_count = False
+    raw_id_fields = ("task",)
 
     def answer_preview(self, obj):
         return (obj.answer or "")[:50] + "…" if obj.answer and len(obj.answer) > 50 else (obj.answer or "")
@@ -65,6 +74,9 @@ class VariantAdmin(SearchByIdMixin, admin.ModelAdmin):
     list_filter = ("var_subject", "level", "created_by")
     search_fields = ("created_by",)
     date_hierarchy = "created_at"
+    list_select_related = ("var_subject", "level")
+    list_per_page = 25
+    show_full_result_count = False
 
 
 @admin.register(VariantContent)
@@ -73,6 +85,10 @@ class VariantContentAdmin(admin.ModelAdmin):
     list_filter = ("variant__var_subject", "variant__level")
     search_fields = ("variant__var_subject__subject_short",)
     ordering = ("variant", "order")
+    list_select_related = ("variant__var_subject", "variant__level", "task")
+    list_per_page = 25
+    show_full_result_count = False
+    raw_id_fields = ("variant", "task")
 
     def get_search_results(self, request, queryset, search_term):
         if not search_term.strip():
@@ -94,6 +110,7 @@ class PartAdmin(admin.ModelAdmin):
 class LinkedTaskGroupAdmin(admin.ModelAdmin):
     list_display = ("subject", "level", "task_numbers")
     list_filter = ("subject", "level")
+    list_select_related = ("subject", "level")
 
 
 class TaskGroupMemberInline(admin.TabularInline):
@@ -106,4 +123,5 @@ class TaskGroupMemberInline(admin.TabularInline):
 class TaskGroupAdmin(admin.ModelAdmin):
     list_display = ("id", "subject", "level")
     list_filter = ("subject", "level")
+    list_select_related = ("subject", "level")
     inlines = (TaskGroupMemberInline,)
