@@ -21,11 +21,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-)&u-i%%%7kr6y6kx11pcr$fq6e1ita5)%ykv1aluxmvtbaln#7'
+# В production задайте SECRET_KEY через переменную окружения
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-)&u-i%%%7kr6y6kx11pcr$fq6e1ita5)%ykv1aluxmvtbaln#7')
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'true').lower() == 'true'
 ALLOWED_HOSTS = ["*"]
 
 
@@ -79,12 +78,13 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 CORS_ALLOW_CREDENTIALS = True
 
+_extra_origins = os.environ.get('CSRF_TRUSTED_ORIGINS', '')
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5000",
     "http://127.0.0.1:5000",
     "https://*.replit.dev",
     "https://*.repl.co",
-]
+] + [o.strip() for o in _extra_origins.split(',') if o.strip()]
 
 CSRF_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_HTTPONLY = False  # React должен читать cookie

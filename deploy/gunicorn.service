@@ -1,0 +1,35 @@
+[Unit]
+Description=Генератор ЕГЭ/ОГЭ — Gunicorn
+After=network.target postgresql.service
+
+[Service]
+User=generator
+Group=generator
+WorkingDirectory=/opt/generator/Generator
+
+RuntimeDirectory=generator
+LogsDirectory=generator
+
+ExecStart=/opt/generator/venv/bin/gunicorn \
+    --workers=3 \
+    --timeout=120 \
+    --bind=127.0.0.1:8000 \
+    --access-logfile=/var/log/generator/access.log \
+    --error-logfile=/var/log/generator/error.log \
+    Generator.wsgi:application
+
+Environment="PGDATABASE=generatordb"
+Environment="PGUSER=generatoruser"
+Environment="PGPASSWORD=ЗАМЕНИТЕ_НА_НАДЁЖНЫЙ_ПАРОЛЬ"
+Environment="PGHOST=localhost"
+Environment="PGPORT=5432"
+Environment="DJANGO_SETTINGS_MODULE=Generator.settings"
+Environment="DEBUG=false"
+Environment="SECRET_KEY=ЗАМЕНИТЕ_НА_СЛУЧАЙНЫЙ_КЛЮЧ"
+Environment="CSRF_TRUSTED_ORIGINS=https://ВАШ_ДОМЕН.ru,https://www.ВАШ_ДОМЕН.ru"
+
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
