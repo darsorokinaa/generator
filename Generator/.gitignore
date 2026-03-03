@@ -6,7 +6,7 @@ __pycache__/
 # Virtualenv
 .venv/
 venv/
-
+media/
 # Django
 *.log
 staticfiles/

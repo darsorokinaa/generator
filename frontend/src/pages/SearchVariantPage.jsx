@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
+import MathContent from "../components/MathContent";
 
 function SearchVariantPage() {
   const location = useLocation();
@@ -33,11 +34,6 @@ function SearchVariantPage() {
       .finally(() => setLoading(false));
   }, [q]);
 
-  useEffect(() => {
-    if (data.tasks.length > 0 && window.MathJax) {
-      window.MathJax.typesetPromise();
-    }
-  }, [data]);
 
   if (!q) {
     return (
@@ -94,7 +90,7 @@ function SearchVariantPage() {
               <tr key={t.number}>
                 <td className="search-variant-id">{t.id}</td>
                 <td>{t.number}</td>
-                <td>{t.answer}</td>
+                <td><MathContent html={t.answer || ""} className="search-variant-answer" /></td>
               </tr>
             ))}
           </tbody>

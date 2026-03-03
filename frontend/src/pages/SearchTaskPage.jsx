@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
+import MathContent from "../components/MathContent";
 
 function SearchTaskPage() {
   const location = useLocation();
@@ -33,11 +34,6 @@ function SearchTaskPage() {
       .finally(() => setLoading(false));
   }, [q]);
 
-  useEffect(() => {
-    if (tasks.length > 0 && window.MathJax) {
-      window.MathJax.typesetPromise();
-    }
-  }, [tasks]);
 
   if (!q) {
     return (
@@ -83,12 +79,12 @@ function SearchTaskPage() {
               <div className="search-task-card-body">
                 <div className="search-task-section">
                   <h4>Условие</h4>
-                  <div className="search-task-condition" dangerouslySetInnerHTML={{ __html: t.task_text || "" }} />
+                  <MathContent html={t.task_text || ""} className="search-task-condition" />
                 </div>
                 {t.answer && (
                   <div className="search-task-section search-task-answer">
                     <h4>Ответ</h4>
-                    <p>{t.answer}</p>
+                    <MathContent html={t.answer} className="search-task-answer-content" />
                   </div>
                 )}
               </div>

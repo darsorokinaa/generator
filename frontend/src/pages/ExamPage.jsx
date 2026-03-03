@@ -1,24 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useParams, useLocation } from "react-router-dom";
-
-function MathContent({ html, className }) {
-  const ref = useRef(null);
-  useEffect(() => {
-    if (!ref.current) return;
-    ref.current.innerHTML = html;
-    const el = ref.current;
-    const run = () => {
-      if (window.MathJax?.typesetPromise) {
-        window.MathJax.typesetPromise([el]).catch(() => {});
-      } else {
-        const id = setTimeout(run, 100);
-        return () => clearTimeout(id);
-      }
-    };
-    run();
-  }, [html]);
-  return <div ref={ref} className={className} />;
-}
+import MathContent from "../components/MathContent";
 
 const COLORS = [
   { value: "#000000", label: "Чёрный" },

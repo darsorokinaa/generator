@@ -1,6 +1,20 @@
-import { Outlet, Link } from "react-router-dom";
+import { useEffect } from "react";
+import { Outlet, Link, useLocation } from "react-router-dom";
 
 function Layout() {
+  const { pathname } = useLocation();
+
+  useEffect(() => {
+    const run = () => {
+      if (window.MathJax?.typesetPromise) {
+        window.MathJax.typesetPromise().catch(() => {});
+      } else {
+        setTimeout(run, 100);
+      }
+    };
+    const id = setTimeout(run, 100);
+    return () => clearTimeout(id);
+  }, [pathname]);
   return (
     <div
       style={{
