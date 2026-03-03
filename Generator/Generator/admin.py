@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.db.models import Q
+from django.utils.html import strip_tags
 
 from .models import (
     Level,
@@ -63,7 +64,9 @@ class TaskAdmin(SearchByIdMixin, admin.ModelAdmin):
     raw_id_fields = ("task",)
 
     def answer_preview(self, obj):
-        return (obj.answer or "")[:50] + "…" if obj.answer and len(obj.answer) > 50 else (obj.answer or "")
+        raw = obj.answer or ""
+        plain = strip_tags(raw).strip() if raw else ""
+        return (plain[:50] + "…") if len(plain) > 50 else plain
 
     answer_preview.short_description = "Ответ"
 

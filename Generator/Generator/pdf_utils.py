@@ -101,12 +101,15 @@ def build_pdf_context(request, variant, subject):
         .order_by('order')
     )
 
-    # Batch-render all LaTeX formulas in one Node.js call before processing
+    # Batch-render all LaTeX formulas (tasks + answers) in one Node.js call before processing
     all_formulas = []
     for item in contents:
         raw = str(item.task.task_template or "").strip()
         if raw:
             all_formulas.extend(extract_latex_formulas(raw))
+        raw_ans = str(item.task.answer or "").strip()
+        if raw_ans:
+            all_formulas.extend(extract_latex_formulas(raw_ans))
     if all_formulas:
         unique_formulas = list(dict.fromkeys(all_formulas))
         batch_render_mathjax(unique_formulas)
@@ -125,13 +128,20 @@ def build_pdf_context(request, variant, subject):
             rendered_text = mark_safe(html)
         part = item.task.task.part.part_title if item.task.task.part else None
 
+        # Обработка LaTeX в ответах (часть 2)
+        raw_answer = str(item.task.answer or "").strip()
+        if raw_answer:
+            rendered_answer = mark_safe(process_latex(raw_answer, for_pdf=True))
+        else:
+            rendered_answer = ""
+
         if part not in seen_parts:
             seen_parts.append(part)
 
         entry = {
             "order": item.order,
             "text": rendered_text,
-            "answer": item.task.answer,
+            "answer": rendered_answer,
             "part": part,
             "subject": subject,
             "file_url": request.build_absolute_uri(item.task.files.url) if item.task.files else None,

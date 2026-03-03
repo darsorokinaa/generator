@@ -65,7 +65,7 @@ class Task(models.Model):
     task_template = CKEditor5Field("Task text", config_name='default')
     files = models.FileField(upload_to='task_files', blank=True, null=True)
 
-    answer = models.TextField()
+    answer = CKEditor5Field("Ответ", config_name='default', blank=True)
 
     author = models.TextField(max_length=500, blank=True, null=True)
 

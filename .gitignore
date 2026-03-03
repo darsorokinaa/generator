@@ -11,6 +11,7 @@ venv/
 staticfiles/
 Generator/media/pdfs/
 
+*.sql
 # Environment variables
 .env
 
