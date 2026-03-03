@@ -2714,6 +2714,80 @@ body.index .exam-card {
 }
 
 /* ========================================
+   ФИКСИРОВАННЫЙ УГОЛ: ТАЙМЕР + БАЛЛЫ (exam page)
+======================================== */
+
+.exam-fixed-corner {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
+  pointer-events: auto;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  border-radius: 20px;
+  box-shadow: 0 4px 24px rgba(30, 64, 175, 0.15);
+  border: 1px solid rgba(96, 165, 250, 0.2);
+}
+
+.exam-fixed-corner .variant-timer,
+.exam-fixed-corner .variant-score-block {
+  pointer-events: auto;
+}
+
+/* Таймер в фиксированном углу — компактнее */
+.exam-fixed-timer {
+  padding: 0.5rem 0.75rem !important;
+  gap: 0.6rem !important;
+}
+
+.exam-fixed-timer .variant-timer-display {
+  font-size: 1.25rem;
+  min-width: 3.5ch;
+}
+
+.exam-fixed-timer .variant-timer-btn {
+  width: 32px;
+  height: 32px;
+}
+
+.exam-fixed-timer .variant-timer-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Баллы под таймером */
+.exam-fixed-corner .variant-score-block {
+  padding: 0.5rem 0.75rem;
+}
+
+.exam-fixed-corner .variant-score-val {
+  font-size: 1.25rem;
+}
+
+@media (max-width: 768px) {
+  .exam-fixed-corner {
+    top: 0.75rem;
+    right: 0.75rem;
+    gap: 0.4rem;
+    padding: 0.4rem;
+  }
+
+  .exam-fixed-timer .variant-timer-display {
+    font-size: 1.1rem;
+  }
+
+  .exam-fixed-corner .variant-score-val {
+    font-size: 1.1rem;
+  }
+}
+
+/* ========================================
    VARIANT HERO HEADER
 ======================================== */
 

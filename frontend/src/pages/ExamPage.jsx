@@ -555,6 +555,58 @@ function ExamPage() {
 
   return (
     <div className="main-wrapper exam-page" id="main-wrapper">
+      {/* Фиксированный блок: таймер и баллы — остаётся в углу при прокрутке */}
+      <div className="exam-fixed-corner">
+        <div className="variant-timer exam-fixed-timer">
+          <div className="variant-timer-display">{formatTimer(timerSeconds)}</div>
+          <div className="variant-timer-actions">
+            {(timerStatus === "idle" || timerStatus === "paused") && (
+              <button
+                type="button"
+                className="variant-timer-btn variant-timer-btn-start"
+                onClick={() => setTimerStatus("running")}
+                title="Старт"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="5 3 19 12 5 21 5 3" />
+                </svg>
+              </button>
+            )}
+            {timerStatus === "running" && (
+              <button
+                type="button"
+                className="variant-timer-btn variant-timer-btn-pause"
+                onClick={() => setTimerStatus("paused")}
+                title="Пауза"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="6" y="4" width="4" height="16" />
+                  <rect x="14" y="4" width="4" height="16" />
+                </svg>
+              </button>
+            )}
+            <button
+              type="button"
+              className="variant-timer-btn variant-timer-btn-stop"
+              onClick={() => { setTimerStatus("idle"); setTimerSeconds(0); }}
+              title="Стоп"
+              disabled={timerStatus === "idle" && timerSeconds === 0}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="6" y="6" width="12" height="12" />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div className="variant-score-block">
+          <div className="variant-score-row">
+            <span className="variant-score-label">Правильных</span>
+            <span className="variant-score-val">
+              {correctCount} <span className="variant-score-total">/ {part1Tasks.length}</span>
+            </span>
+          </div>
+        </div>
+      </div>
       {pdfLoading && (
         <div className="pdf-loading-overlay" role="status" aria-live="polite">
           <div className="pdf-loading-toast">
@@ -588,84 +640,7 @@ function ExamPage() {
                   </div>
                 </div>
 
-                <div className="variant-timer">
-                  <div className="variant-timer-display">{formatTimer(timerSeconds)}</div>
-                  <div className="variant-timer-actions">
-                    {(timerStatus === "idle" || timerStatus === "paused") && (
-                      <button
-                        type="button"
-                        className="variant-timer-btn variant-timer-btn-start"
-                        onClick={() => setTimerStatus("running")}
-                        title="Старт"
-                      >
-                        <svg
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <polygon points="5 3 19 12 5 21 5 3" />
-                        </svg>
-                      </button>
-                    )}
-
-                    {timerStatus === "running" && (
-                      <button
-                        type="button"
-                        className="variant-timer-btn variant-timer-btn-pause"
-                        onClick={() => setTimerStatus("paused")}
-                        title="Пауза"
-                      >
-                        <svg
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <rect x="6" y="4" width="4" height="16" />
-                          <rect x="14" y="4" width="4" height="16" />
-                        </svg>
-                      </button>
-                    )}
-
-                    <button
-                      type="button"
-                      className="variant-timer-btn variant-timer-btn-stop"
-                      onClick={() => {
-                        setTimerStatus("idle");
-                        setTimerSeconds(0);
-                      }}
-                      title="Стоп"
-                      disabled={timerStatus === "idle" && timerSeconds === 0}
-                    >
-                      <svg
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <rect x="6" y="6" width="12" height="12" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-
                 <div className="variant-hero-right">
-                  <div className="variant-score-block">
-                    <div className="variant-score-row">
-                      <span className="variant-score-label">Правильных</span>
-                      <span className="variant-score-val">
-                        {correctCount} <span className="variant-score-total">/ {part1Tasks.length}</span>
-                      </span>
-                    </div>
-                  </div>
-
                   <div className="variant-hero-actions">
                     <button className="variant-btn-danger" onClick={resetAllAnswers}>
                       ↺ Сбросить всё
