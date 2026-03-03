@@ -1943,6 +1943,30 @@ mjx-container {
     visibility: visible;
 }
 
+.part2-answer-reveal {
+  margin-top: 0.75rem;
+  padding: 1rem;
+  background: #e8f5e9;
+  border: 1px solid rgba(76, 175, 80, 0.3);
+  border-radius: 12px;
+}
+
+.part2-answer-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #2e7d32;
+  margin-bottom: 0.5rem;
+}
+
+.part2-answer-content {
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #1a1a1a;
+}
+
 /* Часть 1 и Часть 2 — заголовки разделов */
 .part-divider {
     padding: 1.5rem 2rem;

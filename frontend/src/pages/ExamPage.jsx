@@ -54,6 +54,9 @@ function ExamPage() {
   // Баллы части 2 — { taskId: число }
   const [scores, setScores] = useState({});
 
+  // Показанные ответы части 2 — { taskId: true }
+  const [visibleAnswers, setVisibleAnswers] = useState({});
+
   // Доска
   const [boardOpen, setBoardOpen] = useState(false);
   const [tool, setTool] = useState("pen"); // "pen" | "eraser"
@@ -459,10 +462,15 @@ function ExamPage() {
     });
   }
 
+  function togglePart2Answer(taskId) {
+    setVisibleAnswers((p) => ({ ...p, [taskId]: !p[taskId] }));
+  }
+
   function resetAllAnswers() {
     setUserAnswers({});
     setCheckedTasks({});
     setScores({});
+    setVisibleAnswers({});
   }
 
   function clearBoard() {
@@ -496,6 +504,9 @@ function ExamPage() {
   const showLinkedGroup = part2Linked1921.length === 3;
 
   const correctCount = Object.values(checkedTasks).filter(Boolean).length;
+  const part2ScoreSum = part2Tasks.reduce((sum, t) => sum + (scores[t.id] || 0), 0);
+  const totalScore = correctCount + part2ScoreSum;
+  const maxScore = part1Tasks.length + part2Tasks.length * 3;
 
   const openPdf = async (variantId) => {
     setPdfLoading("default");
@@ -600,9 +611,11 @@ function ExamPage() {
         </div>
         <div className="variant-score-block">
           <div className="variant-score-row">
-            <span className="variant-score-label">Правильных</span>
+            <span className="variant-score-label">
+              {part2Tasks.length > 0 ? "Баллов" : "Правильных"}
+            </span>
             <span className="variant-score-val">
-              {correctCount} <span className="variant-score-total">/ {part1Tasks.length}</span>
+              {totalScore} <span className="variant-score-total">/ {maxScore}</span>
             </span>
           </div>
         </div>
@@ -665,12 +678,14 @@ function ExamPage() {
             </div>
 
             {/* ===== ЧАСТЬ 1 ===== */}
-            <div className="part-divider part-divider-1">
-              <h2>Часть 1</h2>
-              <p>Краткий ответ</p>
-            </div>
+            {part1Tasks.length > 0 && (
+              <>
+                <div className="part-divider part-divider-1">
+                  <h2>Часть 1</h2>
+                  <p>Краткий ответ</p>
+                </div>
 
-            {part1Tasks.map((task) => {
+                {part1Tasks.map((task) => {
               const useTable = isTableAnswerTask(subject, task.number);
               const rows = useTable ? INF_TABLE_ROWS : 0;
               const cols = useTable ? INF_TABLE_COLS : 0;
@@ -817,6 +832,8 @@ function ExamPage() {
                 </section>
               );
             })}
+              </>
+            )}
 
             {/* ===== ЧАСТЬ 2 ===== */}
             {part2Tasks.length > 0 && (
@@ -936,6 +953,25 @@ function ExamPage() {
                                   </div>
                                 </>
                               )}
+
+                              {task.answer != null && task.answer !== "" && (
+                                <>
+                                  <button
+                                    type="button"
+                                    className="add-button"
+                                    style={{ padding: "0.6rem 1rem", fontSize: "0.85rem", whiteSpace: "nowrap" }}
+                                    onClick={() => togglePart2Answer(task.id)}
+                                  >
+                                    {visibleAnswers[task.id] ? "Скрыть ответ" : "Ответ"}
+                                  </button>
+                                  {visibleAnswers[task.id] && (
+                                    <div className="part2-answer-reveal">
+                                      <span className="part2-answer-label">Правильный ответ:</span>
+                                      <MathContent html={task.answer} className="part2-answer-content" />
+                                    </div>
+                                  )}
+                                </>
+                              )}
                             </div>
                           </article>
                         </section>
@@ -966,6 +1002,25 @@ function ExamPage() {
                             +
                           </button>
                         </div>
+
+                        {task.answer != null && task.answer !== "" && (
+                          <>
+                            <button
+                              type="button"
+                              className="add-button"
+                              style={{ padding: "0.6rem 1rem", fontSize: "0.85rem", whiteSpace: "nowrap" }}
+                              onClick={() => togglePart2Answer(task.id)}
+                            >
+                              {visibleAnswers[task.id] ? "Скрыть ответ" : "Ответ"}
+                            </button>
+                            {visibleAnswers[task.id] && (
+                              <div className="part2-answer-reveal">
+                                <span className="part2-answer-label">Правильный ответ:</span>
+                                <MathContent html={task.answer} className="part2-answer-content" />
+                              </div>
+                            )}
+                          </>
+                        )}
                       </div>
                     </article>
                   </section>
