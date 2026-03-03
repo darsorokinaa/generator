@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.db.models import Q
 from django.utils.html import strip_tags
+from django_ckeditor_5.widgets import CKEditor5Widget
 
 from .models import (
     Level,
@@ -62,6 +63,15 @@ class TaskAdmin(SearchByIdMixin, admin.ModelAdmin):
     list_per_page = 25
     show_full_result_count = False
     raw_id_fields = ("task",)
+
+    fieldsets = (
+        (None, {"fields": ("task", "task_template", "answer", "files", "author")}),
+    )
+
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        if db_field.name == "answer":
+            kwargs["widget"] = CKEditor5Widget(config_name="default")
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
 
     def answer_preview(self, obj):
         raw = obj.answer or ""

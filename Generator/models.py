@@ -59,7 +59,7 @@ class Task(models.Model):
     task_template = CKEditor5Field("Task text", config_name='default')
     files = models.FileField(upload_to='task_files', blank=True, null=True)
 
-    answer = models.TextField(max_length=500)
+    answer = models.CKEditor5Field("Task answer", config_name="default")
     
     added_at = models.DateTimeField(default=datetime.today)
     created_by =models.CharField(default='ADMIN')
