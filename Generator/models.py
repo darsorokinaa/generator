@@ -49,6 +49,7 @@ class TaskList(models.Model):
     part = models.ForeignKey(Part, on_delete=CASCADE, blank=True, null=True, default=1)
     task_number = models.IntegerField()
     task_title = models.CharField(max_length=100)
+    max_score = models.IntegerField()
 
     def __str__(self):
         return f'{self.subject} {self.level}: {self.task_number} - {self.task_title}'
@@ -59,7 +60,7 @@ class Task(models.Model):
     task_template = CKEditor5Field("Task text", config_name='default')
     files = models.FileField(upload_to='task_files', blank=True, null=True)
 
-    answer = models.CKEditor5Field("Task answer", config_name="default")
+    answer = CKEditor5Field("Ответ", config_name='default', blank=True)
     
     added_at = models.DateTimeField(default=datetime.today)
     created_by =models.CharField(default='ADMIN')

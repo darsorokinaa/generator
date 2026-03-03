@@ -50,6 +50,7 @@ class TaskList(models.Model):
     part = models.ForeignKey(Part, on_delete=CASCADE, blank=True, null=True, default=1)
     task_number = models.IntegerField()
     task_title = models.CharField(max_length=100)
+    max_score = models.IntegerField(default=1)
 
     class Meta:
         indexes = [
