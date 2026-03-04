@@ -1729,6 +1729,14 @@ header .container {
     text-align: center;
 }
 
+.task-author {
+    font-size: 0.7rem;
+    font-style: italic;
+    color: #9ca3af;
+    text-align: left;
+    margin-top: auto;
+}
+
 .task-content {
     flex: 1;
     min-width: 0;

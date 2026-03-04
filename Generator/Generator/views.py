@@ -28,11 +28,14 @@ from .latex_utils import process_latex
 from . import pdf_utils
 
 FAVICON_SVG = (
-    b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">'
-    b'<rect width="32" height="32" rx="8" fill="#3e73ef"/>'
-    b'<text x="16" y="24" font-family="Arial,sans-serif" font-size="20" font-weight="bold" '
-    b'fill="white" text-anchor="middle">\xe2\x88\x91</text>'
-    b'</svg>'
+    b'<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">'
+    b'<defs><filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">'
+    b'<feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000000" flood-opacity="0.18"/>'
+    b'</filter></defs>'
+    b'<rect width="1024" height="1024" fill="#2F6FFF"/>'
+    b'<rect x="200" y="200" width="624" height="624" rx="140" fill="#5F8FFF" filter="url(#shadow)"/>'
+    b'<path d="M660 340H420L560 512L420 684H660" fill="none" stroke="#FFFFFF" stroke-width="88" '
+    b'stroke-linecap="round" stroke-linejoin="round"/></svg>'
 )
 
 
@@ -348,6 +351,7 @@ def api_variant_detail(request, level, subject, variant_id):
             "part": task_list.part_id if task_list else None,
             "file": request.build_absolute_uri(item.task.files.url)
                     if item.task.files else None,
+            "author": (item.task.author or "").strip() or None,
         })
 
     return JsonResponse({

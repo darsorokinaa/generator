@@ -677,6 +677,7 @@ function ExamPage() {
                   <aside className="task-left">
                     <div className="task-number">{task.number}</div>
                     <div className="task-id">{task.id}</div>
+                    {task.author && <div className="task-author">{task.author}</div>}
                   </aside>
 
                   <article className="task-content">
@@ -841,6 +842,7 @@ function ExamPage() {
                           <aside className="task-left">
                             <div className="task-number">{task.number}</div>
                             <div className="task-id">{task.id}</div>
+                            {task.author && <div className="task-author">{task.author}</div>}
                           </aside>
 
                           <article className="task-content">
@@ -968,6 +970,7 @@ function ExamPage() {
                     <aside className="task-left">
                       <div className="task-number">{task.number}</div>
                       <div className="task-id">{task.id}</div>
+                      {task.author && <div className="task-author">{task.author}</div>}
                     </aside>
 
                     <article className="task-content">

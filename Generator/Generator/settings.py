@@ -93,11 +93,13 @@ SESSION_COOKIE_SAMESITE = 'Lax'
 ROOT_URLCONF = 'Generator.urls'
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent / 'frontend' / 'dist'
+# frontend/dist появляется после npm run build
+TEMPLATE_DIRS = [FRONTEND_DIR] if FRONTEND_DIR.exists() else []
 
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [FRONTEND_DIR],
+        'DIRS': TEMPLATE_DIRS,
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -165,10 +167,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_DIRS = [
-    BASE_DIR / "static",
-    FRONTEND_DIR,
-]
+STATICFILES_DIRS = [BASE_DIR / "static"] + ([FRONTEND_DIR] if FRONTEND_DIR.exists() else [])
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
