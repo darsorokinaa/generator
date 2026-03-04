@@ -1730,11 +1730,12 @@ header .container {
 }
 
 .task-author {
-    font-size: 0.7rem;
+    font-size: 0.75rem;
     font-style: italic;
     color: #9ca3af;
-    text-align: left;
-    margin-top: auto;
+    text-align: right;
+    margin-top: 0.5rem;
+    margin-bottom: 1.25rem;
 }
 
 .task-content {

@@ -677,11 +677,11 @@ function ExamPage() {
                   <aside className="task-left">
                     <div className="task-number">{task.number}</div>
                     <div className="task-id">{task.id}</div>
-                    {task.author && <div className="task-author">{task.author}</div>}
                   </aside>
 
                   <article className="task-content">
                     <MathContent html={task.text} className="task-text" />
+                    {task.author && <div className="task-author">{task.author}</div>}
 
                     {task.file && (
                       <div className="task-files">
@@ -842,11 +842,11 @@ function ExamPage() {
                           <aside className="task-left">
                             <div className="task-number">{task.number}</div>
                             <div className="task-id">{task.id}</div>
-                            {task.author && <div className="task-author">{task.author}</div>}
                           </aside>
 
                           <article className="task-content">
                             <MathContent html={task.text} className="task-text" />
+                            {task.author && <div className="task-author">{task.author}</div>}
 
                             <div className="answer-section">
                               {useTableHere && rowsHere > 0 && colsHere > 0 ? (
@@ -970,11 +970,11 @@ function ExamPage() {
                     <aside className="task-left">
                       <div className="task-number">{task.number}</div>
                       <div className="task-id">{task.id}</div>
-                      {task.author && <div className="task-author">{task.author}</div>}
                     </aside>
 
                     <article className="task-content">
                       <MathContent html={task.text} className="task-text" />
+                      {task.author && <div className="task-author">{task.author}</div>}
 
                       <div className="answer-section">
                         <div className="score-label">Выставьте баллы за решение:</div>
