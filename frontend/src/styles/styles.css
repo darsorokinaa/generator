@@ -2731,7 +2731,8 @@ body.index .exam-card {
 }
 
 .task-image img {
-    width: 50%;
+    width: 100%;
+    max-width: 100%;
     margin-bottom: 1rem;
     height: auto;
 }
@@ -2742,7 +2743,8 @@ body.index .exam-card {
 }
 
 .task-text figure.image img {
-    max-width: 60%;
+    width: 80%;
+    max-width: 80%;
     height: auto;
 }
 
