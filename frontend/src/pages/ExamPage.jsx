@@ -810,7 +810,8 @@ function ExamPage() {
                           checkedTasks[task.id] !== undefined && !checkedTasks[task.id] ? " visible" : ""
                         }`}
                       >
-                        Правильный ответ: {task.answer}
+                        <span>Правильный ответ: </span>
+                        <MathContent html={task.answer || ""} className="correct-answer-content" />
                       </div>
                     </div>
                   </article>
@@ -922,7 +923,8 @@ function ExamPage() {
                                       checkedTasks[task.id] !== undefined && !checkedTasks[task.id] ? " visible" : ""
                                     }`}
                                   >
-                                    Правильный ответ: {task.answer}
+                                    <span>Правильный ответ: </span>
+                                    <MathContent html={task.answer || ""} className="correct-answer-content" />
                                   </div>
                                 </>
                               ) : (

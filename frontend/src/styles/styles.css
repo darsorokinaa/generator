@@ -1936,16 +1936,23 @@ mjx-container {
 }
 
 .correct-answer-display {
-    height: 48px;
+    min-height: 48px;
     visibility: hidden;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
+    gap: 0.5rem;
     color: #4CAF50;
     font-weight: 600;
     background-color: #E8F5E9;
     padding: 8px 12px;
     border-radius: 6px;
     margin-top: 8px;
+}
+
+.correct-answer-display .correct-answer-content {
+    flex: 1;
+    min-width: 0;
+    font-weight: 400;
 }
 
 .correct-answer-display.visible {
