@@ -155,6 +155,15 @@ body {
     font-weight: bold;
 }
 
+/* Перенос длинных ответов на несколько строк */
+.answers-table td.answer-cell {
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    white-space: normal;
+    word-break: break-word;
+    text-align: left;
+}
+
 .answers-page .answers-table {
     margin-bottom: 12pt;
 }

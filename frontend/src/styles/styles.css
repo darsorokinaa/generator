@@ -1949,10 +1949,14 @@ mjx-container {
     margin-top: 8px;
 }
 
+.correct-answer-display .correct-answer-label {
+    font-weight: 600;
+}
+
 .correct-answer-display .correct-answer-content {
     flex: 1;
     min-width: 0;
-    font-weight: 400;
+    font-weight: 600;
 }
 
 .correct-answer-display.visible {
@@ -1981,6 +1985,7 @@ mjx-container {
   font-size: 0.95rem;
   line-height: 1.5;
   color: #1a1a1a;
+  font-weight: 600;
 }
 
 /* Часть 1 и Часть 2 — заголовки разделов */

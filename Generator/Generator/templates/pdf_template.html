@@ -105,7 +105,7 @@
         <tr>
             <td><strong>Ответ</strong></td>
             {% for item in chunk %}
-                <td>{{ item.answer|safe }}</td>
+                <td class="answer-cell">{{ item.answer|safe }}</td>
             {% endfor %}
         </tr>
     </table>
