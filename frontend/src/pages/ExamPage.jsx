@@ -479,11 +479,13 @@ function ExamPage() {
   const part1Tasks = variant.tasks.filter((t) => t.part === 1);
   const part2Tasks = variant.tasks.filter((t) => t.part === 2);
 
-  // Связанные задания 19–21 (ЕГЭ информатика): один блок с подзаголовком
+  // Связанные задания 19–21 — только для ЕГЭ информатика; для математики всё как обычные задания
   const LINKED_19_21 = [19, 20, 21];
   const part2Linked1921 = part2Tasks.filter((t) => LINKED_19_21.includes(t.number));
   const part2Rest = part2Tasks.filter((t) => !LINKED_19_21.includes(t.number));
-  const showLinkedGroup = part2Linked1921.length === 3;
+  const showLinkedGroup = subject === "inf" && part2Linked1921.length === 3;
+  // Для математики или если не все три — показываем 19/20/21 как обычные задания
+  const part2Regular = showLinkedGroup ? part2Rest : [...part2Linked1921, ...part2Rest].sort((a, b) => a.number - b.number);
 
   const correctCount = Object.values(checkedTasks).filter(Boolean).length;
   const part2ScoreSum = part2Tasks.reduce((sum, t) => sum + (scores[t.id] || 0), 0);
@@ -965,7 +967,7 @@ function ExamPage() {
                 )}
 
                 {/* Остальные задания части 2 */}
-                {part2Rest.map((task) => (
+                {part2Regular.map((task) => (
                   <section key={task.id} className="task">
                     <aside className="task-left">
                       <div className="task-number">{task.number}</div>
