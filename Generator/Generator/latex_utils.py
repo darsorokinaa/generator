@@ -527,4 +527,6 @@ def process_latex(html_text: str, for_pdf: bool = False, for_browser: bool = Fal
     html_text = _RE_NAKED_LATEX_SYMBOLS.sub(replace_naked_symbols, html_text)
     # 7. \texttt{...} в оставшемся plain HTML → моноширинный код (после math, чтобы не трогать data-latex)
     html_text = _RE_TEXTTT.sub(r'<code>\1</code>', html_text)
+    # 8. Исправление &аmp; (кириллическая 'а') → & — corruption в некоторых данных
+    html_text = html_text.replace("&\u0430mp;", "&")
     return html_text
