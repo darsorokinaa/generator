@@ -2157,14 +2157,15 @@ mjx-container {
     flex-shrink: 0;
 }
 
-/* Контейнер доски — прокручивается вместе со страницей (height в JS) */
+/* Контейнер доски — прокручивается со страницей, на всю ширину экрана без смещений (без transform, чтобы toolbar position:fixed работал) */
 #board-container {
     display: none;
     flex-direction: column;
     position: absolute;
     top: 0;
-    left: 0;
-    width: 100%;
+    left: 50%;
+    margin-left: -50vw;
+    width: 100vw;
     z-index: 1000;
     pointer-events: none;
 }
@@ -2210,6 +2211,15 @@ mjx-container {
     background: #eff6ff;
     color: #2563eb;
     border-color: #93c5fd;
+}
+
+#board-toolbar button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+#board-toolbar button:disabled:hover {
+    background: #fafafa;
 }
 
 #board-toolbar .board-toolbar-icon {
@@ -2271,8 +2281,8 @@ mjx-container {
     position: absolute;
     top: 0;
     left: 0;
-    width: 100vw;
-    /* высота задаётся через JS */
+    width: 100%;
+    /* высота и ширина в пикселях задаются через JS */
     pointer-events: auto;
     z-index: 1050;
     background: transparent;

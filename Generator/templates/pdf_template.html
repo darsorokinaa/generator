@@ -16,7 +16,7 @@
                 font-weight: bold;
             }
             @top-center {
-                content: "{{ header_logo }}";
+                content: "{{ header_variant }}";
                 font-size: 10pt;
                 font-weight: bold;
             }
@@ -63,6 +63,9 @@
                 {% if item.text %}{{ item.text|safe }}{% else %}<p>&nbsp;</p>{% endif %}
 
                 {% if item.file_url %}
+                    <div class="task-file-download">
+                        <a href="{{ item.file_url }}" class="pdf-file-link" target="_blank">📎 Скачать файл</a>
+                    </div>
                     <img src="{{ item.file_url }}">
                 {% endif %}
 
@@ -91,7 +94,7 @@
         <tr>
             <td><strong>Ответ</strong></td>
             {% for item in chunk %}
-                <td class="answer-cell">{{ item.answer }}</td>
+                <td class="answer-cell">{{ item.answer|safe }}</td>
             {% endfor %}
         </tr>
     </table>

@@ -56,6 +56,18 @@ body {
     text-align: justify;
 }
 
+/* Ссылка на скачивание файла */
+.task-file-download {
+    margin: 6pt 0;
+}
+
+.pdf-file-link {
+    color: #0066cc;
+    text-decoration: none;
+    font-size: 9pt;
+    
+}
+
 /* Изображения */
 .task-body img {
     max-width: 70%;

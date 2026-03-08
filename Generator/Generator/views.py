@@ -343,14 +343,28 @@ def api_variant_detail(request, level, subject, variant_id):
     tasks_data = []
     for item in contents:
         task_list = item.task.task
+        file_url = None
+        if item.task.files:
+            f = item.task.files
+            try:
+                url = f.url
+                if url:
+                    file_url = request.build_absolute_uri(url)
+            except Exception:
+                pass
+            if not file_url and f.name:
+                # Fallback: build URL from file name (when .url fails)
+                media_url = getattr(django_settings, "MEDIA_URL", "/media/") or "/media/"
+                rel = (media_url.rstrip("/") + "/" + f.name.lstrip("/")).replace("//", "/")
+                file_url = request.build_absolute_uri(rel)
+
         tasks_data.append({
             "id": item.task.id,
             "number": task_list.task_number if task_list else item.order,
             "text": process_latex(str(item.task.task_template or ""), for_browser=True),
-            "answer": item.task.answer,
+            "answer": process_latex(str(item.task.answer or ""), for_browser=True),
             "part": task_list.part_id if task_list else None,
-            "file": request.build_absolute_uri(item.task.files.url)
-                    if item.task.files else None,
+            "file": file_url,
             "author": (item.task.author or "").strip() or None,
         })
 

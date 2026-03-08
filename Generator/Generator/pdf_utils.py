@@ -1,6 +1,8 @@
 """PDF generation helpers."""
+import base64
 import os
 import re
+import tempfile
 from functools import lru_cache
 from pathlib import Path
 
@@ -49,6 +51,8 @@ sub { font-size: .75em; vertical-align: sub; }
 
 
 _RE_IMG_SRC = re.compile(r'src=["\']([^"\']+)["\']', re.IGNORECASE)
+_RE_DATA_IMAGE = re.compile(r'^data:image/(\w+);base64,', re.IGNORECASE)
+_MAX_DATA_URL_LEN = 16_000  # Data URL длиннее — во временный файл (WeasyPrint нестабилен с большими base64)
 
 
 def _resolve_image_url(url: str, request=None) -> str:
@@ -56,16 +60,46 @@ def _resolve_image_url(url: str, request=None) -> str:
     if not url:
         return url
     url = url.strip()
-    if url.startswith("data:") or url.startswith("http://") or url.startswith("https://"):
+
+    # data:image URL → временный файл (WeasyPrint нестабилен с base64, file:// надёжнее)
+    if url.startswith("data:image/") and ";base64," in url[:50]:
+        if len(url) > _MAX_DATA_URL_LEN:  # только длинные — короткие иконки оставляем
+            try:
+                m = _RE_DATA_IMAGE.match(url)
+                ext = (m.group(1).lower() if m else "png").replace("jpeg", "jpg")
+                data = base64.b64decode(url.split(",", 1)[1])
+                fd, path = tempfile.mkstemp(suffix=f".{ext}", prefix="weasy_img_")
+                try:
+                    os.write(fd, data)
+                finally:
+                    os.close(fd)
+                return Path(path).as_uri()
+            except Exception:
+                pass
         return url
+
+    if url.startswith("http://") or url.startswith("https://"):
+        return url
+
+    # /media/ или media/ — локальный файл
+    media_root = django_settings.MEDIA_ROOT
+    rel_path = None
     if url.startswith("/media/"):
         rel_path = url[len("/media/"):].lstrip("/")
-        media_root = django_settings.MEDIA_ROOT
-        local_path = os.path.join(str(media_root), rel_path.replace("/", os.sep))
-        if os.path.exists(local_path):
-            return Path(local_path).as_uri()
-        if request:
+    elif url.startswith("media/"):
+        rel_path = url[len("media/"):].lstrip("/")
+
+    if rel_path and media_root:
+        local_path = Path(media_root) / rel_path.replace("/", os.sep)
+        if local_path.exists():
+            return local_path.as_uri()
+        if request and url.startswith("/media/"):
             return request.build_absolute_uri(url)
+
+    # Относительные пути — абсолютный URL
+    if request and url and not url.startswith(("http", "data:", "file:")):
+        return request.build_absolute_uri(url if url.startswith("/") else "/" + url)
+
     return url
 
 
@@ -128,15 +162,38 @@ def build_pdf_context(request, variant, subject):
             rendered_text = mark_safe(html)
         part = item.task.task.part.part_title if item.task.task.part else None
 
-        # Обработка LaTeX в ответах (часть 2)
+        # Обработка LaTeX и HTML в ответах (часть 2)
         raw_answer = str(item.task.answer or "").strip()
         if raw_answer:
-            rendered_answer = mark_safe(process_latex(raw_answer, for_pdf=True))
+            html = process_latex(raw_answer, for_pdf=True)
+            html = rewrite_content_image_urls(html, request)
+            rendered_answer = mark_safe(html)
         else:
             rendered_answer = ""
 
         if part not in seen_parts:
             seen_parts.append(part)
+
+        file_url = None
+        if item.task.files:
+            f = item.task.files
+            try:
+                local_path = Path(f.path)
+                if local_path.exists():
+                    file_url = local_path.as_uri()
+            except (ValueError, AttributeError):
+                pass
+            if not file_url:
+                try:
+                    url = f.url
+                    if url:
+                        file_url = request.build_absolute_uri(url)
+                except Exception:
+                    pass
+            if not file_url and f.name:
+                media_url = getattr(django_settings, "MEDIA_URL", "/media/") or "/media/"
+                rel = (media_url.rstrip("/") + "/" + f.name.lstrip("/")).replace("//", "/")
+                file_url = request.build_absolute_uri(rel)
 
         entry = {
             "order": item.order,
@@ -144,7 +201,7 @@ def build_pdf_context(request, variant, subject):
             "answer": rendered_answer,
             "part": part,
             "subject": subject,
-            "file_url": request.build_absolute_uri(item.task.files.url) if item.task.files else None,
+            "file_url": file_url,
         }
         processed_contents.append(entry)
         answers_by_part.setdefault(part or "Без части", []).append(entry)
@@ -165,6 +222,7 @@ def build_pdf_context(request, variant, subject):
         level_label = f"{level_val} класс"
     header_subject_level = f"{subject_label}, {level_label}"
     header_logo = ""
+    header_variant = f"Вариант № {variant.id}"
     base_url = request.build_absolute_uri("/").rstrip("/") or "/"
     footer_left = mark_safe(f'© <a href="{base_url}" class="pdf-footer-link">Генератор</a>')
 
@@ -185,6 +243,7 @@ def build_pdf_context(request, variant, subject):
         "subject": subject,
         "header_subject_level": header_subject_level,
         "header_logo": header_logo,
+        "header_variant": header_variant,
         "footer_left": footer_left,
     }
 

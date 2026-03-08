@@ -114,6 +114,10 @@ _RE_MATH_TEX_BODY = re.compile(
 _RE_NAKED_INLINE = re.compile(
     r'(?<!&#92;\()([^\s<>]*(?:\\frac\{[^}]*\}\{[^}]*\}|\^\{[^}]*\}|_\{[^}]*\}|\\sqrt(?:\[[^\]]*\])?\{[^}]*\})[^\s<>]*?)(?=[.,;:\s<>]|$|&#41;)',
 )
+# LaTeX с \infty, \cup, \cap и др. (интервалы, множества): (−∞;4)∪(4;5]
+_RE_NAKED_LATEX_SYMBOLS = re.compile(
+    r'(?<!&#92;\()([^\s<>]*(?:\\infty|\\cup|\\cap|\\leq|\\geq|\\wedge|\\vee|\\neg|\\exists|\\forall|\\in|\\notin)[^\s<>]*)(?=[.,;:\s<>]|$|&#41;)',
+)
 
 _fd = getattr(django_settings, 'FRONTEND_DIR', None)
 _basedir = getattr(django_settings, 'BASE_DIR', Path(__file__).resolve().parent.parent)
@@ -513,6 +517,14 @@ def process_latex(html_text: str, for_pdf: bool = False, for_browser: bool = Fal
         return _render_math_block(latex, False, for_pdf=for_pdf, for_browser=for_browser)
 
     html_text = _RE_NAKED_INLINE.sub(replace_naked, html_text)
+
+    def replace_naked_symbols(m):
+        latex = _normalize_latex(m.group(1))
+        if not latex or len(latex) < 3:
+            return m.group(0)
+        return _render_math_block(latex, False, for_pdf=for_pdf, for_browser=for_browser)
+
+    html_text = _RE_NAKED_LATEX_SYMBOLS.sub(replace_naked_symbols, html_text)
     # 7. \texttt{...} в оставшемся plain HTML → моноширинный код (после math, чтобы не трогать data-latex)
     html_text = _RE_TEXTTT.sub(r'<code>\1</code>', html_text)
     return html_text

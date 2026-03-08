@@ -41,8 +41,10 @@ function ExamPage() {
 
   // Доска
   const [boardOpen, setBoardOpen] = useState(false);
-  const [tool, setTool] = useState("pen"); // "pen" | "eraser"
+  const [tool, setTool] = useState("pen"); // "pen" | "eraser" | "line" | "triangle" | "circle" | "square"
   const [color, setColor] = useState("#000000");
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
 
   // Таймер варианта
   const [timerSeconds, setTimerSeconds] = useState(0);
@@ -54,7 +56,10 @@ function ExamPage() {
   const canvasRef = useRef(null);
   const socketRef = useRef(null);
   const objectsRef = useRef([]);
+  const redoStackRef = useRef([]);
+  const redrawRef = useRef(null);
   const currentLineRef = useRef(null);
+  const currentShapeRef = useRef(null);
   const drawingRef = useRef(false);
   const erasingRef = useRef(false);
 
@@ -125,8 +130,6 @@ function ExamPage() {
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d", { willReadFrequently: false });
-
-    // предотвращаем скролл/зум на тач-устройствах во время рисования
     canvas.style.touchAction = "none";
 
     const protocol = window.location.protocol === "https:" ? "wss://" : "ws://";
@@ -134,113 +137,151 @@ function ExamPage() {
     const socket = new WebSocket(protocol + wsHost + "/ws/board/test/");
     socketRef.current = socket;
 
-    // кешируем rect/scale — не дергаем getBoundingClientRect на каждый move
     const rectRef = { current: null };
-    const scaleRef = { current: { x: 1, y: 1 } };
-
-    const MAX_CANVAS_HEIGHT = 15000;
+    const geomRef = { current: { w: 1, h: 1, dpr: 1 } };
+    const PEN_WIDTH = 3;
+    const POINT_STEP = 6;
 
     function resizeCanvas() {
-      const toolbar = document.getElementById("board-toolbar");
-      const toolbarHeight = toolbar ? toolbar.offsetHeight : 56;
-
-      const scrollW = document.documentElement.scrollWidth;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const viewportW = document.documentElement.clientWidth || window.innerWidth;
       const scrollH = document.documentElement.scrollHeight;
-      const canvasH = Math.min(scrollH, MAX_CANVAS_HEIGHT);
+      const canvasH = Math.min(scrollH, 15000);
 
       const container = document.getElementById("board-container");
       if (container) container.style.height = scrollH + "px";
 
-      canvas.width = scrollW;
-      canvas.height = Math.max(1, canvasH);
+      canvas.width = Math.round(viewportW * dpr);
+      canvas.height = Math.max(1, Math.round(canvasH * dpr));
       canvas.style.top = "0";
-      canvas.style.width = scrollW + "px";
+      canvas.style.width = "100%";
       canvas.style.height = canvasH + "px";
 
-      rectRef.current = canvas.getBoundingClientRect();
-      const rect = rectRef.current;
-      scaleRef.current = {
-        x: rect.width ? canvas.width / rect.width : 1,
-        y: rect.height ? canvas.height / rect.height : 1,
-      };
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.scale(dpr, dpr);
 
+      geomRef.current = { w: viewportW, h: canvasH, dpr };
+      rectRef.current = null;
       redraw();
     }
 
     function getPos(e) {
-      const rect = rectRef.current || canvas.getBoundingClientRect();
-      if (!rectRef.current) {
+      let rect = rectRef.current;
+      if (!rect) {
+        rect = canvas.getBoundingClientRect();
         rectRef.current = rect;
-        scaleRef.current = {
-          x: rect.width ? canvas.width / rect.width : 1,
-          y: rect.height ? canvas.height / rect.height : 1,
-        };
       }
-
-      const clientX = e.clientX ?? e.touches?.[0]?.clientX ?? 0;
-      const clientY = e.clientY ?? e.touches?.[0]?.clientY ?? 0;
-
-      const sx = scaleRef.current.x;
-      const sy = scaleRef.current.y;
-
+      const { w, h } = geomRef.current;
+      const sx = rect.width > 0 ? w / rect.width : 1;
+      const sy = rect.height > 0 ? h / rect.height : 1;
       return {
-        x: (clientX - rect.left) * sx,
-        y: (clientY - rect.top) * sy,
+        x: Math.round(((e.clientX ?? e.touches?.[0]?.clientX ?? 0) - rect.left) * sx),
+        y: Math.round(((e.clientY ?? e.touches?.[0]?.clientY ?? 0) - rect.top) * sy),
       };
     }
 
-    const PEN_WIDTH = 3;
-
-    function drawSmoothLine(points, color, width) {
+    function drawPath(points, color, width) {
       if (points.length < 1) return;
-
-      ctx.strokeStyle = color;
-      ctx.lineWidth = width;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
-
       if (points.length === 1) {
-        ctx.beginPath();
-        ctx.arc(points[0].x, points[0].y, width / 2, 0, Math.PI * 2);
+        const s = Math.max(1, width);
         ctx.fillStyle = color;
-        ctx.fill();
+        ctx.fillRect(points[0].x - (s >> 1), points[0].y - (s >> 1), s, s);
         return;
       }
-
+      ctx.strokeStyle = color;
+      ctx.lineWidth = width;
+      ctx.lineCap = "butt";
+      ctx.lineJoin = "miter";
       ctx.beginPath();
       ctx.moveTo(points[0].x, points[0].y);
-      for (let i = 1; i < points.length - 1; i++) {
-        const xc = (points[i].x + points[i + 1].x) / 2;
-        const yc = (points[i].y + points[i + 1].y) / 2;
-        ctx.quadraticCurveTo(points[i].x, points[i].y, xc, yc);
+      for (let i = 1; i < points.length; i++) {
+        ctx.lineTo(points[i].x, points[i].y);
       }
-      ctx.lineTo(points[points.length - 1].x, points[points.length - 1].y);
       ctx.stroke();
     }
 
-    function redraw() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      objectsRef.current.forEach((obj) => {
-        if (obj.type === "line") drawSmoothLine(obj.points, obj.color, obj.width);
-      });
-      if (currentLineRef.current) {
-        drawSmoothLine(
-          currentLineRef.current.points,
-          currentLineRef.current.color,
-          currentLineRef.current.width
+    function drawShape(obj) {
+      const w = obj.width || PEN_WIDTH;
+      ctx.strokeStyle = obj.color;
+      ctx.lineWidth = w;
+      ctx.lineCap = "butt";
+      ctx.lineJoin = "miter";
+
+      if (obj.type === "segment" && obj.points?.length >= 2) {
+        ctx.beginPath();
+        ctx.moveTo(obj.points[0].x, obj.points[0].y);
+        ctx.lineTo(obj.points[1].x, obj.points[1].y);
+        ctx.stroke();
+      } else if (obj.type === "triangle" && obj.points?.length === 3) {
+        ctx.beginPath();
+        ctx.moveTo(obj.points[0].x, obj.points[0].y);
+        ctx.lineTo(obj.points[1].x, obj.points[1].y);
+        ctx.lineTo(obj.points[2].x, obj.points[2].y);
+        ctx.closePath();
+        ctx.stroke();
+      } else if (obj.type === "circle") {
+        ctx.beginPath();
+        ctx.arc(obj.center.x, obj.center.y, obj.radius, 0, Math.PI * 2);
+        ctx.stroke();
+      } else if (obj.type === "rect" && obj.points?.length === 2) {
+        const [a, b] = obj.points;
+        ctx.strokeRect(
+          Math.round(Math.min(a.x, b.x)),
+          Math.round(Math.min(a.y, b.y)),
+          Math.round(Math.abs(b.x - a.x)),
+          Math.round(Math.abs(b.y - a.y))
         );
       }
     }
 
+    function redraw() {
+      const { w, h, dpr } = geomRef.current;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, w, h);
+
+      objectsRef.current.forEach((obj) => {
+        if (obj.type === "line") drawPath(obj.points, obj.color, obj.width);
+        else drawShape(obj);
+      });
+      if (currentLineRef.current) drawPath(currentLineRef.current.points, currentLineRef.current.color, currentLineRef.current.width);
+      if (currentShapeRef.current) drawShape(currentShapeRef.current);
+    }
+    redrawRef.current = redraw;
+
+    function hitTest(obj, x, y, r) {
+      if (obj.type === "line") {
+        return obj.points.some((pt) => Math.hypot(pt.x - x, pt.y - y) < r);
+      }
+      if (obj.type === "segment" && obj.points?.length >= 2) {
+        const [a, b] = obj.points;
+        const dx = b.x - a.x, dy = b.y - a.y;
+        const len = Math.hypot(dx, dy) || 1;
+        const t = Math.max(0, Math.min(1, ((x - a.x) * dx + (y - a.y) * dy) / (len * len)));
+        const px = a.x + t * dx, py = a.y + t * dy;
+        return Math.hypot(x - px, y - py) < r;
+      }
+      if (obj.type === "circle") {
+        return Math.hypot(x - obj.center.x, y - obj.center.y) < obj.radius + r;
+      }
+      if (obj.type === "rect" && obj.points?.length >= 2) {
+        const [a, b] = obj.points;
+        const minX = Math.min(a.x, b.x), maxX = Math.max(a.x, b.x);
+        const minY = Math.min(a.y, b.y), maxY = Math.max(a.y, b.y);
+        return x >= minX - r && x <= maxX + r && y >= minY - r && y <= maxY + r;
+      }
+      if (obj.type === "triangle" && obj.points?.length >= 3) {
+        return obj.points.some((pt) => Math.hypot(pt.x - x, pt.y - y) < r);
+      }
+      return false;
+    }
+
     function eraseAt(x, y) {
-      const radius = 8;
+      const radius = 12;
       for (let i = objectsRef.current.length - 1; i >= 0; i--) {
-        const obj = objectsRef.current[i];
-        if (obj.type !== "line") continue;
-        const hit = obj.points.some((pt) => Math.hypot(pt.x - x, pt.y - y) < radius);
-        if (hit) {
+        if (hitTest(objectsRef.current[i], x, y, radius)) {
           objectsRef.current.splice(i, 1);
           socket.send(JSON.stringify({ action: "remove_object", index: i }));
+          setCanUndo(objectsRef.current.length > 0);
           redraw();
           return;
         }
@@ -251,18 +292,26 @@ function ExamPage() {
       e.preventDefault();
       canvas.setPointerCapture(e.pointerId);
 
-      // на старте жеста обновим геометрию
       rectRef.current = canvas.getBoundingClientRect();
-      scaleRef.current = {
-        x: rectRef.current.width ? canvas.width / rectRef.current.width : 1,
-        y: rectRef.current.height ? canvas.height / rectRef.current.height : 1,
-      };
-
       const pos = getPos(e);
+      const t = toolRef.current;
 
-      if (toolRef.current === "eraser") {
+      if (t === "eraser") {
         erasingRef.current = true;
         eraseAt(pos.x, pos.y);
+        return;
+      }
+
+      if (t === "line" || t === "triangle" || t === "circle" || t === "square") {
+        drawingRef.current = true;
+        currentShapeRef.current = {
+          type: t === "line" ? "segment" : t === "square" ? "rect" : t,
+          color: colorRef.current,
+          width: PEN_WIDTH,
+          points: t === "circle" ? [] : [{ x: pos.x, y: pos.y }],
+          ...(t === "circle" && { center: { x: pos.x, y: pos.y }, radius: 0 }),
+        };
+        redraw();
         return;
       }
 
@@ -285,33 +334,46 @@ function ExamPage() {
         return;
       }
 
+      if (drawingRef.current && currentShapeRef.current) {
+        const shape = currentShapeRef.current;
+        if (shape.type === "segment" && shape.points.length >= 1) {
+          shape.points[1] = { x: pos.x, y: pos.y };
+        } else if (shape.type === "rect" && shape.points.length >= 1) {
+          shape.points[1] = { x: pos.x, y: pos.y };
+        } else if (shape.type === "circle") {
+          shape.radius = Math.hypot(pos.x - shape.center.x, pos.y - shape.center.y);
+        } else if (shape.type === "triangle" && shape.points.length >= 1) {
+          const [p1] = shape.points;
+          const p2 = { x: pos.x, y: pos.y };
+          const dx = p2.x - p1.x, dy = p2.y - p1.y;
+          shape.points = [p1, p2, { x: (p1.x + p2.x) / 2 - dy, y: (p1.y + p2.y) / 2 + dx }];
+        }
+        redraw();
+        return;
+      }
+
       if (!drawingRef.current || !currentLineRef.current) return;
 
       const line = currentLineRef.current;
       const last = line.points[line.points.length - 1];
       const dist = Math.hypot(pos.x - last.x, pos.y - last.y);
 
-      // меньше точек => меньше нагрузки => меньше отставание
-      const step = 10;
-
-      if (dist > step) {
-        const n = Math.ceil(dist / step);
+      if (dist >= POINT_STEP) {
+        const n = Math.ceil(dist / POINT_STEP);
         for (let i = 1; i < n; i++) {
           const t = i / n;
           line.points.push({
-            x: last.x + (pos.x - last.x) * t,
-            y: last.y + (pos.y - last.y) * t,
+            x: Math.round(last.x + (pos.x - last.x) * t),
+            y: Math.round(last.y + (pos.y - last.y) * t),
           });
         }
       }
-
       line.points.push({ x: pos.x, y: pos.y });
 
-      // быстрый рендер текущего сегмента
       ctx.strokeStyle = line.color;
       ctx.lineWidth = line.width;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
+      ctx.lineCap = "butt";
+      ctx.lineJoin = "miter";
       ctx.beginPath();
       ctx.moveTo(last.x, last.y);
       ctx.lineTo(pos.x, pos.y);
@@ -324,8 +386,28 @@ function ExamPage() {
         canvas.releasePointerCapture(e.pointerId);
       } catch (_) {}
 
-      if (drawingRef.current && currentLineRef.current) {
+      if (drawingRef.current && currentShapeRef.current) {
+        const shape = currentShapeRef.current;
+        const valid =
+          (shape.type === "segment" && shape.points.length >= 2) ||
+          (shape.type === "triangle" && shape.points.length >= 3) ||
+          (shape.type === "circle" && shape.radius > 2) ||
+          (shape.type === "rect" && shape.points.length >= 2);
+        if (valid) {
+          redoStackRef.current = [];
+          setCanRedo(false);
+          objectsRef.current.push(shape);
+          setCanUndo(true);
+          if (socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ action: "add_object", object: shape }));
+          }
+        }
+        currentShapeRef.current = null;
+      } else if (drawingRef.current && currentLineRef.current) {
+        redoStackRef.current = [];
+        setCanRedo(false);
         objectsRef.current.push(currentLineRef.current);
+        setCanUndo(true);
         if (socket.readyState === WebSocket.OPEN) {
           socket.send(JSON.stringify({ action: "add_object", object: currentLineRef.current }));
         }
@@ -341,8 +423,23 @@ function ExamPage() {
       if (e.key === "Escape") setBoardOpen(false);
       if ((e.ctrlKey || e.metaKey) && e.key === "z") {
         e.preventDefault();
-        objectsRef.current = objectsRef.current.slice(0, -1);
-        redraw();
+        if (e.shiftKey) {
+          if (redoStackRef.current.length > 0) {
+            const obj = redoStackRef.current.pop();
+            objectsRef.current.push(obj);
+            redraw();
+            setCanUndo(true);
+            setCanRedo(redoStackRef.current.length > 0);
+          }
+        } else {
+          if (objectsRef.current.length > 0) {
+            const obj = objectsRef.current.pop();
+            redoStackRef.current.push(obj);
+            redraw();
+            setCanUndo(objectsRef.current.length > 0);
+            setCanRedo(true);
+          }
+        }
       }
     }
 
@@ -373,6 +470,7 @@ function ExamPage() {
     resizeCanvas();
 
     return () => {
+      redrawRef.current = null;
       socket.close();
       canvas.removeEventListener("pointerdown", onPointerDown);
       canvas.removeEventListener("pointermove", onPointerMove);
@@ -455,9 +553,30 @@ function ExamPage() {
     setVisibleAnswers({});
   }
 
+  function undoBoard() {
+    if (objectsRef.current.length === 0) return;
+    const obj = objectsRef.current.pop();
+    redoStackRef.current.push(obj);
+    redrawRef.current?.();
+    setCanUndo(objectsRef.current.length > 0);
+    setCanRedo(redoStackRef.current.length > 0);
+  }
+
+  function redoBoard() {
+    if (redoStackRef.current.length === 0) return;
+    const obj = redoStackRef.current.pop();
+    objectsRef.current.push(obj);
+    redrawRef.current?.();
+    setCanUndo(true);
+    setCanRedo(redoStackRef.current.length > 0);
+  }
+
   function clearBoard() {
     if (!window.confirm("Очистить всю доску?")) return;
     objectsRef.current = [];
+    redoStackRef.current = [];
+    setCanUndo(false);
+    setCanRedo(false);
     const canvas = canvasRef.current;
     if (canvas) canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
     if (socketRef.current?.readyState === WebSocket.OPEN) {
@@ -851,6 +970,15 @@ function ExamPage() {
                             <MathContent html={task.text} className="task-text" />
                             {task.author && <div className="task-author">{task.author}</div>}
 
+                            {task.file && (
+                              <div className="task-files">
+                                <a href={task.file} target="_blank" rel="noreferrer" className="task-file-link">
+                                  <span className="task-file-icon">📎</span>
+                                  <span className="task-file-label">Скачать файл</span>
+                                </a>
+                              </div>
+                            )}
+
                             <div className="answer-section">
                               {useTableHere && rowsHere > 0 && colsHere > 0 ? (
                                 <>
@@ -980,6 +1108,15 @@ function ExamPage() {
                       <MathContent html={task.text} className="task-text" />
                       {task.author && <div className="task-author">{task.author}</div>}
 
+                      {task.file && (
+                        <div className="task-files">
+                          <a href={task.file} target="_blank" rel="noreferrer" className="task-file-link">
+                            <span className="task-file-icon">📎</span>
+                            <span className="task-file-label">Скачать файл</span>
+                          </a>
+                        </div>
+                      )}
+
                       <div className="answer-section">
                         <div className="score-label">Выставьте баллы за решение:</div>
                         <div className="score-controls">
@@ -1084,6 +1221,46 @@ function ExamPage() {
               </svg>
             </button>
 
+            <button
+              className={tool === "line" ? "active" : ""}
+              onClick={() => setTool("line")}
+              title="Линия"
+            >
+              <svg className="board-toolbar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="5" y1="19" x2="19" y2="5" />
+              </svg>
+            </button>
+
+            <button
+              className={tool === "triangle" ? "active" : ""}
+              onClick={() => setTool("triangle")}
+              title="Треугольник"
+            >
+              <svg className="board-toolbar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 2L2 22h20L12 2z" />
+              </svg>
+            </button>
+
+            <button
+              className={tool === "circle" ? "active" : ""}
+              onClick={() => setTool("circle")}
+              title="Круг"
+            >
+              <svg className="board-toolbar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+              </svg>
+            </button>
+
+            <button
+              className={tool === "square" ? "active" : ""}
+              onClick={() => setTool("square")}
+              title="Квадрат"
+            >
+              <svg className="board-toolbar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="3" width="18" height="18" rx="1" />
+              </svg>
+            </button>
+
             <div className="board-divider" />
 
             <div className="color-picker">
@@ -1091,16 +1268,42 @@ function ExamPage() {
                 <button
                   key={c.value}
                   type="button"
-                  className={`board-color-btn${color === c.value && tool === "pen" ? " active" : ""}`}
+                  className={`board-color-btn${color === c.value && ["pen", "line", "triangle", "circle", "square"].includes(tool) ? " active" : ""}`}
                   style={{ background: c.value }}
                   onClick={() => {
                     setColor(c.value);
-                    setTool("pen");
+                    if (tool === "eraser") setTool("pen");
                   }}
                   title={c.label}
                 />
               ))}
             </div>
+
+            <div className="board-divider" />
+
+            <button
+              onClick={undoBoard}
+              disabled={!canUndo}
+              title="Отменить (Ctrl+Z)"
+            >
+              <svg className="board-toolbar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M3 10h10a5 5 0 0 1 5 5v2" />
+                <path d="M3 10l4-4" />
+                <path d="M3 10l4 4" />
+              </svg>
+            </button>
+
+            <button
+              onClick={redoBoard}
+              disabled={!canRedo}
+              title="Вернуть (Ctrl+Shift+Z)"
+            >
+              <svg className="board-toolbar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 10h-10a5 5 0 0 0-5 5v2" />
+                <path d="M21 10l-4-4" />
+                <path d="M21 10l-4 4" />
+              </svg>
+            </button>
 
             <div className="board-divider" />
 
