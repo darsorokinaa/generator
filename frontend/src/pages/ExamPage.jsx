@@ -485,9 +485,14 @@ function ExamPage() {
   /* =========================
      Проверка ответов
   ========================== */
-  // Для математики и информатики: убираем пробелы при сравнении
+  // Для математики и информатики: убираем пробелы, нормализуем юникод, без учёта регистра
   function normalize(str) {
-    return String(str ?? "").trim().replace(/\s+/g, "");
+    return String(str ?? "")
+      .normalize("NFC")
+      .replace(/[\u200B-\u200D\uFEFF\u00AD]/g, "") // zero-width, BOM, soft hyphen
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "");
   }
 
   // Ответ из API может быть HTML (process_latex) — извлекаем текст для сравнения
