@@ -885,17 +885,17 @@ function ExamPage() {
                               {checkedTasks[task.id] !== undefined ? (checkedTasks[task.id] ? "✓" : "✗") : ""}
                             </span>
 
-                            <button
-                              className="add-button"
-                              style={{ padding: "0.6rem 1rem", fontSize: "0.85rem", whiteSpace: "nowrap" }}
-                              onClick={() =>
-                                checkedTasks[task.id] !== undefined
-                                  ? resetTask(task.id)
-                                  : checkTask(task.id, task.answer, getTableAnswerForCheck(task.id, rows, cols))
-                              }
-                            >
-                              {checkedTasks[task.id] !== undefined ? "Сбросить" : "Проверить"}
-                            </button>
+                            {checkedTasks[task.id] === undefined && (
+                              <button
+                                className="add-button"
+                                style={{ padding: "0.6rem 1rem", fontSize: "0.85rem", whiteSpace: "nowrap" }}
+                                onClick={() =>
+                                  checkTask(task.id, task.answer, getTableAnswerForCheck(task.id, rows, cols))
+                                }
+                              >
+                                Проверить
+                              </button>
+                            )}
                           </div>
                         </>
                       ) : (
@@ -929,15 +929,15 @@ function ExamPage() {
                               {checkedTasks[task.id] !== undefined ? (checkedTasks[task.id] ? "✓" : "✗") : ""}
                             </span>
 
-                            <button
-                              className="add-button"
-                              style={{ padding: "0.6rem 1rem", fontSize: "0.85rem", whiteSpace: "nowrap", flexShrink: 0 }}
-                              onClick={() =>
-                                checkedTasks[task.id] !== undefined ? resetTask(task.id) : checkTask(task.id, task.answer)
-                              }
-                            >
-                              {checkedTasks[task.id] !== undefined ? "Сбросить" : "Проверить"}
-                            </button>
+                            {checkedTasks[task.id] === undefined && (
+                              <button
+                                className="add-button"
+                                style={{ padding: "0.6rem 1rem", fontSize: "0.85rem", whiteSpace: "nowrap", flexShrink: 0 }}
+                                onClick={() => checkTask(task.id, task.answer)}
+                              >
+                                Проверить
+                              </button>
+                            )}
                           </div>
                         </>
                       )}
@@ -1051,17 +1051,17 @@ function ExamPage() {
                                       {checkedTasks[task.id] !== undefined ? (checkedTasks[task.id] ? "✓" : "✗") : ""}
                                     </span>
 
-                                    <button
-                                      className="add-button"
-                                      style={{ padding: "0.6rem 1rem", fontSize: "0.85rem", whiteSpace: "nowrap" }}
-                                      onClick={() =>
-                                        checkedTasks[task.id] !== undefined
-                                          ? resetTask(task.id)
-                                          : checkTask(task.id, task.answer, getTableAnswerForCheck(task.id, rowsHere, colsHere))
-                                      }
-                                    >
-                                      {checkedTasks[task.id] !== undefined ? "Сбросить" : "Проверить"}
-                                    </button>
+                                    {checkedTasks[task.id] === undefined && (
+                                      <button
+                                        className="add-button"
+                                        style={{ padding: "0.6rem 1rem", fontSize: "0.85rem", whiteSpace: "nowrap" }}
+                                        onClick={() =>
+                                          checkTask(task.id, task.answer, getTableAnswerForCheck(task.id, rowsHere, colsHere))
+                                        }
+                                      >
+                                        Проверить
+                                      </button>
+                                    )}
                                   </div>
 
                                   <div
