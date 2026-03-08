@@ -378,7 +378,10 @@ def api_variant_detail(request, level, subject, variant_id):
 
 def _render_variant_pdf(request, level, subject, variant_id, background_url="", theme="default"):
     cache_path = pdf_utils.get_pdf_cache_path(variant_id, theme)
-    if os.path.exists(cache_path):
+    nocache = request.GET.get("nocache", "").lower() in ("1", "true", "yes")
+    if django_settings.DEBUG:
+        nocache = True  # В режиме разработки всегда перегенерируем PDF
+    if os.path.exists(cache_path) and not nocache:
         return FileResponse(open(cache_path, "rb"), content_type="application/pdf")
 
     variant = get_object_or_404(Variant, id=variant_id)

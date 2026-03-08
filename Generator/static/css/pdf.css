@@ -93,12 +93,12 @@ body {
     font-weight: bold;
     text-align: center;
 }
-/* Запросы — по левому краю, числа — по правому */
-.task-body td:first-child {
-    text-align: left;
-}
-.task-body td:not(:first-child) {
+/* Запросы — по левому краю, числа — по правому (WeasyPrint: используем first-of-type вместо :not) */
+.task-body td {
     text-align: right;
+}
+.task-body td:first-of-type {
+    text-align: left;
 }
 /* Figure/изображения — без чёрного фона при ошибке загрузки */
 .task-body figure,

@@ -130,17 +130,27 @@ WSGI_APPLICATION = 'Generator.wsgi.application'
 #     }
 # }
 
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': 'generatordb',
+#         'USER': 'generator_user',
+#         'PASSWORD': 'StrongPass123',
+#         'HOST': 'localhost',
+#         'PORT': '5432',
+#     }
+# }
+
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'generatordb',
-        'USER': 'generator_user',
-        'PASSWORD': 'StrongPass123',
+        'USER': 'postgres',
+        'PASSWORD': 'postgres',
         'HOST': 'localhost',
-        'PORT': '5432',
+        'PORT': '',
     }
 }
-
 
 
 

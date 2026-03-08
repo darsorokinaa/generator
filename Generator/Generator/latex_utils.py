@@ -202,6 +202,25 @@ def _convert_sqrt(text: str) -> str:
     return ''.join(result)
 
 
+def _split_array_row(row: str) -> list[str]:
+    """Разбивает строку по &, но не внутри {...} (чтобы \\text{Художник & Баталист} оставался одной ячейкой)."""
+    PLACEHOLDER = '\uE000'  # private use
+    out = []
+    depth = 0
+    for c in row:
+        if c == '{':
+            depth += 1
+            out.append(c)
+        elif c == '}':
+            depth -= 1
+            out.append(c)
+        elif c == '&':
+            out.append(PLACEHOLDER if depth > 0 else c)
+        else:
+            out.append(c)
+    return [cell.strip().replace(PLACEHOLDER, '&') for cell in ''.join(out).split('&')]
+
+
 def _convert_environments(text: str) -> str:
     def replace_array(m):
         rows = re.split(r'\\\\', m.group(1))
@@ -210,7 +229,7 @@ def _convert_environments(text: str) -> str:
             row = row.replace(r'\hline', '').strip()
             if not row:
                 continue
-            cells = [c.strip() for c in row.split('&')]
+            cells = _split_array_row(row)
             if not any(cells):
                 continue
             row_html = ''.join(f'<td class="array-cell">{cell}</td>' for cell in cells)

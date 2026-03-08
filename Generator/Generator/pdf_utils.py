@@ -3,7 +3,6 @@ import base64
 import os
 import re
 import tempfile
-from functools import lru_cache
 from pathlib import Path
 
 from django.conf import settings as django_settings
@@ -13,7 +12,6 @@ from django.utils.safestring import mark_safe
 from .latex_utils import process_latex, batch_render_mathjax, extract_latex_formulas
 
 
-@lru_cache(maxsize=1)
 def get_pdf_css():
     css_path = finders.find('css/pdf.css')
     if not css_path:
@@ -152,12 +150,17 @@ def build_pdf_context(request, variant, subject):
     seen_parts = []
     answers_by_part = {}
 
+    def fix_pdf_html(html: str) -> str:
+        """Исправление &аmp; (кириллическая а) и двойного escape для PDF."""
+        return html.replace("&\u0430mp;", "&amp;").replace("&amp;amp;", "&amp;")
+
     for item in contents:
         raw_text = str(item.task.task_template or "").strip()
         if not raw_text:
             rendered_text = mark_safe("<p>&nbsp;</p>")
         else:
             html = process_latex(raw_text, for_pdf=True)
+            html = fix_pdf_html(html)
             html = rewrite_content_image_urls(html, request)
             rendered_text = mark_safe(html)
         part = item.task.task.part.part_title if item.task.task.part else None
@@ -166,6 +169,7 @@ def build_pdf_context(request, variant, subject):
         raw_answer = str(item.task.answer or "").strip()
         if raw_answer:
             html = process_latex(raw_answer, for_pdf=True)
+            html = fix_pdf_html(html)
             html = rewrite_content_image_urls(html, request)
             rendered_answer = mark_safe(html)
         else:
