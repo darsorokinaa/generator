@@ -68,11 +68,13 @@ body {
     
 }
 
-/* Изображения */
+/* Изображения — в исходном размере */
 .task-body img {
-    max-width: 70%;
+    width: auto;
+    height: auto;
+    max-width: none;
     display: block;
-    margin: 6pt auto;
+    margin: 6pt 0;
 }
 
 /* Таблицы внутри заданий (CKEditor) — явные цвета для WeasyPrint */
