@@ -9,7 +9,7 @@ venv/
 # Django
 *.log
 staticfiles/
-
+Generator/media
 
 *.sql
 # Environment variables
