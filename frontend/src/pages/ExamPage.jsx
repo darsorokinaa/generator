@@ -490,9 +490,22 @@ function ExamPage() {
     return String(str ?? "").trim().replace(/\s+/g, "");
   }
 
+  // Ответ из API может быть HTML (process_latex) — извлекаем текст для сравнения
+  function getTextFromHtml(html) {
+    if (!html || typeof html !== "string") return "";
+    try {
+      const div = document.createElement("div");
+      div.innerHTML = html;
+      return (div.textContent || div.innerText || "").trim();
+    } catch {
+      return String(html).replace(/<[^>]+>/g, "");
+    }
+  }
+
   function checkTask(taskId, correctAnswer, userValue = null) {
     const raw = userValue !== null ? userValue : userAnswers[taskId] || "";
-    const isCorrect = normalize(raw) === normalize(correctAnswer || "");
+    const correctText = getTextFromHtml(correctAnswer || "");
+    const isCorrect = normalize(raw) === normalize(correctText);
     setCheckedTasks((prev) => ({ ...prev, [taskId]: isCorrect }));
   }
 
