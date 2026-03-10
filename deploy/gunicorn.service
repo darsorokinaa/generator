@@ -18,6 +18,7 @@ ExecStart=/opt/generator/venv/bin/gunicorn \
     --error-logfile=/var/log/generator/error.log \
     Generator.wsgi:application
 
+Environment="PATH=/usr/local/bin:/usr/bin:/bin"
 Environment="PGDATABASE=generatordb"
 Environment="PGUSER=generatoruser"
 Environment="PGPASSWORD=ЗАМЕНИТЕ_НА_НАДЁЖНЫЙ_ПАРОЛЬ"

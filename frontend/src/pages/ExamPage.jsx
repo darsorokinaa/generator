@@ -134,8 +134,16 @@ function ExamPage() {
 
     const protocol = window.location.protocol === "https:" ? "wss://" : "ws://";
     const wsHost = import.meta.env.DEV ? "localhost:8000" : window.location.host;
-    const socket = new WebSocket(protocol + wsHost + "/ws/board/test/");
+    let socket;
+    try {
+      socket = new WebSocket(protocol + wsHost + "/ws/board/test/");
+    } catch (err) {
+      console.warn("WebSocket unavailable, board will work offline:", err);
+      socket = { readyState: 3, send: () => {}, close: () => {} }; // CLOSED mock
+    }
     socketRef.current = socket;
+    socket.onerror = () => {}; // Тихо игнорируем (prod на Gunicorn не поддерживает WS)
+    socket.onclose = () => {};
 
     const rectRef = { current: null };
     const geomRef = { current: { w: 1, h: 1, dpr: 1 } };
@@ -471,7 +479,9 @@ function ExamPage() {
 
     return () => {
       redrawRef.current = null;
-      socket.close();
+      try {
+        if (socket && socket.readyState !== 2 && socket.readyState !== 3) socket.close();
+      } catch (_) {}
       canvas.removeEventListener("pointerdown", onPointerDown);
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerup", onPointerUp);

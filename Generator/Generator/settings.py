@@ -130,14 +130,15 @@ WSGI_APPLICATION = 'Generator.wsgi.application'
 #     }
 # }
 
+# Используем env vars из gunicorn.service при наличии (prod), иначе — локальные значения
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'generatordb',
-        'USER': 'generator_user',
-        'PASSWORD': 'StrongPass123',
-        'HOST': 'localhost',
-        'PORT': '5432',
+        'NAME': os.environ.get('PGDATABASE', 'generatordb'),
+        'USER': os.environ.get('PGUSER', 'generator_user'),
+        'PASSWORD': os.environ.get('PGPASSWORD', 'StrongPass123'),
+        'HOST': os.environ.get('PGHOST', 'localhost'),
+        'PORT': os.environ.get('PGPORT', '5432'),
     }
 }
 

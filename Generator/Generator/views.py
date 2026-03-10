@@ -1,5 +1,6 @@
 """API and PDF views — React SPA."""
 import json
+import logging
 import os
 import re
 import secrets
@@ -26,6 +27,8 @@ from .models import (
 )
 from .latex_utils import process_latex
 from . import pdf_utils
+
+logger = logging.getLogger(__name__)
 
 FAVICON_SVG = (
     b'<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">'
@@ -377,15 +380,26 @@ def api_variant_detail(request, level, subject, variant_id):
 
 
 def _render_variant_pdf(request, level, subject, variant_id, background_url="", theme="default"):
+
     cache_path = pdf_utils.get_pdf_cache_path(variant_id, theme)
     nocache = request.GET.get("nocache", "").lower() in ("1", "true", "yes")
     if django_settings.DEBUG:
         nocache = True  # В режиме разработки всегда перегенерируем PDF
     if os.path.exists(cache_path) and not nocache:
-        return FileResponse(open(cache_path, "rb"), content_type="application/pdf")
+        f = open(cache_path, "rb")
+        try:
+            return FileResponse(f, content_type="application/pdf")
+        except Exception:
+            f.close()
+            raise
 
     variant = get_object_or_404(Variant, id=variant_id)
-    context = pdf_utils.build_pdf_context(request, variant, subject)
+    try:
+        context = pdf_utils.build_pdf_context(request, variant, subject)
+    except Exception as e:
+        logger.exception("PDF build_pdf_context failed for variant %s: %s", variant_id, e)
+        return HttpResponse("Ошибка подготовки PDF", status=500, content_type="text/plain; charset=utf-8")
+
     context["background_url"] = background_url
 
     html_string = render_to_string("pdf_template.html", context)
@@ -397,9 +411,15 @@ def _render_variant_pdf(request, level, subject, variant_id, background_url="", 
         html_safe = re.sub(r'<div class="task-body">\s*</div>', '<div class="task-body"><p>&nbsp;</p></div>', html_string)
         html_safe = re.sub(r'<span class="answer-field">\s*</span>', '<span class="answer-field">&nbsp;</span>', html_safe)
         pdf = WeasyHTML(string=html_safe, base_url=base_url).write_pdf()
+    except Exception as e:
+        logger.exception("WeasyPrint PDF generation failed for variant %s: %s", variant_id, e)
+        return HttpResponse("Ошибка генерации PDF", status=500, content_type="text/plain; charset=utf-8")
 
-    with open(cache_path, "wb") as f:
-        f.write(pdf)
+    try:
+        with open(cache_path, "wb") as f:
+            f.write(pdf)
+    except OSError as e:
+        logger.warning("Could not cache PDF to %s: %s", cache_path, e)
 
     response = HttpResponse(pdf, content_type="application/pdf")
     response["Content-Disposition"] = f'inline; filename="variant_{variant_id}.pdf"'

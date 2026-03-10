@@ -1,9 +1,10 @@
 """LaTeX → HTML converter for TipTap math, CKEditor 5, and WeasyPrint."""
 import html as html_lib
 import json
-from pathlib import Path
 import logging
+import os
 import re
+from pathlib import Path
 import shutil
 import subprocess
 from functools import lru_cache
@@ -124,7 +125,16 @@ _basedir = getattr(django_settings, 'BASE_DIR', Path(__file__).resolve().parent.
 # render_mathjax.cjs lives in frontend/ (parent of frontend/dist when FRONTEND_DIR is set)
 _frontend_dir = _fd.parent if _fd else (_basedir / "frontend")
 MATHJAX_RENDER_SCRIPT = _frontend_dir / "render_mathjax.cjs"
-MATHJAX_NODE = shutil.which("node")
+def _find_node():
+    node = shutil.which("node")
+    if node:
+        return node
+    for p in ("/usr/bin/node", "/usr/local/bin/node"):
+        if os.path.isfile(p) and os.access(p, os.X_OK):
+            return p
+    return None
+
+MATHJAX_NODE = _find_node()
 MATHJAX_AVAILABLE = bool(MATHJAX_NODE and MATHJAX_RENDER_SCRIPT.exists())
 
 
