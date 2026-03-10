@@ -150,6 +150,9 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+# Базовый URL для ссылок в PDF (WeasyPrint иначе подставляет file://)
+PDF_BASE_URL = os.environ.get("PDF_BASE_URL", "https://генурок.рф")
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # CORS / CSRF
