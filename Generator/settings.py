@@ -91,27 +91,27 @@ CHANNEL_LAYERS = {
 # Database
 # На Replit чаще используют SQLite или внешний Postgres.
 # Ваш текущий конфиг в репо указывает на localhost Postgres — на Replit это обычно НЕ работает.
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': 'generatordb',
-#         'USER': 'generator_user',
-#         'PASSWORD': 'StrongPass123',
-#         'HOST': 'localhost',
-#         'PORT': '5432',
-#     }
-# }
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'generatordb',
-        'USER': 'postgres',
-        'PASSWORD': 'postgres',
+        'USER': 'generator_user',
+        'PASSWORD': 'StrongPass123',
         'HOST': 'localhost',
-        'PORT': '',
+        'PORT': '5432',
     }
 }
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': 'generatordb',
+#         'USER': 'postgres',
+#         'PASSWORD': 'postgres',
+#         'HOST': 'localhost',
+#         'PORT': '',
+#     }
+# }
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -149,9 +149,6 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 # Media (если используется)
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
-
-# Базовый URL для ссылок в PDF (WeasyPrint иначе подставляет file://)
-PDF_BASE_URL = os.environ.get("PDF_BASE_URL", "https://генурок.рф")
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

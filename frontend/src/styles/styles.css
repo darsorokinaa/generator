@@ -2781,10 +2781,11 @@ body.index .exam-card {
     display: block !important;
     margin-left: auto !important;
     margin-right: auto !important;
-    max-width: min(240px, 42vw);
-    max-height: min(240px, 30vh);
-    width: auto;
-    height: auto;
+    width: 240px !important;
+    height: 240px !important;
+    max-width: 240px !important;
+    max-height: 240px !important;
+    object-fit: contain !important;
 }
 
 /* ========================================

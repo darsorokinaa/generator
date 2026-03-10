@@ -389,8 +389,7 @@ def _render_variant_pdf(request, level, subject, variant_id, background_url="", 
     context["background_url"] = background_url
 
     html_string = render_to_string("pdf_template.html", context)
-    base = getattr(django_settings, "PDF_BASE_URL", "").rstrip("/")
-    base_url = f"{base}/" if base else request.build_absolute_uri("/")
+    base_url = request.build_absolute_uri('/')
 
     try:
         pdf = WeasyHTML(string=html_string, base_url=base_url).write_pdf()

@@ -130,27 +130,27 @@ WSGI_APPLICATION = 'Generator.wsgi.application'
 #     }
 # }
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': 'generatordb',
-#         'USER': 'generator_user',
-#         'PASSWORD': 'StrongPass123',
-#         'HOST': 'localhost',
-#         'PORT': '5432',
-#     }
-# }
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'generatordb',
-        'USER': 'postgres',
-        'PASSWORD': 'postgres',
+        'USER': 'generator_user',
+        'PASSWORD': 'StrongPass123',
         'HOST': 'localhost',
-        'PORT': '',
+        'PORT': '5432',
     }
 }
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': 'generatordb',
+#         'USER': 'postgres',
+#         'PASSWORD': 'postgres',
+#         'HOST': 'localhost',
+#         'PORT': '',
+#     }
+# }
 
 
 
@@ -187,9 +187,6 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
-
-# Базовый URL для ссылок в PDF (если пусто — используется request)
-PDF_BASE_URL = os.environ.get("PDF_BASE_URL", "https://генурок.рф")
 
 
 STATIC_URL = '/static/'

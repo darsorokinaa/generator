@@ -68,12 +68,13 @@ body {
     
 }
 
-/* Изображения — фиксированный максимум (180pt), пропорции сохраняются */
+/* Изображения — одинаковый размер (180pt×180pt), пропорции сохраняются */
 .task-body img {
-    max-width: 180pt;
-    max-height: 180pt;
-    width: auto;
-    height: auto;
+    width: 180pt !important;
+    height: 180pt !important;
+    max-width: 180pt !important;
+    max-height: 180pt !important;
+    object-fit: contain !important;
     display: block;
     margin: 6pt auto;
 }
