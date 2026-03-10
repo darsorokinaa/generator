@@ -2770,7 +2770,7 @@ body.index .exam-card {
     height: auto;
 }
 
-/* Страница варианта: все картинки по центру, одинаковый размер */
+/* Страница варианта: все картинки по центру, адаптивный одинаковый размер */
 .exam-page .task-text figure,
 .exam-page .task-text figure.image {
     text-align: center;
@@ -2781,8 +2781,8 @@ body.index .exam-card {
     display: block !important;
     margin-left: auto !important;
     margin-right: auto !important;
-    max-width: 480px;
-    max-height: 480px;
+    max-width: min(480px, 85vw);
+    max-height: min(480px, 60vh);
     width: auto;
     height: auto;
 }
