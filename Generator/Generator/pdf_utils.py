@@ -177,13 +177,20 @@ def build_pdf_context(request, variant, subject):
         if part not in seen_parts:
             seen_parts.append(part)
 
-        # Путь к файлу: /media/task_files/имя_файла
+        # HTTP-URL для файла (WeasyPrint превращает относительные ссылки в file://)
         file_url = None
+        file_is_image = False
         if item.task.files:
             f = item.task.files
+            name_lower = (f.name or "").lower()
+            file_is_image = any(name_lower.endswith(ext) for ext in (".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg"))
             media_url = getattr(django_settings, "MEDIA_URL", "/media/") or "/media/"
             rel = (media_url.rstrip("/") + "/" + f.name.lstrip("/")).replace("//", "/")
-            file_url = request.build_absolute_uri(rel)
+            base = getattr(django_settings, "PDF_BASE_URL", "").rstrip("/")
+            if base:
+                file_url = f"{base}{rel}" if rel.startswith("/") else f"{base}/{rel}"
+            else:
+                file_url = request.build_absolute_uri(rel)
 
         entry = {
             "order": item.order,
@@ -192,6 +199,7 @@ def build_pdf_context(request, variant, subject):
             "part": part,
             "subject": subject,
             "file_url": file_url,
+            "file_is_image": file_is_image,
         }
         processed_contents.append(entry)
         answers_by_part.setdefault(part or "Без части", []).append(entry)
