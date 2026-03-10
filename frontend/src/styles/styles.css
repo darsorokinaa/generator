@@ -2781,8 +2781,8 @@ body.index .exam-card {
     display: block !important;
     margin-left: auto !important;
     margin-right: auto !important;
-    max-width: min(480px, 85vw);
-    max-height: min(480px, 60vh);
+    max-width: min(240px, 42vw);
+    max-height: min(240px, 30vh);
     width: auto;
     height: auto;
 }
