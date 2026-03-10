@@ -4,7 +4,6 @@ import os
 import re
 import tempfile
 from pathlib import Path
-
 from django.conf import settings as django_settings
 from django.contrib.staticfiles import finders
 from django.utils.safestring import mark_safe
@@ -178,20 +177,13 @@ def build_pdf_context(request, variant, subject):
         if part not in seen_parts:
             seen_parts.append(part)
 
-        # Всегда HTTP-URL для PDF: ссылки в PDF должны открываться у пользователя
+        # Путь к файлу: /media/task_files/имя_файла
         file_url = None
         if item.task.files:
             f = item.task.files
-            try:
-                url = f.url
-                if url:
-                    file_url = request.build_absolute_uri(url)
-            except Exception:
-                pass
-            if not file_url and f.name:
-                media_url = getattr(django_settings, "MEDIA_URL", "/media/") or "/media/"
-                rel = (media_url.rstrip("/") + "/" + f.name.lstrip("/")).replace("//", "/")
-                file_url = request.build_absolute_uri(rel)
+            media_url = getattr(django_settings, "MEDIA_URL", "/media/") or "/media/"
+            rel = (media_url.rstrip("/") + "/" + f.name.lstrip("/")).replace("//", "/")
+            file_url = request.build_absolute_uri(rel)
 
         entry = {
             "order": item.order,
