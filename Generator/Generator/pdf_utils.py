@@ -178,22 +178,16 @@ def build_pdf_context(request, variant, subject):
         if part not in seen_parts:
             seen_parts.append(part)
 
+        # Всегда HTTP-URL для PDF: ссылки в PDF должны открываться у пользователя
         file_url = None
         if item.task.files:
             f = item.task.files
             try:
-                local_path = Path(f.path)
-                if local_path.exists():
-                    file_url = local_path.as_uri()
-            except (ValueError, AttributeError):
+                url = f.url
+                if url:
+                    file_url = request.build_absolute_uri(url)
+            except Exception:
                 pass
-            if not file_url:
-                try:
-                    url = f.url
-                    if url:
-                        file_url = request.build_absolute_uri(url)
-                except Exception:
-                    pass
             if not file_url and f.name:
                 media_url = getattr(django_settings, "MEDIA_URL", "/media/") or "/media/"
                 rel = (media_url.rstrip("/") + "/" + f.name.lstrip("/")).replace("//", "/")

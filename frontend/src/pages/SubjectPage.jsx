@@ -132,7 +132,7 @@ function SubjectPage() {
               <p className="subject-sidebar-text">
                 Вступайте в группу — вместе мы делаем платформу удобнее и полезнее для вас.
               </p>
-              <a href="https://t.me/example_focus_group" target="_blank" rel="noopener noreferrer" className="subject-sidebar-btn">Вступайте в группу</a>
+              <a href="https://t.me/genurok" target="_blank" rel="noopener noreferrer" className="subject-sidebar-btn">Присоединиться</a>
             </div>
           </aside>
         </div>
