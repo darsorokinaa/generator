@@ -189,7 +189,7 @@ MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
 # Базовый URL для ссылок в PDF (если пусто — используется request)
-PDF_BASE_URL = os.environ.get("PDF_BASE_URL", "https://генератор.рф")
+PDF_BASE_URL = os.environ.get("PDF_BASE_URL", "https://генурок.рф")
 
 
 STATIC_URL = '/static/'
