@@ -2771,12 +2771,16 @@ body.index .exam-card {
 }
 
 /* Страница варианта: все картинки по центру, одинаковый размер */
+.exam-page .task-text figure,
+.exam-page .task-text figure.image {
+    text-align: center;
+}
 .exam-page .task-text img,
 .exam-page .task-text figure img,
 .exam-page .task-text figure.image img {
-    display: block;
-    margin-left: auto;
-    margin-right: auto;
+    display: block !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
     max-width: 480px;
     max-height: 480px;
     width: auto;
