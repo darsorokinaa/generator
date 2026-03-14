@@ -171,8 +171,8 @@ class MarkComment(models.Model):
 
 
 class Mark(models.Model):
-    score = IntegerField(default=0)
-    score_exam = IntegerField(default=0)
+    score = models.IntegerField(default=0)
+    score_exam = models.IntegerField(default=0)
     subject = models.ForeignKey(Subject, on_delete=CASCADE)
     level = models.ForeignKey(Level, on_delete=CASCADE)
     comment = models.ForeignKey(MarkComment, on_delete=CASCADE, null=True, blank=True)

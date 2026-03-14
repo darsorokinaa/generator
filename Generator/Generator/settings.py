@@ -40,7 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'Generator',
+    'Generator.Generator.apps.GeneratorConfig',
     'Board',
     'corsheaders',
      "django_ckeditor_5",
@@ -93,7 +93,7 @@ CSRF_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_HTTPONLY = False  # React должен читать cookie
 SESSION_COOKIE_SAMESITE = 'Lax'
 
-ROOT_URLCONF = 'Generator.urls'
+ROOT_URLCONF = 'Generator.Generator.urls'
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent / 'frontend' / 'dist'
 # frontend/dist появляется после npm run build
@@ -114,7 +114,7 @@ TEMPLATES = [
     }
 ]
 
-WSGI_APPLICATION = 'Generator.wsgi.application'
+WSGI_APPLICATION = 'Generator.Generator.wsgi.application'
 
 # ASGI_APPLICATION = "Generator.asgi.application"
 
@@ -145,16 +145,16 @@ DATABASES = {
     }
 }
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'generatordb',
-        'USER': 'postgres',
-        'PASSWORD': 'postgres',
-        'HOST': 'localhost',
-        'PORT': '',
-    }
-}
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': 'generatordb',
+#         'USER': 'postgres',
+#         'PASSWORD': 'postgres',
+#         'HOST': 'localhost',
+#         'PORT': '',
+#     }
+# }
 
 
 
