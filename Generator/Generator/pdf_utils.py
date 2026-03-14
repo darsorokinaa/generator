@@ -183,19 +183,13 @@ def build_pdf_context(request, variant, subject):
         file_url = None
         if item.task.files:
             f = item.task.files
+            # Всегда используем HTTP(S) URL для ссылок в PDF — file:// не работает при просмотре PDF на другом устройстве
             try:
-                local_path = Path(f.path)
-                if local_path.exists():
-                    file_url = local_path.as_uri()
-            except (ValueError, AttributeError):
+                url = f.url
+                if url:
+                    file_url = request.build_absolute_uri(url)
+            except Exception:
                 pass
-            if not file_url:
-                try:
-                    url = f.url
-                    if url:
-                        file_url = request.build_absolute_uri(url)
-                except Exception:
-                    pass
             if not file_url and f.name:
                 media_url = getattr(django_settings, "MEDIA_URL", "/media/") or "/media/"
                 rel = (media_url.rstrip("/") + "/" + f.name.lstrip("/")).replace("//", "/")

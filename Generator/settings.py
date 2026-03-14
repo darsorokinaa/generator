@@ -91,27 +91,27 @@ CHANNEL_LAYERS = {
 # Database
 # На Replit чаще используют SQLite или внешний Postgres.
 # Ваш текущий конфиг в репо указывает на localhost Postgres — на Replit это обычно НЕ работает.
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'generatordb',
-        'USER': 'generator_user',
-        'PASSWORD': 'StrongPass123',
-        'HOST': 'localhost',
-        'PORT': '5432',
-    }
-}
-
 # DATABASES = {
 #     'default': {
 #         'ENGINE': 'django.db.backends.postgresql',
 #         'NAME': 'generatordb',
-#         'USER': 'postgres',
-#         'PASSWORD': 'postgres',
+#         'USER': 'generator_user',
+#         'PASSWORD': 'StrongPass123',
 #         'HOST': 'localhost',
-#         'PORT': '',
+#         'PORT': '5432',
 #     }
 # }
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'generatordb',
+        'USER': 'postgres',
+        'PASSWORD': 'postgres',
+        'HOST': 'localhost',
+        'PORT': '',
+    }
+}
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [

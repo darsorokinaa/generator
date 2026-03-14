@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 const ERROR_TYPES = [
   { id: "typo", label: "Опечатка" },
@@ -33,8 +34,6 @@ export default function ReportErrorModal({ open, onClose, onSubmit, taskNumber }
     return () => document.removeEventListener("keydown", handleKey);
   }, [open]);
 
-  if (!open) return null;
-
   const [submitting, setSubmitting] = useState(false);
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -50,8 +49,10 @@ export default function ReportErrorModal({ open, onClose, onSubmit, taskNumber }
     }
   };
 
-  return (
-    <div className="results-modal-overlay" onClick={onClose}>
+  if (!open) return null;
+
+  const modalContent = (
+    <div className="results-modal-overlay report-error-overlay" onClick={onClose}>
       <div className="results-modal-window report-error-modal" onClick={(e) => e.stopPropagation()}>
         <div className="results-modal-header">
           <h3 className="results-modal-title">
@@ -115,4 +116,6 @@ export default function ReportErrorModal({ open, onClose, onSubmit, taskNumber }
       </div>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }

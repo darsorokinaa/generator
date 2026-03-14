@@ -3,6 +3,7 @@
 """
 import json
 import logging
+import os
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -10,14 +11,21 @@ import urllib.request
 logger = logging.getLogger(__name__)
 
 
-def send_telegram_message(text: str, bot_token: str | None = None, chat_id: str | list | None = None) -> bool:
+def send_telegram_message(
+    text: str,
+    bot_token: str | None = None,
+    chat_id: str | list | None = None,
+    message_thread_id: int | None = None,
+) -> bool:
     """
     Отправляет сообщение в Telegram одному или нескольким получателям.
 
     Args:
         text: Текст сообщения (HTML).
         bot_token: Токен бота. Если None — из settings.
-        chat_id: ID чата или список ID. Если None — из settings (TELEGRAM_CHAT_ID, через запятую).
+        chat_id: ID чата или список ID. Группа — отрицательное число (напр. -1001234567890).
+                 Если None — из settings (TELEGRAM_CHAT_ID, через запятую).
+        message_thread_id: ID топика в чате (для групп с темами). Если None — из settings.
 
     Returns:
         True если хотя бы одному доставлено, иначе False.
@@ -34,6 +42,14 @@ def send_telegram_message(text: str, bot_token: str | None = None, chat_id: str 
         logger.warning("Telegram: TELEGRAM_CHAT_ID не задан")
         return False
 
+    thread_id = message_thread_id
+    if thread_id is None:
+        raw_thread = (
+            getattr(settings, "TELEGRAM_TOPIC_ID", None)
+            or os.environ.get("TELEGRAM_TOPIC_ID")
+        )
+        thread_id = int(raw_thread) if raw_thread else None
+
     ids = [str(x).strip() for x in (raw.split(",") if isinstance(raw, str) else raw) if str(x).strip()]
     if not ids:
         logger.warning("Telegram: нет получателей")
@@ -48,6 +64,8 @@ def send_telegram_message(text: str, bot_token: str | None = None, chat_id: str 
             "parse_mode": "HTML",
             "disable_web_page_preview": True,
         }
+        if thread_id is not None:
+            data["message_thread_id"] = thread_id
         try:
             body = urllib.parse.urlencode(data).encode("utf-8")
             req = urllib.request.Request(url, data=body, method="POST")

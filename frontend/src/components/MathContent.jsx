@@ -38,18 +38,25 @@ export function MathContent({ html, className, onImageClick }) {
       const hint = document.createElement("span");
       hint.className = "task-img-zoom-hint";
       hint.setAttribute("aria-hidden", "true");
-      hint.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" title="Увеличить"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>`;
+      hint.setAttribute("role", "button");
+      hint.setAttribute("title", "Увеличить");
+      hint.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>`;
       wrap.appendChild(hint);
-      const handler = (e) => {
+      const openLightbox = (e) => {
         e.preventDefault();
         e.stopPropagation();
         const targetImg = wrap.querySelector("img");
         if (targetImg) onImageClick(targetImg.src || targetImg.getAttribute("src"));
       };
-      wrap.addEventListener("click", handler);
-      handlers.push({ wrap, handler });
+      wrap.addEventListener("click", openLightbox);
+      hint.addEventListener("click", openLightbox);
+      handlers.push({ wrap, hint, handler: openLightbox });
     });
-    return () => handlers.forEach(({ wrap, handler }) => wrap.removeEventListener("click", handler));
+    return () =>
+      handlers.forEach(({ wrap, hint, handler }) => {
+        wrap.removeEventListener("click", handler);
+        hint.removeEventListener("click", handler);
+      });
   }, [html, onImageClick]);
 
   return <div ref={ref} className={className} />;

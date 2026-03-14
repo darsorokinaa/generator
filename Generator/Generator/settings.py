@@ -40,7 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'Generator.Generator.apps.GeneratorConfig',
+    'Generator.apps.GeneratorConfig',
     'Board',
     'corsheaders',
      "django_ckeditor_5",
@@ -93,7 +93,7 @@ CSRF_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_HTTPONLY = False  # React должен читать cookie
 SESSION_COOKIE_SAMESITE = 'Lax'
 
-ROOT_URLCONF = 'Generator.Generator.urls'
+ROOT_URLCONF = 'Generator.urls'
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent / 'frontend' / 'dist'
 # frontend/dist появляется после npm run build
@@ -114,7 +114,7 @@ TEMPLATES = [
     }
 ]
 
-WSGI_APPLICATION = 'Generator.Generator.wsgi.application'
+WSGI_APPLICATION = 'Generator.wsgi.application'
 
 # ASGI_APPLICATION = "Generator.asgi.application"
 
@@ -134,27 +134,27 @@ WSGI_APPLICATION = 'Generator.Generator.wsgi.application'
 # }
 
 # Используем env vars из gunicorn.service при наличии (prod), иначе — локальные значения
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': os.environ.get('PGDATABASE', 'generatordb'),
-        'USER': os.environ.get('PGUSER', 'generator_user'),
-        'PASSWORD': os.environ.get('PGPASSWORD', 'StrongPass123'),
-        'HOST': os.environ.get('PGHOST', 'localhost'),
-        'PORT': os.environ.get('PGPORT', '5432'),
-    }
-}
-
 # DATABASES = {
 #     'default': {
 #         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': 'generatordb',
-#         'USER': 'postgres',
-#         'PASSWORD': 'postgres',
-#         'HOST': 'localhost',
-#         'PORT': '',
+#         'NAME': os.environ.get('PGDATABASE', 'generatordb'),
+#         'USER': os.environ.get('PGUSER', 'generator_user'),
+#         'PASSWORD': os.environ.get('PGPASSWORD', 'StrongPass123'),
+#         'HOST': os.environ.get('PGHOST', 'localhost'),
+#         'PORT': os.environ.get('PGPORT', '5432'),
 #     }
 # }
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'generatordb',
+        'USER': 'postgres',
+        'PASSWORD': 'postgres',
+        'HOST': 'localhost',
+        'PORT': '',
+    }
+}
 
 
 
@@ -202,6 +202,11 @@ STATICFILES_DIRS = [BASE_DIR / "static"] + ([FRONTEND_DIR] if FRONTEND_DIR.exist
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Telegram bot для отправки сообщений об ошибках
+# Для группового чата: добавьте бота в группу, затем получите ID через
+# https://api.telegram.org/bot<TOKEN>/getUpdates после сообщения в группе.
+# ID группы — отрицательное число, например: -1001234567890
+# TELEGRAM_TOPIC_ID — ID топика (для групп с темами). Число из URL топика.
 TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '')
 TELEGRAM_CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID', '')
+TELEGRAM_TOPIC_ID = os.environ.get('TELEGRAM_TOPIC_ID', '') or None  # опционально
 

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useParams, useLocation } from "react-router-dom";
 import MathContent from "../components/MathContent";
 import ImageLightbox from "../components/ImageLightbox";
@@ -233,7 +234,7 @@ function ExamPage() {
     const ctx = canvas.getContext("2d", { willReadFrequently: false });
     canvas.style.touchAction = "none";
 
-    const storageKey = `board_${level}_${subject}_${variant_id}`;
+    const storageKey = `board_${level}_${subject}_${variant_id}_doc`;
     try {
       const saved = localStorage.getItem(storageKey);
       if (saved) {
@@ -264,27 +265,23 @@ function ExamPage() {
     const rectRef = { current: null };
     const geomRef = { current: { w: 1, h: 1, dpr: 1 } };
     const PEN_WIDTH = 3;
-    const POINT_STEP = 6;
+    const POINT_STEP = 2;
 
     function resizeCanvas() {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const viewportW = document.documentElement.clientWidth || window.innerWidth;
-      const scrollH = document.documentElement.scrollHeight;
-      const canvasH = Math.min(scrollH, 15000);
-
-      const container = document.getElementById("board-container");
-      if (container) container.style.height = scrollH + "px";
+      const viewportW = window.innerWidth || document.documentElement.clientWidth;
+      const viewportH = window.innerHeight || document.documentElement.clientHeight;
 
       canvas.width = Math.round(viewportW * dpr);
-      canvas.height = Math.max(1, Math.round(canvasH * dpr));
-      canvas.style.top = "0";
+      canvas.height = Math.max(1, Math.round(viewportH * dpr));
       canvas.style.width = "100%";
-      canvas.style.height = canvasH + "px";
+      canvas.style.height = "100%";
+      canvas.style.display = "block";
 
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.scale(dpr, dpr);
 
-      geomRef.current = { w: viewportW, h: canvasH, dpr };
+      geomRef.current = { w: viewportW, h: viewportH, dpr };
       rectRef.current = null;
       redraw();
     }
@@ -298,28 +295,44 @@ function ExamPage() {
       const { w, h } = geomRef.current;
       const sx = rect.width > 0 ? w / rect.width : 1;
       const sy = rect.height > 0 ? h / rect.height : 1;
-      return {
-        x: Math.round(((e.clientX ?? e.touches?.[0]?.clientX ?? 0) - rect.left) * sx),
-        y: Math.round(((e.clientY ?? e.touches?.[0]?.clientY ?? 0) - rect.top) * sy),
-      };
+      const rawX = ((e.clientX ?? e.touches?.[0]?.clientX ?? 0) - rect.left) * sx;
+      const rawY = ((e.clientY ?? e.touches?.[0]?.clientY ?? 0) - rect.top) * sy;
+      const scrollX = window.scrollX ?? document.documentElement.scrollLeft ?? 0;
+      const scrollY = window.scrollY ?? document.documentElement.scrollTop ?? 0;
+      return { x: rawX + scrollX, y: rawY + scrollY };
     }
 
     function drawPath(points, color, width) {
       if (points.length < 1) return;
-      if (points.length === 1) {
-        const s = Math.max(1, width);
-        ctx.fillStyle = color;
-        ctx.fillRect(points[0].x - (s >> 1), points[0].y - (s >> 1), s, s);
-        return;
-      }
       ctx.strokeStyle = color;
       ctx.lineWidth = width;
-      ctx.lineCap = "butt";
-      ctx.lineJoin = "miter";
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      if (points.length === 1) {
+        ctx.beginPath();
+        ctx.arc(points[0].x, points[0].y, width / 2, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+        return;
+      }
       ctx.beginPath();
       ctx.moveTo(points[0].x, points[0].y);
-      for (let i = 1; i < points.length; i++) {
-        ctx.lineTo(points[i].x, points[i].y);
+      if (points.length === 2) {
+        ctx.lineTo(points[1].x, points[1].y);
+      } else {
+        for (let i = 1; i < points.length - 1; i++) {
+          const p1 = points[i];
+          const p2 = points[i + 1];
+          const endX = (p1.x + p2.x) / 2;
+          const endY = (p1.y + p2.y) / 2;
+          ctx.quadraticCurveTo(p1.x, p1.y, endX, endY);
+        }
+        ctx.quadraticCurveTo(
+          points[points.length - 2].x,
+          points[points.length - 2].y,
+          points[points.length - 1].x,
+          points[points.length - 1].y
+        );
       }
       ctx.stroke();
     }
@@ -360,8 +373,12 @@ function ExamPage() {
 
     function redraw() {
       const { w, h, dpr } = geomRef.current;
+      const scrollX = window.scrollX ?? document.documentElement.scrollLeft ?? 0;
+      const scrollY = window.scrollY ?? document.documentElement.scrollTop ?? 0;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, w, h);
+      ctx.save();
+      ctx.translate(-scrollX, -scrollY);
 
       objectsRef.current.forEach((obj) => {
         if (obj.type === "line") drawPath(obj.points, obj.color, obj.width);
@@ -369,6 +386,8 @@ function ExamPage() {
       });
       if (currentLineRef.current) drawPath(currentLineRef.current.points, currentLineRef.current.color, currentLineRef.current.width);
       if (currentShapeRef.current) drawShape(currentShapeRef.current);
+
+      ctx.restore();
       saveBoard();
     }
     redrawRef.current = redraw;
@@ -488,21 +507,13 @@ function ExamPage() {
         for (let i = 1; i < n; i++) {
           const t = i / n;
           line.points.push({
-            x: Math.round(last.x + (pos.x - last.x) * t),
-            y: Math.round(last.y + (pos.y - last.y) * t),
+            x: last.x + (pos.x - last.x) * t,
+            y: last.y + (pos.y - last.y) * t,
           });
         }
       }
       line.points.push({ x: pos.x, y: pos.y });
-
-      ctx.strokeStyle = line.color;
-      ctx.lineWidth = line.width;
-      ctx.lineCap = "butt";
-      ctx.lineJoin = "miter";
-      ctx.beginPath();
-      ctx.moveTo(last.x, last.y);
-      ctx.lineTo(pos.x, pos.y);
-      ctx.stroke();
+      redraw();
     }
 
     function onPointerUp(e) {
@@ -591,10 +602,16 @@ function ExamPage() {
     canvas.addEventListener("pointerleave", onPointerUp, { passive: false });
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("resize", resizeCanvas);
+    window.addEventListener("scroll", redraw, { passive: true });
 
     resizeCanvas();
+    const rafId = requestAnimationFrame(() => {
+      resizeCanvas();
+    });
 
     return () => {
+      cancelAnimationFrame(rafId);
+      window.removeEventListener("scroll", redraw);
       redrawRef.current = null;
       try {
         if (socket && socket.readyState !== 2 && socket.readyState !== 3) socket.close();
@@ -1456,8 +1473,10 @@ function ExamPage() {
           <span>Открыть доску</span>
         </button>
 
-      {/* ===== ДОСКА ===== */}
-      <div id="board-container" className={boardOpen ? "active" : ""}>
+      {/* ===== ДОСКА (portal в body для полного экрана) ===== */}
+      {boardOpen &&
+        createPortal(
+          <div id="board-container" className="active">
           <div id="board-toolbar">
             <button
               id="penBtn"
@@ -1485,7 +1504,6 @@ function ExamPage() {
               onClick={() => setTool("eraser")}
               title="Ластик"
             >
-              {/* НОРМАЛЬНАЯ ИКОНКА ЛАСТИКА (24x24 outline) */}
               <svg
                 className="board-toolbar-icon"
                 viewBox="0 0 24 24"
@@ -1496,9 +1514,9 @@ function ExamPage() {
                 strokeLinejoin="round"
                 aria-hidden="true"
               >
-                <path d="M20 20H11" />
-                <path d="M5.5 13.5 14 5a2.8 2.8 0 0 1 4 4l-8.5 8.5" />
-                <path d="M7.5 21 3 16.5a2 2 0 0 1 0-2.8l4.2-4.2 6.8 6.8-4.2 4.2a2 2 0 0 1-2.8 0Z" />
+                <path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21" />
+                <path d="M22 21H7" />
+                <path d="m5 11 9 9" />
               </svg>
             </button>
 
@@ -1562,29 +1580,30 @@ function ExamPage() {
 
             <div className="board-divider" />
 
-            <button
-              onClick={undoBoard}
-              disabled={!canUndo}
-              title="Отменить (Ctrl+Z)"
-            >
-              <svg className="board-toolbar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M3 10h10a5 5 0 0 1 5 5v2" />
-                <path d="M3 10l4-4" />
-                <path d="M3 10l4 4" />
-              </svg>
-            </button>
-
-            <button
-              onClick={redoBoard}
-              disabled={!canRedo}
-              title="Вернуть (Ctrl+Shift+Z)"
-            >
-              <svg className="board-toolbar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 10h-10a5 5 0 0 0-5 5v2" />
-                <path d="M21 10l-4-4" />
-                <path d="M21 10l-4 4" />
-              </svg>
-            </button>
+            <div className="board-undo-redo-group">
+              <button
+                onClick={undoBoard}
+                disabled={!canUndo}
+                title="Отменить (Ctrl+Z)"
+              >
+                <svg className="board-toolbar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M3 10h10a5 5 0 0 1 5 5v2" />
+                  <path d="M3 10l4-4" />
+                  <path d="M3 10l4 4" />
+                </svg>
+              </button>
+              <button
+                onClick={redoBoard}
+                disabled={!canRedo}
+                title="Вернуть (Ctrl+Shift+Z)"
+              >
+                <svg className="board-toolbar-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21 10h-10a5 5 0 0 0-5 5v2" />
+                  <path d="M21 10l-4-4" />
+                  <path d="M21 10l-4 4" />
+                </svg>
+              </button>
+            </div>
 
             <div className="board-divider" />
 
@@ -1622,7 +1641,9 @@ function ExamPage() {
           </div>
 
           <canvas ref={canvasRef} id="board" style={{ cursor: tool === "eraser" ? "pointer" : "crosshair" }} />
-        </div>
+        </div>,
+          document.body
+        )}
 
       <ImageLightbox
         src={lightbox.src}
