@@ -70,6 +70,8 @@ class Task(models.Model):
 
     author = models.TextField(max_length=500, blank=True, null=True)
 
+    max_score = models.IntegerField(default=1)
+
     added_at = models.DateTimeField(default=timezone.now, db_index=True)
     created_by = models.CharField(default='ADMIN', db_index=True)
 
@@ -170,4 +172,64 @@ class Tag(models.Model):
 
     def __str__(self):
         return f'Task: {self.task.id}: {self.taskTag.tag}'
+
+class MarkComment(models.Model):
+    MARK_LEVEL_CHOICES = [
+        (1, "Недостаточно"),   # красный
+        (2, "Порог"),          # оранжевый
+        (3, "Средний балл"),   # жёлтый
+        (4, "Высокий"),        # зелёный
+    ]
+    comment_text = models.TextField()
+    mark_level = models.IntegerField(choices=MARK_LEVEL_CHOICES, default=0, blank=True)
+
+    class Meta:
+        verbose_name = "Комментарий к баллу"
+
+    def __str__(self):
+        return self.comment_text
+
+
+class Mark(models.Model):
+    score = models.IntegerField(default=0)
+    score_exam = models.IntegerField(default=0)
+    subject = models.ForeignKey(Subject, on_delete=CASCADE)
+    level = models.ForeignKey(Level, on_delete=CASCADE, blank=True, null=True)
+    comment = models.ForeignKey(MarkComment, on_delete=CASCADE, null=True, blank=True)
+
+    class Meta:
+        verbose_name = "Баллы тестовые-вторичные"
+
+    def __str__(self):
+        return f"{self.subject}: {self.score} → {self.score_exam}"
+
+class SupportInfo(models.Model):
+    info_text = CKEditor5Field()
+    subject = models.ForeignKey(Subject, on_delete=CASCADE)
+    level = models.ForeignKey(Level, on_delete=CASCADE, blank=True, null=True)
+    
+    class Meta:
+        verbose_name = "Справочная информация"
+    def __str__(self):
+        return self.info_text[:50]
+
+class PreviewType(models.Model):
+    preview_type_text = models.CharField(max_length=200)
+
+    class Meta:
+        verbose_name = "Тип подсказки"
+    
+    def __str__(self):
+        return self.preview_type_text
+
+
+class TaskPreview(models.Model):
+    task_preview_text = CKEditor5Field()
+    subject = models.ForeignKey(Subject, on_delete=CASCADE)
+    level = models.ForeignKey(Level, on_delete=CASCADE, blank=True, null=True)
+    part = models.ForeignKey(Part, on_delete=CASCADE, blank=True, null=True)
+    preview_type = models.ForeignKey(PreviewType, on_delete=CASCADE, blank=True, null=True)
+
+    class Meta:
+        verbose_name = "Текст перед задачами"
 

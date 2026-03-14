@@ -1743,6 +1743,63 @@ header .container {
     min-width: 0;
 }
 
+.task-report-error-wrap {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 1rem;
+}
+
+.task-report-error-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    background: #fffbeb;
+    border: 1px solid #fef3c7;
+    border-radius: 50%;
+    color: #a16207;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: width 0.25s ease, padding 0.25s ease, border-radius 0.25s ease,
+                background 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.task-report-error-btn svg {
+    flex-shrink: 0;
+}
+
+.task-report-error-btn:hover {
+    width: auto;
+    padding: 0 0.75rem;
+    border-radius: 18px;
+    background: #fef9c3;
+    border-color: #fde68a;
+    box-shadow: 0 2px 8px rgba(253, 230, 138, 0.4);
+}
+
+.task-report-error-btn .task-report-error-label {
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: max-width 0.25s ease, opacity 0.2s ease;
+}
+
+.task-report-error-btn:hover .task-report-error-label {
+    position: static;
+    transform: none;
+    max-width: 180px;
+    opacity: 1;
+}
+
 .task-text {
     margin-bottom: 1.5rem;
     font-size: 1.125rem;
@@ -2121,6 +2178,506 @@ mjx-container {
 }
 
 /* ========================================
+   КНОПКА ЗАВЕРШИТЬ И МОДАЛЬНОЕ ОКНО РЕЗУЛЬТАТОВ
+======================================== */
+
+.exam-finish-btn,
+#finish-btn {
+    position: fixed;
+    bottom: 28px;
+    left: 28px;
+    padding: 14px 24px;
+    background: linear-gradient(135deg, var(--primary-purple) 0%, var(--primary-purple-dark) 100%);
+    color: #fff;
+    border: none;
+    border-radius: 14px;
+    font-weight: 600;
+    font-size: 15px;
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(102, 126, 234, 0.35);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+    z-index: 10003;
+    font-family: "Montserrat", sans-serif;
+}
+
+.exam-finish-btn:hover,
+#finish-btn:hover {
+    box-shadow: 0 8px 24px rgba(102, 126, 234, 0.45);
+    transform: translateY(-2px);
+}
+
+/* Кнопка Завершить в потоке контента (в конце варианта) — зелёная, на всю ширину как карточка задания */
+.exam-finish-section {
+    margin-top: 2rem;
+    padding: 2rem 0;
+    width: 100%;
+}
+
+.exam-finish-section .exam-finish-btn-inline,
+.exam-finish-section #finish-btn {
+    position: static !important;
+    bottom: auto;
+    left: auto;
+    z-index: auto;
+    width: 100%;
+    display: block;
+    padding: 0.75rem 2rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: var(--radius-lg);
+    border: none;
+    cursor: pointer;
+    color: #fff;
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 50%, #15803d 100%);
+    box-shadow: 0 4px 14px rgba(34, 197, 94, 0.35);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.exam-finish-section .exam-finish-btn-inline:hover,
+.exam-finish-section #finish-btn:hover {
+    background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+    box-shadow: 0 6px 20px rgba(34, 197, 94, 0.45);
+    transform: translateY(-1px);
+}
+
+.results-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10010;
+    animation: fadeIn 0.2s ease;
+}
+
+.results-modal-wrapper {
+    position: relative;
+    max-width: 580px;
+    width: 95%;
+    max-height: 90vh;
+}
+
+.confetti-around-modal {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: visible;
+    z-index: 2;
+}
+
+.confetti-piece {
+    position: absolute;
+    border-radius: 1px;
+    opacity: 0.9;
+}
+
+.confetti-piece-burst {
+    transform: translate(-50%, -50%);
+    animation: confettiBurst 1.8s ease-out forwards;
+}
+
+@keyframes confettiBurst {
+    0% {
+        transform: translate(-50%, -50%) translate(0, 0) rotate(0deg);
+        opacity: 0.9;
+    }
+    100% {
+        transform: translate(-50%, -50%) translate(var(--burst-x), var(--burst-y)) rotate(540deg);
+        opacity: 0;
+    }
+}
+
+.results-modal-overlay .results-modal-window {
+    position: relative;
+    z-index: 1;
+}
+
+.results-modal-wrapper .results-modal-window {
+    max-width: none;
+    width: 100%;
+    max-height: none;
+}
+
+.results-modal-window {
+    background: #fff;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    max-width: 580px;
+    width: 95%;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: slideUp 0.25s ease;
+}
+
+.results-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.results-modal-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.results-modal-close {
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: #f3f4f6;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 1.5rem;
+    line-height: 1;
+    color: #6b7280;
+    transition: background 0.2s, color 0.2s;
+}
+
+.results-modal-close:hover {
+    background: #e5e7eb;
+    color: #111827;
+}
+
+.results-modal-body {
+    padding: 24px;
+}
+
+.results-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.results-row:last-of-type,
+.results-row-no-border {
+    border-bottom: none;
+}
+
+.results-row-primary {
+    font-weight: 600;
+    font-size: 1.05rem;
+}
+
+.results-label {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+}
+
+.results-value {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.results-section {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.results-section-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 12px;
+}
+
+.results-task-times-columns {
+    display: flex;
+    gap: 16px;
+}
+
+.results-task-times-column {
+    flex: 1;
+    min-width: 0;
+}
+
+.results-task-times-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.8rem;
+}
+
+.results-task-times-wrapper {
+    max-height: 160px;
+    overflow-y: auto;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+}
+
+.results-task-times-table th,
+.results-task-times-table td {
+    padding: 4px 8px;
+    text-align: left;
+    border-bottom: 1px solid #f3f4f6;
+    line-height: 1.3;
+}
+
+.results-task-times-table th {
+    background: #f8fafc;
+    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+}
+
+.results-task-times-table tr:last-child td {
+    border-bottom: none;
+}
+
+.results-task-times-table td:last-child {
+    text-align: right;
+}
+
+.results-score-exam-block {
+    margin-top: 4px;
+}
+
+.results-score-comment {
+    margin-top: 12px;
+    padding: 12px 14px;
+    border-radius: 10px;
+    background: #f8fafc;
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    line-height: 1.45;
+    white-space: pre-line;
+}
+
+/* Цветные плашки для комментария по уровню */
+.results-score-comment.results-score-insufficient {
+    background: rgba(220, 38, 38, 0.1);
+    color: #b91c1c;
+}
+.results-score-comment.results-score-threshold {
+    background: rgba(234, 88, 12, 0.1);
+    color: #c2410c;
+}
+.results-score-comment.results-score-average {
+    background: rgba(202, 138, 4, 0.12);
+    color: #a16207;
+}
+.results-score-comment.results-score-high {
+    background: rgba(22, 163, 74, 0.1);
+    color: #15803d;
+}
+
+.results-download-section {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+}
+
+/* Модальное окно «Имя ученика» */
+.student-name-modal .results-modal-body {
+    padding: 0 24px 24px;
+}
+
+.student-name-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding-top: 8px;
+}
+
+.student-name-label {
+    font-size: 0.95rem;
+    color: var(--text-secondary);
+    margin-bottom: -8px;
+}
+
+.student-name-input {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 1rem;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    outline: none;
+    font-family: inherit;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-sizing: border-box;
+}
+
+.student-name-input:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.student-name-input::placeholder {
+    color: #9ca3af;
+}
+
+.student-name-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 8px;
+}
+
+.student-name-btn-cancel {
+    padding: 10px 20px;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: #6b7280;
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: "Montserrat", sans-serif;
+    transition: background 0.2s, color 0.2s;
+}
+
+.student-name-btn-cancel:hover {
+    background: #e5e7eb;
+    color: #374151;
+}
+
+/* Модальное окно «Сообщить об ошибке» */
+.report-error-modal .results-modal-body,
+.report-error-form {
+    padding: 0 24px 24px;
+}
+
+.report-error-form {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding-top: 8px;
+}
+
+.report-error-field {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.report-error-label {
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.report-error-types {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.report-error-type-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border: 2px solid #e5e7eb;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.report-error-type-option:hover {
+    background: #f8fafc;
+    border-color: #d1d5db;
+}
+
+.report-error-type-option input {
+    margin: 0;
+    width: 18px;
+    height: 18px;
+    accent-color: #3b82f6;
+}
+
+.report-error-type-option input:checked + span {
+    font-weight: 600;
+}
+
+.report-error-type-option:has(input:checked) {
+    border-color: #3b82f6;
+    background: rgba(59, 130, 246, 0.06);
+}
+
+.report-error-comment {
+    width: 100%;
+    padding: 12px 16px;
+    font-size: 0.95rem;
+    border: 2px solid #e5e7eb;
+    border-radius: 12px;
+    outline: none;
+    font-family: inherit;
+    resize: vertical;
+    min-height: 80px;
+    box-sizing: border-box;
+    transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.report-error-comment:focus {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.report-error-comment::placeholder {
+    color: #9ca3af;
+}
+
+.report-error-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 4px;
+}
+
+.report-error-submit:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.student-name-btn-ok {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #fff;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    border: 1px solid rgba(59, 130, 246, 0.5);
+    border-radius: 12px;
+    cursor: pointer;
+    font-family: "Montserrat", sans-serif;
+    transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+}
+
+.student-name-btn-ok:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    border-color: rgba(37, 99, 235, 0.6);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+}
+
+.student-name-btn-ok svg {
+    flex-shrink: 0;
+}
+
+.results-download-section .exam-fixed-support-btn {
+    width: auto;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* ========================================
    ДОСКА (ExamPage)
 ======================================== */
 
@@ -2138,7 +2695,7 @@ mjx-container {
     cursor: pointer;
     box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.06);
     transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
-    z-index: 999;
+    z-index: 10003;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -2166,7 +2723,7 @@ mjx-container {
     left: 50%;
     margin-left: -50vw;
     width: 100vw;
-    z-index: 1000;
+    z-index: 10001;
     pointer-events: none;
 }
 
@@ -2185,7 +2742,7 @@ mjx-container {
     bottom: 0;
     left: 0;
     right: 0;
-    z-index: 1100;
+    z-index: 10002;
     box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08), 0 -1px 3px rgba(0, 0, 0, 0.05);
     border-top: 1px solid #f3f4f6;
 }
@@ -2770,7 +3327,7 @@ body.index .exam-card {
     height: auto;
 }
 
-/* Страница варианта: все картинки по центру, адаптивный одинаковый размер */
+/* Страница варианта: картинки одинакового адаптивного размера, пропорции сохранены */
 .exam-page .task-text figure,
 .exam-page .task-text figure.image {
     text-align: center;
@@ -2779,13 +3336,209 @@ body.index .exam-card {
 .exam-page .task-text figure img,
 .exam-page .task-text figure.image img {
     display: block !important;
-    margin-left: auto !important;
-    margin-right: auto !important;
-    width: 240px !important;
-    height: 240px !important;
-    max-width: 240px !important;
-    max-height: 240px !important;
+    margin: 0.4rem auto !important;
+    width: min(320px, 90vw) !important;
+    max-width: 100% !important;
+    height: min(320px, 90vw) !important;
+    max-height: min(320px, 90vw) !important;
     object-fit: contain !important;
+    object-position: center !important;
+    cursor: pointer;
+}
+.exam-page .correct-answer-content img,
+.exam-page .part2-answer-content img {
+    width: min(320px, 90vw) !important;
+    height: min(320px, 90vw) !important;
+    max-height: min(320px, 90vw) !important;
+    object-fit: contain !important;
+    cursor: pointer;
+}
+
+/* Иконка лупы — прямо в правом нижнем углу картинки */
+.task-img-zoomable {
+    display: inline-block;
+    position: relative;
+    vertical-align: top;
+    cursor: pointer;
+}
+.task-img-zoom-hint {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.92);
+    border-radius: 6px;
+    color: #475569;
+    pointer-events: none;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+.task-img-zoom-hint svg {
+    width: 16px;
+    height: 16px;
+}
+.exam-page .task-img-zoomable {
+    display: block;
+    margin: 0.25rem auto;
+}
+.exam-page .task-img-zoomable img {
+    margin-bottom: 0 !important;
+}
+
+/* Меньший отступ перед полем ответа */
+.exam-page .task-text {
+    margin-bottom: 0.5rem !important;
+}
+.exam-page .task-text figure,
+.exam-page .task-text figure.image {
+    margin: 0.25rem auto !important;
+}
+.exam-page .answer-section {
+    margin-top: 0.25rem !important;
+}
+
+/* --- Справочная информация (перетаскиваемое окно) --- */
+.support-info-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: transparent;
+    cursor: default;
+    pointer-events: none;
+}
+.support-info-overlay > * {
+    pointer-events: auto;
+}
+.support-info-window {
+    position: fixed;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.25);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    max-height: 85vh;
+}
+.support-info-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: #f8fafc;
+    border-bottom: 1px solid #e2e8f0;
+    cursor: grab;
+    user-select: none;
+}
+.support-info-header:active {
+    cursor: grabbing;
+}
+.support-info-title {
+    font-weight: 600;
+    font-size: 1rem;
+    color: #334155;
+}
+.support-info-close {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    font-size: 1.5rem;
+    line-height: 1;
+    color: #64748b;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+.support-info-close:hover {
+    background: #e2e8f0;
+    color: #1e293b;
+}
+.support-info-body {
+    padding: 1rem 1.25rem;
+    overflow-y: auto;
+    flex: 1;
+}
+.support-info-item {
+    margin-bottom: 1.25rem;
+}
+.support-info-item:last-child {
+    margin-bottom: 0;
+}
+.support-info-resize-handle {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 20px;
+    height: 20px;
+    cursor: nwse-resize;
+    background: linear-gradient(135deg, transparent 50%, rgba(148, 163, 184, 0.4) 50%);
+}
+.support-info-resize-handle:hover {
+    background: linear-gradient(135deg, transparent 50%, rgba(100, 116, 139, 0.6) 50%);
+}
+.support-info-content {
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+.support-info-content img {
+    max-width: 100%;
+    height: auto;
+}
+.support-info-empty {
+    color: #64748b;
+    font-style: italic;
+}
+/* Кнопка справочной информации — синяя в цвет страницы */
+.exam-fixed-support-btn {
+    padding: 0.5rem 0.75rem;
+    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+    color: #fff;
+    border: 1px solid rgba(59, 130, 246, 0.5);
+    border-radius: 12px;
+    font-weight: 500;
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-family: "Montserrat", sans-serif;
+    transition: background 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+.exam-fixed-support-btn:hover {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+    transform: translateY(-1px);
+}
+.exam-fixed-support-btn svg {
+    flex-shrink: 0;
+}
+
+/* --- Лайтбокс для изображений --- */
+.image-lightbox-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    background: rgba(0, 0, 0, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    cursor: zoom-out;
+}
+.image-lightbox-content {
+    max-width: 95vw;
+    max-height: 95vh;
+    cursor: default;
+}
+.image-lightbox-img {
+    max-width: 100%;
+    max-height: 95vh;
+    object-fit: contain;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
 
 /* ========================================
@@ -2841,8 +3594,68 @@ body.index .exam-card {
   padding: 0.5rem 0.75rem;
 }
 
+/* Кнопка «Справочная информация» под баллами */
+.exam-fixed-support-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0.5rem 0.75rem;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(96, 165, 250, 0.3);
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #1e40af;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+  font-family: "Montserrat", sans-serif;
+}
+.exam-fixed-support-btn:hover {
+  background: #eff6ff;
+  border-color: #93c5fd;
+}
+.exam-fixed-support-btn svg {
+  flex-shrink: 0;
+}
+.exam-fixed-support-btn span {
+  white-space: nowrap;
+}
+
 .exam-fixed-corner .variant-score-val {
   font-size: 1.25rem;
+}
+
+/* Кнопка «Справочная информация» под баллами — синяя в цвет страницы */
+.exam-fixed-corner .exam-fixed-support-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #fff !important;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%) !important;
+  border: 1px solid rgba(59, 130, 246, 0.5) !important;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+  position: static;
+  bottom: auto;
+  right: auto;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+}
+.exam-fixed-corner .exam-fixed-support-btn:hover {
+  background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+  border-color: rgba(37, 99, 235, 0.6) !important;
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+}
+.exam-fixed-corner .exam-fixed-support-btn svg {
+  color: #fff;
+}
+.exam-fixed-corner .exam-fixed-support-btn svg {
+  flex-shrink: 0;
 }
 
 @media (max-width: 768px) {

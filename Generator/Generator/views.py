@@ -4,6 +4,7 @@ import logging
 import os
 import re
 import secrets
+from datetime import datetime
 
 from django.conf import settings as django_settings
 from django.db.models import Count, Q
@@ -17,7 +18,9 @@ from weasyprint import HTML as WeasyHTML
 from .models import (
     Level,
     LinkedTaskGroup,
+    Mark,
     Subject,
+    SupportInfo,
     Task,
     TaskGroup,
     TaskGroupMember,
@@ -27,8 +30,16 @@ from .models import (
 )
 from .latex_utils import process_latex
 from . import pdf_utils
+from . import telegram_utils
 
 logger = logging.getLogger(__name__)
+
+ERROR_TYPE_LABELS = {
+    "typo": "Опечатка",
+    "wrong_condition": "Неверное условие",
+    "wrong_answer": "Не сходится ответ",
+    "other": "Другое",
+}
 
 FAVICON_SVG = (
     b'<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">'
@@ -361,14 +372,24 @@ def api_variant_detail(request, level, subject, variant_id):
                 rel = (media_url.rstrip("/") + "/" + f.name.lstrip("/")).replace("//", "/")
                 file_url = request.build_absolute_uri(rel)
 
+        # Приоритет: TaskList.max_score (задаёт слот задания), иначе Task.max_score
+        if task_list:
+            max_score = getattr(task_list, "max_score", 1)
+        else:
+            max_score = getattr(item.task, "max_score", None)
+            if max_score is None:
+                max_score = 1
+
         tasks_data.append({
             "id": item.task.id,
             "number": task_list.task_number if task_list else item.order,
+            "task_title": task_list.task_title if task_list else "",
             "text": process_latex(str(item.task.task_template or ""), for_browser=True),
             "answer": process_latex(str(item.task.answer or ""), for_browser=True),
             "part": task_list.part_id if task_list else None,
             "file": file_url,
             "author": (item.task.author or "").strip() or None,
+            "max_score": max_score,
         })
 
     return JsonResponse({
@@ -377,6 +398,171 @@ def api_variant_detail(request, level, subject, variant_id):
         "subject": variant.var_subject.subject_short,
         "tasks": tasks_data,
     })
+
+
+@require_http_methods(["GET"])
+def api_score_conversion(request, level, subject):
+    """Конвертация тестовых баллов в вторичные по таблице Mark."""
+    score = request.GET.get("score", "0")
+    try:
+        total = int(score)
+    except ValueError:
+        total = 0
+    mark_row = (
+        Mark.objects
+        .filter(subject__subject_short=subject)
+        .filter(Q(level__level=level) | Q(level__isnull=True))
+        .filter(score__lte=total)
+        .order_by("-score")
+        .select_related("comment")
+        .first()
+    )
+    score_exam = mark_row.score_exam if mark_row is not None else 0
+    comment = mark_row.comment.comment_text if (mark_row and mark_row.comment) else None
+    mark_level = (
+        mark_row.comment.mark_level
+        if (mark_row and mark_row.comment and mark_row.comment.mark_level)
+        else None
+    )
+    return JsonResponse({"score_exam": score_exam, "comment": comment, "mark_level": mark_level})
+
+
+@require_http_methods(["GET"])
+def api_support_info(request, level, subject):
+    """Справочная информация по предмету и уровню — все записи."""
+    from django.db.models import Q
+
+    items = list(
+        SupportInfo.objects
+        .filter(subject__subject_short=subject)
+        .filter(Q(level__level=level) | Q(level__isnull=True))
+        .select_related("subject", "level")
+        .order_by("-level_id")
+    )
+    result = [
+        {"html": process_latex(str(info.info_text or ""), for_browser=True)}
+        for info in items
+    ]
+    return JsonResponse({"items": result})
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def report_pdf(request, level, subject):
+    """Генерация PDF-отчёта по результатам выполнения варианта."""
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, TypeError):
+        return JsonResponse({"error": "Неверный формат данных"}, status=400)
+
+    variant_id = data.get("variantId")
+    if not variant_id:
+        return JsonResponse({"error": "Не указан вариант"}, status=400)
+
+    variant = get_object_or_404(
+        Variant.objects.select_related("var_subject", "level"),
+        id=variant_id,
+    )
+    if str(variant.var_subject.subject_short) != str(subject) or str(variant.level.level) != str(level):
+        return JsonResponse({"error": "Вариант не соответствует уровню/предмету"}, status=400)
+
+    student_name = (data.get("studentName") or "Ученик").strip() or "Ученик"
+    start_time_raw = data.get("startTime") or ""
+    end_time_raw = data.get("endTime") or ""
+    total_time_formatted = data.get("totalTimeFormatted") or ""
+    task_times = data.get("taskTimes") or {}
+    scores = data.get("scores") or {}
+    tasks = data.get("tasks") or []
+    total_score = data.get("totalScore", 0)
+    max_score = data.get("maxScore", 0)
+    score_exam = data.get("scoreExam")
+    score_comment = data.get("scoreComment") or ""
+    mark_level = data.get("markLevel")
+
+    date_solution = ""
+    time_start = ""
+    time_end = ""
+    try:
+        if start_time_raw:
+            dt = datetime.fromisoformat(start_time_raw.replace("Z", "+00:00"))
+            date_solution = dt.strftime("%d.%m.%Y")
+            time_start = dt.strftime("%H:%M:%S")
+        if end_time_raw:
+            dt_end = datetime.fromisoformat(end_time_raw.replace("Z", "+00:00"))
+            time_end = dt_end.strftime("%H:%M:%S")
+    except (ValueError, TypeError):
+        pass
+
+    subject_label = {
+        "inf": "Информатика",
+        "math": "Математика",
+    }.get(subject, variant.var_subject.subject_name or str(subject))
+    level_val = str(level).lower()
+    level_label = {"oge": "ОГЭ", "ege": "ЕГЭ"}.get(level_val, level_val.upper())
+    if level_val.isdigit():
+        level_label = f"{level_val} класс"
+
+    report_rows = []
+    for t in tasks:
+        tid = str(t.get("id", ""))
+        num = t.get("number", tid)
+        title = t.get("task_title", "")
+        max_s = t.get("max_score", 1)
+        sc = scores.get(tid, scores.get(int(tid) if tid.isdigit() else tid, 0))
+        sec = task_times.get(tid, task_times.get(int(tid) if tid.isdigit() else tid, 0))
+        time_str = f"{sec} сек" if isinstance(sec, (int, float)) else ""
+        report_rows.append({
+            "number": num,
+            "title": title,
+            "score": sc,
+            "max_score": max_s,
+            "time": time_str,
+        })
+
+    mid = (len(report_rows) + 1) // 2
+    report_col1 = report_rows[:mid]
+    report_col2 = report_rows[mid:]
+
+    level_to_class = {1: "insufficient", 2: "threshold", 3: "average", 4: "high"}
+    score_comment_class = level_to_class.get(mark_level, "") if mark_level else ""
+
+    base_url = request.build_absolute_uri("/").rstrip("/") or "/"
+    favicon_url = base_url + ("favicon.svg" if base_url.endswith("/") else "/favicon.svg")
+
+    context = {
+        "base_url": base_url,
+        "favicon_url": favicon_url,
+        "student_name": student_name,
+        "subject_label": subject_label,
+        "level_label": level_label,
+        "variant_id": variant_id,
+        "date_solution": date_solution,
+        "time_start": time_start,
+        "time_end": time_end,
+        "total_time_formatted": total_time_formatted,
+        "report_col1": report_col1,
+        "report_col2": report_col2,
+        "total_score": total_score,
+        "max_score": max_score,
+        "score_exam": score_exam,
+        "score_comment": score_comment,
+        "score_comment_class": score_comment_class,
+        "pdf_css": pdf_utils.get_pdf_css(),
+    }
+
+    html_string = render_to_string("report_template.html", context)
+    base_url = request.build_absolute_uri("/")
+
+    try:
+        pdf = WeasyHTML(string=html_string, base_url=base_url).write_pdf()
+    except Exception as e:
+        logger.exception("WeasyPrint report PDF failed: %s", e)
+        return HttpResponse("Ошибка генерации PDF", status=500, content_type="text/plain; charset=utf-8")
+
+    safe_name = "".join(c if c.isalnum() or c in " -_" else "-" for c in student_name).strip() or "report"
+    response = HttpResponse(pdf, content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="report-{safe_name}.pdf"'
+    return response
 
 
 def _render_variant_pdf(request, level, subject, variant_id, background_url="", theme="default"):
@@ -488,3 +674,48 @@ def search_variant(request):
         },
         "tasks": tasks,
     })
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def report_error(request, level, subject):
+    """Приём отчёта об ошибке и отправка в Telegram."""
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, TypeError):
+        return JsonResponse({"error": "Неверный формат данных"}, status=400)
+
+    task_id = data.get("taskId")
+    task_number = data.get("taskNumber")
+    error_type = data.get("errorType")
+    comment = (data.get("comment") or "").strip()
+    variant_id = data.get("variantId")
+
+    if not error_type:
+        return JsonResponse({"error": "Не указан тип ошибки"}, status=400)
+
+    type_label = ERROR_TYPE_LABELS.get(error_type, error_type)
+    level_label = {"oge": "ОГЭ", "ege": "ЕГЭ"}.get(str(level).lower(), str(level).upper())
+    subject_label = {"inf": "Информатика", "math": "Математика"}.get(subject, subject)
+
+    def _esc(s):
+        return (s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+    lines = [
+        "🐛 <b>Сообщение об ошибке</b>",
+        "",
+        f"<b>Предмет:</b> {subject_label}",
+        f"<b>Уровень:</b> {level_label}",
+        f"<b>Задание:</b> №{task_number or '?'} (ID: {task_id or '—'})",
+        f"<b>Вариант:</b> {variant_id or '—'}",
+        f"<b>Тип:</b> {type_label}",
+    ]
+    if comment:
+        lines.extend(["", "<b>Комментарий:</b>", _esc(comment)])
+
+    text = "\n".join(lines)
+    success = telegram_utils.send_telegram_message(text)
+
+    if success:
+        return JsonResponse({"ok": True})
+    return JsonResponse({"error": "Не удалось отправить в Telegram"}, status=500)

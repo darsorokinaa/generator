@@ -195,8 +195,116 @@ body {
 .answers-page .answers-table:last-child {
     margin-bottom: 0;
 }
+/* ===== Страница с инструкцией: инструкция слева, заметки справа ===== */
+.pdf-instruction-page {
+    display: flex;
+    gap: 20pt;
+    margin-bottom: 16pt;
+    page-break-after: always;
+}
+.pdf-instruction-column {
+    flex: 1;
+    min-width: 0;
+}
+.pdf-instruction-column .pdf-preview {
+    margin-bottom: 0;
+}
+.pdf-notes-column {
+    flex: 1;
+    min-width: 0;
+    min-height: 120pt;
+}
+
+/* ===== Инструкция (формат картинки 1) — без восклицательного знака ===== */
+.pdf-preview.pdf-instruction {
+    page-break-inside: avoid;
+}
+.pdf-instruction .instruction-title {
+    text-align: center;
+    font-size: 12.5pt;
+    font-weight: bold;
+    margin-bottom: 14pt;
+}
+.pdf-instruction .instruction-intro {
+    text-align: justify;
+    text-indent: 1.5em;
+    margin-bottom: 8pt;
+}
+.pdf-instruction .instruction-body {
+    text-align: justify;
+    line-height: 1.35;
+}
+.pdf-instruction .instruction-body p {
+    text-indent: 1.5em;
+    margin-bottom: 6pt;
+}
+.pdf-instruction .instruction-ending {
+    text-align: center;
+    font-size: 10pt;
+    font-weight: bold;
+    font-style: italic;
+    margin-top: 14pt;
+    margin-bottom: 0;
+}
+
+/* ===== Часть 2 — с новой страницы ===== */
+.pdf-start-new-page {
+    page-break-before: always;
+    break-before: page;
+}
+.tasks-wrapper .pdf-start-new-page {
+    column-span: all;
+}
+
+/* ===== Задачи в две колонки ===== */
 .tasks-wrapper {
     column-count: 2;
     column-gap: 20pt;
     column-fill: balance;
+}
+
+/* ===== Напоминание в рамке (формат картинки 2) — с восклицательным знаком ===== */
+.pdf-preview.pdf-framed {
+    page-break-inside: avoid;
+    margin-bottom: 16pt;
+    column-span: all;
+}
+.pdf-framed .preview-reminder-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 8pt;
+}
+.pdf-framed .preview-exclamation {
+    font-size: 18pt;
+    font-weight: bold;
+    flex-shrink: 0;
+    line-height: 1.35;
+}
+.pdf-framed .preview-reminder-content {
+    flex: 1;
+    min-width: 0;
+}
+.pdf-framed .preview-part-title {
+    text-align: center;
+    font-size: 11pt;
+    font-weight: bold;
+    margin-bottom: 6pt;
+}
+.pdf-framed .preview-box {
+    border: 0.8pt solid #000;
+    padding: 10pt 12pt;
+}
+.pdf-framed .preview-box-inner,
+.pdf-framed .preview-box-inner p {
+    font-style: italic;
+    text-align: justify;
+    font-size: 9.5pt;
+    line-height: 1.3;
+    margin-bottom: 4pt;
+}
+.pdf-framed .preview-box-inner p:last-child {
+    margin-bottom: 0;
+}
+.pdf-framed .preview-box-inner u {
+    text-decoration: underline;
 }

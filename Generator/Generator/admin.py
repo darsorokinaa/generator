@@ -6,15 +6,24 @@ from django_ckeditor_5.widgets import CKEditor5Widget
 from .models import (
     Level,
     LinkedTaskGroup,
+    Mark,
+    MarkComment,
     Part,
+    PreviewType,
     Subject,
+    SupportInfo,
+    Tag,
+    Tags,
+    TagsList,
     Task,
     TaskGroup,
     TaskGroupMember,
     TaskList,
+    TaskPreview,
     Variant,
     VariantContent,
 )
+
 
 
 class SearchByIdMixin:
@@ -55,7 +64,7 @@ class LevelAdmin(admin.ModelAdmin):
 
 @admin.register(Task)
 class TaskAdmin(SearchByIdMixin, admin.ModelAdmin):
-    list_display = ("id", "task", "answer_preview", "created_by", "added_at")
+    list_display = ("id", "task", "max_score", "answer_preview", "created_by", "added_at")
     list_filter = ("task__subject", "task__level", "task__part", "created_by", "added_at")
     search_fields = ("answer",)
     date_hierarchy = "added_at"
@@ -65,7 +74,7 @@ class TaskAdmin(SearchByIdMixin, admin.ModelAdmin):
     raw_id_fields = ("task",)
 
     fieldsets = (
-        (None, {"fields": ("task", "task_template", "answer", "files", "author")}),
+        (None, {"fields": ("task", "task_template", "answer", "max_score", "files", "author", "added_at", "created_by")}),
     )
 
     def formfield_for_dbfield(self, db_field, request, **kwargs):
@@ -138,3 +147,91 @@ class TaskGroupAdmin(admin.ModelAdmin):
     list_filter = ("subject", "level")
     list_select_related = ("subject", "level")
     inlines = (TaskGroupMemberInline,)
+
+
+
+@admin.register(Tags)
+class TagsAdmin(admin.ModelAdmin):
+    list_display = ("id", "tag")
+    list_filter = ("tag",)
+    search_fields = ("tag",)
+
+
+@admin.register(TagsList)
+class TagsListAdmin(admin.ModelAdmin):
+    list_display = ("id", "tag")
+    list_filter = ("tag",)
+    search_fields = ("tag",)
+
+
+@admin.register(Tag)
+class TagAdmin(admin.ModelAdmin):
+    list_display = ("id", "task", "taskTag")
+    list_filter = ("taskTag",)
+    list_select_related = ("task", "taskTag")
+    raw_id_fields = ("task", "taskTag")
+
+
+@admin.register(MarkComment)
+class MarkCommentAdmin(admin.ModelAdmin):
+    list_display = ("id", "mark_level", "comment_preview")
+    list_filter = ("mark_level",)
+    search_fields = ("comment_text",)
+
+    def comment_preview(self, obj):
+        text = obj.comment_text or ""
+        return (text[:80] + "…") if len(text) > 80 else text
+
+    comment_preview.short_description = "Комментарий"
+
+
+@admin.register(Mark)
+class MarkAdmin(admin.ModelAdmin):
+    list_display = ("id", "subject", "level", "score", "score_exam", "comment")
+    list_filter = ("subject", "level")
+    list_select_related = ("subject", "level", "comment")
+    raw_id_fields = ("comment",)
+
+
+@admin.register(SupportInfo)
+class SupportInfoAdmin(admin.ModelAdmin):
+    list_display = ("id", "info_preview", "subject", "level")
+    list_filter = ("subject", "level")
+    list_select_related = ("subject", "level")
+
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        if db_field.name == "info_text":
+            kwargs["widget"] = CKEditor5Widget(config_name="default")
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
+
+    def info_preview(self, obj):
+        text = obj.info_text or ""
+        plain = strip_tags(text).strip() if text else ""
+        return (plain[:50] + "…") if len(plain) > 50 else plain
+
+    info_preview.short_description = "Текст"
+
+
+@admin.register(PreviewType)
+class PreviewTypeAdmin(admin.ModelAdmin):
+    list_display = ("id", "preview_type_text")
+    search_fields = ("preview_type_text",)
+
+
+@admin.register(TaskPreview)
+class TaskPreviewAdmin(admin.ModelAdmin):
+    list_display = ("id", "preview_preview", "subject", "level", "part", "preview_type")
+    list_filter = ("subject", "level", "part", "preview_type")
+    list_select_related = ("subject", "level", "part", "preview_type")
+
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        if db_field.name == "task_preview_text":
+            kwargs["widget"] = CKEditor5Widget(config_name="default")
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
+
+    def preview_preview(self, obj):
+        text = obj.task_preview_text or ""
+        plain = strip_tags(text).strip() if text else ""
+        return (plain[:50] + "…") if len(plain) > 50 else plain
+
+    preview_preview.short_description = "Текст перед задачами"

@@ -9,6 +9,7 @@ from django.contrib.staticfiles import finders
 from django.utils.safestring import mark_safe
 
 from .latex_utils import process_latex, batch_render_mathjax, extract_latex_formulas
+from .models import TaskPreview
 
 
 def get_pdf_css():
@@ -162,7 +163,9 @@ def build_pdf_context(request, variant, subject):
             html = fix_pdf_html(html)
             html = rewrite_content_image_urls(html, request)
             rendered_text = mark_safe(html)
-        part = item.task.task.part.part_title if item.task.task.part else None
+        part_obj = item.task.task.part
+        part = part_obj.part_title if part_obj else None
+        part_id = part_obj.pk if part_obj else None
 
         # Обработка LaTeX и HTML в ответах (часть 2)
         raw_answer = str(item.task.answer or "").strip()
@@ -199,15 +202,79 @@ def build_pdf_context(request, variant, subject):
                 file_url = request.build_absolute_uri(rel)
 
         entry = {
+            "type": "task",
             "order": item.order,
             "text": rendered_text,
             "answer": rendered_answer,
             "part": part,
+            "part_id": part_id,
             "subject": subject,
             "file_url": file_url,
         }
         processed_contents.append(entry)
         answers_by_part.setdefault(part or "Без части", []).append(entry)
+
+    # Получаем TaskPreview для subject/level и вставляем перед соответствующими частями
+    previews = TaskPreview.objects.filter(
+        subject=variant.var_subject,
+        level=variant.level,
+    ).select_related("part", "preview_type")
+
+    previews_by_part = {}
+    instruction_previews = []
+    for pv in previews:
+        raw_html = str(pv.task_preview_text or "").strip()
+        if not raw_html:
+            continue
+        html = process_latex(raw_html, for_pdf=True)
+        html = fix_pdf_html(html)
+        html = rewrite_content_image_urls(html, request)
+        preview_html = mark_safe(html)
+        pt = pv.preview_type
+        pt_text = (pt.preview_type_text or "").lower()
+        is_instruction = pt and "инструк" in pt_text
+        is_reminder = pt and "напоминание" in pt_text
+        block = {
+            "type": "preview",
+            "preview_html": preview_html,
+            "part_title": pv.part.part_title if pv.part else None,
+            "part_id": pv.part_id,
+            "is_instruction": is_instruction,
+            "is_reminder": is_reminder,
+        }
+        if pv.part_id is None:
+            instruction_previews.append(block)
+        else:
+            previews_by_part.setdefault(pv.part_id, []).append(block)
+
+    # Объединяем: инструкции в начале, затем задачи с превью перед каждой новой частью
+    merged_contents = []
+    last_part_id = object()  # sentinel
+    part_2_seen = False
+
+    def _is_part_2(item):
+        title = (item.get("part_title") or item.get("part") or "").lower()
+        return "часть" in title and "2" in title and "12" not in title and "21" not in title
+
+    for block in instruction_previews:
+        merged_contents.append(block)
+    for entry in processed_contents:
+        part_id = entry.get("part_id")
+        if part_id != last_part_id and part_id is not None:
+            for block in previews_by_part.get(part_id, []):
+                if _is_part_2(block) and not part_2_seen:
+                    block = dict(block)
+                    block["start_new_page"] = True
+                    part_2_seen = True
+                merged_contents.append(block)
+            last_part_id = part_id
+        elif part_id != last_part_id and part_id is None:
+            last_part_id = part_id
+        if entry.get("type") == "task" and _is_part_2(entry) and not part_2_seen:
+            entry = dict(entry)
+            entry["start_new_page"] = True
+            part_2_seen = True
+        merged_contents.append(entry)
 
     answers_parts = [
         {"part": p, "items": answers_by_part[p]}
@@ -236,9 +303,15 @@ def build_pdf_context(request, variant, subject):
         for i in range(0, len(processed_contents), chunk_size)
     ]
 
+    # Инструкции — отдельно (одна колонка сверху), остальное — задачи и напоминания
+    instruction_blocks = [b for b in merged_contents if b.get("type") == "preview" and b.get("is_instruction")]
+    tasks_content = [b for b in merged_contents if b.get("type") != "preview" or not b.get("is_instruction")]
+
     return {
         "variant": variant,
-        "contents": processed_contents,
+        "instruction_blocks": instruction_blocks,
+        "tasks_content": tasks_content,
+        "contents": merged_contents,
         "answers_chunks": answers_chunks,
         "answers_parts": answers_parts,
         "math_styles": MATH_CSS,

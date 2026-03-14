@@ -19,6 +19,10 @@ urlpatterns = [
     path("api/variant-lookup/<int:variant_id>/", views.api_variant_lookup),
     path("api/<str:level>/<str:subject>/variant/", views.api_generate_variant),
     path("api/<str:level>/<str:subject>/variant/<int:variant_id>/", views.api_variant_detail),
+    path("api/<str:level>/<str:subject>/support-info/", views.api_support_info),
+    path("api/<str:level>/<str:subject>/score-conversion/", views.api_score_conversion),
+    path("api/<str:level>/<str:subject>/report-pdf/", views.report_pdf),
+    path("api/<str:level>/<str:subject>/report-error/", views.report_error),
     path('api/<str:level>/<str:subject>/variant/<int:variant_id>/pdf/', views.variant_pdf),
     # path('api/<str:level>/<str:subject>/variant/<int:variant_id>/pdf/spring', views.variant_pdfSpring),
 

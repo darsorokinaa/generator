@@ -162,3 +162,21 @@ class Tag(models.Model):
     def __str__(self):
         return f'Task: {self.task.id}: {self.taskTag.tag}'
 
+class MarkComment(models.Model):
+    comment_text = models.TextField()
+    class Meta:
+        verbose_name = "Комментарий к баллу"
+    def __str__(self):
+        return self.comment_text
+
+
+class Mark(models.Model):
+    score = IntegerField(default=0)
+    score_exam = IntegerField(default=0)
+    subject = models.ForeignKey(Subject, on_delete=CASCADE)
+    level = models.ForeignKey(Level, on_delete=CASCADE)
+    comment = models.ForeignKey(MarkComment, on_delete=CASCADE, null=True, blank=True)
+
+    def __str__(self):
+        class Meta:
+            verbose_name = "Баллы тестовые-вторичные"

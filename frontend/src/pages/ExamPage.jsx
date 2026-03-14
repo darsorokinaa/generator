@@ -1,6 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import MathContent from "../components/MathContent";
+import ImageLightbox from "../components/ImageLightbox";
+import SupportInfoModal from "../components/SupportInfoModal";
+import ResultsModal from "../components/ResultsModal";
+import ReportErrorModal from "../components/ReportErrorModal";
 
 const COLORS = [
   { value: "#000000", label: "Чёрный" },
@@ -12,6 +16,27 @@ const SUBJECT_NAMES = {
   math: "математике",
   inf: "информатике",
 };
+
+function TaskReportErrorButton({ taskId, taskNumber, onClick }) {
+  return (
+    <button
+      type="button"
+      className="task-report-error-btn"
+      title="Сообщить об ошибке"
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick?.(taskId, taskNumber);
+      }}
+      aria-label="Сообщить об ошибке"
+    >
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="16" height="16" aria-hidden="true">
+        <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" />
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1Z" />
+      </svg>
+      <span className="task-report-error-label">Сообщить об ошибке</span>
+    </button>
+  );
+}
 
 const LEVEL_NAMES = {
   ege: "ЕГЭ",
@@ -53,6 +78,28 @@ function ExamPage() {
   // Загрузка PDF
   const [pdfLoading, setPdfLoading] = useState(null); // null | "default" | "spring"
 
+  // Lightbox для увеличения изображений
+  const [lightbox, setLightbox] = useState({ open: false, src: "" });
+  const handleImageClick = useCallback((src) => setLightbox({ open: true, src }), []);
+  const mainRef = useRef(null);
+
+  // Справочная информация (items = массив {html})
+  const [supportInfo, setSupportInfo] = useState({ items: [], open: false });
+
+  // Результаты (всплывающее окно по кнопке «Завершить»)
+  const [resultsOpen, setResultsOpen] = useState(false);
+  const [resultsData, setResultsData] = useState(null);
+
+  // Сообщить об ошибке
+  const [reportErrorOpen, setReportErrorOpen] = useState(false);
+  const [reportErrorTask, setReportErrorTask] = useState(null);
+
+  // Время на каждое задание (секунды)
+  const taskTimesRef = useRef({});
+  const currentTaskIdRef = useRef(null);
+  const startTimeRef = useRef(null);
+  const endTimeRef = useRef(null);
+
   const canvasRef = useRef(null);
   const socketRef = useRef(null);
   const objectsRef = useRef([]);
@@ -86,6 +133,16 @@ function ExamPage() {
   }, [level, subject, variant_id]);
 
   /* =========================
+     Справочная информация
+  ========================== */
+  useEffect(() => {
+    fetch(`/api/${level}/${subject}/support-info/`)
+      .then((res) => res.ok ? res.json() : { items: [] })
+      .then((data) => setSupportInfo((s) => ({ ...s, items: data.items || [] })))
+      .catch(() => setSupportInfo((s) => ({ ...s, items: [] })));
+  }, [level, subject]);
+
+  /* =========================
      Таймер
   ========================== */
   useEffect(() => {
@@ -93,6 +150,33 @@ function ExamPage() {
     const id = setInterval(() => setTimerSeconds((s) => s + 1), 1000);
     return () => clearInterval(id);
   }, [timerStatus]);
+
+  /* Время на каждое задание: каждую секунду добавляем к текущему заданию */
+  useEffect(() => {
+    if (timerStatus !== "running" || !variant) return;
+    const id = setInterval(() => {
+      const tid = currentTaskIdRef.current;
+      if (tid) {
+        taskTimesRef.current[tid] = (taskTimesRef.current[tid] || 0) + 1;
+      }
+    }, 1000);
+    return () => clearInterval(id);
+  }, [timerStatus, variant]);
+
+  /* Инициализация текущего задания при загрузке варианта */
+  useEffect(() => {
+    if (!variant?.tasks?.length) return;
+    const first = variant.tasks[0];
+    if (first && !currentTaskIdRef.current) currentTaskIdRef.current = first.id;
+  }, [variant]);
+
+  /* Автозапуск таймера при загрузке варианта — время решения считается с момента открытия */
+  useEffect(() => {
+    if (variant && timerStatus === "idle") {
+      startTimeRef.current = new Date().toISOString();
+      setTimerStatus("running");
+    }
+  }, [variant, timerStatus]);
 
   function formatTimer(sec) {
     const h = Math.floor(sec / 3600);
@@ -123,6 +207,23 @@ function ExamPage() {
   }, [variant, boardOpen]);
 
   /* =========================
+     Лайтбокс: клик по картинке
+  ========================== */
+  useEffect(() => {
+    const handler = (e) => {
+      const img = e.target.closest("img");
+      if (!img) return;
+      const container = img.closest(".task-text, .correct-answer-content, .part2-answer-content, .task-content, .exam-page-container");
+      if (!container) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setLightbox({ open: true, src: img.src });
+    };
+    document.addEventListener("click", handler, true);
+    return () => document.removeEventListener("click", handler, true);
+  }, []);
+
+  /* =========================
      Canvas + WebSocket
   ========================== */
   useEffect(() => {
@@ -131,6 +232,21 @@ function ExamPage() {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d", { willReadFrequently: false });
     canvas.style.touchAction = "none";
+
+    const storageKey = `board_${level}_${subject}_${variant_id}`;
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        const arr = JSON.parse(saved);
+        if (Array.isArray(arr)) objectsRef.current = arr;
+      }
+    } catch (_) {}
+
+    function saveBoard() {
+      try {
+        localStorage.setItem(storageKey, JSON.stringify(objectsRef.current));
+      } catch (_) {}
+    }
 
     const protocol = window.location.protocol === "https:" ? "wss://" : "ws://";
     const wsHost = import.meta.env.DEV ? "localhost:8000" : window.location.host;
@@ -253,6 +369,7 @@ function ExamPage() {
       });
       if (currentLineRef.current) drawPath(currentLineRef.current.points, currentLineRef.current.color, currentLineRef.current.width);
       if (currentShapeRef.current) drawShape(currentShapeRef.current);
+      saveBoard();
     }
     redrawRef.current = redraw;
 
@@ -490,7 +607,7 @@ function ExamPage() {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("resize", resizeCanvas);
     };
-  }, [boardOpen]);
+  }, [boardOpen, level, subject, variant_id]);
 
   /* =========================
      Проверка ответов
@@ -522,6 +639,16 @@ function ExamPage() {
     const correctText = getTextFromHtml(correctAnswer || "");
     const isCorrect = normalize(raw) === normalize(correctText);
     setCheckedTasks((prev) => ({ ...prev, [taskId]: isCorrect }));
+  }
+
+  /** Вычислить правильность ответа без обновления state (для авто-проверки при завершении) */
+  function computeTaskCorrectness(task) {
+    const useTable = isTableAnswerTask(subject, task.number);
+    const userValue = useTable
+      ? getTableAnswerForCheck(task.id, INF_TABLE_ROWS, INF_TABLE_COLS)
+      : (userAnswers[task.id] || "");
+    const correctText = getTextFromHtml(task.answer || "");
+    return normalize(userValue) === normalize(correctText);
   }
 
   // Задания по информатике с таблицей ответов (18, 20, 25, 26, 27): 2 столбца, 7 строк
@@ -634,10 +761,102 @@ function ExamPage() {
   // Для математики или если не все три — показываем 19/20/21 как обычные задания
   const part2Regular = showLinkedGroup ? part2Rest : [...part2Linked1921, ...part2Rest].sort((a, b) => a.number - b.number);
 
-  const correctCount = Object.values(checkedTasks).filter(Boolean).length;
+  const getTaskMaxScore = (task) => task.max_score ?? 3;
   const part2ScoreSum = part2Tasks.reduce((sum, t) => sum + (scores[t.id] || 0), 0);
-  const totalScore = correctCount + part2ScoreSum;
-  const maxScore = part1Tasks.length + part2Tasks.length * 3;
+  const maxScore = part1Tasks.length + part2Tasks.reduce((sum, t) => sum + getTaskMaxScore(t), 0);
+
+  /** При завершении: авто-проверка непроверенных заданий части 1, подсчёт эффективных баллов */
+  function getEffectiveResults() {
+    const effectiveCheckedTasks = {};
+    for (const task of part1Tasks) {
+      effectiveCheckedTasks[task.id] =
+        checkedTasks[task.id] !== undefined ? checkedTasks[task.id] : computeTaskCorrectness(task);
+    }
+    const correctCount = part1Tasks.filter((t) => effectiveCheckedTasks[t.id]).length;
+    const effectiveScores = {};
+    for (const task of variant.tasks) {
+      if (task.part === 2) {
+        effectiveScores[task.id] = scores[task.id] ?? 0;
+      } else {
+        effectiveScores[task.id] = effectiveCheckedTasks[task.id] ? 1 : 0;
+      }
+    }
+    const totalScore = correctCount + part2ScoreSum;
+    return { effectiveCheckedTasks, effectiveScores, correctCount, totalScore };
+  }
+
+  const { correctCount, totalScore } = getEffectiveResults();
+
+  const handleTaskFocus = (taskId) => {
+    currentTaskIdRef.current = taskId;
+  };
+
+  const handleReportErrorClick = (taskId, taskNumber) => {
+    setReportErrorTask({ taskId, taskNumber });
+    setReportErrorOpen(true);
+  };
+
+  const handleReportErrorSubmit = async ({ errorType, comment }) => {
+    if (!reportErrorTask) return;
+    const res = await fetch(`/api/${level}/${subject}/report-error/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      body: JSON.stringify({
+        taskId: reportErrorTask.taskId,
+        taskNumber: reportErrorTask.taskNumber,
+        variantId: variant?.id,
+        errorType,
+        comment: comment || "",
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || "Ошибка отправки");
+    }
+  };
+
+  const handleFinish = async () => {
+    setTimerStatus("paused");
+    endTimeRef.current = new Date().toISOString();
+    const totalTimeFormatted = formatTimer(timerSeconds);
+    const taskTimes = { ...taskTimesRef.current };
+    const { effectiveCheckedTasks, effectiveScores, correctCount: effCorrectCount, totalScore: effTotalScore } = getEffectiveResults();
+    const res = await fetch(
+      `/api/${level}/${subject}/score-conversion/?score=${effTotalScore}`,
+      { credentials: "same-origin" }
+    );
+    let scoreExam = null;
+    let scoreComment = null;
+    let markLevel = null;
+    try {
+      if (res.ok) {
+        const data = await res.json();
+        scoreExam = data.score_exam !== undefined ? data.score_exam : null;
+        scoreComment = data.comment ?? null;
+        markLevel = data.mark_level ?? null;
+      }
+    } catch (_) {}
+    setResultsData({
+      totalTimeFormatted,
+      taskTimes,
+      correctCount: effCorrectCount,
+      totalScore: effTotalScore,
+      maxScore,
+      scoreExam,
+      scoreComment,
+      markLevel,
+      tasks: variant.tasks,
+      startTime: startTimeRef.current,
+      endTime: endTimeRef.current,
+      checkedTasks: effectiveCheckedTasks,
+      scores: effectiveScores,
+      variantId: variant.id,
+      level,
+      subject,
+    });
+    setResultsOpen(true);
+  };
 
   const openPdf = async (variantId) => {
     setPdfLoading("default");
@@ -696,7 +915,7 @@ function ExamPage() {
   };
 
   return (
-    <div className="main-wrapper exam-page" id="main-wrapper">
+    <div ref={mainRef} className="main-wrapper exam-page" id="main-wrapper">
       {/* Фиксированный блок: таймер и баллы — остаётся в углу при прокрутке */}
       <div className="exam-fixed-corner">
         <div className="variant-timer exam-fixed-timer">
@@ -750,6 +969,20 @@ function ExamPage() {
             </span>
           </div>
         </div>
+        {supportInfo.items?.length > 0 && (
+          <button
+            id="support-info-btn"
+            className="exam-fixed-support-btn"
+            onClick={() => setSupportInfo((s) => ({ ...s, open: true }))}
+            title="Справочная информация"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 8v6M12 15.5v1" />
+            </svg>
+            <span>Справочная информация</span>
+          </button>
+        )}
       </div>
       {pdfLoading && (
         <div className="pdf-loading-overlay" role="status" aria-live="polite">
@@ -822,14 +1055,14 @@ function ExamPage() {
               const cols = useTable ? INF_TABLE_COLS : 0;
 
               return (
-                <section key={task.id} className="task">
+                <section key={task.id} className="task" onClick={() => handleTaskFocus(task.id)}>
                   <aside className="task-left">
                     <div className="task-number">{task.number}</div>
                     <div className="task-id">{task.id}</div>
                   </aside>
 
                   <article className="task-content">
-                    <MathContent html={task.text} className="task-text" />
+                    <MathContent html={task.text} className="task-text" onImageClick={(src) => setLightbox({ open: true, src })} />
                     {task.author && <div className="task-author">{task.author}</div>}
 
                     {task.file && (
@@ -958,8 +1191,11 @@ function ExamPage() {
                         }`}
                       >
                         <span className="correct-answer-label">Правильный ответ: </span>
-                        <MathContent html={task.answer || ""} className="correct-answer-content" />
+                        <MathContent html={task.answer || ""} className="correct-answer-content" onImageClick={(src) => setLightbox({ open: true, src })} />
                       </div>
+                    </div>
+                    <div className="task-report-error-wrap">
+                      <TaskReportErrorButton taskId={task.id} taskNumber={task.number} onClick={handleReportErrorClick} />
                     </div>
                   </article>
                 </section>
@@ -988,14 +1224,14 @@ function ExamPage() {
                       const colsHere = useTableHere ? INF_TABLE_COLS : 0;
 
                       return (
-                        <section key={task.id} className="task task-in-group">
+                        <section key={task.id} className="task task-in-group" onClick={() => handleTaskFocus(task.id)}>
                           <aside className="task-left">
                             <div className="task-number">{task.number}</div>
                             <div className="task-id">{task.id}</div>
                           </aside>
 
                           <article className="task-content">
-                            <MathContent html={task.text} className="task-text" />
+                            <MathContent html={task.text} className="task-text" onImageClick={(src) => setLightbox({ open: true, src })} />
                             {task.author && <div className="task-author">{task.author}</div>}
 
                             {task.file && (
@@ -1080,18 +1316,18 @@ function ExamPage() {
                                     }`}
                                   >
                                     <span className="correct-answer-label">Правильный ответ: </span>
-                                    <MathContent html={task.answer || ""} className="correct-answer-content" />
+                                    <MathContent html={task.answer || ""} className="correct-answer-content" onImageClick={(src) => setLightbox({ open: true, src })} />
                                   </div>
                                 </>
                               ) : (
                                 <>
                                   <div className="score-label">Выставьте баллы за решение:</div>
                                   <div className="score-controls">
-                                    <button onClick={() => changeScore(task.id, -1)} disabled={(scores[task.id] || 0) <= 0}>
+                                    <button onClick={() => changeScore(task.id, -1, getTaskMaxScore(task))} disabled={(scores[task.id] || 0) <= 0}>
                                       −
                                     </button>
                                     <span className="score-display">{scores[task.id] || 0}</span>
-                                    <button onClick={() => changeScore(task.id, 1)} disabled={(scores[task.id] || 0) >= 3}>
+                                    <button onClick={() => changeScore(task.id, 1, getTaskMaxScore(task))} disabled={(scores[task.id] || 0) >= getTaskMaxScore(task)}>
                                       +
                                     </button>
                                   </div>
@@ -1111,11 +1347,14 @@ function ExamPage() {
                                   {visibleAnswers[task.id] && (
                                     <div className="part2-answer-reveal">
                                       <span className="part2-answer-label">Правильный ответ:</span>
-                                      <MathContent html={task.answer} className="part2-answer-content" />
+                                      <MathContent html={task.answer} className="part2-answer-content" onImageClick={(src) => setLightbox({ open: true, src })} />
                                     </div>
                                   )}
                                 </>
                               )}
+                            </div>
+                            <div className="task-report-error-wrap">
+                              <TaskReportErrorButton taskId={task.id} taskNumber={task.number} onClick={handleReportErrorClick} />
                             </div>
                           </article>
                         </section>
@@ -1126,14 +1365,14 @@ function ExamPage() {
 
                 {/* Остальные задания части 2 */}
                 {part2Regular.map((task) => (
-                  <section key={task.id} className="task">
+                  <section key={task.id} className="task" onClick={() => handleTaskFocus(task.id)}>
                     <aside className="task-left">
                       <div className="task-number">{task.number}</div>
                       <div className="task-id">{task.id}</div>
                     </aside>
 
                     <article className="task-content">
-                      <MathContent html={task.text} className="task-text" />
+                      <MathContent html={task.text} className="task-text" onImageClick={(src) => setLightbox({ open: true, src })} />
                       {task.author && <div className="task-author">{task.author}</div>}
 
                       {task.file && (
@@ -1148,11 +1387,11 @@ function ExamPage() {
                       <div className="answer-section">
                         <div className="score-label">Выставьте баллы за решение:</div>
                         <div className="score-controls">
-                          <button onClick={() => changeScore(task.id, -1)} disabled={(scores[task.id] || 0) <= 0}>
+                          <button onClick={() => changeScore(task.id, -1, getTaskMaxScore(task))} disabled={(scores[task.id] || 0) <= 0}>
                             −
                           </button>
                           <span className="score-display">{scores[task.id] || 0}</span>
-                          <button onClick={() => changeScore(task.id, 1)} disabled={(scores[task.id] || 0) >= 3}>
+                          <button onClick={() => changeScore(task.id, 1, getTaskMaxScore(task))} disabled={(scores[task.id] || 0) >= getTaskMaxScore(task)}>
                             +
                           </button>
                         </div>
@@ -1170,17 +1409,31 @@ function ExamPage() {
                             {visibleAnswers[task.id] && (
                               <div className="part2-answer-reveal">
                                 <span className="part2-answer-label">Правильный ответ:</span>
-                                <MathContent html={task.answer} className="part2-answer-content" />
+                                <MathContent html={task.answer} className="part2-answer-content" onImageClick={(src) => setLightbox({ open: true, src })} />
                               </div>
                             )}
                           </>
                         )}
+                      </div>
+                      <div className="task-report-error-wrap">
+                        <TaskReportErrorButton taskId={task.id} taskNumber={task.number} onClick={handleReportErrorClick} />
                       </div>
                     </article>
                   </section>
                 ))}
               </>
             )}
+
+            {/* Кнопка Завершить — в конце варианта после всех задач */}
+            <div className="exam-finish-section">
+              <button
+                id="finish-btn"
+                className="exam-finish-btn exam-finish-btn-inline"
+                onClick={handleFinish}
+              >
+                Завершить
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1370,6 +1623,31 @@ function ExamPage() {
 
           <canvas ref={canvasRef} id="board" style={{ cursor: tool === "eraser" ? "pointer" : "crosshair" }} />
         </div>
+
+      <ImageLightbox
+        src={lightbox.src}
+        open={lightbox.open}
+        onClose={() => setLightbox((s) => ({ ...s, open: false }))}
+      />
+      <SupportInfoModal
+        open={supportInfo.open}
+        items={supportInfo.items}
+        onClose={() => setSupportInfo((s) => ({ ...s, open: false }))}
+      />
+      <ResultsModal
+        open={resultsOpen}
+        onClose={() => setResultsOpen(false)}
+        results={resultsData}
+      />
+      <ReportErrorModal
+        open={reportErrorOpen}
+        onClose={() => {
+          setReportErrorOpen(false);
+          setReportErrorTask(null);
+        }}
+        onSubmit={handleReportErrorSubmit}
+        taskNumber={reportErrorTask?.taskNumber}
+      />
     </div>
   );
 }

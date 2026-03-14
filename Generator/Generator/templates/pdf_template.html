@@ -65,9 +65,45 @@
 
 <div class="pdf-footer-running">{{ footer_left|safe }}</div>
 
+{% for item in instruction_blocks %}
+<div class="pdf-instruction-page">
+    <div class="pdf-instruction-column">
+        <div class="pdf-preview pdf-instruction">
+            <h2 class="instruction-title">Инструкция по выполнению работы</h2>
+            <p class="instruction-intro">Инструкция к выполнению</p>
+            <div class="instruction-body">{{ item.preview_html|safe }}</div>
+            <p class="instruction-ending">Желаем успеха!</p>
+        </div>
+    </div>
+    <div class="pdf-notes-column"></div>
+</div>
+{% endfor %}
+
 <div class="tasks-wrapper">
-    {% for item in contents %}
-        <div class="task">
+    {% for item in tasks_content %}
+        {% if item.type == "preview" %}
+            {% if not item.is_instruction %}
+            <div class="pdf-preview pdf-framed{% if item.start_new_page %} pdf-start-new-page{% endif %}">
+                {% if item.is_reminder %}
+                <div class="preview-reminder-row">
+                    <span class="preview-exclamation">!</span>
+                    <div class="preview-reminder-content">
+                        {% if item.part_title %}<h3 class="preview-part-title">{{ item.part_title }}</h3>{% endif %}
+                        <div class="preview-box">
+                            <div class="preview-box-inner">{{ item.preview_html|safe }}</div>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                {% if item.part_title %}<h3 class="preview-part-title">{{ item.part_title }}</h3>{% endif %}
+                <div class="preview-box">
+                    <div class="preview-box-inner">{{ item.preview_html|safe }}</div>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+        {% else %}
+        <div class="task{% if item.start_new_page %} pdf-start-new-page{% endif %}">
 
             <div class="ta">
                 {{ item.order }}
@@ -89,9 +125,9 @@
             </div>
 
         </div>
+        {% endif %}
     {% endfor %}
 </div>
-
 
 <!-- СТРАНИЦА ОТВЕТОВ -->
 <div class="answers-page">
