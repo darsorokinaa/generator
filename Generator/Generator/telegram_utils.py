@@ -48,7 +48,12 @@ def send_telegram_message(
             getattr(settings, "TELEGRAM_TOPIC_ID", None)
             or os.environ.get("TELEGRAM_TOPIC_ID")
         )
-        thread_id = int(raw_thread) if raw_thread else None
+        if raw_thread:
+            try:
+                thread_id = int(str(raw_thread).strip())
+            except (ValueError, TypeError):
+                logger.warning("Telegram: неверный TELEGRAM_TOPIC_ID=%r, отправка в общий чат", raw_thread)
+                thread_id = None
 
     ids = [str(x).strip() for x in (raw.split(",") if isinstance(raw, str) else raw) if str(x).strip()]
     if not ids:
@@ -56,26 +61,52 @@ def send_telegram_message(
         return False
 
     url = f"https://api.telegram.org/bot{token}/sendMessage"
-    success = False
-    for cid in ids:
+
+    def _send(cid: str, use_thread: bool) -> bool:
         data = {
             "chat_id": cid,
             "text": text,
             "parse_mode": "HTML",
             "disable_web_page_preview": True,
         }
-        if thread_id is not None:
+        if use_thread and thread_id is not None:
             data["message_thread_id"] = thread_id
         try:
             body = urllib.parse.urlencode(data).encode("utf-8")
             req = urllib.request.Request(url, data=body, method="POST")
             req.add_header("Content-Type", "application/x-www-form-urlencoded")
-            with urllib.request.urlopen(req, timeout=10) as resp:
+            with urllib.request.urlopen(req, timeout=15) as resp:
                 result = json.loads(resp.read().decode())
                 if result.get("ok"):
-                    success = True
-                else:
-                    logger.warning("Telegram API error for %s: %s", cid, result)
+                    return True
+                logger.error(
+                    "Telegram API error chat_id=%s: %s (%s)",
+                    cid,
+                    result.get("error_code"),
+                    result.get("description", ""),
+                )
+                return False
+        except urllib.error.HTTPError as e:
+            try:
+                err_body = e.read().decode()
+                err_data = json.loads(err_body) if err_body else {}
+                desc = err_data.get("description", err_body[:200])
+                logger.error("Telegram HTTP error chat_id=%s status=%s: %s", cid, e.code, desc)
+                if "message thread" in desc.lower() or "topics" in desc.lower():
+                    return False
+            except Exception:
+                pass
+            logger.exception("Telegram send to %s failed", cid)
+            return False
         except (urllib.error.URLError, OSError, json.JSONDecodeError) as e:
-            logger.warning("Telegram send to %s failed: %s", cid, e)
+            logger.exception("Telegram send to %s failed: %s", cid, e)
+            return False
+
+    success = False
+    for cid in ids:
+        if _send(cid, use_thread=True):
+            success = True
+        elif thread_id is not None and _send(cid, use_thread=False):
+            logger.info("Telegram: отправлено в общий чат (топик недоступен)")
+            success = True
     return success
