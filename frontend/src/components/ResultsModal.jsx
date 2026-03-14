@@ -73,20 +73,20 @@ export default function ResultsModal({ open, onClose, results }) {
   const CONFETTI_COLORS = [
     "#f59e0b", "#ef4444", "#ec4899", "#8b5cf6",
     "#3b82f6", "#06b6d4", "#10b981", "#84cc16",
+    "#f97316", "#eab308", "#14b8a6",
   ];
-  // Конфетти по краям окна — летит наружу (псевдослучайность по индексу)
   const rand = (i, seed) => ((i * 7 + seed) % 11) / 11;
   const edgePositions = [
-    ...[[10, 0], [25, 0], [50, 0], [75, 0], [90, 0]].map(([x, y], i) => ({ left: x, top: y, dx: (rand(i, 1) - 0.5) * 2, dy: -1 })),
-    ...[[10, 100], [25, 100], [50, 100], [75, 100], [90, 100]].map(([x, y], i) => ({ left: x, top: y, dx: (rand(i + 5, 2) - 0.5) * 2, dy: 1 })),
-    ...[[0, 20], [0, 50], [0, 80]].map(([x, y], i) => ({ left: x, top: y, dx: -1, dy: (rand(i + 10, 3) - 0.5) * 2 })),
-    ...[[100, 20], [100, 50], [100, 80]].map(([x, y], i) => ({ left: x, top: y, dx: 1, dy: (rand(i + 15, 4) - 0.5) * 2 })),
+    ...[[5, 0], [15, 0], [25, 0], [40, 0], [50, 0], [60, 0], [75, 0], [85, 0], [95, 0]].map(([x, y], i) => ({ left: x, top: y, dx: (rand(i, 1) - 0.5) * 2.2, dy: -1.2 })),
+    ...[[5, 100], [15, 100], [25, 100], [40, 100], [50, 100], [60, 100], [75, 100], [85, 100], [95, 100]].map(([x, y], i) => ({ left: x, top: y, dx: (rand(i + 5, 2) - 0.5) * 2.2, dy: 1.2 })),
+    ...[[0, 15], [0, 35], [0, 50], [0, 65], [0, 85]].map(([x, y], i) => ({ left: x, top: y, dx: -1.2, dy: (rand(i + 10, 3) - 0.5) * 2.2 })),
+    ...[[100, 15], [100, 35], [100, 50], [100, 65], [100, 85]].map(([x, y], i) => ({ left: x, top: y, dx: 1.2, dy: (rand(i + 15, 4) - 0.5) * 2.2 })),
   ];
   const confettiPieces = edgePositions.map((p, i) => ({
     ...p,
-    delay: (i * 0.03) % 0.4,
+    delay: (i * 0.02) % 0.5,
     color: CONFETTI_COLORS[i % CONFETTI_COLORS.length],
-    size: 6 + (i % 3),
+    size: 10 + (i % 5),
   }));
 
   return (
@@ -104,8 +104,8 @@ export default function ResultsModal({ open, onClose, results }) {
                 backgroundColor: p.color,
                 width: p.size,
                 height: p.size * 0.6,
-                ["--burst-x"]: `${p.dx * 70}px`,
-                ["--burst-y"]: `${p.dy * 70}px`,
+                ["--burst-x"]: `${p.dx * 140}px`,
+                ["--burst-y"]: `${p.dy * 140}px`,
               }}
             />
           ))}
@@ -171,17 +171,19 @@ export default function ResultsModal({ open, onClose, results }) {
             </span>
           </div>
 
+          {(scoreExam != null || (scoreComment != null && String(scoreComment).trim() !== "")) && (
           <div className="results-score-exam-block">
-            <div className="results-row results-row-primary">
-              <span className="results-label">Вторичные баллы:</span>
-              <span className="results-value">
-                {scoreExam !== undefined && scoreExam !== null ? `${scoreExam} из 100` : "—"}
-              </span>
-            </div>
-            {scoreComment && (
+            {scoreExam != null && (
+              <div className="results-row results-row-primary">
+                <span className="results-label">Вторичные баллы:</span>
+                <span className="results-value">{Number(scoreExam)} из 100</span>
+              </div>
+            )}
+            {scoreComment != null && String(scoreComment).trim() !== "" && (
               <div className={`results-score-comment ${scoreLevelClass}`}>{scoreComment}</div>
             )}
           </div>
+          )}
 
           <div className="results-download-section">
             <button

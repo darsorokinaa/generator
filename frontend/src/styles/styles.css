@@ -2258,22 +2258,22 @@ mjx-container {
 
 .confetti-piece {
     position: absolute;
-    border-radius: 1px;
-    opacity: 0.9;
+    border-radius: 2px;
+    opacity: 0.95;
 }
 
 .confetti-piece-burst {
     transform: translate(-50%, -50%);
-    animation: confettiBurst 1.8s ease-out forwards;
+    animation: confettiBurst 2.2s ease-out forwards;
 }
 
 @keyframes confettiBurst {
     0% {
-        transform: translate(-50%, -50%) translate(0, 0) rotate(0deg);
-        opacity: 0.9;
+        transform: translate(-50%, -50%) scale(1) translate(0, 0) rotate(0deg);
+        opacity: 0.95;
     }
     100% {
-        transform: translate(-50%, -50%) translate(var(--burst-x), var(--burst-y)) rotate(540deg);
+        transform: translate(-50%, -50%) scale(1.2) translate(var(--burst-x), var(--burst-y)) rotate(720deg);
         opacity: 0;
     }
 }
@@ -2425,7 +2425,7 @@ mjx-container {
 }
 
 .results-score-exam-block {
-    margin-top: 4px;
+    margin-top: 8px;
 }
 
 .results-score-comment {
@@ -2433,10 +2433,12 @@ mjx-container {
     padding: 12px 14px;
     border-radius: 10px;
     background: #f8fafc;
-    font-size: 0.875rem;
-    color: var(--text-secondary);
-    line-height: 1.45;
-    white-space: pre-line;
+    font-size: 0.9375rem;
+    color: #334155;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
 /* Цветные плашки для комментария по уровню */
@@ -2461,6 +2463,126 @@ mjx-container {
     margin-top: 20px;
     display: flex;
     justify-content: center;
+}
+
+/* Модальное окно результатов — мобильная версия */
+@media (max-width: 768px) {
+    .results-modal-overlay {
+        padding: 0;
+        align-items: flex-end;
+    }
+
+    .results-modal-wrapper {
+        width: 100%;
+        max-width: 100%;
+        max-height: 92vh;
+        max-height: calc(100dvh - 2rem);
+        padding: 0 env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+
+    .results-modal-window {
+        width: 100%;
+        max-width: 100%;
+        max-height: 92vh;
+        max-height: calc(100dvh - 2rem);
+        border-radius: 20px 20px 0 0;
+        margin: 0;
+        animation: slideUpModal 0.3s ease;
+    }
+
+    @keyframes slideUpModal {
+        from {
+            transform: translateY(100%);
+        }
+        to {
+            transform: translateY(0);
+        }
+    }
+
+    .results-modal-header {
+        padding: 16px 20px;
+        border-radius: 20px 20px 0 0;
+        position: sticky;
+        top: 0;
+        background: #fff;
+        z-index: 2;
+    }
+
+    .results-modal-title {
+        font-size: 1.125rem;
+    }
+
+    .results-modal-close {
+        width: 40px;
+        height: 40px;
+        min-width: 40px;
+        font-size: 1.5rem;
+        padding: 0;
+    }
+
+    .results-modal-body {
+        padding: 20px 20px 24px;
+        padding-bottom: calc(24px + env(safe-area-inset-bottom));
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .results-row {
+        padding: 14px 0;
+    }
+
+    .results-row-primary {
+        font-size: 1rem;
+    }
+
+    .results-task-times-wrap {
+        max-height: 140px;
+    }
+
+    .results-score-comment {
+        padding: 14px 16px;
+        font-size: 0.9rem;
+    }
+
+    .results-download-section {
+        margin-top: 24px;
+    }
+
+    .results-download-section .results-download-btn {
+        width: 100%;
+        justify-content: center;
+        padding: 14px 20px;
+    }
+
+    .confetti-piece {
+        border-radius: 3px;
+    }
+}
+
+@media (max-width: 480px) {
+    .results-modal-wrapper {
+        max-height: 95vh;
+        max-height: calc(100dvh - 1rem);
+    }
+
+    .results-modal-window {
+        max-height: 95vh;
+        max-height: calc(100dvh - 1rem);
+        border-radius: 16px 16px 0 0;
+    }
+
+    .results-modal-header {
+        padding: 14px 16px;
+        border-radius: 16px 16px 0 0;
+    }
+
+    .results-modal-body {
+        padding: 16px 16px 20px;
+        padding-bottom: calc(20px + env(safe-area-inset-bottom));
+    }
+
+    .results-modal-title {
+        font-size: 1rem;
+    }
 }
 
 /* Модальное окно «Имя ученика» */
@@ -3627,12 +3749,16 @@ body.index .exam-card {
     max-width: 95vw;
     max-height: 95vh;
     cursor: default;
+    background: #fff;
+    padding: 0.5rem;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
 .image-lightbox-img {
     max-width: 100%;
     max-height: 95vh;
     object-fit: contain;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+    display: block;
+    background: #fff;
 }
 
 /* ========================================

@@ -417,13 +417,11 @@ def api_score_conversion(request, level, subject):
         .select_related("comment")
         .first()
     )
-    score_exam = mark_row.score_exam if mark_row is not None else 0
-    comment = mark_row.comment.comment_text if (mark_row and mark_row.comment) else None
-    mark_level = (
-        mark_row.comment.mark_level
-        if (mark_row and mark_row.comment and mark_row.comment.mark_level)
-        else None
-    )
+    if mark_row is None:
+        return JsonResponse({"score_exam": None, "comment": None, "mark_level": None})
+    score_exam = mark_row.score_exam
+    comment = mark_row.comment.comment_text if mark_row.comment else None
+    mark_level = mark_row.comment.mark_level if (mark_row.comment and mark_row.comment.mark_level) else None
     return JsonResponse({"score_exam": score_exam, "comment": comment, "mark_level": mark_level})
 
 
