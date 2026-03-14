@@ -10,6 +10,9 @@ import urllib.request
 
 logger = logging.getLogger(__name__)
 
+# Обход прокси для api.telegram.org (403 при использовании HTTP_PROXY/HTTPS_PROXY)
+_NO_PROXY_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
 
 def send_telegram_message(
     text: str,
@@ -75,7 +78,8 @@ def send_telegram_message(
             body = urllib.parse.urlencode(data).encode("utf-8")
             req = urllib.request.Request(url, data=body, method="POST")
             req.add_header("Content-Type", "application/x-www-form-urlencoded")
-            with urllib.request.urlopen(req, timeout=15) as resp:
+            # Используем opener без прокси — иначе 403 через HTTP_PROXY/HTTPS_PROXY
+            with _NO_PROXY_OPENER.open(req, timeout=15) as resp:
                 result = json.loads(resp.read().decode())
                 if result.get("ok"):
                     return True

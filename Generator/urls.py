@@ -21,6 +21,12 @@ urlpatterns = [
      path("api/<str:level>/<str:subject>/tasks/", views.api_tasks),   # ← добавить или переименовать
      path("api/<str:level>/<str:subject>/", views.api_tasks),         # оставить для совместимости
 
+    # Отчёт, ошибки, поддержка, конвертация баллов
+    path("api/<str:level>/<str:subject>/support-info/", views.api_support_info),
+    path("api/<str:level>/<str:subject>/score-conversion/", views.api_score_conversion),
+    path("api/<str:level>/<str:subject>/report-pdf/", views.report_pdf),
+    path("api/<str:level>/<str:subject>/report-error/", views.report_error),
+
     # PDF (legacy without api prefix)
     path("<str:level>/<str:subject>/variant/<int:variant_id>/pdf/spring",
          views.variant_pdfSpring),
