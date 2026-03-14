@@ -2,13 +2,8 @@ from logging import DEBUG
 from pathlib import Path
 import os
 
-from dotenv import load_dotenv
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-# .env в корне проекта или в папке Generator
-load_dotenv(BASE_DIR / ".env")
-load_dotenv(Path(__file__).resolve().parent / ".env")
 
 # SECURITY WARNING: keep the secret key used in production secret!
 # Лучше: хранить в переменной окружения
@@ -96,27 +91,27 @@ CHANNEL_LAYERS = {
 # Database
 # На Replit чаще используют SQLite или внешний Postgres.
 # Ваш текущий конфиг в репо указывает на localhost Postgres — на Replit это обычно НЕ работает.
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': 'generatordb',
-#         'USER': 'generator_user',
-#         'PASSWORD': 'StrongPass123',
-#         'HOST': 'localhost',
-#         'PORT': '5432',
-#     }
-# }
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'generatordb',
-        'USER': 'postgres',
-        'PASSWORD': 'postgres',
+        'USER': 'generator_user',
+        'PASSWORD': 'StrongPass123',
         'HOST': 'localhost',
-        'PORT': '',
+        'PORT': '5432',
     }
 }
+
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': 'generatordb',
+#         'USER': 'postgres',
+#         'PASSWORD': 'postgres',
+#         'HOST': 'localhost',
+#         'PORT': '',
+#     }
+# }
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -175,8 +170,3 @@ CSRF_TRUSTED_ORIGINS = [
 CSRF_COOKIE_SAMESITE = "Lax"
 CSRF_COOKIE_HTTPONLY = False
 SESSION_COOKIE_SAMESITE = "Lax"
-
-# Telegram bot для отправки сообщений об ошибках
-TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
-TELEGRAM_TOPIC_ID = os.environ.get("TELEGRAM_TOPIC_ID", "") or None

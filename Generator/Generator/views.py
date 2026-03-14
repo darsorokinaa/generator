@@ -627,6 +627,19 @@ def variant_pdf(request, level, subject, variant_id):
     )
 
 
+def variant_pdfSpring(request, level, subject, variant_id):
+    """PDF варианта с весенней темой (алиас для /pdf/spring)."""
+    background_url = pdf_utils.resolve_background_image("img/spring.png", request=request)
+    return _render_variant_pdf(
+        request,
+        level,
+        subject,
+        variant_id,
+        background_url=background_url,
+        theme="spring",
+    )
+
+
 def search_task(request):
     q = (request.GET.get("q") or "").strip()
     if not q or not q.isdigit():
