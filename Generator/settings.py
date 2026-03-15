@@ -88,17 +88,17 @@ CHANNEL_LAYERS = {
     }
 }
 
-# Database (те же параметры, что в Generator/Generator/settings.py — одна БД для дампа)
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'generatordb',
-        'USER': os.environ.get('PGUSER', 'postgres'),
-        'PASSWORD': os.environ.get('PGPASSWORD', 'postgres'),
-        'HOST': os.environ.get('PGHOST', 'localhost'),
-        'PORT': os.environ.get('PGPORT', ''),
-    }
-}
+# # Database (те же параметры, что в Generator/Generator/settings.py — одна БД для дампа)
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': 'generatordb',
+#         'USER': os.environ.get('PGUSER', 'postgres'),
+#         'PASSWORD': os.environ.get('PGPASSWORD', 'postgres'),
+#         'HOST': os.environ.get('PGHOST', 'localhost'),
+#         'PORT': os.environ.get('PGPORT', ''),
+#     }
+# }
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
