@@ -12,10 +12,12 @@ urlpatterns = [
     path('admin/', admin.site.urls),
 
     path("api/csrf/", views.api_csrf, name="api_csrf"),
+    path("api/updates/", views.api_updates, name="api_updates"),
     path("api/search_task/", views.search_task, name="search_task"),
     path("api/search_variant/", views.search_variant, name="search_variant"),
     path("favicon.svg", views.favicon),
     path("api/<str:level>/<str:subject>/tasks/", views.api_tasks),
+    path("api/<str:level>/<str:subject>/subtopics/", views.api_subtopics),
     path("api/variant-lookup/<int:variant_id>/", views.api_variant_lookup),
     path("api/<str:level>/<str:subject>/variant/", views.api_generate_variant),
     path("api/<str:level>/<str:subject>/variant/<int:variant_id>/", views.api_variant_detail),

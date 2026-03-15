@@ -20,11 +20,13 @@ from .models import (
     LinkedTaskGroup,
     Mark,
     Subject,
+    SubTopic,
     SupportInfo,
     Task,
     TaskGroup,
     TaskGroupMember,
     TaskList,
+    Update,
     Variant,
     VariantContent,
 )
@@ -81,6 +83,17 @@ def _create_variant(subject_short, level_str, body_bytes):
         content = _normalize_content(data["content"])
     else:
         content = _normalize_content(data)
+    subtopic_ids = None
+    subtopic_counts = None
+    if isinstance(data, dict) and data.get("subtopic_ids"):
+        raw = data["subtopic_ids"]
+        subtopic_ids = [int(x) for x in raw if x is not None and str(x).strip() != ""]
+        if not subtopic_ids:
+            subtopic_ids = None
+    if isinstance(data, dict) and data.get("subtopic_counts") and isinstance(data["subtopic_counts"], dict):
+        subtopic_counts = {int(k): int(v) for k, v in data["subtopic_counts"].items() if v > 0}
+        if not subtopic_counts:
+            subtopic_counts = None
     if not content:
         raise ValueError("Не выбрано ни одного задания")
 
@@ -153,10 +166,22 @@ def _create_variant(subject_short, level_str, body_bytes):
             selected_tasks.extend(group_tasks)
             handled_tasklist_ids.update(group_ids)
             continue
-        tasks_for_slot = list(
-            Task.objects.filter(task_id=tasklist_id).order_by("?")[: int(count)]
-        )
-        selected_tasks.extend(tasks_for_slot)
+        if subtopic_ids and subtopic_counts:
+            for st_id, st_count in subtopic_counts.items():
+                if st_count <= 0:
+                    continue
+                if not SubTopic.objects.filter(id=st_id, task_list_id=tasklist_id).exists():
+                    continue
+                tasks_for_subtopic = list(
+                    Task.objects.filter(task_id=tasklist_id, subtopic_id=st_id).order_by("?")[: st_count]
+                )
+                selected_tasks.extend(tasks_for_subtopic)
+        else:
+            qs = Task.objects.filter(task_id=tasklist_id)
+            if subtopic_ids:
+                qs = qs.filter(subtopic_id__in=subtopic_ids)
+            tasks_for_slot = list(qs.order_by("?")[: int(count)])
+            selected_tasks.extend(tasks_for_slot)
 
     new_variant = Variant.objects.create(
         var_subject=subject_instance,
@@ -181,12 +206,32 @@ def api_tasks(request, level, subject):
     subject_instance = get_object_or_404(Subject, subject_short=subject)
     level_instance = get_object_or_404(Level, level=level)
 
+    subtopic_ids = None
+    if request.GET.get("subtopic_ids"):
+        raw = request.GET.get("subtopic_ids", "").strip().split(",")
+        subtopic_ids = [int(x) for x in raw if x.strip().isdigit()]
+        if not subtopic_ids:
+            subtopic_ids = None
+
     tasks_qs = list(
         TaskList.objects.filter(
             subject=subject_instance,
             level=level_instance,
         ).annotate(count_task=Count("task")).order_by('task_number')
     )
+    if subtopic_ids:
+        id_to_count = dict(
+            Task.objects.filter(
+                task__subject=subject_instance,
+                task__level=level_instance,
+                subtopic_id__in=subtopic_ids,
+            )
+            .values("task_id")
+            .annotate(c=Count("id"))
+            .values_list("task_id", "c")
+        )
+        for t in tasks_qs:
+            t.count_task = id_to_count.get(t.id, 0)
     id_by_number = {tl.task_number: tl.id for tl in tasks_qs}
     tl_by_id = {tl.id: tl for tl in tasks_qs}
 
@@ -299,6 +344,8 @@ def api_tasks(request, level, subject):
     for t in tasks_qs:
         if t.id in grouped_tasklist_ids:
             continue
+        if subtopic_ids and (t.count_task or 0) <= 0:
+            continue
         result.append({
             "type": "single",
             "id": t.id,
@@ -324,6 +371,46 @@ def api_tasks(request, level, subject):
         "subject_name": subject_instance.subject_name,
         "tasks": result
     })
+
+
+def api_subtopics(request, level, subject):
+    """GET: список подтем по номерам заданий для тренажёра."""
+    subject_instance = get_object_or_404(Subject, subject_short=subject)
+    level_instance = get_object_or_404(Level, level=level)
+    task_lists = (
+        TaskList.objects.filter(
+            subject=subject_instance,
+            level=level_instance,
+        )
+        .filter(subtopics__isnull=False)
+        .distinct()
+        .order_by("task_number")
+    )
+    out = []
+    all_subtopic_ids = []
+    for tl in task_lists:
+        subtopics = list(
+            SubTopic.objects.filter(task_list=tl).order_by("order", "title").values("id", "title", "order")
+        )
+        if not subtopics:
+            continue
+        all_subtopic_ids.extend(s["id"] for s in subtopics)
+        out.append({
+            "task_list_id": tl.id,
+            "task_number": tl.task_number,
+            "task_title": tl.task_title,
+            "subtopics": subtopics,
+        })
+    counts = dict(
+        Task.objects.filter(subtopic_id__in=all_subtopic_ids)
+        .values("subtopic_id")
+        .annotate(c=Count("id"))
+        .values_list("subtopic_id", "c")
+    ) if all_subtopic_ids else {}
+    for block in out:
+        for st in block["subtopics"]:
+            st["task_count"] = counts.get(st["id"], 0)
+    return JsonResponse({"subtopics_by_task": out})
 
 
 @csrf_exempt
@@ -444,6 +531,28 @@ def api_support_info(request, level, subject):
     return JsonResponse({"items": result})
 
 
+@require_http_methods(["GET"])
+def api_updates(request):
+    """Список обновлений платформы (только с show=True), по убыванию времени добавления."""
+    items = list(
+        Update.objects.filter(show=True).order_by("-created")[:20].values("id", "title", "description", "created")
+    )
+    for item in items:
+        d = item.get("created")
+        if d:
+            try:
+                item["created_display"] = d.strftime("%d.%m.%Y, %H:%M")
+                item["created_iso"] = d.strftime("%Y-%m-%dT%H:%M:%S")
+            except (AttributeError, TypeError):
+                item["created_display"] = ""
+                item["created_iso"] = ""
+        else:
+            item["created_display"] = ""
+            item["created_iso"] = ""
+        del item["created"]
+    return JsonResponse({"updates": items})
+
+
 @csrf_exempt
 @require_http_methods(["POST"])
 def report_pdf(request, level, subject):
@@ -477,19 +586,23 @@ def report_pdf(request, level, subject):
     score_comment = data.get("scoreComment") or ""
     mark_level = data.get("markLevel")
 
-    date_solution = ""
-    time_start = ""
-    time_end = ""
-    try:
-        if start_time_raw:
-            dt = datetime.fromisoformat(start_time_raw.replace("Z", "+00:00"))
-            date_solution = dt.strftime("%d.%m.%Y")
-            time_start = dt.strftime("%H:%M:%S")
-        if end_time_raw:
-            dt_end = datetime.fromisoformat(end_time_raw.replace("Z", "+00:00"))
-            time_end = dt_end.strftime("%H:%M:%S")
-    except (ValueError, TypeError):
-        pass
+    # Время в отчёте — по компьютеру пользователя (передано с фронта в локальном формате)
+    date_solution = (data.get("dateSolutionLocal") or "").strip()
+    time_start = (data.get("timeStartLocal") or "").strip()
+    time_end = (data.get("timeEndLocal") or "").strip()
+    if not date_solution or not time_start:
+        try:
+            if start_time_raw:
+                dt = datetime.fromisoformat(start_time_raw.replace("Z", "+00:00"))
+                if not date_solution:
+                    date_solution = dt.strftime("%d.%m.%Y")
+                if not time_start:
+                    time_start = dt.strftime("%H:%M:%S")
+            if end_time_raw and not time_end:
+                dt_end = datetime.fromisoformat(end_time_raw.replace("Z", "+00:00"))
+                time_end = dt_end.strftime("%H:%M:%S")
+        except (ValueError, TypeError):
+            pass
 
     subject_label = {
         "inf": "Информатика",
@@ -565,7 +678,8 @@ def report_pdf(request, level, subject):
 
 def _render_variant_pdf(request, level, subject, variant_id, background_url="", theme="default"):
 
-    cache_path = pdf_utils.get_pdf_cache_path(variant_id, theme)
+    author_filter = (request.GET.get("author") or "").strip() or None
+    cache_path = pdf_utils.get_pdf_cache_path(variant_id, theme, author_filter)
     nocache = request.GET.get("nocache", "").lower() in ("1", "true", "yes")
     if django_settings.DEBUG:
         nocache = True  # В режиме разработки всегда перегенерируем PDF
@@ -579,7 +693,7 @@ def _render_variant_pdf(request, level, subject, variant_id, background_url="", 
 
     variant = get_object_or_404(Variant, id=variant_id)
     try:
-        context = pdf_utils.build_pdf_context(request, variant, subject)
+        context = pdf_utils.build_pdf_context(request, variant, subject, author_filter=author_filter)
     except Exception as e:
         logger.exception("PDF build_pdf_context failed for variant %s: %s", variant_id, e)
         return HttpResponse("Ошибка подготовки PDF", status=500, content_type="text/plain; charset=utf-8")

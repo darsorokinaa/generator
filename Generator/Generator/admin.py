@@ -11,15 +11,15 @@ from .models import (
     Part,
     PreviewType,
     Subject,
+    SubTopic,
     SupportInfo,
     Tag,
-    Tags,
-    TagsList,
     Task,
     TaskGroup,
     TaskGroupMember,
     TaskList,
     TaskPreview,
+    Update,
     Variant,
     VariantContent,
 )
@@ -35,6 +35,12 @@ class SearchByIdMixin:
             q_id = Q(id=int(search_term.strip()))
             queryset = self.model.objects.filter(q_id) | queryset
         return queryset, use_distinct
+
+
+class SubTopicInline(admin.TabularInline):
+    model = SubTopic
+    extra = 1
+    fields = ("title", "order")
 
 
 @admin.register(Subject)
@@ -54,6 +60,7 @@ class TaskListAdmin(SearchByIdMixin, admin.ModelAdmin):
     list_select_related = ("subject", "level", "part")
     list_per_page = 25
     show_full_result_count = False
+    inlines = [SubTopicInline]
 
 
 @admin.register(Level)
@@ -64,17 +71,17 @@ class LevelAdmin(admin.ModelAdmin):
 
 @admin.register(Task)
 class TaskAdmin(SearchByIdMixin, admin.ModelAdmin):
-    list_display = ("id", "task", "max_score", "answer_preview", "created_by", "added_at")
-    list_filter = ("task__subject", "task__level", "task__part", "created_by", "added_at")
+    list_display = ("id", "task_with_title", "task_template_preview", "subtopic", "max_score", "answer_preview", "created_by", "added_at")
+    list_filter = ("task__subject", "task__level", "task__part", "subtopic", "created_by", "added_at")
+    list_editable = ("subtopic",)
     search_fields = ("answer",)
     date_hierarchy = "added_at"
-    list_select_related = ("task__subject", "task__level", "task__part")
+    list_select_related = ("task__subject", "task__level", "task__part", "subtopic")
     list_per_page = 25
     show_full_result_count = False
     raw_id_fields = ("task",)
-
     fieldsets = (
-        (None, {"fields": ("task", "task_template", "answer", "max_score", "files", "author", "added_at", "created_by")}),
+        (None, {"fields": ("task", "subtopic", "task_template", "answer", "max_score", "files", "author", "added_at", "created_by")}),
     )
 
     def formfield_for_dbfield(self, db_field, request, **kwargs):
@@ -82,12 +89,32 @@ class TaskAdmin(SearchByIdMixin, admin.ModelAdmin):
             kwargs["widget"] = CKEditor5Widget(config_name="default")
         return super().formfield_for_dbfield(db_field, request, **kwargs)
 
+    def task_with_title(self, obj):
+        if not obj.task:
+            return "—"
+        return f"№{obj.task.task_number} — {obj.task.task_title}"
+    task_with_title.short_description = "Задача"
+    task_with_title.admin_order_field = "task__task_number"
+
+    def task_template_preview(self, obj):
+        raw = obj.task_template or ""
+        plain = strip_tags(raw).strip() if raw else ""
+        return (plain[:60] + "…") if len(plain) > 60 else plain
+    task_template_preview.short_description = "Условие задачи"
+
     def answer_preview(self, obj):
         raw = obj.answer or ""
         plain = strip_tags(raw).strip() if raw else ""
         return (plain[:50] + "…") if len(plain) > 50 else plain
 
     answer_preview.short_description = "Ответ"
+
+
+@admin.register(SubTopic)
+class SubTopicAdmin(admin.ModelAdmin):
+    list_display = ("id", "task_list", "title", "order")
+    list_filter = ("task_list__subject", "task_list__level")
+    ordering = ("task_list", "order", "title")
 
 
 @admin.register(Variant)
@@ -148,20 +175,6 @@ class TaskGroupAdmin(admin.ModelAdmin):
     list_select_related = ("subject", "level")
     inlines = (TaskGroupMemberInline,)
 
-
-
-@admin.register(Tags)
-class TagsAdmin(admin.ModelAdmin):
-    list_display = ("id", "tag")
-    list_filter = ("tag",)
-    search_fields = ("tag",)
-
-
-@admin.register(TagsList)
-class TagsListAdmin(admin.ModelAdmin):
-    list_display = ("id", "tag")
-    list_filter = ("tag",)
-    search_fields = ("tag",)
 
 
 @admin.register(Tag)
@@ -235,3 +248,14 @@ class TaskPreviewAdmin(admin.ModelAdmin):
         return (plain[:50] + "…") if len(plain) > 50 else plain
 
     preview_preview.short_description = "Текст перед задачами"
+
+
+@admin.register(Update)
+class UpdateAdmin(admin.ModelAdmin):
+    list_display = ("id", "created", "title", "show")
+    list_editable = ("show",)
+    list_filter = ("show",)
+    search_fields = ("title", "description")
+    date_hierarchy = "created"
+    ordering = ["-created"]
+    readonly_fields = ("created",)

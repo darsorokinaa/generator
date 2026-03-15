@@ -24,7 +24,7 @@ function Layout() {
       }}
     >
       <header>
-  <div className="container">
+      <div className="container">
     <div className="header-wrapper">
       <div className="logo-block">
         <Link to="/" className="logo-link">
@@ -32,6 +32,9 @@ function Layout() {
           <span className="logo-text">Генератор</span>
         </Link>
       </div>
+      <nav className="header-nav">
+        <Link to="/about" className="header-nav-link">От авторов</Link>
+      </nav>
     </div>
   </div>
 </header>

@@ -63,6 +63,13 @@ class TaskList(models.Model):
 # Банк задач
 class Task(models.Model):
     task = models.ForeignKey(TaskList, on_delete=CASCADE, null=True, db_index=True)
+    subtopic = models.ForeignKey(          # ← новое
+        'SubTopic',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        db_index=True
+    )
     task_template = CKEditor5Field("Task text", config_name='default')
     files = models.FileField(upload_to='task_files', blank=True, null=True)
 
@@ -233,3 +240,49 @@ class TaskPreview(models.Model):
     class Meta:
         verbose_name = "Текст перед задачами"
 
+# Добавь новую модель SubTopic
+class SubTopic(models.Model):
+    task_list = models.ForeignKey(
+        TaskList,
+        on_delete=CASCADE,
+        related_name='subtopics'
+    )
+    title = models.CharField(max_length=100)
+    order = models.IntegerField(default=0)
+
+    class Meta:
+        verbose_name = "Подтемы"
+        ordering = ['order', 'title']
+        unique_together = [('task_list', 'title')]
+
+    def __str__(self):
+        return self.title
+
+
+class Update(models.Model):
+    """Обновления платформы: заголовок, краткое описание и время добавления."""
+    SHOW_CHOICES = [
+        (True, "Показывать"),
+        (False, "Скрыть"),
+    ]
+    title = models.CharField(verbose_name="Заголовок", max_length=255)
+    description = models.TextField(verbose_name="Краткое описание", blank=True)
+    created = models.DateTimeField(
+        verbose_name="Время добавления",
+        auto_now_add=True,
+        editable=False,
+    )
+    show = models.BooleanField(
+        verbose_name="Статус показа",
+        default=True,
+        choices=SHOW_CHOICES,
+        help_text="Показывать это обновление пользователям",
+    )
+
+    class Meta:
+        verbose_name = "Обновление"
+        verbose_name_plural = "Обновления"
+        ordering = ["-created"]
+
+    def __str__(self):
+        return f"{self.created.strftime('%Y-%m-%d %H:%M')}: {self.title}"

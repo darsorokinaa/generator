@@ -1,7 +1,16 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 function IndexPage() {
   const navigate = useNavigate();
+  const [updates, setUpdates] = useState([]);
+
+  useEffect(() => {
+    fetch("/api/updates/", { credentials: "include" })
+      .then((res) => (res.ok ? res.json() : { updates: [] }))
+      .then((data) => setUpdates(Array.isArray(data.updates) ? data.updates : []))
+      .catch(() => setUpdates([]));
+  }, []);
 
   return (
     <div>
@@ -64,6 +73,21 @@ function IndexPage() {
         </section>
 
         <div className="index-main">
+          {updates.length > 0 && (
+            <section className="index-updates-block" aria-label="Обновления платформы">
+              <h2 className="index-updates-title">Обновления</h2>
+              <ul className="index-updates-list">
+                {updates.map((u) => (
+                  <li key={u.id} className="index-updates-item">
+                    <time className="index-updates-date" dateTime={u.created_iso || undefined}>{u.created_display}</time>
+                    <h3 className="index-updates-item-title">{u.title}</h3>
+                    {u.description ? <p className="index-updates-text">{u.description}</p> : null}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+
           <div className="hero">
             <h1>Добро пожаловать!</h1>
             <p>

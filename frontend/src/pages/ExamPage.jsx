@@ -95,6 +95,9 @@ function ExamPage() {
   const [reportErrorOpen, setReportErrorOpen] = useState(false);
   const [reportErrorTask, setReportErrorTask] = useState(null);
 
+  // Фильтр по автору (на странице сгенерированного варианта)
+  const [authorFilter, setAuthorFilter] = useState("");
+
   // Время на каждое задание (секунды)
   const taskTimesRef = useRef({});
   const currentTaskIdRef = useRef(null);
@@ -718,13 +721,6 @@ function ExamPage() {
     setVisibleAnswers((p) => ({ ...p, [taskId]: !p[taskId] }));
   }
 
-  function resetAllAnswers() {
-    setUserAnswers({});
-    setCheckedTasks({});
-    setScores({});
-    setVisibleAnswers({});
-  }
-
   function undoBoard() {
     if (objectsRef.current.length === 0) return;
     const obj = objectsRef.current.pop();
@@ -767,8 +763,14 @@ function ExamPage() {
   if (error) return <div style={{ padding: 20 }}>Ошибка: {error}</div>;
   if (!variant) return <div style={{ padding: 20 }}>Загрузка...</div>;
 
-  const part1Tasks = variant.tasks.filter((t) => t.part === 1);
-  const part2Tasks = variant.tasks.filter((t) => t.part === 2);
+  const variantAuthors = [...new Set(variant.tasks.map((t) => (t.author || "").trim()).filter(Boolean))].sort();
+  const showAuthorFilter = mode === "test" && variantAuthors.length > 0;
+  const tasksFilteredByAuthor =
+    showAuthorFilter && authorFilter
+      ? variant.tasks.filter((t) => (t.author || "").trim() === authorFilter)
+      : variant.tasks;
+  const part1Tasks = tasksFilteredByAuthor.filter((t) => t.part === 1);
+  const part2Tasks = tasksFilteredByAuthor.filter((t) => t.part === 2);
 
   // Связанные задания 19–21 — только для ЕГЭ информатика; для математики всё как обычные задания
   const LINKED_19_21 = [19, 20, 21];
@@ -875,10 +877,12 @@ function ExamPage() {
     setResultsOpen(true);
   };
 
+  const pdfAuthorParam = showAuthorFilter && authorFilter ? `author=${encodeURIComponent(authorFilter)}` : "";
+
   const openPdf = async (variantId) => {
     setPdfLoading("default");
+    const url = `/api/${level}/${subject}/variant/${variantId}/pdf/${pdfAuthorParam ? `?${pdfAuthorParam}` : ""}`;
     try {
-      const url = `/api/${level}/${subject}/variant/${variantId}/pdf/`;
       const res = await fetch(url, { credentials: "same-origin" });
       if (!res.ok) throw new Error("Ошибка загрузки PDF");
       const blob = await res.blob();
@@ -892,7 +896,7 @@ function ExamPage() {
       setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
     } catch (err) {
       const a = document.createElement("a");
-      a.href = `/api/${level}/${subject}/variant/${variantId}/pdf/`;
+      a.href = url;
       a.download = `variant-${variantId}.pdf`;
       a.target = "_blank";
       document.body.appendChild(a);
@@ -905,8 +909,8 @@ function ExamPage() {
 
   const openPdfSpring = async (variantId) => {
     setPdfLoading("spring");
+    const url = `/api/${level}/${subject}/variant/${variantId}/pdf/?theme=spring${pdfAuthorParam ? `&${pdfAuthorParam}` : ""}`;
     try {
-      const url = `/api/${level}/${subject}/variant/${variantId}/pdf/?theme=spring`;
       const res = await fetch(url, { credentials: "same-origin" });
       if (!res.ok) throw new Error("Ошибка загрузки PDF");
       const blob = await res.blob();
@@ -920,7 +924,7 @@ function ExamPage() {
       setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
     } catch (err) {
       const a = document.createElement("a");
-      a.href = `/api/${level}/${subject}/variant/${variantId}/pdf/?theme=spring`;
+      a.href = url;
       a.download = `variant-${variantId}-spring.pdf`;
       a.target = "_blank";
       document.body.appendChild(a);
@@ -1036,9 +1040,6 @@ function ExamPage() {
 
                 <div className="variant-hero-right">
                   <div className="variant-hero-actions">
-                    <button className="variant-btn-danger" onClick={resetAllAnswers}>
-                      ↺ Сбросить всё
-                    </button>
                     <button
                       className="variant-btn-primary"
                       onClick={() => openPdf(variant.id)}
@@ -1057,6 +1058,24 @@ function ExamPage() {
                 </div>
               </div>
             </div>
+
+            {showAuthorFilter && (
+              <div className="variant-author-bar">
+                <label className="variant-author-filter">
+                  <span className="variant-author-label">Автор:</span>
+                  <select
+                    className="variant-author-select"
+                    value={authorFilter}
+                    onChange={(e) => setAuthorFilter(e.target.value)}
+                  >
+                    <option value="">Все</option>
+                    {variantAuthors.map((a) => (
+                      <option key={a} value={a}>{a}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            )}
 
             {/* ===== ЧАСТЬ 1 ===== */}
             {part1Tasks.length > 0 && (

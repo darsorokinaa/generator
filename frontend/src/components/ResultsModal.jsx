@@ -17,32 +17,49 @@ export default function ResultsModal({ open, onClose, results }) {
     return () => document.removeEventListener("keydown", handleKey);
   }, [open, onClose]);
 
+  const formatLocalDate = (d) => {
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    return `${day}.${month}.${d.getFullYear()}`;
+  };
+  const formatLocalTime = (d) => {
+    return [d.getHours(), d.getMinutes(), d.getSeconds()]
+      .map((n) => String(n).padStart(2, "0"))
+      .join(":");
+  };
+
   const handleDownloadReport = async (studentName) => {
     if (!results || reportLoading) return;
     setReportLoading(true);
     try {
+      const startDate = results.startTime ? new Date(results.startTime) : null;
+      const endDate = results.endTime ? new Date(results.endTime) : null;
+      const payload = {
+        studentName,
+        variantId: results.variantId,
+        startTime: results.startTime,
+        endTime: results.endTime,
+        dateSolutionLocal: startDate ? formatLocalDate(startDate) : "",
+        timeStartLocal: startDate ? formatLocalTime(startDate) : "",
+        timeEndLocal: endDate ? formatLocalTime(endDate) : "",
+        totalTimeFormatted: results.totalTimeFormatted,
+        taskTimes: results.taskTimes,
+        checkedTasks: results.checkedTasks,
+        scores: results.scores,
+        totalScore: results.totalScore,
+        maxScore: results.maxScore,
+        scoreExam: results.scoreExam,
+        scoreComment: results.scoreComment,
+        markLevel: results.markLevel,
+        tasks: results.tasks,
+      };
       const res = await fetch(
         `/api/${results.level}/${results.subject}/report-pdf/`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "same-origin",
-          body: JSON.stringify({
-            studentName,
-            variantId: results.variantId,
-            startTime: results.startTime,
-            endTime: results.endTime,
-            totalTimeFormatted: results.totalTimeFormatted,
-            taskTimes: results.taskTimes,
-            checkedTasks: results.checkedTasks,
-            scores: results.scores,
-            totalScore: results.totalScore,
-            maxScore: results.maxScore,
-            scoreExam: results.scoreExam,
-            scoreComment: results.scoreComment,
-            markLevel: results.markLevel,
-            tasks: results.tasks,
-          }),
+          body: JSON.stringify(payload),
         }
       );
       if (!res.ok) throw new Error("Ошибка загрузки отчёта");
