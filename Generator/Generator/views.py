@@ -75,11 +75,32 @@ def react_app(request):
     )
 
 
+# Фильтр ФИПИ: author = 'ФИПИ' (точное совпадение) или автор содержит ключевые слова
+_FIPI_AUTHOR_KEYWORDS = [
+    "егкр", "егэ", "апробация", "открытый вариант", "открытый", "демоверсия", "демо",
+]
+
+
+def _get_fipi_q():
+    """Единый фильтр ФИПИ: author = 'ФИПИ' или автор содержит егкр, егэ, апробация, открытый вариант, демоверсия, демо."""
+    q = Q(author__iexact="ФИПИ")
+    for kw in _FIPI_AUTHOR_KEYWORDS:
+        q = q | Q(author__icontains=kw)
+    return q
+
+
 def _create_variant(subject_short, level_str, body_bytes):
     subject_instance = get_object_or_404(Subject, subject_short=subject_short)
     level_instance = get_object_or_404(Level, level=level_str)
     data = json.loads(body_bytes)
-    if isinstance(data, dict) and "content" in data and "tasks" in data:
+
+    # Глобальный флаг "только ФИПИ" (для варианта/теста)
+    only_fipi = False
+    if isinstance(data, dict):
+        only_fipi = bool(data.get("only_fipi"))
+
+    # Унифицированное извлечение content: либо из поля "content", либо из корневого словаря
+    if isinstance(data, dict) and "content" in data:
         content = _normalize_content(data["content"])
     else:
         content = _normalize_content(data)
@@ -96,6 +117,9 @@ def _create_variant(subject_short, level_str, body_bytes):
             subtopic_counts = None
     if not content:
         raise ValueError("Не выбрано ни одного задания")
+
+    # Тот же фильтр ФИПИ, что и в тренажёре (без учёта подтем)
+    fipi_q = _get_fipi_q() if only_fipi else Q()
 
     tasklist_ids = [int(k) for k in content.keys()]
     ordered_tasklists = list(
@@ -163,6 +187,11 @@ def _create_variant(subject_short, level_str, body_bytes):
                 group_tasks, group_ids = take_linked_groups(linked)
                 break
         if group_tasks is not None and group_ids is not None:
+            if only_fipi and fipi_q:
+                fipi_ids = set(
+                    Task.objects.filter(id__in=[t.id for t in group_tasks]).filter(fipi_q).values_list("id", flat=True)
+                )
+                group_tasks = [t for t in group_tasks if t.id in fipi_ids]
             selected_tasks.extend(group_tasks)
             handled_tasklist_ids.update(group_ids)
             continue
@@ -172,14 +201,17 @@ def _create_variant(subject_short, level_str, body_bytes):
                     continue
                 if not SubTopic.objects.filter(id=st_id, task_list_id=tasklist_id).exists():
                     continue
-                tasks_for_subtopic = list(
-                    Task.objects.filter(task_id=tasklist_id, subtopic_id=st_id).order_by("?")[: st_count]
-                )
+                qs = Task.objects.filter(task_id=tasklist_id, subtopic_id=st_id)
+                if only_fipi and fipi_q:
+                    qs = qs.filter(fipi_q)
+                tasks_for_subtopic = list(qs.order_by("?")[: st_count])
                 selected_tasks.extend(tasks_for_subtopic)
         else:
             qs = Task.objects.filter(task_id=tasklist_id)
             if subtopic_ids:
                 qs = qs.filter(subtopic_id__in=subtopic_ids)
+            if only_fipi and fipi_q:
+                qs = qs.filter(fipi_q)
             tasks_for_slot = list(qs.order_by("?")[: int(count)])
             selected_tasks.extend(tasks_for_slot)
 
@@ -401,15 +433,22 @@ def api_subtopics(request, level, subject):
             "task_title": tl.task_title,
             "subtopics": subtopics,
         })
-    counts = dict(
-        Task.objects.filter(subtopic_id__in=all_subtopic_ids)
-        .values("subtopic_id")
-        .annotate(c=Count("id"))
-        .values_list("subtopic_id", "c")
-    ) if all_subtopic_ids else {}
+    # Счётчики по каждой подтеме — тот же фильтр ФИПИ, что и при генерации варианта
+    fipi_q = _get_fipi_q()
+
     for block in out:
+        tl_id = block["task_list_id"]
         for st in block["subtopics"]:
-            st["task_count"] = counts.get(st["id"], 0)
+            title = st["title"]
+            # Ищем задачи по связке: слот (TaskList) + название подтемы,
+            # чтобы корректно учитывать случаи, когда subtopic_id может не совпадать,
+            # но название подтемы у задачи установлено правильно.
+            base_qs = Task.objects.filter(
+                task_id=tl_id,
+                subtopic__title=title,
+            )
+            st["task_count"] = base_qs.count()
+            st["fipi_task_count"] = base_qs.filter(fipi_q).count()
     return JsonResponse({"subtopics_by_task": out})
 
 
@@ -477,7 +516,6 @@ def api_variant_detail(request, level, subject, variant_id):
             "file": file_url,
             "author": (item.task.author or "").strip() or None,
             "max_score": max_score,
-            "subdivision": getattr(task_list, "subdivision", "") if task_list else "",
         })
 
     return JsonResponse({
@@ -490,11 +528,7 @@ def api_variant_detail(request, level, subject, variant_id):
 
 @require_http_methods(["GET"])
 def api_score_conversion(request, level, subject):
-    """Конвертация тестовых баллов в оценку / вторичные баллы по таблице Mark.
-
-    Для ОГЭ по математике дополнительно учитываем минимальное количество верных задач по геометрии:
-    если geo_correct < 2, считаем экзамен несданным.
-    """
+    """Конвертация тестовых баллов в вторичные по таблице Mark."""
     score = request.GET.get("score", "0")
     try:
         total = int(score)
@@ -509,31 +543,11 @@ def api_score_conversion(request, level, subject):
         .select_related("comment")
         .first()
     )
-    level_val = str(level).lower()
-    subject_val = str(subject).lower()
-
-    # Базовый результат из таблицы Mark (если есть)
-    if mark_row is not None:
-        score_exam = mark_row.score_exam
-        comment = mark_row.comment.comment_text if mark_row.comment else None
-        mark_level = mark_row.comment.mark_level if (mark_row.comment and mark_row.comment.mark_level) else None
-    else:
-        score_exam = None
-        comment = None
-        mark_level = None
-
-    # Специальное правило для ОГЭ по математике: минимум 2 верных задания геометрии
-    if level_val == "oge" and subject_val == "math":
-        try:
-            geo_correct = int(request.GET.get("geo_correct", "0"))
-        except ValueError:
-            geo_correct = 0
-        if geo_correct < 2:
-            score_exam = None
-            # Жёстко фиксируем комментарий и уровень как «Недостаточно»
-            comment = "Экзамен не сдан: верных задач по разделу «Геометрия» меньше 2."
-            mark_level = 1
-
+    if mark_row is None:
+        return JsonResponse({"score_exam": None, "comment": None, "mark_level": None})
+    score_exam = mark_row.score_exam
+    comment = mark_row.comment.comment_text if mark_row.comment else None
+    mark_level = mark_row.comment.mark_level if (mark_row.comment and mark_row.comment.mark_level) else None
     return JsonResponse({"score_exam": score_exam, "comment": comment, "mark_level": mark_level})
 
 
@@ -684,7 +698,6 @@ def report_pdf(request, level, subject):
         "score_comment": score_comment,
         "score_comment_class": score_comment_class,
         "pdf_css": pdf_utils.get_pdf_css(),
-        "is_oge": level_val == "oge",
     }
 
     html_string = render_to_string("report_template.html", context)
