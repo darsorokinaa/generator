@@ -56,7 +56,19 @@ FAVICON_SVG = (
 
 
 def _normalize_content(data):
-    return {str(k): int(v) for k, v in data.items() if int(v) > 0}
+    if not isinstance(data, dict):
+        return {}
+    result = {}
+    for k, v in data.items():
+        if isinstance(v, dict):
+            continue
+        try:
+            n = int(v)
+        except (TypeError, ValueError):
+            continue
+        if n > 0:
+            result[str(k)] = n
+    return result
 
 
 def favicon(request):
@@ -126,7 +138,19 @@ def _create_variant(subject_short, level_str, body_bytes):
         if not subtopic_ids:
             subtopic_ids = None
     if isinstance(data, dict) and data.get("subtopic_counts") and isinstance(data["subtopic_counts"], dict):
-        subtopic_counts = {int(k): int(v) for k, v in data["subtopic_counts"].items() if v > 0}
+        subtopic_counts = {}
+        for k, v in data["subtopic_counts"].items():
+            if isinstance(v, dict):
+                continue
+            try:
+                n = int(v)
+            except (TypeError, ValueError):
+                continue
+            if n > 0:
+                try:
+                    subtopic_counts[int(k)] = n
+                except (TypeError, ValueError):
+                    pass
         if not subtopic_counts:
             subtopic_counts = None
     if not content:
