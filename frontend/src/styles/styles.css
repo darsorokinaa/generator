@@ -1537,6 +1537,8 @@ header .container {
 
 @media (max-width: 640px) {
     .tasks-page-subtopics {
+        display: block;
+        visibility: visible;
         padding: 1rem 1rem 1.25rem;
         margin-bottom: 1rem;
     }

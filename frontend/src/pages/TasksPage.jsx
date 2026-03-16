@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 
 const SUBJECT_NAMES = { math: "Математика", inf: "Информатика" };
@@ -21,6 +21,7 @@ function TasksPage() {
   const [selectedSubtopicIds, setSelectedSubtopicIds] = useState([]);
   /** Подтемы показываются только после клика по номеру задания */
   const [subtopicsPanelOpen, setSubtopicsPanelOpen] = useState(false);
+  const subtopicsBlockRef = useRef(null);
   /** Количество задач по подтеме (id подтемы → число) */
   const [subtopicCounts, setSubtopicCounts] = useState({});
 
@@ -64,6 +65,16 @@ function TasksPage() {
       });
     return () => { cancelled = true; };
   }, [level, subject]);
+
+  // На мобильных прокрутить к блоку подтем при открытии
+  useEffect(() => {
+    if (subtopicsPanelOpen && subtopicsByTask.length > 0 && Object.keys(testCounts).some((id) => (testCounts[id] ?? 0) > 0)) {
+      const t = setTimeout(() => {
+        subtopicsBlockRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+      return () => clearTimeout(t);
+    }
+  }, [subtopicsPanelOpen, subtopicsByTask.length, testCounts]);
 
   const matchesSearch = (item) => {
     if (!searchQuery) return true;
@@ -499,7 +510,7 @@ function TasksPage() {
           })}
         </div>
         {subtopicsPanelOpen && subtopicsByTask.length > 0 && testSelectedIds.length > 0 && (
-          <div className="tasks-page-subtopics">
+          <div ref={subtopicsBlockRef} className="tasks-page-subtopics">
             <div className="tasks-page-subtopics-list tasks-page-subtopics-column">
               {subtopicsByTask.map(({ task_number, task_title, subtopics }) => (
                 <div key={task_number} className="tasks-page-subtopics-task">
