@@ -26,6 +26,9 @@ function TasksPage() {
 
   /** Блок 2: счётчики по task_N / group_N */
   const [testCounts, setTestCounts] = useState({});
+  /** Фильтры «Только задачи ФИПИ» */
+  const [onlyFipiVariant, setOnlyFipiVariant] = useState(false);
+  const [onlyFipiTrainer, setOnlyFipiTrainer] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -81,8 +84,36 @@ function TasksPage() {
       ? item.tasks?.[0]?.part
       : item.part;
 
-  const part1Tasks = tasks.filter((item) => getItemPart(item) === 1 && matchesSearch(item));
-  const part2Tasks = tasks.filter((item) => getItemPart(item) === 2 && matchesSearch(item));
+  // Определяем, есть ли у TaskList задачи автора ФИПИ (по данным подтем)
+  const hasFipiForTaskList = (taskListId) => {
+    const block = subtopicsByTask.find((b) => b.task_list_id === taskListId);
+    if (!block) return false;
+    return (block.subtopics || []).some((st) => (st.fipi_task_count ?? 0) > 0);
+  };
+
+  // ФИПИ-элемент: у одиночного номера или любой части группы есть хотя бы одна задача ФИПИ
+  const isFipiItem = (item) => {
+    if (item.type === "linked_group" || item.type === "group") {
+      const ids = (item.tasks || []).map((t) => t.tasklist_id).filter(Boolean);
+      return ids.some((id) => hasFipiForTaskList(id));
+    }
+    return hasFipiForTaskList(item.id);
+  };
+
+  // Для генерации варианта: при включённом фильтре берём только ФИПИ-элементы
+  const tasksForVariant =
+    onlyFipiVariant && subtopicsByTask.length > 0 ? tasks.filter(isFipiItem) : tasks;
+
+  // Для тренажёра: фильтр ФИПИ + поиск по номеру/названию
+  const tasksForTrainer =
+    (onlyFipiTrainer && subtopicsByTask.length > 0 ? tasks.filter(isFipiItem) : tasks).filter(matchesSearch);
+
+  const part1Tasks = tasksForVariant.filter(
+    (item) => getItemPart(item) === 1 && matchesSearch(item)
+  );
+  const part2Tasks = tasksForVariant.filter(
+    (item) => getItemPart(item) === 2 && matchesSearch(item)
+  );
 
   const postVariant = (payload, mode = "variant", extra = {}) => {
     const body = JSON.stringify(payload);
@@ -125,20 +156,36 @@ function TasksPage() {
   const [submitBlock2, setSubmitBlock2] = useState(false);
 
   const onPart1 = () => {
-    const payload = payloadFromTasks(part1Tasks);
-    if (Object.keys(payload).length === 0) return;
+    const items = onlyFipiVariant
+      ? tasks.filter((item) => getItemPart(item) === 1)
+      : part1Tasks;
+    const payload = {
+      content: payloadFromTasks(items),
+      ...(onlyFipiVariant ? { only_fipi: true } : {}),
+    };
+    if (Object.keys(payload.content).length === 0) return;
     setSubmitBlock1(true);
     postVariant(payload, "part1").catch((err) => setError(err.message)).finally(() => setSubmitBlock1(false));
   };
   const onPart2 = () => {
-    const payload = payloadFromTasks(part2Tasks);
-    if (Object.keys(payload).length === 0) return;
+    const items = onlyFipiVariant
+      ? tasks.filter((item) => getItemPart(item) === 2)
+      : part2Tasks;
+    const payload = {
+      content: payloadFromTasks(items),
+      ...(onlyFipiVariant ? { only_fipi: true } : {}),
+    };
+    if (Object.keys(payload.content).length === 0) return;
     setSubmitBlock1(true);
     postVariant(payload, "part2").catch((err) => setError(err.message)).finally(() => setSubmitBlock1(false));
   };
   const onChooseAll = () => {
-    const payload = payloadFromTasks(tasks);
-    if (Object.keys(payload).length === 0) return;
+    // Все слоты отправляем всегда; при only_fipi бэкенд сам отфильтрует по ФИПИ по каждому слоту
+    const payload = {
+      content: payloadFromTasks(tasks),
+      ...(onlyFipiVariant ? { only_fipi: true } : {}),
+    };
+    if (Object.keys(payload.content).length === 0) return;
     setSubmitBlock1(true);
     postVariant(payload, "variant").catch((err) => setError(err.message)).finally(() => setSubmitBlock1(false));
   };
@@ -185,7 +232,11 @@ function TasksPage() {
         tasksList.push({ task_numbers: nums, count: c });
       }
     }
-    const payload = { content, tasks: tasksList };
+    const payload = {
+      content,
+      tasks: tasksList,
+      ...(onlyFipiTrainer ? { only_fipi: true } : {}),
+    };
     if (useSubtopicCounts) {
       payload.subtopic_ids = selectedSubtopicIds;
       const counts = {};
@@ -347,11 +398,21 @@ function TasksPage() {
 
   return (
     <div className="container tasks-page">
-      
-     
-
       <div className="tasks-page-card">
         <h2 className="tasks-page-card-title">Сгенерировать вариант</h2>
+        <label className="tasks-page-fipi-toggle">
+          <input
+            type="checkbox"
+            className="tasks-page-subtopic-checkbox-input"
+            checked={onlyFipiVariant}
+            onChange={(e) => setOnlyFipiVariant(e.target.checked)}
+          />
+          <span
+            className={`tasks-page-subtopic-checkbox-visual ${onlyFipiVariant ? "selected" : ""}`}
+            aria-hidden
+          />
+          <span className="tasks-page-fipi-text">Только задачи ФИПИ</span>
+        </label>
         <div className="tasks-page-actions">
           <div className="tasks-page-actions-left">
             <button
@@ -381,6 +442,19 @@ function TasksPage() {
 
       <div className="tasks-page-card">
         <h2 className="tasks-page-card-title">Тренажёр по номерам</h2>
+        <label className="tasks-page-fipi-toggle">
+          <input
+            type="checkbox"
+            className="tasks-page-subtopic-checkbox-input"
+            checked={onlyFipiTrainer}
+            onChange={(e) => setOnlyFipiTrainer(e.target.checked)}
+          />
+          <span
+            className={`tasks-page-subtopic-checkbox-visual ${onlyFipiTrainer ? "selected" : ""}`}
+            aria-hidden
+          />
+          <span className="tasks-page-fipi-text">Только задачи ФИПИ</span>
+        </label>
         <div className="tasks-page-test-summary">
           <span className="tasks-page-test-summary-label">Выбраны номера:</span>
           <span className="tasks-page-test-summary-nums">
@@ -432,7 +506,10 @@ function TasksPage() {
                   <span className="tasks-page-subtopics-task-label">№{task_number}: {task_title}</span>
                   <div className="tasks-page-subtopics-checkboxes tasks-page-subtopics-col">
                     {(subtopics || []).map((st) => {
-                      const maxCount = st.task_count ?? 0;
+                      const maxCount =
+                        onlyFipiTrainer && typeof st.fipi_task_count === "number"
+                          ? st.fipi_task_count
+                          : st.task_count ?? 0;
                       const count = subtopicCounts[st.id] ?? 0;
                       const isChecked = selectedSubtopicIds.includes(st.id);
                       return (
@@ -453,12 +530,12 @@ function TasksPage() {
                           <div className="tasks-page-subtopic-counter-wrap">
                             <span
                               className="tasks-page-subtopic-num"
-                              title={maxCount > 0 ? `Выбрано ${count} из ${maxCount}` : "Нет задач"}
+                              title={`Выбрано ${count} из ${maxCount}`}
                             >
                               {count}
                             </span>
                             <span className="tasks-page-subtopic-of">
-                              {maxCount > 0 ? `из ${maxCount}` : "—"}
+                              {`из ${maxCount}`}
                             </span>
                             <div className="tasks-page-subtopic-stepper">
                               <button

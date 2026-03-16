@@ -7,7 +7,7 @@ import secrets
 from datetime import datetime
 
 from django.conf import settings as django_settings
-from django.db.models import Count, Q
+from django.db.models import Case, Count, IntegerField, Q, Value, When
 from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.template.loader import render_to_string
@@ -75,18 +75,32 @@ def react_app(request):
     )
 
 
-# Фильтр ФИПИ: author = 'ФИПИ' (точное совпадение) или автор содержит ключевые слова
+# Фильтр ФИПИ: автор пустой, 'ФИПИ' или содержит любое из этих слов (без учёта регистра)
 _FIPI_AUTHOR_KEYWORDS = [
-    "егкр", "егэ", "апробация", "открытый вариант", "открытый", "демоверсия", "демо",
+    "фипи", "fipi", "егкр", "егэ", "апробация", "открытый вариант", "открытый",
+    "демоверсия", "демо", "досрочный",
 ]
 
 
 def _get_fipi_q():
-    """Единый фильтр ФИПИ: author = 'ФИПИ' или автор содержит егкр, егэ, апробация, открытый вариант, демоверсия, демо."""
-    q = Q(author__iexact="ФИПИ")
-    for kw in _FIPI_AUTHOR_KEYWORDS:
-        q = q | Q(author__icontains=kw)
-    return q
+    """Единый фильтр ФИПИ: автор пустой, или 'ФИПИ', или содержит любое ключевое слово из списка."""
+    return (
+        Q(author__isnull=True)
+        | Q(author__exact="")
+        | Q(author__iexact="ФИПИ")
+        | Q(author__icontains="фипи")
+        | Q(author__icontains="fipi")
+        | Q(author__icontains="ЕГКР")
+        | Q(author__icontains="егэ")
+        | Q(author__icontains="ЕГЭ")
+        | Q(author__icontains="Апробация")
+        | Q(author__icontains="Открытый вариант")
+        | Q(author__icontains="Открытый")
+        | Q(author__icontains="демоверсия")
+        | Q(author__icontains="Демоверсия")
+        | Q(author__icontains="демо")
+        | Q(author__icontains="Досрочный")
+    )
 
 
 def _create_variant(subject_short, level_str, body_bytes):
@@ -122,6 +136,18 @@ def _create_variant(subject_short, level_str, body_bytes):
     fipi_q = _get_fipi_q() if only_fipi else Q()
 
     tasklist_ids = [int(k) for k in content.keys()]
+    # При «Только ФИПИ» дополняем content всеми слотaми предмета/уровня (по 1 задаче), чтобы не терять номера
+    if only_fipi:
+        all_tls = TaskList.objects.filter(
+            subject=subject_instance,
+            level=level_instance,
+        ).values_list("id", flat=True)
+        content = dict(content)
+        for tl_id in all_tls:
+            if tl_id not in content or content.get(str(tl_id), 0) <= 0:
+                content[str(tl_id)] = 1
+        tasklist_ids = [int(k) for k in content.keys()]
+
     ordered_tasklists = list(
         TaskList.objects.filter(
             subject=subject_instance,
@@ -192,23 +218,32 @@ def _create_variant(subject_short, level_str, body_bytes):
                     Task.objects.filter(id__in=[t.id for t in group_tasks]).filter(fipi_q).values_list("id", flat=True)
                 )
                 group_tasks = [t for t in group_tasks if t.id in fipi_ids]
-            selected_tasks.extend(group_tasks)
+            if group_tasks:
+                selected_tasks.extend(group_tasks)
+            elif only_fipi and group_ids:
+                for gid in group_ids:
+                    c = content.get(str(gid), 1)
+                    if c <= 0:
+                        continue
+                    qs = Task.objects.filter(task_id=gid).filter(fipi_q)
+                    selected_tasks.extend(list(qs.order_by("?")[: int(c)]))
+            else:
+                selected_tasks.extend(group_tasks)
             handled_tasklist_ids.update(group_ids)
             continue
-        if subtopic_ids and subtopic_counts:
+        # С галочкой «Только ФИПИ» — та же логика, что в тренажёре, но подтемы не учитываем: только слот + фильтр ФИПИ
+        if subtopic_ids and subtopic_counts and not only_fipi:
             for st_id, st_count in subtopic_counts.items():
                 if st_count <= 0:
                     continue
                 if not SubTopic.objects.filter(id=st_id, task_list_id=tasklist_id).exists():
                     continue
                 qs = Task.objects.filter(task_id=tasklist_id, subtopic_id=st_id)
-                if only_fipi and fipi_q:
-                    qs = qs.filter(fipi_q)
                 tasks_for_subtopic = list(qs.order_by("?")[: st_count])
                 selected_tasks.extend(tasks_for_subtopic)
         else:
             qs = Task.objects.filter(task_id=tasklist_id)
-            if subtopic_ids:
+            if subtopic_ids and not only_fipi:
                 qs = qs.filter(subtopic_id__in=subtopic_ids)
             if only_fipi and fipi_q:
                 qs = qs.filter(fipi_q)
@@ -528,21 +563,31 @@ def api_variant_detail(request, level, subject, variant_id):
 
 @require_http_methods(["GET"])
 def api_score_conversion(request, level, subject):
-    """Конвертация тестовых баллов в вторичные по таблице Mark."""
+    """Конвертация первичных баллов в вторичные по таблице Mark. Работает для всех предметов (subject_short в Mark)."""
     score = request.GET.get("score", "0")
     try:
         total = int(score)
     except ValueError:
         total = 0
-    mark_row = (
+    level_norm = (level or "").strip().lower()
+    subject_norm = (subject or "").strip().lower()
+    # Строки Mark по предмету и уровню (точный уровень или level=null для любого)
+    qs = (
         Mark.objects
-        .filter(subject__subject_short=subject)
-        .filter(Q(level__level=level) | Q(level__isnull=True))
+        .filter(subject__subject_short__iexact=subject_norm)
+        .filter(Q(level__level__iexact=level_norm) | Q(level__isnull=True))
         .filter(score__lte=total)
-        .order_by("-score")
         .select_related("comment")
-        .first()
     )
+    # Сначала берём запись с подходящим уровнем, затем с максимальным score <= total
+    qs = qs.annotate(
+        level_match=Case(
+            When(level__level__iexact=level_norm, then=Value(1)),
+            default=Value(0),
+            output_field=IntegerField(),
+        )
+    ).order_by("-level_match", "-score")
+    mark_row = qs.first()
     if mark_row is None:
         return JsonResponse({"score_exam": None, "comment": None, "mark_level": None})
     score_exam = mark_row.score_exam

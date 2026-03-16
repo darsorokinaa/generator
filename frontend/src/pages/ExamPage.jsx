@@ -7,11 +7,7 @@ import SupportInfoModal from "../components/SupportInfoModal";
 import ResultsModal from "../components/ResultsModal";
 import ReportErrorModal from "../components/ReportErrorModal";
 
-const COLORS = [
-  { value: "#000000", label: "Чёрный" },
-  { value: "#2196F3", label: "Синий" },
-  { value: "#F44336", label: "Красный" },
-];
+const COLORS = ["#000000", "#ffffff", "#ef4444", "#3b82f6", "#22c55e"];
 
 const SUBJECT_NAMES = {
   math: "математике",
@@ -704,6 +700,57 @@ function ExamPage() {
     return matrix.map((rowArr) => rowArr.join("\t")).join("\n");
   }
 
+  /** Парсинг эталонного ответа из HTML в матрицу rows×cols (таб/перенос строки). */
+  function parseCorrectTableAnswer(correctAnswerHtml, rows, cols) {
+    const text = getTextFromHtml(correctAnswerHtml || "");
+    const lines = text.split(/\r?\n/);
+    const matrix = [];
+    for (let r = 0; r < rows; r++) {
+      const line = lines[r] || "";
+      matrix.push(line.split(/\t/).slice(0, cols).map((s) => s.trim()));
+      while (matrix[r].length < cols) matrix[r].push("");
+    }
+    return matrix;
+  }
+
+  /** Информатика, задание 26: 2 ответа в одной строке. Оба верны → 2, один верный → 1, иначе 0. */
+  function getInfTask26Score(userMatrix, correctMatrix) {
+    const u = (userMatrix[0] || []).map((c) => normalize(c));
+    const c = (correctMatrix[0] || []).map((cell) => normalize(cell));
+    let match = 0;
+    if (u[0] === c[0]) match++;
+    if (u[1] === c[1]) match++;
+    return match === 2 ? 2 : match === 1 ? 1 : 0;
+  }
+
+  /** Информатика, задание 27: 4 числа в двух строках (2 столбца). Обе строки верны → 2, одна строка верна → 1, иначе 0. */
+  function getInfTask27Score(userMatrix, correctMatrix) {
+    const rowMatch = (r) => {
+      const u = (userMatrix[r] || []).map((cell) => normalize(cell));
+      const c = (correctMatrix[r] || []).map((cell) => normalize(cell));
+      return u[0] === c[0] && u[1] === c[1];
+    };
+    const r0 = rowMatch(0);
+    const r1 = rowMatch(1);
+    if (r0 && r1) return 2;
+    if (r0 || r1) return 1;
+    return 0;
+  }
+
+  /** Проверка задания 26 или 27 по информатике: выставляет баллы 0/1/2 и помечает задание проверенным. */
+  function checkInfTask26Or27(task, rows, cols) {
+    const userMatrix = getTableAnswerString(task.id, rows, cols);
+    const correctMatrix = parseCorrectTableAnswer(task.answer, rows, cols);
+    const score =
+      task.number === 26
+        ? getInfTask26Score(userMatrix, correctMatrix)
+        : task.number === 27
+          ? getInfTask27Score(userMatrix, correctMatrix)
+          : 0;
+    setScores((prev) => ({ ...prev, [task.id]: score }));
+    setCheckedTasks((prev) => ({ ...prev, [task.id]: score > 0 }));
+  }
+
   function resetTask(taskId) {
     setUserAnswers((prev) => {
       const updated = { ...prev };
@@ -782,7 +829,11 @@ function ExamPage() {
 
   const getTaskMaxScore = (task) => task.max_score ?? 3;
   const part2ScoreSum = part2Tasks.reduce((sum, t) => sum + (scores[t.id] || 0), 0);
-  const maxScore = part1Tasks.length + part2Tasks.reduce((sum, t) => sum + getTaskMaxScore(t), 0);
+  // ЕГЭ информатика: макс. первичный балл 29 (часть 1 + 26 и 27 по 2 балла и др.)
+  const maxScore =
+    String(subject).toLowerCase() === "inf" && String(level).toLowerCase() === "ege"
+      ? 29
+      : part1Tasks.length + part2Tasks.reduce((sum, t) => sum + getTaskMaxScore(t), 0);
 
   /** При завершении: авто-проверка непроверенных заданий части 1, подсчёт эффективных баллов */
   function getEffectiveResults() {
@@ -1182,7 +1233,9 @@ function ExamPage() {
                                 className="add-button"
                                 style={{ padding: "0.6rem 1rem", fontSize: "0.85rem", whiteSpace: "nowrap" }}
                                 onClick={() =>
-                                  checkTask(task.id, task.answer, getTableAnswerForCheck(task.id, rows, cols))
+                                  subject === "inf" && (task.number === 26 || task.number === 27)
+                                    ? checkInfTask26Or27(task, rows, cols)
+                                    : checkTask(task.id, task.answer, getTableAnswerForCheck(task.id, rows, cols))
                                 }
                               >
                                 Проверить
@@ -1351,7 +1404,9 @@ function ExamPage() {
                                         className="add-button"
                                         style={{ padding: "0.6rem 1rem", fontSize: "0.85rem", whiteSpace: "nowrap" }}
                                         onClick={() =>
-                                          checkTask(task.id, task.answer, getTableAnswerForCheck(task.id, rowsHere, colsHere))
+                                          subject === "inf" && (task.number === 26 || task.number === 27)
+                                            ? checkInfTask26Or27(task, rowsHere, colsHere)
+                                            : checkTask(task.id, task.answer, getTableAnswerForCheck(task.id, rowsHere, colsHere))
                                         }
                                       >
                                         Проверить
@@ -1594,18 +1649,18 @@ function ExamPage() {
 
             <div className="board-divider" />
 
-            <div className="color-picker">
+            <div className="board-color-palette">
               {COLORS.map((c) => (
                 <button
-                  key={c.value}
+                  key={c}
                   type="button"
-                  className={`board-color-btn${color === c.value && ["pen", "line", "triangle", "circle", "square"].includes(tool) ? " active" : ""}`}
-                  style={{ background: c.value }}
+                  className={`board-color-btn${color === c && ["pen", "line", "triangle", "circle", "square"].includes(tool) ? " active" : ""}`}
+                  style={{ background: c }}
                   onClick={() => {
-                    setColor(c.value);
+                    setColor(c);
                     if (tool === "eraser") setTool("pen");
                   }}
-                  title={c.label}
+                  title={c}
                 />
               ))}
             </div>
