@@ -255,16 +255,25 @@ def _create_variant(subject_short, level_str, body_bytes):
                 selected_tasks.extend(group_tasks)
             handled_tasklist_ids.update(group_ids)
             continue
-        # С галочкой «Только ФИПИ» — та же логика, что в тренажёре, но подтемы не учитываем: только слот + фильтр ФИПИ
-        if subtopic_ids and subtopic_counts and not only_fipi:
-            for st_id, st_count in subtopic_counts.items():
-                if st_count <= 0:
-                    continue
-                if not SubTopic.objects.filter(id=st_id, task_list_id=tasklist_id).exists():
-                    continue
-                qs = Task.objects.filter(task_id=tasklist_id, subtopic_id=st_id)
-                tasks_for_subtopic = list(qs.order_by("?")[: st_count])
-                selected_tasks.extend(tasks_for_subtopic)
+        # По подтемам: без ФИПИ — берём до st_count из подтемы; с ФИПИ — до st_count, но не больше кол-ва ФИПИ в подтеме
+        if subtopic_ids and subtopic_counts:
+            if only_fipi and fipi_q:
+                for st_id, st_count in subtopic_counts.items():
+                    if st_count <= 0:
+                        continue
+                    if not SubTopic.objects.filter(id=st_id, task_list_id=tasklist_id).exists():
+                        continue
+                    qs = Task.objects.filter(task_id=tasklist_id, subtopic_id=st_id).filter(fipi_q)
+                    selected_tasks.extend(list(qs.order_by("?")[: st_count]))
+            elif not only_fipi:
+                for st_id, st_count in subtopic_counts.items():
+                    if st_count <= 0:
+                        continue
+                    if not SubTopic.objects.filter(id=st_id, task_list_id=tasklist_id).exists():
+                        continue
+                    qs = Task.objects.filter(task_id=tasklist_id, subtopic_id=st_id)
+                    tasks_for_subtopic = list(qs.order_by("?")[: st_count])
+                    selected_tasks.extend(tasks_for_subtopic)
         else:
             qs = Task.objects.filter(task_id=tasklist_id)
             if subtopic_ids and not only_fipi:

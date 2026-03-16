@@ -21,6 +21,8 @@ function TasksPage() {
   const [selectedSubtopicIds, setSelectedSubtopicIds] = useState([]);
   /** Подтемы показываются только после клика по номеру задания */
   const [subtopicsPanelOpen, setSubtopicsPanelOpen] = useState(false);
+  /** Номера, открытые для выбора подтем (счётчик изначально 0) */
+  const [openedForSubtopics, setOpenedForSubtopics] = useState(new Set());
   const subtopicsBlockRef = useRef(null);
   /** Количество задач по подтеме (id подтемы → число) */
   const [subtopicCounts, setSubtopicCounts] = useState({});
@@ -68,13 +70,13 @@ function TasksPage() {
 
   // На мобильных прокрутить к блоку подтем при открытии
   useEffect(() => {
-    if (subtopicsPanelOpen && subtopicsByTask.length > 0 && Object.keys(testCounts).some((id) => (testCounts[id] ?? 0) > 0)) {
+    if (subtopicsPanelOpen && subtopicsByTask.length > 0 && (openedForSubtopics.size > 0 || Object.keys(testCounts).some((id) => (testCounts[id] ?? 0) > 0))) {
       const t = setTimeout(() => {
         subtopicsBlockRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 100);
       return () => clearTimeout(t);
     }
-  }, [subtopicsPanelOpen, subtopicsByTask.length, testCounts]);
+  }, [subtopicsPanelOpen, subtopicsByTask.length, testCounts, openedForSubtopics.size]);
 
   const matchesSearch = (item) => {
     if (!searchQuery) return true;
@@ -211,18 +213,19 @@ function TasksPage() {
     );
     const useSubtopicCounts = selectedSubtopicIds.length > 0;
     const c = 1;
-    for (const [identifier, count] of Object.entries(testCounts)) {
-      if (Number(count) <= 0) continue;
+    const idsWithCount = tasks.map(getIdentifier).filter((id) => getEffectiveTaskCount(id) > 0);
+    for (const identifier of idsWithCount) {
+      const count = getEffectiveTaskCount(identifier);
       const item = itemsById[identifier];
       if (!item) continue;
       if (identifier.startsWith("task_")) {
-        let slotCount = c;
+        let slotCount = count;
         if (useSubtopicCounts && subtopicsByTask.length) {
           const block = subtopicsByTask.find((b) => b.task_list_id === item.id);
           if (block?.subtopics) {
             slotCount = block.subtopics
               .filter((st) => selectedSubtopicIds.includes(st.id))
-              .reduce((sum, st) => sum + (subtopicCounts[st.id] ?? 0), 0);
+              .reduce((sum, st) => sum + getCappedSubtopicCount(st), 0);
           }
         }
         if (slotCount <= 0) continue;
@@ -252,7 +255,8 @@ function TasksPage() {
       payload.subtopic_ids = selectedSubtopicIds;
       const counts = {};
       selectedSubtopicIds.forEach((id) => {
-        const n = subtopicCounts[id] ?? 0;
+        const st = subtopicsByTask.flatMap((b) => b.subtopics || []).find((s) => s.id === id);
+        const n = st ? getCappedSubtopicCount(st) : (subtopicCounts[id] ?? 0);
         if (n > 0) counts[id] = n;
       });
       if (Object.keys(counts).length) payload.subtopic_counts = counts;
@@ -272,11 +276,6 @@ function TasksPage() {
     setSubtopicCounts((prev) => {
       const cur = prev[subtopicId] ?? 0;
       const next = Math.max(0, Math.min(maxCount, cur + delta));
-      if (next > 0) {
-        setSelectedSubtopicIds((ids) => (ids.includes(subtopicId) ? ids : [...ids, subtopicId]));
-      } else {
-        setSelectedSubtopicIds((ids) => ids.filter((id) => id !== subtopicId));
-      }
       const nextState = { ...prev };
       if (next > 0) nextState[subtopicId] = next;
       else delete nextState[subtopicId];
@@ -325,30 +324,31 @@ function TasksPage() {
     });
   };
 
-  const testTotal = (() => {
-    const itemsById = Object.fromEntries(tasks.map((item) => [getIdentifier(item), item]));
-    let total = 0;
+  /** При «Только ФИПИ» — не больше fipi_task_count по подтеме */
+  const getCappedSubtopicCount = (st) => {
+    const raw = subtopicCounts[st.id] ?? 0;
+    if (!onlyFipiTrainer || typeof st.fipi_task_count !== "number") return raw;
+    return Math.min(raw, st.fipi_task_count);
+  };
+
+  /** Эффективное кол-во задач по идентификатору: из подтем или из testCounts */
+  const getEffectiveTaskCount = (identifier) => {
+    const item = tasks.find((t) => getIdentifier(t) === identifier);
+    if (!item) return 0;
     const useSubtopicCounts = selectedSubtopicIds.length > 0 && subtopicsByTask.length > 0;
-    for (const [identifier, count] of Object.entries(testCounts)) {
-      if (Number(count) <= 0) continue;
-      const item = itemsById[identifier];
-      if (!item) continue;
-      if (identifier.startsWith("task_") && useSubtopicCounts) {
-        const block = subtopicsByTask.find((b) => b.task_list_id === item.id);
-        if (block?.subtopics) {
-          block.subtopics
-            .filter((st) => selectedSubtopicIds.includes(st.id))
-            .forEach((st) => { total += subtopicCounts[st.id] ?? 0; });
-        } else {
-          total += 1;
-        }
-      } else {
-        total += 1;
+    if (identifier.startsWith("task_") && useSubtopicCounts) {
+      const block = subtopicsByTask.find((b) => b.task_list_id === item.id);
+      if (block?.subtopics) {
+        return block.subtopics
+          .filter((st) => selectedSubtopicIds.includes(st.id))
+          .reduce((sum, st) => sum + getCappedSubtopicCount(st), 0);
       }
     }
-    return total;
-  })();
-  const testSelectedIds = Object.keys(testCounts).filter((id) => (testCounts[id] ?? 0) > 0);
+    return testCounts[identifier] ?? 0;
+  };
+
+  const testSelectedIds = tasks.map(getIdentifier).filter((id) => getEffectiveTaskCount(id) > 0);
+  const testTotal = testSelectedIds.reduce((sum, id) => sum + getEffectiveTaskCount(id), 0);
 
   const getLabel = (item) => {
     if ((item.type === "group" || item.type === "linked_group") && item.tasks?.length) {
@@ -373,21 +373,7 @@ function TasksPage() {
     (a, b) => (identifierToSortKey[a] ?? 0) - (identifierToSortKey[b] ?? 0)
   );
 
-  const getTaskCountForIdentifier = (identifier) => {
-    const item = tasks.find((t) => getIdentifier(t) === identifier);
-    if (!item || (testCounts[identifier] ?? 0) <= 0) return 0;
-    const useSubtopicCounts = selectedSubtopicIds.length > 0 && subtopicsByTask.length > 0;
-    if (identifier.startsWith("task_") && useSubtopicCounts && subtopicsByTask.length) {
-      const block = subtopicsByTask.find((b) => b.task_list_id === item.id);
-      if (block?.subtopics) {
-        return block.subtopics
-          .filter((st) => selectedSubtopicIds.includes(st.id))
-          .reduce((sum, st) => sum + (subtopicCounts[st.id] ?? 0), 0);
-      }
-      return 1;
-    }
-    return 1;
-  };
+  const getTaskCountForIdentifier = (identifier) => getEffectiveTaskCount(identifier);
 
   if (loading) {
     return (
@@ -487,21 +473,36 @@ function TasksPage() {
         <div className="tasks-page-numbers-grid">
           {tasks.map((item) => {
             const identifier = getIdentifier(item);
-            const count = getTestCount(identifier);
+            const count = getEffectiveTaskCount(identifier);
             const max = getMaxCount(item);
             const label = getLabel(item);
+            const isOpened = openedForSubtopics.has(identifier);
             return (
               <div key={identifier} className="tasks-page-number-cell">
                 <button
                   type="button"
-                  className={`tasks-page-number-btn ${count > 0 ? "selected" : ""}`}
+                  className={`tasks-page-number-btn ${count > 0 || isOpened ? "selected" : ""}`}
                   onClick={() => {
-                    setSubtopicsPanelOpen(true);
-                    if (count === 0 && getMaxCount(item) > 0) changeTestCount(item, 1);
-                    else if (count > 0) changeTestCount(item, -1);
+                    if (identifier.startsWith("task_") && subtopicsByTask.some((b) => b.task_list_id === item.id)) {
+                      if (count === 0 && !isOpened) {
+                        setOpenedForSubtopics((prev) => new Set(prev).add(identifier));
+                        setSubtopicsPanelOpen(true);
+                      } else if (count > 0 || isOpened) {
+                        setOpenedForSubtopics((prev) => {
+                          const next = new Set(prev);
+                          next.delete(identifier);
+                          return next;
+                        });
+                        if (count > 0) changeTestCount(item, -1);
+                      }
+                    } else {
+                      setSubtopicsPanelOpen(true);
+                      if (count === 0 && max > 0) changeTestCount(item, 1);
+                      else if (count > 0) changeTestCount(item, -1);
+                    }
                   }}
                   disabled={getMaxCount(item) <= 0}
-                  title={count > 0 ? "Убрать из выбора" : "Показать подтемы и добавить в выбор"}
+                  title={count > 0 || isOpened ? "Убрать из выбора" : "Показать подтемы"}
                 >
                   {label}
                 </button>
@@ -509,7 +510,7 @@ function TasksPage() {
               );
           })}
         </div>
-        {subtopicsPanelOpen && subtopicsByTask.length > 0 && testSelectedIds.length > 0 && (
+        {subtopicsPanelOpen && subtopicsByTask.length > 0 && (testSelectedIds.length > 0 || openedForSubtopics.size > 0) && (
           <div ref={subtopicsBlockRef} className="tasks-page-subtopics">
             <div className="tasks-page-subtopics-list tasks-page-subtopics-column">
               {subtopicsByTask.map(({ task_number, task_title, subtopics }) => (
@@ -521,7 +522,8 @@ function TasksPage() {
                         onlyFipiTrainer && typeof st.fipi_task_count === "number"
                           ? st.fipi_task_count
                           : st.task_count ?? 0;
-                      const count = subtopicCounts[st.id] ?? 0;
+                      const count = getCappedSubtopicCount(st);
+                      const rawCount = subtopicCounts[st.id] ?? 0;
                       const isChecked = selectedSubtopicIds.includes(st.id);
                       return (
                         <div key={st.id} className="tasks-page-subtopic-row">
@@ -553,7 +555,7 @@ function TasksPage() {
                                 type="button"
                                 className="tasks-page-subtopic-step-btn"
                                 onClick={() => changeSubtopicCount(st.id, -1, maxCount)}
-                                disabled={count <= 0}
+                                disabled={rawCount <= 0}
                                 aria-label="Уменьшить"
                               >
                                 −
@@ -562,7 +564,7 @@ function TasksPage() {
                                 type="button"
                                 className="tasks-page-subtopic-step-btn"
                                 onClick={() => changeSubtopicCount(st.id, 1, maxCount)}
-                                disabled={maxCount <= 0 || count >= maxCount}
+                                disabled={maxCount <= 0 || rawCount >= maxCount}
                                 aria-label="Увеличить"
                               >
                                 +
@@ -584,6 +586,7 @@ function TasksPage() {
             className="add-button clear-selection"
             onClick={() => {
               setTestCounts({});
+              setOpenedForSubtopics(new Set());
               setSelectedSubtopicIds([]);
               setSubtopicCounts({});
             }}
