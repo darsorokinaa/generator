@@ -801,7 +801,12 @@ function ExamPage() {
       }
     }
     const totalScore = correctCount + part2ScoreSum;
-    return { effectiveCheckedTasks, effectiveScores, correctCount, totalScore };
+    // Кол-во верно решённых задач геометрии (subdivision === "geom")
+    const geoCorrectCount =
+      Array.isArray(variant.tasks)
+        ? variant.tasks.filter((t) => t.subdivision === "geom" && (effectiveScores[t.id] || 0) > 0).length
+        : 0;
+    return { effectiveCheckedTasks, effectiveScores, correctCount, totalScore, geoCorrectCount };
   }
 
   const { correctCount, totalScore } = getEffectiveResults();
@@ -840,9 +845,17 @@ function ExamPage() {
     endTimeRef.current = new Date().toISOString();
     const totalTimeFormatted = formatTimer(timerSeconds);
     const taskTimes = { ...taskTimesRef.current };
-    const { effectiveCheckedTasks, effectiveScores, correctCount: effCorrectCount, totalScore: effTotalScore } = getEffectiveResults();
+    const {
+      effectiveCheckedTasks,
+      effectiveScores,
+      correctCount: effCorrectCount,
+      totalScore: effTotalScore,
+      geoCorrectCount,
+    } = getEffectiveResults();
+    const isOgeMath = String(level).toLowerCase() === "oge" && String(subject).toLowerCase() === "math";
+    const geoParam = isOgeMath ? `&geo_correct=${geoCorrectCount}` : "";
     const res = await fetch(
-      `/api/${level}/${subject}/score-conversion/?score=${effTotalScore}`,
+      `/api/${level}/${subject}/score-conversion/?score=${effTotalScore}${geoParam}`,
       { credentials: "same-origin" }
     );
     let scoreExam = null;

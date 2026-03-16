@@ -45,7 +45,7 @@ class SubTopicInline(admin.TabularInline):
 
 @admin.register(Subject)
 class SubjectAdmin(admin.ModelAdmin):
-    list_display = ("subject_short", "subject_name")
+    list_display = ("id", "subject_short", "subject_name")
     list_filter = ("subject_short",)
     search_fields = ("subject_short", "subject_name")
     list_per_page = 50
@@ -54,8 +54,9 @@ class SubjectAdmin(admin.ModelAdmin):
 
 @admin.register(TaskList)
 class TaskListAdmin(SearchByIdMixin, admin.ModelAdmin):
-    list_display = ("id", "task_number", "task_title", "subject", "level", "part")
-    list_filter = ("subject", "level", "part")
+    list_display = ("id", "task_number", "task_title", "subject", "level", "part", "subdivision")
+    list_filter = ("subject", "level", "part", "subdivision")
+    list_editable = ("subdivision",)
     search_fields = ("task_title",)
     list_select_related = ("subject", "level", "part")
     list_per_page = 25
@@ -65,7 +66,7 @@ class TaskListAdmin(SearchByIdMixin, admin.ModelAdmin):
 
 @admin.register(Level)
 class LevelAdmin(admin.ModelAdmin):
-    list_display = ("level", "level_rus")
+    list_display = ("id", "level", "level_rus")
     list_filter = ("level",)
 
 

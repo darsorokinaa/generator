@@ -82,7 +82,7 @@ export default function ResultsModal({ open, onClose, results }) {
 
   if (!open || !results) return null;
 
-  const { totalTimeFormatted, taskTimes, totalScore, maxScore, scoreExam, scoreComment, markLevel, tasks } = results;
+  const { totalTimeFormatted, taskTimes, totalScore, maxScore, scoreExam, scoreComment, markLevel, tasks, level } = results;
   const levelToClass = { 1: "insufficient", 2: "threshold", 3: "average", 4: "high" };
   const scoreLevelClass = markLevel && levelToClass[markLevel] ? `results-score-${levelToClass[markLevel]}` : "";
   const taskIdToNumber = tasks?.reduce((acc, t) => ({ ...acc, [t.id]: t.number }), {}) ?? {};
@@ -182,7 +182,7 @@ export default function ResultsModal({ open, onClose, results }) {
           })()}
 
           <div className="results-row results-row-primary">
-            <span className="results-label">Тестовые баллы:</span>
+            <span className="results-label">Первичные баллы:</span>
             <span className="results-value">
               {totalScore} из {maxScore}
             </span>
@@ -192,8 +192,14 @@ export default function ResultsModal({ open, onClose, results }) {
           <div className="results-score-exam-block">
             {scoreExam != null && (
               <div className="results-row results-row-primary">
-                <span className="results-label">Вторичные баллы:</span>
-                <span className="results-value">{Number(scoreExam)} из 100</span>
+                <span className="results-label">
+                  {String(level).toLowerCase() === "oge" ? "Оценка:" : "Вторичные баллы:"}
+                </span>
+                <span className="results-value">
+                  {String(level).toLowerCase() === "oge"
+                    ? Number(scoreExam)
+                    : `${Number(scoreExam)} из 100`}
+                </span>
               </div>
             )}
             {scoreComment != null && String(scoreComment).trim() !== "" && (

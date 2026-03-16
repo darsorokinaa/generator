@@ -52,6 +52,18 @@ class TaskList(models.Model):
     task_title = models.CharField(max_length=100)
     max_score = models.IntegerField(default=1)
 
+    SUBDIVISION_CHOICES = [
+        ("alg", "Алгебра"),
+        ("geom", "Геометрия"),
+    ]
+    subdivision = models.CharField(
+        max_length=20,
+        blank=True,
+        choices=SUBDIVISION_CHOICES,
+        verbose_name="Подраздел",
+        help_text="Только для математики: Алгебра / Геометрия",
+    )
+
     class Meta:
         indexes = [
             models.Index(fields=['subject', 'level'], name='tasklist_subject_level_idx'),
@@ -205,7 +217,7 @@ class Mark(models.Model):
     comment = models.ForeignKey(MarkComment, on_delete=CASCADE, null=True, blank=True)
 
     class Meta:
-        verbose_name = "Баллы тестовые-вторичные"
+        verbose_name = "Баллы и оценки"
 
     def __str__(self):
         return f"{self.subject}: {self.score} → {self.score_exam}"

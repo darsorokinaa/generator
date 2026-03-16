@@ -477,6 +477,7 @@ def api_variant_detail(request, level, subject, variant_id):
             "file": file_url,
             "author": (item.task.author or "").strip() or None,
             "max_score": max_score,
+            "subdivision": getattr(task_list, "subdivision", "") if task_list else "",
         })
 
     return JsonResponse({
@@ -489,7 +490,11 @@ def api_variant_detail(request, level, subject, variant_id):
 
 @require_http_methods(["GET"])
 def api_score_conversion(request, level, subject):
-    """Конвертация тестовых баллов в вторичные по таблице Mark."""
+    """Конвертация тестовых баллов в оценку / вторичные баллы по таблице Mark.
+
+    Для ОГЭ по математике дополнительно учитываем минимальное количество верных задач по геометрии:
+    если geo_correct < 2, считаем экзамен несданным.
+    """
     score = request.GET.get("score", "0")
     try:
         total = int(score)
@@ -504,11 +509,31 @@ def api_score_conversion(request, level, subject):
         .select_related("comment")
         .first()
     )
-    if mark_row is None:
-        return JsonResponse({"score_exam": None, "comment": None, "mark_level": None})
-    score_exam = mark_row.score_exam
-    comment = mark_row.comment.comment_text if mark_row.comment else None
-    mark_level = mark_row.comment.mark_level if (mark_row.comment and mark_row.comment.mark_level) else None
+    level_val = str(level).lower()
+    subject_val = str(subject).lower()
+
+    # Базовый результат из таблицы Mark (если есть)
+    if mark_row is not None:
+        score_exam = mark_row.score_exam
+        comment = mark_row.comment.comment_text if mark_row.comment else None
+        mark_level = mark_row.comment.mark_level if (mark_row.comment and mark_row.comment.mark_level) else None
+    else:
+        score_exam = None
+        comment = None
+        mark_level = None
+
+    # Специальное правило для ОГЭ по математике: минимум 2 верных задания геометрии
+    if level_val == "oge" and subject_val == "math":
+        try:
+            geo_correct = int(request.GET.get("geo_correct", "0"))
+        except ValueError:
+            geo_correct = 0
+        if geo_correct < 2:
+            score_exam = None
+            # Жёстко фиксируем комментарий и уровень как «Недостаточно»
+            comment = "Экзамен не сдан: верных задач по разделу «Геометрия» меньше 2."
+            mark_level = 1
+
     return JsonResponse({"score_exam": score_exam, "comment": comment, "mark_level": mark_level})
 
 
@@ -659,6 +684,7 @@ def report_pdf(request, level, subject):
         "score_comment": score_comment,
         "score_comment_class": score_comment_class,
         "pdf_css": pdf_utils.get_pdf_css(),
+        "is_oge": level_val == "oge",
     }
 
     html_string = render_to_string("report_template.html", context)
