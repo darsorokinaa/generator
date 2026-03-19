@@ -513,7 +513,29 @@ function TasksPage() {
         {subtopicsPanelOpen && subtopicsByTask.length > 0 && (testSelectedIds.length > 0 || openedForSubtopics.size > 0) && (
           <div ref={subtopicsBlockRef} className="tasks-page-subtopics">
             <div className="tasks-page-subtopics-list tasks-page-subtopics-column">
-              {subtopicsByTask.map(({ task_number, task_title, subtopics }) => (
+              {(function () {
+                // Показываем подтемы только по выбранным номерам (открытым или с count > 0)
+                const selectedTaskListIds = new Set();
+                const addIdsForIdentifier = (identifier) => {
+                  const item = tasks.find((t) => getIdentifier(t) === identifier);
+                  if (!item) return;
+                  if (identifier.startsWith("task_")) {
+                    selectedTaskListIds.add(item.id);
+                  } else if ((item.type === "group" || item.type === "linked_group") && item.tasks?.length) {
+                    item.tasks.forEach((t) => {
+                      const tid = t.tasklist_id ?? t.id;
+                      if (tid) selectedTaskListIds.add(tid);
+                    });
+                  }
+                };
+                openedForSubtopics.forEach(addIdsForIdentifier);
+                Object.keys(testCounts)
+                  .filter((id) => (testCounts[id] ?? 0) > 0)
+                  .forEach(addIdsForIdentifier);
+                const filteredSubtopicsByTask = subtopicsByTask.filter((b) =>
+                  selectedTaskListIds.has(b.task_list_id)
+                );
+                return filteredSubtopicsByTask.map(({ task_number, task_title, subtopics }) => (
                 <div key={task_number} className="tasks-page-subtopics-task">
                   <span className="tasks-page-subtopics-task-label">№{task_number}: {task_title}</span>
                   <div className="tasks-page-subtopics-checkboxes tasks-page-subtopics-col">
@@ -576,7 +598,8 @@ function TasksPage() {
                     })}
                   </div>
                 </div>
-              ))}
+              ));
+              })()}
             </div>
           </div>
         )}
