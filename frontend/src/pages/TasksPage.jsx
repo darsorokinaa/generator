@@ -514,7 +514,8 @@ function TasksPage() {
           <div ref={subtopicsBlockRef} className="tasks-page-subtopics">
             <div className="tasks-page-subtopics-list tasks-page-subtopics-column">
               {(function () {
-                // Показываем подтемы только по выбранным номерам (открытым или с count > 0)
+                // Подтемы только по выбранным номерам. Если есть выбор с count > 0 — только они;
+                // иначе — по открытым (клик «Показать подтемы» без добавления в набор)
                 const selectedTaskListIds = new Set();
                 const addIdsForIdentifier = (identifier) => {
                   const item = tasks.find((t) => getIdentifier(t) === identifier);
@@ -528,10 +529,8 @@ function TasksPage() {
                     });
                   }
                 };
-                openedForSubtopics.forEach(addIdsForIdentifier);
-                Object.keys(testCounts)
-                  .filter((id) => (testCounts[id] ?? 0) > 0)
-                  .forEach(addIdsForIdentifier);
+                const idsToShow = testSelectedIds.length > 0 ? testSelectedIds : [...openedForSubtopics];
+                idsToShow.forEach(addIdsForIdentifier);
                 const filteredSubtopicsByTask = subtopicsByTask.filter((b) =>
                   selectedTaskListIds.has(b.task_list_id)
                 );
