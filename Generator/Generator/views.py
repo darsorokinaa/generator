@@ -528,11 +528,53 @@ def _create_variant(subject_short, level_str, body_bytes, create=True):
                 selected_tasks.extend(group_tasks)
             handled_tasklist_ids.update(group_ids)
             continue
-        # Одиночные задания: берём случайные задачи (фильтр по подтемам только для групп)
+        # Одиночные задания: берём случайные задачи (с фильтром по подтемам при выборе)
         qs = Task.objects.filter(task_id=tasklist_id)
         if only_fipi and fipi_q:
             qs = qs.filter(fipi_q)
-        tasks_for_slot = list(qs.order_by("?")[: int(count)])
+        # Только подтемы, принадлежащие этому слоту (TaskList)
+        slot_subtopic_ids = None
+        if subtopic_ids:
+            slot_subtopic_ids = list(
+                SubTopic.objects.filter(
+                    id__in=subtopic_ids, task_list_id=tasklist_id
+                ).values_list("id", flat=True)
+            )
+        if slot_subtopic_ids:
+            qs = qs.filter(subtopic_id__in=slot_subtopic_ids)
+            tasks_for_slot = list(qs.order_by("?")[: int(count)])
+        elif subtopic_counts:
+            # Берём задачи по подтемам с учётом счётчиков (только подтемы этого слота)
+            from random import shuffle
+            count_ids = []
+            for k in subtopic_counts:
+                if str(k) in ("all", "null"):
+                    continue
+                try:
+                    count_ids.append(int(k))
+                except (TypeError, ValueError):
+                    continue
+            slot_subtopic_ids_for_counts = list(
+                SubTopic.objects.filter(
+                    id__in=count_ids,
+                    task_list_id=tasklist_id,
+                ).values_list("id", flat=True)
+            )
+            pooled = []
+            for sid in slot_subtopic_ids_for_counts:
+                cnt = subtopic_counts.get(sid, subtopic_counts.get(str(sid), 0))
+                cnt = int(cnt) if cnt else 0
+                if cnt <= 0:
+                    continue
+                subset = list(
+                    qs.filter(subtopic_id=sid).values_list("id", flat=True)
+                )
+                shuffle(subset)
+                pooled.extend(subset[:cnt])
+            shuffle(pooled)
+            tasks_for_slot = list(Task.objects.filter(id__in=pooled[: int(count)]))
+        else:
+            tasks_for_slot = list(qs.order_by("?")[: int(count)])
         selected_tasks.extend(tasks_for_slot)
 
     if create:

@@ -173,6 +173,35 @@ function TasksPage() {
     return payload;
   };
 
+  /** Полный payload для варианта: content + tasks (для групп) + subtopic_ids при выборе подтем */
+  const buildVariantPayload = (items) => {
+    const content = payloadFromTasks(items);
+    const payload = { content, ...(onlyFipiVariant ? { only_fipi: true } : {}) };
+    if (selectedSubtopicIds.length === 0) return payload;
+
+    payload.subtopic_ids = selectedSubtopicIds;
+    const tasksList = [];
+    items.forEach((item) => {
+      if ((item.type === "group" || item.type === "linked_group") && item.tasks?.length) {
+        const nums = item.task_numbers || item.tasks.map((t) => t.task_number);
+        const identifier = item.type === "linked_group" ? `linked_${item.linked_key}` : `group_${item.group_id}`;
+        const bySt = groupSubtopicCounts[identifier];
+        const entry = { task_numbers: nums, count: 1 };
+        if (bySt && Object.keys(bySt).length > 0) {
+          entry.subtopic_ids = Object.keys(bySt).filter((k) => k !== "all").map(Number).filter((n) => !Number.isNaN(n));
+          entry.subtopic_counts = { ...bySt };
+        } else {
+          // Только подтемы, относящиеся к этой группе
+          const groupSubtopicIds = (item.subtopics || []).map((st) => st.id).filter(Boolean);
+          entry.subtopic_ids = selectedSubtopicIds.filter((id) => groupSubtopicIds.includes(id));
+        }
+        tasksList.push(entry);
+      }
+    });
+    if (tasksList.length > 0) payload.tasks = tasksList;
+    return payload;
+  };
+
   const [submitBlock1, setSubmitBlock1] = useState(false);
   const [submitBlock2, setSubmitBlock2] = useState(false);
 
@@ -180,10 +209,7 @@ function TasksPage() {
     const items = onlyFipiVariant
       ? tasks.filter((item) => getItemPart(item) === 1)
       : part1Tasks;
-    const payload = {
-      content: payloadFromTasks(items),
-      ...(onlyFipiVariant ? { only_fipi: true } : {}),
-    };
+    const payload = buildVariantPayload(items);
     if (Object.keys(payload.content).length === 0) return;
     setSubmitBlock1(true);
     postVariant(payload, "part1").catch((err) => setError(err.message)).finally(() => setSubmitBlock1(false));
@@ -192,19 +218,13 @@ function TasksPage() {
     const items = onlyFipiVariant
       ? tasks.filter((item) => getItemPart(item) === 2)
       : part2Tasks;
-    const payload = {
-      content: payloadFromTasks(items),
-      ...(onlyFipiVariant ? { only_fipi: true } : {}),
-    };
+    const payload = buildVariantPayload(items);
     if (Object.keys(payload.content).length === 0) return;
     setSubmitBlock1(true);
     postVariant(payload, "part2").catch((err) => setError(err.message)).finally(() => setSubmitBlock1(false));
   };
   const onChooseAll = () => {
-    const payload = {
-      content: payloadFromTasks(tasks),
-      ...(onlyFipiVariant ? { only_fipi: true } : {}),
-    };
+    const payload = buildVariantPayload(tasks);
     if (Object.keys(payload.content).length === 0) return;
     setSubmitBlock1(true);
     postVariant(payload, "variant").catch((err) => setError(err.message)).finally(() => setSubmitBlock1(false));
