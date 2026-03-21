@@ -877,6 +877,7 @@ def api_variant_detail(request, level, subject, variant_id):
             "text": process_latex(str(item.task.task_template or ""), for_browser=True),
             "answer": process_latex(str(item.task.answer or ""), for_browser=True),
             "part": task_list.part_id if task_list else None,
+            "subdivision": (task_list.subdivision or "").strip() or None,
             "file": file_url,
             "author": (item.task.author or "").strip() or None,
             "max_score": max_score,

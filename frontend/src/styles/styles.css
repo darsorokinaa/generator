@@ -4016,16 +4016,24 @@ body.index .exam-grid .exam-card {
     height: auto;
 }
 
-/* Страница варианта: картинки одинакового адаптивного размера, пропорции сохранены */
+/* Страница варианта: картинки */
 .exam-page .task-text figure,
 .exam-page .task-text figure.image {
     text-align: center;
 }
-.exam-page .task-text img,
-.exam-page .task-text figure img,
-.exam-page .task-text figure.image img {
+/* Геометрия и без темы: компактный размер (как было) */
+.exam-page .task-geom .task-text img,
+.exam-page .task-geom .task-text figure img,
+.exam-page .task-geom .task-text figure.image img,
+.exam-page .task-geom .correct-answer-content img,
+.exam-page .task-geom .part2-answer-content img,
+.exam-page .task:not(.task-alg):not(.task-img-full) .task-text img,
+.exam-page .task:not(.task-alg):not(.task-img-full) .task-text figure img,
+.exam-page .task:not(.task-alg):not(.task-img-full) .task-text figure.image img,
+.exam-page .task:not(.task-alg):not(.task-img-full) .correct-answer-content img,
+.exam-page .task:not(.task-alg):not(.task-img-full) .part2-answer-content img {
     display: block !important;
-    margin: 0.4rem auto !important;
+    margin: 0.13rem auto !important;
     width: min(320px, 90vw) !important;
     max-width: 100% !important;
     height: min(320px, 90vw) !important;
@@ -4034,11 +4042,58 @@ body.index .exam-grid .exam-card {
     object-position: center !important;
     cursor: pointer;
 }
-.exam-page .correct-answer-content img,
-.exam-page .part2-answer-content img {
-    width: min(320px, 90vw) !important;
-    height: min(320px, 90vw) !important;
-    max-height: min(320px, 90vw) !important;
+/* Только алгебра: 100% ширины */
+.exam-page .task-alg .task-text figure,
+.exam-page .task-alg .task-text figure.image {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+.exam-page .task-alg .task-img-zoomable {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+.exam-page .task-alg .task-text img,
+.exam-page .task-alg .task-text figure img,
+.exam-page .task-alg .task-text figure.image img {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+}
+.exam-page .task-alg .correct-answer-content img,
+.exam-page .task-alg .part2-answer-content img {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    object-fit: contain !important;
+    cursor: pointer;
+}
+/* ОГЭ информатика №13: картинки на всю ширину */
+.exam-page .task-img-full .task-text,
+.exam-page .task-img-full .task-text figure,
+.exam-page .task-img-full .task-text figure.image {
+    width: 100% !important;
+    max-width: 100% !important;
+}
+.exam-page .task-img-full .task-img-zoomable {
+    width: 100% !important;
+    max-width: 100% !important;
+    display: block !important;
+}
+.exam-page .task-img-full .task-text img,
+.exam-page .task-img-full .task-text figure img,
+.exam-page .task-img-full .task-text figure.image img {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    object-fit: contain !important;
+}
+.exam-page .task-img-full .correct-answer-content img,
+.exam-page .task-img-full .part2-answer-content img {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
     object-fit: contain !important;
     cursor: pointer;
 }
@@ -4072,7 +4127,7 @@ body.index .exam-grid .exam-card {
 }
 .exam-page .task-img-zoomable {
     display: block;
-    margin: 0.25rem auto;
+    margin: 0.08rem auto;
 }
 .exam-page .task-img-zoomable img {
     margin-bottom: 0 !important;
@@ -4084,7 +4139,17 @@ body.index .exam-grid .exam-card {
 }
 .exam-page .task-text figure,
 .exam-page .task-text figure.image {
-    margin: 0.25rem auto !important;
+    margin: 0.08rem auto !important;
+}
+/* Таблицы в условии: на всю ширину, компактные отступы */
+.exam-page .task-text table {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0.3rem auto !important;
+}
+.exam-page .task-text th,
+.exam-page .task-text td {
+    padding: 0.5rem 0.75rem !important;
 }
 .exam-page .answer-section {
     margin-top: 0.25rem !important;
