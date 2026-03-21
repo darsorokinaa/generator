@@ -816,8 +816,18 @@ function ExamPage() {
     showAuthorFilter && authorFilter
       ? variant.tasks.filter((t) => (t.author || "").trim() === authorFilter)
       : variant.tasks;
-  const part1Tasks = tasksFilteredByAuthor.filter((t) => t.part === 1);
-  const part2Tasks = tasksFilteredByAuthor.filter((t) => t.part === 2);
+  // Fallback: если part не задан, определяем по номеру (ОГЭ матем: 1–19 ч.1, 20+ ч.2; ЕГЭ матем: 1–11 ч.1; ОГЭ инф: 1–15 ч.1)
+  const inferPart = (t) => {
+    if (t.part === 1 || t.part === 2) return t.part;
+    const n = t.number;
+    if (level === "oge" && subject === "math") return n <= 19 ? 1 : 2;
+    if (level === "ege" && subject === "math") return n <= 11 ? 1 : 2;
+    if (level === "oge" && subject === "inf") return n <= 15 ? 1 : 2;
+    if (level === "ege" && subject === "inf") return n <= 27 ? 1 : 2;
+    return n <= 19 ? 1 : 2;
+  };
+  const part1Tasks = tasksFilteredByAuthor.filter((t) => inferPart(t) === 1);
+  const part2Tasks = tasksFilteredByAuthor.filter((t) => inferPart(t) === 2);
 
   // Связанные задания 19–21 — только для ЕГЭ информатика; для математики всё как обычные задания
   const LINKED_19_21 = [19, 20, 21];
@@ -845,7 +855,7 @@ function ExamPage() {
     const correctCount = part1Tasks.filter((t) => effectiveCheckedTasks[t.id]).length;
     const effectiveScores = {};
     for (const task of variant.tasks) {
-      if (task.part === 2) {
+      if (inferPart(task) === 2) {
         effectiveScores[task.id] = scores[task.id] ?? 0;
       } else {
         effectiveScores[task.id] = effectiveCheckedTasks[task.id] ? 1 : 0;

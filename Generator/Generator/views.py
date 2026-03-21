@@ -737,6 +737,26 @@ def api_tasks(request, level, subject):
         deduped_linked.append(item)
     result.extend(deduped_linked)
 
+    # Fallback: задания, попавшие в grouped_tasklist_ids, но не отображающиеся ни в одной группе
+    # (напр. LinkedTaskGroup без групп/подтем — скипнули, а TaskGroup с тем же номером не добавили)
+    shown_task_numbers = set()
+    for item in result:
+        if item.get("type") == "single":
+            shown_task_numbers.add(item.get("task_number"))
+        else:
+            for t in item.get("tasks") or []:
+                shown_task_numbers.add(t.get("task_number"))
+    for t in tasks_qs:
+        if t.id in grouped_tasklist_ids and t.task_number not in shown_task_numbers:
+            result.append({
+                "type": "single",
+                "id": t.id,
+                "task_number": t.task_number,
+                "task_title": t.task_title,
+                "part": t.part_id,
+                "count_task": t.count_task,
+            })
+
     def sort_key(item):
         if item["type"] == "single":
             return item["task_number"]
