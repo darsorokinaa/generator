@@ -1137,7 +1137,7 @@ function ExamPage() {
               const cols = useTable ? INF_TABLE_COLS : 0;
 
               return (
-                <section key={task.id} className={`task${task.subdivision === "geom" ? " task-geom" : task.subdivision === "alg" ? " task-alg" : ""}${level === "oge" && subject === "inf" && task.number === 13 ? " task-img-full" : ""}`} onClick={() => handleTaskFocus(task.id)}>
+                <section key={task.id} className={`task${task.subdivision === "geom" ? " task-geom" : task.subdivision === "alg" ? " task-alg" : ""}${((level === "oge" && subject === "inf" && task.number === 13) || (level === "oge" && subject === "math" && task.number === 1)) ? " task-img-full" : ""}`} onClick={() => handleTaskFocus(task.id)}>
                   <aside className="task-left">
                     <div className="task-number">{task.number}</div>
                     <div className="task-id">{task.id}</div>
@@ -1308,7 +1308,7 @@ function ExamPage() {
                       const colsHere = useTableHere ? INF_TABLE_COLS : 0;
 
                       return (
-                        <section key={task.id} className={`task task-in-group${task.subdivision === "geom" ? " task-geom" : task.subdivision === "alg" ? " task-alg" : ""}${level === "oge" && subject === "inf" && task.number === 13 ? " task-img-full" : ""}`} onClick={() => handleTaskFocus(task.id)}>
+                        <section key={task.id} className={`task task-in-group${task.subdivision === "geom" ? " task-geom" : task.subdivision === "alg" ? " task-alg" : ""}${((level === "oge" && subject === "inf" && task.number === 13) || (level === "oge" && subject === "math" && task.number === 1)) ? " task-img-full" : ""}`} onClick={() => handleTaskFocus(task.id)}>
                           <aside className="task-left">
                             <div className="task-number">{task.number}</div>
                             <div className="task-id">{task.id}</div>
@@ -1451,7 +1451,7 @@ function ExamPage() {
 
                 {/* Остальные задания части 2 */}
                 {part2Regular.map((task) => (
-                  <section key={task.id} className={`task${task.subdivision === "geom" ? " task-geom" : task.subdivision === "alg" ? " task-alg" : ""}${level === "oge" && subject === "inf" && task.number === 13 ? " task-img-full" : ""}`} onClick={() => handleTaskFocus(task.id)}>
+                  <section key={task.id} className={`task${task.subdivision === "geom" ? " task-geom" : task.subdivision === "alg" ? " task-alg" : ""}${((level === "oge" && subject === "inf" && task.number === 13) || (level === "oge" && subject === "math" && task.number === 1)) ? " task-img-full" : ""}`} onClick={() => handleTaskFocus(task.id)}>
                     <aside className="task-left">
                       <div className="task-number">{task.number}</div>
                       <div className="task-id">{task.id}</div>
