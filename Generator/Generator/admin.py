@@ -57,7 +57,7 @@ class TaskListAdmin(SearchByIdMixin, admin.ModelAdmin):
     list_display = ("id", "task_number", "task_title", "subject", "level", "part", "subdivision")
     list_filter = ("subject", "level", "part", "subdivision")
     list_editable = ("subdivision",)
-    search_fields = ("task_title",)
+    search_fields = ("task_title", "subject__subject_short", "level__level")
     list_select_related = ("subject", "level", "part")
     list_per_page = 25
     show_full_result_count = False
@@ -75,12 +75,12 @@ class TaskAdmin(SearchByIdMixin, admin.ModelAdmin):
     list_display = ("id", "task_with_title", "task_template_preview", "subtopic", "max_score", "answer_preview", "created_by", "added_at")
     list_filter = ("task__subject", "task__level", "task__part", "subtopic", "created_by", "added_at")
     list_editable = ("subtopic",)
-    search_fields = ("answer",)
+    search_fields = ("answer", "task__task_title", "task__task_number")
     date_hierarchy = "added_at"
     list_select_related = ("task__subject", "task__level", "task__part", "subtopic")
     list_per_page = 25
     show_full_result_count = False
-    raw_id_fields = ("task",)
+    autocomplete_fields = ("task",)
     fieldsets = (
         (None, {"fields": ("task", "subtopic", "task_template", "answer", "max_score", "files", "author", "added_at", "created_by")}),
     )
@@ -122,7 +122,7 @@ class SubTopicAdmin(admin.ModelAdmin):
 class VariantAdmin(SearchByIdMixin, admin.ModelAdmin):
     list_display = ("id", "var_subject", "level", "created_by", "created_at")
     list_filter = ("var_subject", "level", "created_by")
-    search_fields = ("created_by",)
+    search_fields = ("created_by", "var_subject__subject_short", "level__level")
     date_hierarchy = "created_at"
     list_select_related = ("var_subject", "level")
     list_per_page = 25
@@ -138,7 +138,7 @@ class VariantContentAdmin(admin.ModelAdmin):
     list_select_related = ("variant__var_subject", "variant__level", "task")
     list_per_page = 25
     show_full_result_count = False
-    raw_id_fields = ("variant", "task")
+    autocomplete_fields = ("variant", "task")
 
     def get_search_results(self, request, queryset, search_term):
         if not search_term.strip():
@@ -166,7 +166,7 @@ class LinkedTaskGroupAdmin(admin.ModelAdmin):
 class TaskGroupMemberInline(admin.TabularInline):
     model = TaskGroupMember
     extra = 0
-    raw_id_fields = ("task",)
+    autocomplete_fields = ("task",)
 
 
 @admin.register(TaskGroup)
