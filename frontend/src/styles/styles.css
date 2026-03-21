@@ -3587,13 +3587,15 @@ body.index .exam-grid .exam-card {
 
 .task-text figure.image {
     text-align: center;
-    margin: 1rem auto;
+    margin: 0.25rem auto;
 }
 
 .task-text figure.image img {
     width: 80%;
     max-width: 80%;
     height: auto;
+    margin-top: 0;
+    margin-bottom: 0;
 }
 
 /* Страница варианта: картинки */
@@ -3613,7 +3615,7 @@ body.index .exam-grid .exam-card {
 .exam-page .task:not(.task-alg):not(.task-img-full) .correct-answer-content img,
 .exam-page .task:not(.task-alg):not(.task-img-full) .part2-answer-content img {
     display: block !important;
-    margin: 0.13rem auto !important;
+    margin: 0.06rem auto !important;
     width: min(320px, 90vw) !important;
     max-width: 100% !important;
     height: min(320px, 90vw) !important;
@@ -3707,7 +3709,7 @@ body.index .exam-grid .exam-card {
 }
 .exam-page .task-img-zoomable {
     display: block;
-    margin: 0.08rem auto;
+    margin: 0.06rem auto;
 }
 .exam-page .task-img-zoomable img {
     margin-bottom: 0 !important;
@@ -3715,11 +3717,16 @@ body.index .exam-grid .exam-card {
 
 /* Меньший отступ перед полем ответа */
 .exam-page .task-text {
-    margin-bottom: 0.5rem !important;
+    margin-bottom: 0.35rem !important;
+}
+.exam-page .task-text figure.image img,
+.exam-page .task-text figure img {
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
 }
 .exam-page .task-text figure,
 .exam-page .task-text figure.image {
-    margin: 0.08rem auto !important;
+    margin: 0.06rem auto !important;
 }
 /* Таблицы в условии: на всю ширину, компактные отступы */
 .exam-page .task-text table {

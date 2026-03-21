@@ -652,7 +652,7 @@ function TasksPage() {
                               >
                                 {stCount}
                               </span>
-                              <span className="tasks-page-subtopic-of">{`подгрупп из ${stMax}`}</span>
+                              <span className="tasks-page-subtopic-of">{`задач из ${stMax}`}</span>
                               <div className="tasks-page-subtopic-stepper">
                                 <button
                                   type="button"
@@ -755,7 +755,7 @@ function TasksPage() {
                           {count}
                         </span>
                         <span className="tasks-page-subtopic-of">
-                          {`подгрупп из ${maxCount}`}
+                          {`задач из ${maxCount}`}
                         </span>
                         <div className="tasks-page-subtopic-stepper">
                           <button
