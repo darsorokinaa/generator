@@ -4712,3 +4712,14 @@ body.index .exam-grid .exam-card {
         margin: 0 auto;
     }
 }
+
+.task-text figure.image:has(table) {
+    width: 100% !important;
+    max-width: 100% !important;
+    text-align: left !important;
+}
+
+.task-text figure.image:has(table) table {
+    width: 100% !important;
+    max-width: 100% !important;
+}
