@@ -56,10 +56,9 @@ FAVICON_SVG = (
 
 
 def _subtopics_for_groups(subject_instance, level_instance, task_numbers):
-    """Подтемы для групп с заданными task_numbers: id, title, group_count."""
+    """Подтемы для групп: TaskGroup.subtopic + Task.subtopic + все SubTopic предмета/уровня."""
     if not task_numbers:
         return []
-    # Сначала получаем id подходящих групп (без дублей от JOIN)
     matching_ids = (
         TaskGroup.objects.filter(
             subject=subject_instance,
@@ -72,27 +71,88 @@ def _subtopics_for_groups(subject_instance, level_instance, task_numbers):
         .distinct()
     )
     group_ids = list(matching_ids)
-    if not group_ids:
-        return []
-    # Считаем по подтемам — без JOIN с TaskGroupMember, дублей нет
     from django.db.models import Count as DbCount
-    per_subtopic = (
-        TaskGroup.objects.filter(id__in=group_ids)
-        .values("subtopic_id")
-        .annotate(cnt=DbCount("id"))
-        .order_by("-cnt")
-    )
-    result = []
-    for row in per_subtopic:
-        sid = row["subtopic_id"]
-        cnt = row["cnt"]
-        if sid is None:
-            title = "Без подтемы"
-        else:
+
+    by_sid = {}
+
+    # 1) По TaskGroup.subtopic (пропускаем sid=None) — только если есть группы
+    if group_ids:
+        for row in (
+            TaskGroup.objects.filter(id__in=group_ids)
+            .values("subtopic_id")
+            .annotate(cnt=DbCount("id"))
+        ):
+            sid = row["subtopic_id"]
+            if sid is None:
+                continue
+            cnt = row["cnt"]
             st = SubTopic.objects.filter(id=sid).values_list("title", flat=True).first()
-            title = st or f"Подтема {sid}"
-        result.append({"id": sid, "title": title, "group_count": cnt})
-    return result
+            by_sid[sid] = {"id": sid, "title": st or f"Подтема {sid}", "group_count": cnt, "display_count": cnt}
+
+    # 2) Подтемы из Task.subtopic в группах (только если есть группы)
+    if group_ids:
+        for row in (
+            TaskGroupMember.objects.filter(
+                task_group_id__in=group_ids,
+                task__subtopic_id__isnull=False,
+            )
+            .values("task__subtopic_id")
+            .annotate(cnt=DbCount("task_group_id", distinct=True))
+        ):
+            sid = row["task__subtopic_id"]
+            if not sid:
+                continue
+            cnt = row["cnt"]
+            if sid not in by_sid:
+                st = SubTopic.objects.filter(id=sid).values_list("title", flat=True).first()
+                by_sid[sid] = {"id": sid, "title": st or f"Подтема {sid}", "group_count": cnt, "display_count": cnt}
+            else:
+                by_sid[sid]["group_count"] = max(by_sid[sid]["group_count"], cnt)
+                by_sid[sid]["display_count"] = max(by_sid[sid]["display_count"], cnt)
+
+    # 3) Все SubTopic предмета/уровня — TaskList для наших номеров
+    tasklist_ids = list(
+        TaskList.objects.filter(
+            subject=subject_instance,
+            level=level_instance,
+            task_number__in=task_numbers,
+        ).values_list("id", flat=True)
+    )
+    for st in SubTopic.objects.filter(task_list_id__in=tasklist_ids).order_by("order", "title"):
+        if st.id not in by_sid:
+            cnt = TaskGroupMember.objects.filter(
+                task_group_id__in=group_ids,
+                task__subtopic_id=st.id,
+            ).values("task_group_id").distinct().count()
+            task_cnt = Task.objects.filter(
+                task__subject=subject_instance,
+                task__level=level_instance,
+                task__task_number__in=task_numbers,
+                subtopic_id=st.id,
+            ).count()
+            display_count = cnt if cnt > 0 else max(0, task_cnt // len(task_numbers))
+            by_sid[st.id] = {"id": st.id, "title": st.title, "group_count": cnt, "display_count": display_count}
+
+    # 4) Если всё ещё пусто — все SubTopic предмета/уровня (на случай разных частей)
+    if not by_sid:
+        all_tls = TaskList.objects.filter(
+            subject=subject_instance, level=level_instance
+        ).values_list("id", flat=True)
+        for st in SubTopic.objects.filter(task_list_id__in=all_tls).order_by("order", "title")[:20]:
+            cnt = TaskGroupMember.objects.filter(
+                task_group_id__in=group_ids,
+                task__subtopic_id=st.id,
+            ).values("task_group_id").distinct().count()
+            task_cnt = Task.objects.filter(
+                task__subject=subject_instance,
+                task__level=level_instance,
+                subtopic_id=st.id,
+            ).count()
+            n_per_group = len(task_numbers)
+            display_count = cnt if cnt > 0 else max(0, task_cnt // n_per_group)
+            by_sid[st.id] = {"id": st.id, "title": st.title, "group_count": cnt, "display_count": display_count}
+
+    return sorted(by_sid.values(), key=lambda x: (-x["group_count"], x["title"]))
 
 
 def _normalize_content(data):
@@ -312,7 +372,11 @@ def _create_variant(subject_short, level_str, body_bytes, create=True):
                     elif sid is None or str(sid) == "null":
                         qs = base_qs.filter(subtopic__isnull=True)  # Без подтемы
                     else:
-                        qs = base_qs.filter(subtopic_id=sid)
+                        # TaskGroup.subtopic или Task.subtopic у любого задания в группе
+                        qs = base_qs.filter(
+                            Q(subtopic_id=sid)
+                            | Q(taskgroupmember__task__subtopic_id=sid)
+                        ).distinct()
                     limit = max(cnt * 10, 50)
                     added = 0
                     for group in qs.order_by("?")[:limit]:
@@ -329,7 +393,10 @@ def _create_variant(subject_short, level_str, body_bytes, create=True):
                 num_groups = min(content.get(str(i), 0) for i in ids_for_group)
                 num_groups = int(num_groups)
                 if num_groups > 0:
-                    qs = base_qs.filter(subtopic_id__in=st_ids).order_by("?")[:max(num_groups * 10, 50)]
+                    qs = base_qs.filter(
+                        Q(subtopic_id__in=st_ids)
+                        | Q(taskgroupmember__task__subtopic_id__in=st_ids)
+                    ).distinct().order_by("?")[:max(num_groups * 10, 50)]
                     for group in qs:
                         if len(all_tasks) >= num_groups * len(task_numbers):
                             break
@@ -341,6 +408,41 @@ def _create_variant(subject_short, level_str, body_bytes, create=True):
                         all_tasks.extend(m.task for m in members)
             if all_tasks:
                 return all_tasks, ids_for_group
+            # Fallback: групп нет, но есть отдельные задачи с подтемой — собираем из Task
+            if st_counts:
+                from random import shuffle
+                fallback_tasks = []
+                for sid, cnt in st_counts.items():
+                    cnt = int(cnt) if cnt else 0
+                    if cnt <= 0 or sid in ("all", None) or str(sid) == "null":
+                        continue
+                    # По каждому task_number — cnt задач с subtopic_id
+                    tasks_per_num = []
+                    for i, tn in enumerate(task_numbers):
+                        tl_id = ids_for_group[i] if i < len(ids_for_group) else None
+                        if not tl_id:
+                            tasks_per_num.append([])
+                            continue
+                        pool = list(
+                            Task.objects.filter(
+                                task_id=tl_id,
+                                subtopic_id=sid,
+                            ).values_list("id", flat=True)
+                        )
+                        shuffle(pool)
+                        tasks_per_num.append(pool[:cnt])
+                    # Собираем группы: группа j = tasks_per_num[0][j], tasks_per_num[1][j], ...
+                    min_len = min(len(p) for p in tasks_per_num) if tasks_per_num else 0
+                    if min_len > 0:
+                        ordered_ids = []
+                        for j in range(min_len):
+                            for pool in tasks_per_num:
+                                if j < len(pool):
+                                    ordered_ids.append(pool[j])
+                        task_by_id = {t.id: t for t in Task.objects.filter(id__in=ordered_ids)}
+                        fallback_tasks.extend(task_by_id[i] for i in ordered_ids if i in task_by_id)
+                if fallback_tasks:
+                    return fallback_tasks, ids_for_group
             return None, None
         # Без фильтра по подтемам
         num_groups = min(content.get(str(i), 0) for i in ids_for_group)
@@ -529,7 +631,10 @@ def api_tasks(request, level, subject):
     for linked, task_numbers, ids_for_group in linked_number_sets:
         key = tuple(task_numbers)
         groups_count = linked_counts.get(key, 0)
-        if groups_count == 0:
+        subtopics = _subtopics_for_groups(subject_instance, level_instance, task_numbers)
+        # Показываем linked_group, если есть группы ИЛИ подтемы с задачами (display_count > 0)
+        has_subtopics_with_tasks = any((s.get("display_count") or 0) > 0 for s in subtopics)
+        if groups_count == 0 and not has_subtopics_with_tasks:
             continue
         linked_tasklist_ids.update(ids_for_group)
         # Reuse already-loaded tasklist data instead of a new DB query
@@ -537,7 +642,6 @@ def api_tasks(request, level, subject):
             [tl_by_id[i] for i in ids_for_group if i in tl_by_id],
             key=lambda tl: tl.task_number,
         )
-        subtopics = _subtopics_for_groups(subject_instance, level_instance, task_numbers)
         linked_group_items.append({
             "type": "linked_group",
             "linked_key": "_".join(str(n) for n in task_numbers),
@@ -617,7 +721,11 @@ def api_tasks(request, level, subject):
             "count_task": t.count_task,
         })
 
-    result.extend(group_dict.values())
+    linked_task_number_sets = {frozenset(item["task_numbers"]) for item in linked_group_items}
+    for gd in group_dict.values():
+        gd_nums = frozenset(gd.get("task_numbers") or [])
+        if gd_nums not in linked_task_number_sets:
+            result.append(gd)
     result.extend(linked_group_items)
 
     def sort_key(item):

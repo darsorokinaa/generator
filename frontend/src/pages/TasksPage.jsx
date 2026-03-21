@@ -336,7 +336,12 @@ function TasksPage() {
   const getTestCount = (identifier) => testCounts[identifier] ?? 0;
 
   const getMaxCount = (item) => {
-    if (item.type === "linked_group") return Number(item.count_available) || 0;
+    if (item.type === "linked_group") {
+      const avail = Number(item.count_available) || 0;
+      if (avail > 0) return avail;
+      const submax = Math.max(0, ...(item.subtopics || []).map((s) => s.display_count ?? s.group_count ?? 0));
+      return submax;
+    }
     if (item.type === "group") {
       if (!item.tasks?.length) return 0;
       const counts = item.tasks.map((t) => Number(t.count_task) || 0);
@@ -617,10 +622,29 @@ function TasksPage() {
                       {subtopics.map((st) => {
                         const stId = st.id;
                         const stCount = bySt[stId] ?? 0;
-                        const stMax = st.group_count ?? 0;
+                        const stMax = st.display_count ?? st.group_count ?? 0;
+                        const isChecked = stCount > 0;
                         return (
                           <div key={stId ?? `null_${st.title}`} className="tasks-page-subtopic-row">
-                            <span className="tasks-page-subtopic-title">{st.title}</span>
+                            <label className="tasks-page-subtopic-label">
+                              <input
+                                type="checkbox"
+                                className="tasks-page-subtopic-checkbox-input"
+                                checked={isChecked}
+                                onChange={() => {
+                                  if (isChecked) {
+                                    changeGroupSubtopicCount(activeForSubtopics, stId, -stCount, stMax);
+                                  } else {
+                                    changeGroupSubtopicCount(activeForSubtopics, stId, 1, stMax);
+                                  }
+                                }}
+                              />
+                              <span
+                                className={`tasks-page-subtopic-checkbox-visual ${isChecked ? "selected" : ""}`}
+                                aria-hidden
+                              />
+                              <span className="tasks-page-subtopic-title">{st.title}</span>
+                            </label>
                             <div className="tasks-page-subtopic-counter-wrap">
                               <span
                                 className="tasks-page-subtopic-num"

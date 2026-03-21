@@ -174,7 +174,9 @@ class TaskGroupAdmin(admin.ModelAdmin):
     list_display = ("id", "subject", "level", "subtopic")
     list_filter = ("subject", "level", "subtopic")
     list_select_related = ("subject", "level", "subtopic")
+    list_editable = ("subtopic",)
     inlines = (TaskGroupMemberInline,)
+    fields = ("subject", "level", "subtopic")
 
 
 
