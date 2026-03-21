@@ -57,7 +57,7 @@ class TaskListAdmin(SearchByIdMixin, admin.ModelAdmin):
     list_display = ("id", "task_number", "task_title", "subject", "level", "part", "subdivision")
     list_filter = ("subject", "level", "part", "subdivision")
     list_editable = ("subdivision",)
-    search_fields = ("task_title", "subject__subject_short", "level__level")
+    search_fields = ("task_title",)
     list_select_related = ("subject", "level", "part")
     list_per_page = 25
     show_full_result_count = False
@@ -75,12 +75,13 @@ class TaskAdmin(SearchByIdMixin, admin.ModelAdmin):
     list_display = ("id", "task_with_title", "task_template_preview", "subtopic", "max_score", "answer_preview", "created_by", "added_at")
     list_filter = ("task__subject", "task__level", "task__part", "subtopic", "created_by", "added_at")
     list_editable = ("subtopic",)
-    search_fields = ("answer", "task__task_title", "task__task_number")
+    search_fields = ("answer",)
     date_hierarchy = "added_at"
     list_select_related = ("task__subject", "task__level", "task__part", "subtopic")
     list_per_page = 25
     show_full_result_count = False
-    autocomplete_fields = ("task",)
+    raw_id_fields = ("task",)
+    autocomplete_fields = ("subtopic",)
     fieldsets = (
         (None, {"fields": ("task", "subtopic", "task_template", "answer", "max_score", "files", "author", "added_at", "created_by")}),
     )
@@ -115,6 +116,7 @@ class TaskAdmin(SearchByIdMixin, admin.ModelAdmin):
 class SubTopicAdmin(admin.ModelAdmin):
     list_display = ("id", "task_list", "title", "order")
     list_filter = ("task_list__subject", "task_list__level")
+    search_fields = ("title", "task_list__task_title")
     ordering = ("task_list", "order", "title")
 
 
@@ -122,7 +124,7 @@ class SubTopicAdmin(admin.ModelAdmin):
 class VariantAdmin(SearchByIdMixin, admin.ModelAdmin):
     list_display = ("id", "var_subject", "level", "created_by", "created_at")
     list_filter = ("var_subject", "level", "created_by")
-    search_fields = ("created_by", "var_subject__subject_short", "level__level")
+    search_fields = ("created_by",)
     date_hierarchy = "created_at"
     list_select_related = ("var_subject", "level")
     list_per_page = 25
@@ -138,7 +140,7 @@ class VariantContentAdmin(admin.ModelAdmin):
     list_select_related = ("variant__var_subject", "variant__level", "task")
     list_per_page = 25
     show_full_result_count = False
-    autocomplete_fields = ("variant", "task")
+    raw_id_fields = ("variant", "task")
 
     def get_search_results(self, request, queryset, search_term):
         if not search_term.strip():
@@ -166,7 +168,7 @@ class LinkedTaskGroupAdmin(admin.ModelAdmin):
 class TaskGroupMemberInline(admin.TabularInline):
     model = TaskGroupMember
     extra = 0
-    autocomplete_fields = ("task",)
+    raw_id_fields = ("task",)
 
 
 @admin.register(TaskGroup)

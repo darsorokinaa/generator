@@ -275,6 +275,9 @@ class SubTopic(models.Model):
         unique_together = [('task_list', 'title')]
 
     def __str__(self):
+        tl = self.task_list
+        if tl:
+            return f"{tl.subject} №{tl.task_number} {tl.level}: {self.title}"
         return self.title
 
 
