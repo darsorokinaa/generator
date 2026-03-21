@@ -3603,17 +3603,12 @@ body.index .exam-grid .exam-card {
 .exam-page .task-text figure.image {
     text-align: center;
 }
-/* Геометрия и без темы: компактный размер (как было) */
+/* Геометрия: компактный размер (320px) */
 .exam-page .task-geom .task-text img,
 .exam-page .task-geom .task-text figure img,
 .exam-page .task-geom .task-text figure.image img,
 .exam-page .task-geom .correct-answer-content img,
-.exam-page .task-geom .part2-answer-content img,
-.exam-page .task:not(.task-alg):not(.task-img-full) .task-text img,
-.exam-page .task:not(.task-alg):not(.task-img-full) .task-text figure img,
-.exam-page .task:not(.task-alg):not(.task-img-full) .task-text figure.image img,
-.exam-page .task:not(.task-alg):not(.task-img-full) .correct-answer-content img,
-.exam-page .task:not(.task-alg):not(.task-img-full) .part2-answer-content img {
+.exam-page .task-geom .part2-answer-content img {
     display: block !important;
     margin: 0.06rem auto !important;
     width: min(320px, 90vw) !important;
@@ -3624,55 +3619,28 @@ body.index .exam-grid .exam-card {
     object-position: center !important;
     cursor: pointer;
 }
-/* Только алгебра: 100% ширины */
-.exam-page .task-alg .task-text figure,
-.exam-page .task-alg .task-text figure.image {
+/* Всё кроме геометрии: картинки 100% ширины */
+.exam-page .task:not(.task-geom) .task-text figure,
+.exam-page .task:not(.task-geom) .task-text figure.image {
     width: 100% !important;
     max-width: 100% !important;
 }
-.exam-page .task-alg .task-img-zoomable {
-    width: 100% !important;
-    max-width: 100% !important;
-}
-.exam-page .task-alg .task-text img,
-.exam-page .task-alg .task-text figure img,
-.exam-page .task-alg .task-text figure.image img {
-    width: 100% !important;
-    max-width: 100% !important;
-    height: auto !important;
-    max-height: none !important;
-}
-.exam-page .task-alg .correct-answer-content img,
-.exam-page .task-alg .part2-answer-content img {
-    width: 100% !important;
-    max-width: 100% !important;
-    height: auto !important;
-    object-fit: contain !important;
-    cursor: pointer;
-}
-/* ОГЭ информатика №13: картинки на всю ширину */
-.exam-page .task-img-full .task-text,
-.exam-page .task-img-full .task-text figure,
-.exam-page .task-img-full .task-text figure.image {
-    width: 100% !important;
-    max-width: 100% !important;
-}
-.exam-page .task-img-full .task-img-zoomable {
+.exam-page .task:not(.task-geom) .task-img-zoomable {
     width: 100% !important;
     max-width: 100% !important;
     display: block !important;
 }
-.exam-page .task-img-full .task-text img,
-.exam-page .task-img-full .task-text figure img,
-.exam-page .task-img-full .task-text figure.image img {
+.exam-page .task:not(.task-geom) .task-text img,
+.exam-page .task:not(.task-geom) .task-text figure img,
+.exam-page .task:not(.task-geom) .task-text figure.image img {
     width: 100% !important;
     max-width: 100% !important;
     height: auto !important;
     max-height: none !important;
     object-fit: contain !important;
 }
-.exam-page .task-img-full .correct-answer-content img,
-.exam-page .task-img-full .part2-answer-content img {
+.exam-page .task:not(.task-geom) .correct-answer-content img,
+.exam-page .task:not(.task-geom) .part2-answer-content img {
     width: 100% !important;
     max-width: 100% !important;
     height: auto !important;
