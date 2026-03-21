@@ -726,7 +726,16 @@ def api_tasks(request, level, subject):
         gd_nums = frozenset(gd.get("task_numbers") or [])
         if gd_nums not in linked_task_number_sets:
             result.append(gd)
-    result.extend(linked_group_items)
+    # Дедупликация linked_group по task_numbers (на случай дублей в БД или разных TaskList для одних номеров)
+    seen_task_nums = set()
+    deduped_linked = []
+    for item in linked_group_items:
+        key = frozenset(item.get("task_numbers") or [])
+        if key in seen_task_nums:
+            continue
+        seen_task_nums.add(key)
+        deduped_linked.append(item)
+    result.extend(deduped_linked)
 
     def sort_key(item):
         if item["type"] == "single":
