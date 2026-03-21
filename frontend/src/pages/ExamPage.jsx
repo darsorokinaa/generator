@@ -91,9 +91,6 @@ function ExamPage() {
   const [reportErrorOpen, setReportErrorOpen] = useState(false);
   const [reportErrorTask, setReportErrorTask] = useState(null);
 
-  // Фильтр по автору (на странице сгенерированного варианта)
-  const [authorFilter, setAuthorFilter] = useState("");
-
   // Время на каждое задание (секунды)
   const taskTimesRef = useRef({});
   const currentTaskIdRef = useRef(null);
@@ -810,12 +807,7 @@ function ExamPage() {
   if (error) return <div style={{ padding: 20 }}>Ошибка: {error}</div>;
   if (!variant) return <div style={{ padding: 20 }}>Загрузка...</div>;
 
-  const variantAuthors = [...new Set(variant.tasks.map((t) => (t.author || "").trim()).filter(Boolean))].sort();
-  const showAuthorFilter = mode === "test" && variantAuthors.length > 0;
-  const tasksFilteredByAuthor =
-    showAuthorFilter && authorFilter
-      ? variant.tasks.filter((t) => (t.author || "").trim() === authorFilter)
-      : variant.tasks;
+  const tasksFilteredByAuthor = variant.tasks;
   // Fallback: если part не задан, определяем по номеру (ОГЭ матем: 1–19 ч.1, 20+ ч.2; ЕГЭ матем: 1–11 ч.1; ОГЭ инф: 1–15 ч.1)
   const inferPart = (t) => {
     if (t.part === 1 || t.part === 2) return t.part;
@@ -951,11 +943,9 @@ function ExamPage() {
     setResultsOpen(true);
   };
 
-  const pdfAuthorParam = showAuthorFilter && authorFilter ? `author=${encodeURIComponent(authorFilter)}` : "";
-
   const openPdf = async (variantId) => {
     setPdfLoading("default");
-    const url = `/api/${level}/${subject}/variant/${variantId}/pdf/${pdfAuthorParam ? `?${pdfAuthorParam}` : ""}`;
+    const url = `/api/${level}/${subject}/variant/${variantId}/pdf/`;
     try {
       const res = await fetch(url, { credentials: "same-origin" });
       if (!res.ok) throw new Error("Ошибка загрузки PDF");
@@ -983,7 +973,7 @@ function ExamPage() {
 
   const openPdfSpring = async (variantId) => {
     setPdfLoading("spring");
-    const url = `/api/${level}/${subject}/variant/${variantId}/pdf/?theme=spring${pdfAuthorParam ? `&${pdfAuthorParam}` : ""}`;
+    const url = `/api/${level}/${subject}/variant/${variantId}/pdf/?theme=spring`;
     try {
       const res = await fetch(url, { credentials: "same-origin" });
       if (!res.ok) throw new Error("Ошибка загрузки PDF");
@@ -1132,24 +1122,6 @@ function ExamPage() {
                 </div>
               </div>
             </div>
-
-            {showAuthorFilter && (
-              <div className="variant-author-bar">
-                <label className="variant-author-filter">
-                  <span className="variant-author-label">Автор:</span>
-                  <select
-                    className="variant-author-select"
-                    value={authorFilter}
-                    onChange={(e) => setAuthorFilter(e.target.value)}
-                  >
-                    <option value="">Все</option>
-                    {variantAuthors.map((a) => (
-                      <option key={a} value={a}>{a}</option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-            )}
 
             {/* ===== ЧАСТЬ 1 ===== */}
             {part1Tasks.length > 0 && (
