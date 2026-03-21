@@ -171,9 +171,9 @@ class TaskGroupMemberInline(admin.TabularInline):
 
 @admin.register(TaskGroup)
 class TaskGroupAdmin(admin.ModelAdmin):
-    list_display = ("id", "subject", "level")
-    list_filter = ("subject", "level")
-    list_select_related = ("subject", "level")
+    list_display = ("id", "subject", "level", "subtopic")
+    list_filter = ("subject", "level", "subtopic")
+    list_select_related = ("subject", "level", "subtopic")
     inlines = (TaskGroupMemberInline,)
 
 

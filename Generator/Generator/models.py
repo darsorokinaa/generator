@@ -120,6 +120,13 @@ class LinkedTaskGroup(models.Model):
 class TaskGroup(models.Model):
     subject = models.ForeignKey(Subject, on_delete=CASCADE)
     level = models.ForeignKey(Level, on_delete=CASCADE)
+    subtopic = models.ForeignKey(
+        "SubTopic",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="task_groups",
+    )
 
     class Meta:
         verbose_name = "Группа заданий"

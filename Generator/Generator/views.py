@@ -55,6 +55,46 @@ FAVICON_SVG = (
 )
 
 
+def _subtopics_for_groups(subject_instance, level_instance, task_numbers):
+    """Подтемы для групп с заданными task_numbers: id, title, group_count."""
+    if not task_numbers:
+        return []
+    # Сначала получаем id подходящих групп (без дублей от JOIN)
+    matching_ids = (
+        TaskGroup.objects.filter(
+            subject=subject_instance,
+            level=level_instance,
+            taskgroupmember__task_number__in=task_numbers,
+        )
+        .annotate(mcnt=Count("taskgroupmember"))
+        .filter(mcnt=len(task_numbers))
+        .values_list("id", flat=True)
+        .distinct()
+    )
+    group_ids = list(matching_ids)
+    if not group_ids:
+        return []
+    # Считаем по подтемам — без JOIN с TaskGroupMember, дублей нет
+    from django.db.models import Count as DbCount
+    per_subtopic = (
+        TaskGroup.objects.filter(id__in=group_ids)
+        .values("subtopic_id")
+        .annotate(cnt=DbCount("id"))
+        .order_by("-cnt")
+    )
+    result = []
+    for row in per_subtopic:
+        sid = row["subtopic_id"]
+        cnt = row["cnt"]
+        if sid is None:
+            title = "Без подтемы"
+        else:
+            st = SubTopic.objects.filter(id=sid).values_list("title", flat=True).first()
+            title = st or f"Подтема {sid}"
+        result.append({"id": sid, "title": title, "group_count": cnt})
+    return result
+
+
 def _normalize_content(data):
     if not isinstance(data, dict):
         return {}
@@ -115,7 +155,7 @@ def _get_fipi_q():
     )
 
 
-def _create_variant(subject_short, level_str, body_bytes):
+def _create_variant(subject_short, level_str, body_bytes, create=True):
     subject_instance = get_object_or_404(Subject, subject_short=subject_short)
     level_instance = get_object_or_404(Level, level=level_str)
     data = json.loads(body_bytes)
@@ -130,6 +170,55 @@ def _create_variant(subject_short, level_str, body_bytes):
         content = _normalize_content(data["content"])
     else:
         content = _normalize_content(data)
+    # Дополнительно: для linked-групп из tasks обеспечиваем нужное кол-во ГРУПП по каждому слоту
+    group_subtopic_config = {}  # key: tuple(task_numbers) -> {subtopic_ids, subtopic_counts}
+    if isinstance(data, dict) and data.get("tasks"):
+        content = dict(content)
+        for t in data["tasks"]:
+            if isinstance(t, dict):
+                nums = tuple(t.get("task_numbers") or [])
+                cnt = t.get("count")
+                try:
+                    cnt = int(cnt) if cnt is not None else 0
+                except (TypeError, ValueError):
+                    cnt = 0
+                if nums and cnt > 0:
+                    for n in nums:
+                        tl = TaskList.objects.filter(
+                            subject=subject_instance,
+                            level=level_instance,
+                            task_number=n,
+                        ).values_list("id", flat=True).first()
+                        if tl:
+                            key = str(tl)
+                            content[key] = max(content.get(key, 0), cnt)
+                    # Подтемы для группы: subtopic_ids, subtopic_counts в самом элементе tasks
+                    st_ids = t.get("subtopic_ids")
+                    st_counts = t.get("subtopic_counts")
+                    if st_ids is not None or (st_counts and isinstance(st_counts, dict)):
+                        cfg = {}
+                        if isinstance(st_ids, list):
+                            cfg["subtopic_ids"] = [int(x) for x in st_ids if x is not None and str(x) not in ("", "all")]
+                        else:
+                            cfg["subtopic_ids"] = []
+                        if isinstance(st_counts, dict):
+                            cfg["subtopic_counts"] = {}
+                            for k, v in st_counts.items():
+                                if str(k) == "all":
+                                    cfg["subtopic_counts"]["all"] = int(v) if v else 0
+                                else:
+                                    try:
+                                        ki = int(k)
+                                        n = int(v) if v else 0
+                                        if n > 0:
+                                            cfg["subtopic_counts"][ki] = n
+                                    except (TypeError, ValueError):
+                                        pass
+                        else:
+                            cfg["subtopic_counts"] = {}
+                        if cfg["subtopic_ids"] or cfg["subtopic_counts"]:
+                            group_subtopic_config[nums] = cfg
+    tasklist_ids = [int(k) for k in content.keys()]
     subtopic_ids = None
     subtopic_counts = None
     if isinstance(data, dict) and data.get("subtopic_ids"):
@@ -186,17 +275,80 @@ def _create_variant(subject_short, level_str, body_bytes):
     selected_tasks = []
     handled_tasklist_ids = set()
 
+
     def take_linked_groups(linked):
+        """Берём ровно num_groups записей из TaskGroup (группа заданий) для выбранного предмета и уровня."""
         task_numbers = linked.task_numbers or []
         if not task_numbers:
             return None, None
         ids_for_group = [id_by_number.get(n) for n in task_numbers]
         if any(i is None for i in ids_for_group):
             return None, None
+        nums_key = tuple(task_numbers)
+        cfg = group_subtopic_config.get(nums_key, {})
+        st_counts = cfg.get("subtopic_counts") or {}
+        st_ids = cfg.get("subtopic_ids") or []
+
+        if st_counts or st_ids:
+            # Фильтр по подтемам: собираем группы по каждой подтеме
+            base_qs = (
+                TaskGroup.objects.filter(
+                    subject=subject_instance,
+                    level=level_instance,
+                    taskgroupmember__task_number__in=task_numbers,
+                )
+                .annotate(mcnt=Count("taskgroupmember"))
+                .filter(mcnt=len(task_numbers))
+            )
+            all_tasks = []
+            required_nums = set(task_numbers)
+            if st_counts:
+                for sid, cnt in st_counts.items():
+                    cnt = int(cnt) if cnt else 0
+                    if cnt <= 0:
+                        continue
+                    if sid == "all":
+                        qs = base_qs  # Все типы — без фильтра
+                    elif sid is None or str(sid) == "null":
+                        qs = base_qs.filter(subtopic__isnull=True)  # Без подтемы
+                    else:
+                        qs = base_qs.filter(subtopic_id=sid)
+                    limit = max(cnt * 10, 50)
+                    added = 0
+                    for group in qs.order_by("?")[:limit]:
+                        if added >= cnt:
+                            break
+                        members = list(
+                            TaskGroupMember.objects.filter(task_group=group).order_by("task_number")
+                        )
+                        if len(members) != len(task_numbers) or {m.task_number for m in members} != required_nums:
+                            continue
+                        all_tasks.extend(m.task for m in members)
+                        added += 1
+            elif st_ids:
+                num_groups = min(content.get(str(i), 0) for i in ids_for_group)
+                num_groups = int(num_groups)
+                if num_groups > 0:
+                    qs = base_qs.filter(subtopic_id__in=st_ids).order_by("?")[:max(num_groups * 10, 50)]
+                    for group in qs:
+                        if len(all_tasks) >= num_groups * len(task_numbers):
+                            break
+                        members = list(
+                            TaskGroupMember.objects.filter(task_group=group).order_by("task_number")
+                        )
+                        if len(members) != len(task_numbers) or {m.task_number for m in members} != required_nums:
+                            continue
+                        all_tasks.extend(m.task for m in members)
+            if all_tasks:
+                return all_tasks, ids_for_group
+            return None, None
+        # Без фильтра по подтемам
         num_groups = min(content.get(str(i), 0) for i in ids_for_group)
+        num_groups = int(num_groups)
         if num_groups <= 0:
             return None, None
-        groups = list(
+        limit = max(num_groups * 10, 50)
+        groups_qs = (
             TaskGroup.objects.filter(
                 subject=subject_instance,
                 level=level_instance,
@@ -204,16 +356,26 @@ def _create_variant(subject_short, level_str, body_bytes):
             )
             .annotate(mcnt=Count("taskgroupmember"))
             .filter(mcnt=len(task_numbers))
-            .order_by("?")[: int(num_groups)]
+            .order_by("?")[:limit]
         )
-        if len(groups) < int(num_groups):
-            return None, None
         all_tasks = []
-        for group in groups:
+        required_nums = set(task_numbers)
+        for group in groups_qs:
+            if len(all_tasks) >= num_groups * len(task_numbers):
+                break
             members = list(
                 TaskGroupMember.objects.filter(task_group=group).order_by("task_number")
             )
+            if len(members) != len(task_numbers):
+                continue
+            member_nums = {m.task_number for m in members}
+            if member_nums != required_nums:
+                continue
             all_tasks.extend(m.task for m in members)
+            if len(all_tasks) >= num_groups * len(task_numbers):
+                break
+        if len(all_tasks) < num_groups * len(task_numbers):
+            return None, None
         return all_tasks, ids_for_group
 
     linked_defs = list(
@@ -231,70 +393,60 @@ def _create_variant(subject_short, level_str, body_bytes):
         if count <= 0:
             continue
         group_tasks, group_ids = None, None
+        linked_for_slot = None
         for linked in linked_defs:
             nums = linked.task_numbers or []
             if nums and nums[0] == tasklist.task_number:
+                linked_for_slot = linked
                 group_tasks, group_ids = take_linked_groups(linked)
                 break
+        if linked_for_slot and group_tasks is None and group_ids is None:
+            ids_for_linked = [id_by_number.get(n) for n in (linked_for_slot.task_numbers or [])]
+            if all(i is not None for i in ids_for_linked):
+                handled_tasklist_ids.update(ids_for_linked)
+            continue
         if group_tasks is not None and group_ids is not None:
+            # Для связанных групп: подтемы не используются, показываем все задачи по группам
             if only_fipi and fipi_q:
+                task_numbers = []
+                for linked in linked_defs:
+                    nums = linked.task_numbers or []
+                    if nums and nums[0] == tasklist.task_number:
+                        task_numbers = nums
+                        break
+                n_per_group = len(task_numbers) if task_numbers else len(group_ids)
                 fipi_ids = set(
                     Task.objects.filter(id__in=[t.id for t in group_tasks]).filter(fipi_q).values_list("id", flat=True)
                 )
-                group_tasks = [t for t in group_tasks if t.id in fipi_ids]
-            if group_tasks:
-                selected_tasks.extend(group_tasks)
-            elif only_fipi and group_ids:
-                for gid in group_ids:
-                    c = content.get(str(gid), 1)
-                    if c <= 0:
-                        continue
-                    qs = Task.objects.filter(task_id=gid).filter(fipi_q)
-                    selected_tasks.extend(list(qs.order_by("?")[: int(c)]))
+                for i in range(0, len(group_tasks), n_per_group):
+                    chunk = group_tasks[i : i + n_per_group]
+                    if len(chunk) == n_per_group and all(t.id in fipi_ids for t in chunk):
+                        selected_tasks.extend(chunk)
             else:
                 selected_tasks.extend(group_tasks)
             handled_tasklist_ids.update(group_ids)
             continue
-        # По подтемам: без ФИПИ — берём до st_count из подтемы; с ФИПИ — до st_count, но не больше кол-ва ФИПИ в подтеме
-        if subtopic_ids and subtopic_counts:
-            if only_fipi and fipi_q:
-                for st_id, st_count in subtopic_counts.items():
-                    if st_count <= 0:
-                        continue
-                    if not SubTopic.objects.filter(id=st_id, task_list_id=tasklist_id).exists():
-                        continue
-                    qs = Task.objects.filter(task_id=tasklist_id, subtopic_id=st_id).filter(fipi_q)
-                    selected_tasks.extend(list(qs.order_by("?")[: st_count]))
-            elif not only_fipi:
-                for st_id, st_count in subtopic_counts.items():
-                    if st_count <= 0:
-                        continue
-                    if not SubTopic.objects.filter(id=st_id, task_list_id=tasklist_id).exists():
-                        continue
-                    qs = Task.objects.filter(task_id=tasklist_id, subtopic_id=st_id)
-                    tasks_for_subtopic = list(qs.order_by("?")[: st_count])
-                    selected_tasks.extend(tasks_for_subtopic)
-        else:
-            qs = Task.objects.filter(task_id=tasklist_id)
-            if subtopic_ids and not only_fipi:
-                qs = qs.filter(subtopic_id__in=subtopic_ids)
-            if only_fipi and fipi_q:
-                qs = qs.filter(fipi_q)
-            tasks_for_slot = list(qs.order_by("?")[: int(count)])
-            selected_tasks.extend(tasks_for_slot)
+        # Одиночные задания: берём случайные задачи (фильтр по подтемам только для групп)
+        qs = Task.objects.filter(task_id=tasklist_id)
+        if only_fipi and fipi_q:
+            qs = qs.filter(fipi_q)
+        tasks_for_slot = list(qs.order_by("?")[: int(count)])
+        selected_tasks.extend(tasks_for_slot)
 
-    new_variant = Variant.objects.create(
-        var_subject=subject_instance,
-        level=level_instance,
-        created_by="ADMIN",
-        share_token=secrets.token_urlsafe(12),
-        content=content or {},
-    )
-    VariantContent.objects.bulk_create([
-        VariantContent(variant=new_variant, task=task, order=index)
-        for index, task in enumerate(selected_tasks, start=1)
-    ])
-    return new_variant
+    if create:
+        new_variant = Variant.objects.create(
+            var_subject=subject_instance,
+            level=level_instance,
+            created_by="ADMIN",
+            share_token=secrets.token_urlsafe(12),
+            content=content or {},
+        )
+        VariantContent.objects.bulk_create([
+            VariantContent(variant=new_variant, task=task, order=index)
+            for index, task in enumerate(selected_tasks, start=1)
+        ])
+        return new_variant
+    return selected_tasks
 
 
 @ensure_csrf_cookie
@@ -358,7 +510,7 @@ def api_tasks(request, level, subject):
     for linked, task_numbers, ids_for_group in linked_number_sets:
         key = tuple(task_numbers)
         if key not in linked_counts:
-            linked_counts[key] = (
+            matching_ids = (
                 TaskGroup.objects.filter(
                     subject=subject_instance,
                     level=level_instance,
@@ -366,8 +518,10 @@ def api_tasks(request, level, subject):
                 )
                 .annotate(mcnt=Count("taskgroupmember"))
                 .filter(mcnt=len(task_numbers))
-                .count()
+                .values_list("id", flat=True)
+                .distinct()
             )
+            linked_counts[key] = matching_ids.count()
 
     linked_tasklist_ids = set()
     linked_group_items = []
@@ -383,6 +537,7 @@ def api_tasks(request, level, subject):
             [tl_by_id[i] for i in ids_for_group if i in tl_by_id],
             key=lambda tl: tl.task_number,
         )
+        subtopics = _subtopics_for_groups(subject_instance, level_instance, task_numbers)
         linked_group_items.append({
             "type": "linked_group",
             "linked_key": "_".join(str(n) for n in task_numbers),
@@ -397,6 +552,7 @@ def api_tasks(request, level, subject):
                 for tl in tasklists
             ],
             "count_available": groups_count,
+            "subtopics": subtopics,
         })
 
     groups = TaskGroup.objects.filter(
@@ -440,6 +596,12 @@ def api_tasks(request, level, subject):
         if tl_id:
             grouped_tasklist_ids.add(tl_id)
 
+    # Добавляем подтемы для каждой группы
+    for group_id, gd in group_dict.items():
+        task_nums = sorted({t["task_number"] for t in gd["tasks"]})
+        gd["subtopics"] = _subtopics_for_groups(subject_instance, level_instance, task_nums)
+        gd["task_numbers"] = task_nums
+
     result = []
     for t in tasks_qs:
         if t.id in grouped_tasklist_ids:
@@ -467,16 +629,41 @@ def api_tasks(request, level, subject):
 
     result = sorted(result, key=sort_key)
 
-    return JsonResponse({
+    resp = {
         "subject_name": subject_instance.subject_name,
         "tasks": result
-    })
+    }
+    # Диагностика: при ?debug=1 показывать, почему linked_group может не отображаться
+    if request.GET.get("debug") == "1":
+        debug_linked = []
+        for linked in LinkedTaskGroup.objects.filter(
+            subject=subject_instance, level=level_instance
+        ):
+            tn = linked.task_numbers or []
+            ids_for = [id_by_number.get(n) for n in tn] if tn else []
+            missing = [n for n, i in zip(tn, ids_for) if i is None]
+            key = tuple(tn) if tn else ()
+            cnt = linked_counts.get(key, 0)
+            debug_linked.append({
+                "task_numbers_in_db": tn,
+                "missing_in_tasklist": missing if missing else None,
+                "groups_count": cnt,
+                "skipped_reason": (
+                    "empty_task_numbers" if not tn else
+                    "tasklist_missing" if missing else
+                    "no_groups" if cnt == 0 else None
+                ),
+            })
+        resp["_debug_linked"] = debug_linked
+    return JsonResponse(resp)
 
 
 def api_subtopics(request, level, subject):
-    """GET: список подтем по номерам заданий для тренажёра."""
+    """GET: список подтем по номерам заданий и связанным группам для тренажёра."""
     subject_instance = get_object_or_404(Subject, subject_short=subject)
     level_instance = get_object_or_404(Level, level=level)
+ 
+    # --- Одиночные задания (старая логика) ---
     task_lists = (
         TaskList.objects.filter(
             subject=subject_instance,
@@ -486,39 +673,31 @@ def api_subtopics(request, level, subject):
         .distinct()
         .order_by("task_number")
     )
+ 
+    fipi_q = _get_fipi_q()
     out = []
-    all_subtopic_ids = []
+ 
     for tl in task_lists:
         subtopics = list(
             SubTopic.objects.filter(task_list=tl).order_by("order", "title").values("id", "title", "order")
         )
         if not subtopics:
             continue
-        all_subtopic_ids.extend(s["id"] for s in subtopics)
+        for st in subtopics:
+            title = st["title"]
+            base_qs = Task.objects.filter(task_id=tl.id, subtopic__title=title)
+            st["task_count"] = base_qs.count()
+            st["fipi_task_count"] = base_qs.filter(fipi_q).count()
         out.append({
             "task_list_id": tl.id,
             "task_number": tl.task_number,
             "task_title": tl.task_title,
             "subtopics": subtopics,
         })
-    # Счётчики по каждой подтеме — тот же фильтр ФИПИ, что и при генерации варианта
-    fipi_q = _get_fipi_q()
 
-    for block in out:
-        tl_id = block["task_list_id"]
-        for st in block["subtopics"]:
-            title = st["title"]
-            # Ищем задачи по связке: слот (TaskList) + название подтемы,
-            # чтобы корректно учитывать случаи, когда subtopic_id может не совпадать,
-            # но название подтемы у задачи установлено правильно.
-            base_qs = Task.objects.filter(
-                task_id=tl_id,
-                subtopic__title=title,
-            )
-            st["task_count"] = base_qs.count()
-            st["fipi_task_count"] = base_qs.filter(fipi_q).count()
-    return JsonResponse({"subtopics_by_task": out})
-
+    return JsonResponse({
+        "subtopics_by_task": out,
+    })
 
 @csrf_exempt
 @require_http_methods(["POST"])
