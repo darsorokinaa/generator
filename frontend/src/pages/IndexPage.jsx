@@ -6,6 +6,25 @@ function IndexPage() {
   return (
     <div>
 
+      <aside className="index-announcement" role="status" aria-live="polite">
+        <p className="index-announcement-p index-announcement-greeting">
+          <span className="index-announcement-icon" aria-hidden="true">!</span>
+          Дорогие пользователи платформы
+        </p>
+        <p className="index-announcement-p">
+          Сейчас платформа в стадии больших обновлений, и некоторые задачи могут пока не засчитываться или отображаться с ошибками.
+        </p>
+        <p className="index-announcement-p">
+          Из-за внедрения новых функций в ближайшие пару дней мы не сможем исправлять опечатки, но получаем все ваши сообщения и обязательно всё исправим, как только обновим платформу.
+        </p>
+        <p className="index-announcement-p">
+          Спасибо за ваше терпение и понимание, а также за то, что делитесь недочётами - так мы сможем оперативно всё исправить. Желаем вам прекрасных уроков и отличного настроения!
+        </p>
+        <p className="index-announcement-signature">
+          Команда ГенУрок
+        </p>
+      </aside>
+
       <section className="welcome-banner" aria-label="О платформе">
         <img
           src={`${import.meta.env.BASE_URL}img/banner-owl.png`}
