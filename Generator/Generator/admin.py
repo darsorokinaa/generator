@@ -117,7 +117,7 @@ class TaskAdmin(SearchByIdMixin, admin.ModelAdmin):
 class SubTopicAdmin(admin.ModelAdmin):
     list_display = ("id", "task_list", "title", "order")
     list_filter = ("task_list__subject", "task_list__level")
-    search_fields = ("title", "task_list__task_title")
+    search_fields = ("title", "task_list__task_title", "task_list__subject__subject_short", "task_list__level__level")
     ordering = ("task_list", "order", "title")
 
 
@@ -196,6 +196,7 @@ class TaskGroupAdmin(admin.ModelAdmin):
     list_editable = ("subtopic",)
     inlines = (TaskGroupMemberInline,)
     fields = ("subject", "level", "subtopic")
+    autocomplete_fields = ("subtopic",)
 
 
 
