@@ -790,14 +790,20 @@ function ExamPage() {
       return;
     }
     setCriteriaOpenForTask(tid);
-    if (cacheKey != null && !criteriaByTaskList[cacheKey]) {
+    if (cacheKey != null && !criteriaByTaskList[cacheKey]?.criteria) {
       const params = new URLSearchParams();
       if (task.task_list_id != null) params.set("task_list_id", task.task_list_id);
       if (task.number != null) params.set("task_number", task.number);
       fetch(`/api/${level}/${subject}/criteria/?${params.toString()}`)
-        .then((res) => (res.ok ? res.json() : { criteria: [] }))
-        .then((data) => setCriteriaByTaskList((prev) => ({ ...prev, [cacheKey]: data.criteria || [] })))
-        .catch(() => setCriteriaByTaskList((prev) => ({ ...prev, [cacheKey]: [] })));
+        .then((res) => (res.ok ? res.json() : { criteria: [], max_score: null }))
+        .then((data) => setCriteriaByTaskList((prev) => ({
+          ...prev,
+          [cacheKey]: {
+            criteria: data.criteria || [],
+            max_score: data.max_score != null ? data.max_score : (task.max_score ?? 3),
+          },
+        })))
+        .catch(() => setCriteriaByTaskList((prev) => ({ ...prev, [cacheKey]: { criteria: [], max_score: task.max_score ?? 3 } })));
     }
   }
 
@@ -1489,7 +1495,7 @@ function ExamPage() {
                                             </tr>
                                           </thead>
                                           <tbody>
-                                            {(criteriaByTaskList[getCriteriaCacheKey(task)] || []).map((c) => (
+                                            {((criteriaByTaskList[getCriteriaCacheKey(task)]?.criteria) ?? []).map((c) => (
                                               <tr key={c.id} className="criteria-row">
                                                 <td className="criteria-td-content">
                                                   <label className="criteria-radio-label">
@@ -1498,7 +1504,7 @@ function ExamPage() {
                                                       name={`criteria-${task.id}`}
                                                       className="criteria-radio-input"
                                                       checked={selectedCriterionByTask[task.id] === c.id}
-                                                      onChange={() => selectCriterion(task.id, c, getTaskMaxScore(task))}
+                                                      onChange={() => selectCriterion(task.id, c, (criteriaByTaskList[getCriteriaCacheKey(task)]?.max_score) ?? getTaskMaxScore(task))}
                                                     />
                                                     <span className="criteria-radio-check">{selectedCriterionByTask[task.id] === c.id ? "✓" : ""}</span>
                                                     <MathContent html={c.criteria_text || ""} className="criteria-text" onImageClick={(src) => setLightbox({ open: true, src })} />
@@ -1511,12 +1517,12 @@ function ExamPage() {
                                           <tfoot>
                                             <tr>
                                               <td className="criteria-tfoot-label">Максимальный балл</td>
-                                              <td className="criteria-tfoot-score">{getTaskMaxScore(task)}</td>
+                                              <td className="criteria-tfoot-score">{(criteriaByTaskList[getCriteriaCacheKey(task)]?.max_score) ?? getTaskMaxScore(task)}</td>
                                             </tr>
                                           </tfoot>
                                         </table>
                                       </div>
-                                      {(criteriaByTaskList[getCriteriaCacheKey(task)] || []).length === 0 && (
+                                      {((criteriaByTaskList[getCriteriaCacheKey(task)]?.criteria) ?? []).length === 0 && (
                                         <p className="criteria-empty">Критерии не заданы для этого задания</p>
                                       )}
                                     </div>
@@ -1603,7 +1609,7 @@ function ExamPage() {
                                             name={`criteria-${task.id}`}
                                             className="criteria-radio-input"
                                             checked={selectedCriterionByTask[task.id] === c.id}
-                                            onChange={() => selectCriterion(task.id, c, getTaskMaxScore(task))}
+                                            onChange={() => selectCriterion(task.id, c, (criteriaByTaskList[getCriteriaCacheKey(task)]?.max_score) ?? getTaskMaxScore(task))}
                                           />
                                           <span className="criteria-radio-check">{selectedCriterionByTask[task.id] === c.id ? "✓" : ""}</span>
                                           <MathContent html={c.criteria_text || ""} className="criteria-text" onImageClick={(src) => setLightbox({ open: true, src })} />
@@ -1616,12 +1622,12 @@ function ExamPage() {
                                 <tfoot>
                                   <tr>
                                     <td className="criteria-tfoot-label">Максимальный балл</td>
-                                    <td className="criteria-tfoot-score">{getTaskMaxScore(task)}</td>
+                                    <td className="criteria-tfoot-score">{(criteriaByTaskList[getCriteriaCacheKey(task)]?.max_score) ?? getTaskMaxScore(task)}</td>
                                   </tr>
                                 </tfoot>
                               </table>
                             </div>
-                            {(criteriaByTaskList[getCriteriaCacheKey(task)] || []).length === 0 && (
+                            {((criteriaByTaskList[getCriteriaCacheKey(task)]?.criteria) ?? []).length === 0 && (
                               <p className="criteria-empty">Критерии не заданы для этого задания</p>
                             )}
                           </div>

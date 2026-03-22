@@ -936,7 +936,11 @@ def api_criteria(request, level, subject):
     )
     for c in criteria_list:
         c["criteria_text"] = process_latex(str(c.get("criteria_text") or ""), for_browser=True)
-    return JsonResponse({"criteria": criteria_list})
+
+    max_score = TaskList.objects.filter(id__in=tl_ids).order_by("-max_score").values_list("max_score", flat=True).first()
+    max_score = max_score if max_score is not None else 1
+
+    return JsonResponse({"criteria": criteria_list, "max_score": max_score})
 
 
 def api_variant_detail(request, level, subject, variant_id):
