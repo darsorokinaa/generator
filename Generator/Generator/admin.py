@@ -4,6 +4,7 @@ from django.utils.html import strip_tags
 from django_ckeditor_5.widgets import CKEditor5Widget
 
 from .models import (
+    Criteria,
     Level,
     LinkedTaskGroup,
     Mark,
@@ -150,6 +151,22 @@ class VariantContentAdmin(admin.ModelAdmin):
             q = Q(id=val) | Q(variant_id=val) | Q(task_id=val)
             return self.model.objects.filter(q).distinct(), True
         return super().get_search_results(request, queryset, search_term)
+
+
+@admin.register(Criteria)
+class CriteriaAdmin(admin.ModelAdmin):
+    list_display = ("id", "task_number", "criteria_score")
+    list_filter = ("task_number__subject", "task_number__level")
+    list_editable = ("criteria_score",)
+    search_fields = ("criteria_text",)
+    list_select_related = ("task_number__subject", "task_number__level")
+    raw_id_fields = ("task_number",)
+    ordering = ("task_number", "id")
+
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        if db_field.name == "criteria_text":
+            kwargs["widget"] = CKEditor5Widget(config_name="default")
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
 
 
 @admin.register(Part)

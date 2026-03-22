@@ -16,6 +16,7 @@ from django.views.decorators.http import require_http_methods
 from weasyprint import HTML as WeasyHTML
 
 from .models import (
+    Criteria,
     Level,
     LinkedTaskGroup,
     Mark,
@@ -896,6 +897,48 @@ def api_variant_lookup(request, variant_id):
     })
 
 
+@require_http_methods(["GET"])
+def api_criteria(request, level, subject):
+    """Критерии по task_list_id или по (subject, level, task_number). Criteria привязаны к TaskList (номер задания)."""
+    subject_instance = get_object_or_404(Subject, subject_short=subject)
+    level_instance = get_object_or_404(Level, level=level)
+
+    tl_ids = []
+    task_list_id = request.GET.get("task_list_id")
+    task_number_param = request.GET.get("task_number")
+
+    if task_list_id:
+        try:
+            tl_ids.append(int(task_list_id))
+        except (TypeError, ValueError):
+            pass
+    if task_number_param is not None:
+        try:
+            tn = int(task_number_param)
+            ids_by_num = list(
+                TaskList.objects.filter(
+                    subject=subject_instance,
+                    level=level_instance,
+                    task_number=tn,
+                ).values_list("id", flat=True)
+            )
+            tl_ids = list(dict.fromkeys(tl_ids + ids_by_num))
+        except (TypeError, ValueError):
+            pass
+
+    if not tl_ids:
+        return JsonResponse({"criteria": []})
+
+    criteria_list = list(
+        Criteria.objects.filter(task_number_id__in=tl_ids)
+        .order_by("-criteria_score", "id")
+        .values("id", "criteria_text", "criteria_score")
+    )
+    for c in criteria_list:
+        c["criteria_text"] = process_latex(str(c.get("criteria_text") or ""), for_browser=True)
+    return JsonResponse({"criteria": criteria_list})
+
+
 def api_variant_detail(request, level, subject, variant_id):
     variant = get_object_or_404(Variant.objects.select_related('level', 'var_subject'), id=variant_id)
 
@@ -934,6 +977,7 @@ def api_variant_detail(request, level, subject, variant_id):
 
         tasks_data.append({
             "id": item.task.id,
+            "task_list_id": task_list.id if task_list else None,
             "number": task_list.task_number if task_list else item.order,
             "task_title": task_list.task_title if task_list else "",
             "text": process_latex(str(item.task.task_template or ""), for_browser=True),

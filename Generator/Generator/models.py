@@ -308,3 +308,12 @@ class Update(models.Model):
 
     def __str__(self):
         return f"{self.created.strftime('%Y-%m-%d %H:%M')}: {self.title}"
+
+class Criteria(models.Model):
+    task_number = models.ForeignKey(TaskList, on_delete=CASCADE)
+    criteria_text = CKEditor5Field()
+    criteria_score = models.IntegerField(default=0)
+
+    class Meta:
+        verbose_name = "Критерий"
+        verbose_name_plural = "Критерии"
