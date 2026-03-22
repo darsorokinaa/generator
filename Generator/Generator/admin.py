@@ -64,9 +64,9 @@ class LevelAdmin(admin.ModelAdmin):
 
 @admin.register(Task)
 class TaskAdmin(SearchByIdMixin, admin.ModelAdmin):
-    list_display = ("id", "task", "max_score", "answer_preview", "created_by", "added_at")
-    list_filter = ("task__subject", "task__level", "task__part", "created_by", "added_at")
-    search_fields = ("answer",)
+    list_display = ("id", "task", "task_number_display", "max_score", "template_preview", "answer_preview", "created_by", "added_at")
+    list_filter = ("task__subject", "task__level", "task__part", "task__task_number", "created_by", "added_at")
+    search_fields = ("answer", "task_template")
     date_hierarchy = "added_at"
     list_select_related = ("task__subject", "task__level", "task__part")
     list_per_page = 25
@@ -82,11 +82,22 @@ class TaskAdmin(SearchByIdMixin, admin.ModelAdmin):
             kwargs["widget"] = CKEditor5Widget(config_name="default")
         return super().formfield_for_dbfield(db_field, request, **kwargs)
 
+    def task_number_display(self, obj):
+        return obj.task.task_number if obj.task else "-"
+    task_number_display.short_description = "№ задачи"
+    task_number_display.admin_order_field = "task__task_number"
+
+    def template_preview(self, obj):
+        raw = obj.task_template or ""
+        plain = strip_tags(raw).strip() if raw else ""
+        return (plain[:100] + "…") if len(plain) > 100 else plain
+    template_preview.short_description = "Условие"
+    template_preview.admin_order_field = "task_template"
+
     def answer_preview(self, obj):
         raw = obj.answer or ""
         plain = strip_tags(raw).strip() if raw else ""
         return (plain[:50] + "…") if len(plain) > 50 else plain
-
     answer_preview.short_description = "Ответ"
 
 
@@ -147,7 +158,6 @@ class TaskGroupAdmin(admin.ModelAdmin):
     list_filter = ("subject", "level")
     list_select_related = ("subject", "level")
     inlines = (TaskGroupMemberInline,)
-
 
 
 @admin.register(Tags)
