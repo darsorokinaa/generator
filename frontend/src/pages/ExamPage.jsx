@@ -1600,7 +1600,7 @@ function ExamPage() {
                                   </tr>
                                 </thead>
                                 <tbody>
-                                  {(criteriaByTaskList[getCriteriaCacheKey(task)] || []).map((c) => (
+                                  {((criteriaByTaskList[getCriteriaCacheKey(task)]?.criteria) ?? []).map((c) => (
                                     <tr key={c.id} className="criteria-row">
                                       <td className="criteria-td-content">
                                         <label className="criteria-radio-label">
