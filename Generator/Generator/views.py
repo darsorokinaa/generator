@@ -575,7 +575,26 @@ def _create_variant(subject_short, level_str, body_bytes, create=True):
             shuffle(pooled)
             tasks_for_slot = list(Task.objects.filter(id__in=pooled[: int(count)]))
         else:
-            tasks_for_slot = list(qs.order_by("?")[: int(count)])
+            # OGE информатика, задание 13: при полном варианте — по одной задаче из каждой подтемы
+            if (
+                subject_instance.subject_short == "inf"
+                and level_instance.level == "oge"
+                and tasklist.task_number == 13
+            ):
+                st_ids_with_tasks = list(
+                    qs.exclude(subtopic_id__isnull=True)
+                    .values_list("subtopic_id", flat=True)
+                    .distinct()
+                )
+                tasks_for_slot = []
+                for sid in st_ids_with_tasks:
+                    one = qs.filter(subtopic_id=sid).order_by("?").first()
+                    if one:
+                        tasks_for_slot.append(one)
+                if not tasks_for_slot:
+                    tasks_for_slot = list(qs.order_by("?")[: int(count)])
+            else:
+                tasks_for_slot = list(qs.order_by("?")[: int(count)])
         selected_tasks.extend(tasks_for_slot)
 
     if create:
