@@ -1899,7 +1899,7 @@ mjx-container {
 }
 
 .task-files {
-    margin: 1.25rem 0;
+    margin: 0.4rem 0 1rem;
     text-align: center;
 }
 
@@ -3768,7 +3768,36 @@ body.index .exam-grid .exam-card {
     object-position: center !important;
     cursor: pointer;
 }
-/* Всё кроме геометрии: картинки 100% ширины */
+/* Информатика (ОГЭ/ЕГЭ): компактные картинки — диаграммы, схемы */
+.exam-page[data-subject="inf"] .task:not(.task-geom) .task-text figure,
+.exam-page[data-subject="inf"] .task:not(.task-geom) .task-text figure.image {
+    width: auto !important;
+    max-width: 100% !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+.exam-page[data-subject="inf"] .task:not(.task-geom) .task-img-zoomable {
+    display: block !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+.exam-page[data-subject="inf"] .task:not(.task-geom) .task-text img,
+.exam-page[data-subject="inf"] .task:not(.task-geom) .task-text figure img,
+.exam-page[data-subject="inf"] .task:not(.task-geom) .task-text figure.image img,
+.exam-page[data-subject="inf"] .task:not(.task-geom) .correct-answer-content img,
+.exam-page[data-subject="inf"] .task:not(.task-geom) .part2-answer-content img,
+.exam-page[data-subject="inf"] .task:not(.task-geom) .criteria-text img {
+    display: block !important;
+    width: auto !important;
+    max-width: min(420px, 95vw) !important;
+    height: auto !important;
+    max-height: min(420px, 85vh) !important;
+    margin: 0 auto !important;
+    object-fit: contain !important;
+    cursor: pointer;
+}
+
+/* Всё кроме геометрии и информатики: картинки 100% ширины */
 .exam-page .task:not(.task-geom) .task-text figure,
 .exam-page .task:not(.task-geom) .task-text figure.image {
     width: 100% !important;
@@ -3832,9 +3861,9 @@ body.index .exam-grid .exam-card {
     margin-bottom: 0 !important;
 }
 
-/* Меньший отступ перед полем ответа */
+/* Меньший отступ перед полем ответа и перед «Скачать файл» */
 .exam-page .task-text {
-    margin-bottom: 0.35rem !important;
+    margin-bottom: 0.1rem !important;
 }
 .exam-page .task-text figure.image img,
 .exam-page .task-text figure img {
@@ -3856,7 +3885,34 @@ body.index .exam-grid .exam-card {
     padding: 0.5rem 0.75rem !important;
 }
 .exam-page .answer-section {
+    margin-top: 0.2rem !important;
+    gap: 0rem !important;
+}
+.exam-page .correct-answer-display:not(.visible) {
+    min-height: 0 !important;
+    margin-top: 2px !important;
+    padding: 0 !important;
+}
+
+/* Компактные отступы в карточке задания */
+.exam-page .task {
+    padding: 1.25rem !important;
+    gap: 1.25rem !important;
+    margin-bottom: 1rem !important;
+}
+.exam-page .task-author {
     margin-top: 0.25rem !important;
+    margin-bottom: 0.4rem !important;
+}
+.exam-page .task-files {
+    margin: 0.08rem 0 0.3rem !important;
+}
+.exam-page .task-report-error-wrap {
+    margin-top: 0.1rem !important;
+}
+.exam-page .part-divider-2 ~ .task .task-report-error-wrap,
+.exam-page .part-divider-2 ~ .task-group .task-report-error-wrap {
+    margin-top: 1.75rem !important;
 }
 
 /* --- Справочная информация (перетаскиваемое окно) --- */

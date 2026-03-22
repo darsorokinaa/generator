@@ -1059,7 +1059,7 @@ function ExamPage() {
   };
 
   return (
-    <div ref={mainRef} className="main-wrapper exam-page" id="main-wrapper">
+    <div ref={mainRef} className="main-wrapper exam-page" id="main-wrapper" data-level={level} data-subject={subject}>
       {/* Фиксированный блок: таймер и баллы — остаётся в углу при прокрутке */}
       <div className="exam-fixed-corner">
         <div className="variant-timer exam-fixed-timer">
@@ -1222,8 +1222,6 @@ function ExamPage() {
 
                   <article className="task-content">
                     <MathContent html={task.text} className="task-text" onImageClick={(src) => setLightbox({ open: true, src })} />
-                    {task.author && <div className="task-author">{task.author}</div>}
-
                     {task.file && (
                       <div className="task-files">
                         <a href={task.file} target="_blank" rel="noreferrer" className="task-file-link">
@@ -1232,6 +1230,7 @@ function ExamPage() {
                         </a>
                       </div>
                     )}
+                    {task.author && <div className="task-author">{task.author}</div>}
 
                     <div className="answer-section">
                       {useTable && rows > 0 && cols > 0 ? (
@@ -1393,8 +1392,6 @@ function ExamPage() {
 
                           <article className="task-content">
                             <MathContent html={task.text} className="task-text" onImageClick={(src) => setLightbox({ open: true, src })} />
-                            {task.author && <div className="task-author">{task.author}</div>}
-
                             {task.file && (
                               <div className="task-files">
                                 <a href={task.file} target="_blank" rel="noreferrer" className="task-file-link">
@@ -1403,6 +1400,7 @@ function ExamPage() {
                                 </a>
                               </div>
                             )}
+                            {task.author && <div className="task-author">{task.author}</div>}
 
                             <div className="answer-section">
                               {useTableHere && rowsHere > 0 && colsHere > 0 ? (
@@ -1577,8 +1575,6 @@ function ExamPage() {
 
                     <article className="task-content">
                       <MathContent html={task.text} className="task-text" onImageClick={(src) => setLightbox({ open: true, src })} />
-                      {task.author && <div className="task-author">{task.author}</div>}
-
                       {task.file && (
                         <div className="task-files">
                           <a href={task.file} target="_blank" rel="noreferrer" className="task-file-link">
@@ -1587,6 +1583,7 @@ function ExamPage() {
                           </a>
                         </div>
                       )}
+                      {task.author && <div className="task-author">{task.author}</div>}
 
                       <div className="answer-section">
                         {criteriaOpenForTask === task.id ? (
