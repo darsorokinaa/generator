@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'Generator.apps.GeneratorConfig',
     'Board',
+    'Cabinet',
     'corsheaders',
      "django_ckeditor_5",
     
@@ -87,6 +88,8 @@ _extra_origins = os.environ.get('CSRF_TRUSTED_ORIGINS', '')
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5000",
     "http://127.0.0.1:5000",
+    "http://localhost:5001",
+    "http://127.0.0.1:5001",
     "https://*.replit.dev",
     "https://*.repl.co",
 ] + [o.strip() for o in _extra_origins.split(',') if o.strip()]
@@ -202,6 +205,11 @@ STATICFILES_DIRS = [BASE_DIR / "static"] + ([FRONTEND_DIR] if FRONTEND_DIR.exist
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Аутентификация Cabinet
+LOGIN_URL = '/cabinet/login/'
+LOGIN_REDIRECT_URL = '/cabinet/'
+LOGOUT_REDIRECT_URL = '/cabinet/login/'
 
 # Telegram bot для отправки сообщений об ошибках
 # Для группового чата: добавьте бота в группу, затем получите ID через

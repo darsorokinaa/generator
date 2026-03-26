@@ -4686,11 +4686,18 @@ body.index .exam-grid .exam-card {
     background: #fff;
     border: 1.5px solid #3b82f6;
     color: #3b82f6;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 .header-nav-cabinet:hover {
     background: #eff6ff;
-    border-color: #60a5fa;
-    color: #60a5fa;
+    border-color: #2563eb;
+    color: #2563eb;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
+    transform: translateY(-1px);
+}
+.header-nav-cabinet:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 4px rgba(37, 99, 235, 0.15);
 }
 .header-nav-cabinet svg {
     flex-shrink: 0;
