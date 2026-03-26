@@ -4204,7 +4204,8 @@ body.index .exam-grid .exam-card {
 
 .exam-fixed-corner {
   position: fixed;
-  top: 1rem;
+  /* Фиксируем блок ниже верхнего меню/шапки */
+  top: 4.75rem;
   right: 1rem;
   z-index: 1000;
   display: flex;
@@ -4318,7 +4319,7 @@ body.index .exam-grid .exam-card {
 @media (max-width: 768px) {
   .exam-fixed-corner {
     /* Ниже верхнего меню (шапки) */
-    top: 4.75rem;
+    top: 6.5rem;
     right: 0.75rem;
     bottom: auto !important;
     gap: 0.4rem;
