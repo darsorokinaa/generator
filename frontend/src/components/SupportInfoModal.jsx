@@ -1,14 +1,36 @@
 import { useEffect, useRef, useState } from "react";
 import MathContent from "./MathContent";
 
+const MOBILE_BREAKPOINT = 768;
+
+function getInitialLayout() {
+  if (typeof window === "undefined") return { pos: { x: 80, y: 80 }, size: { w: 480, h: 420 } };
+  const isMobile = window.innerWidth <= MOBILE_BREAKPOINT;
+  if (isMobile) {
+    const w = window.innerWidth * 0.92;
+    const h = Math.min(window.innerHeight * 0.65, 400);
+    const x = (window.innerWidth - w) / 2;
+    const y = Math.max(12, window.innerHeight * 0.08);
+    return { pos: { x, y }, size: { w, h } };
+  }
+  return { pos: { x: 80, y: 80 }, size: { w: 480, h: 420 } };
+}
+
 /**
  * Перетаскиваемое и масштабируемое окно со справочной информацией.
  */
 export default function SupportInfoModal({ open, items = [], onClose }) {
-  const [pos, setPos] = useState({ x: 80, y: 80 });
-  const [size, setSize] = useState({ w: 480, h: 420 });
+  const [pos, setPos] = useState(() => getInitialLayout().pos);
+  const [size, setSize] = useState(() => getInitialLayout().size);
   const startRef = useRef({ x: 0, y: 0, posX: 0, posY: 0 });
   const resizeRef = useRef({ x: 0, y: 0, w: 0, h: 0 });
+
+  useEffect(() => {
+    if (!open) return;
+    const layout = getInitialLayout();
+    setPos(layout.pos);
+    setSize(layout.size);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -87,7 +109,7 @@ export default function SupportInfoModal({ open, items = [], onClose }) {
         <div
           className="support-info-header"
           onPointerDown={handleHeaderMouseDown}
-          style={{ cursor: "grab" }}
+          style={{ cursor: "grab", touchAction: "none" }}
         >
           <span className="support-info-title">Справочная информация</span>
           <button

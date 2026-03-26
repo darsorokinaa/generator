@@ -195,9 +195,13 @@
     </div>
 
     <div class="report-totals">
-        <p>Тестовые баллы: {{ total_score }} из {{ max_score }}</p>
+        <p>Первичные баллы: {{ total_score }} из {{ max_score }}</p>
         {% if score_exam is not None %}
-        <p>Вторичные баллы: {{ score_exam }} из 100</p>
+            {% if is_oge %}
+                <p>Оценка: {{ score_exam }}</p>
+            {% else %}
+                <p>Вторичные баллы: {{ score_exam }} из 100</p>
+            {% endif %}
         {% endif %}
     </div>
 

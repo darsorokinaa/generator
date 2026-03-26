@@ -1,5 +1,6 @@
 """PDF generation helpers."""
 import base64
+import hashlib
 import os
 import re
 import tempfile
@@ -126,12 +127,15 @@ def resolve_background_image(filename: str, request=None) -> str:
     return ""
 
 
-def build_pdf_context(request, variant, subject):
+def build_pdf_context(request, variant, subject, author_filter=None):
     contents = list(
         variant.variantcontent_set
         .select_related('task', 'task__task', 'task__task__part')
         .order_by('order')
     )
+    author_trimmed = (author_filter or "").strip()
+    if author_trimmed:
+        contents = [c for c in contents if (c.task.author or "").strip() == author_trimmed]
 
     # Batch-render all LaTeX formulas (tasks + answers) in one Node.js call before processing
     all_formulas = []
@@ -318,9 +322,13 @@ def build_pdf_context(request, variant, subject):
     }
 
 
-def get_pdf_cache_path(variant_id, theme):
+def get_pdf_cache_path(variant_id, theme, author_filter=None):
     safe_theme = theme or "default"
     base_dir = django_settings.MEDIA_ROOT or os.path.join(django_settings.BASE_DIR, "media")
     cache_dir = os.path.join(base_dir, "pdfs")
     os.makedirs(cache_dir, exist_ok=True)
-    return os.path.join(cache_dir, f"variant_{variant_id}_{safe_theme}.pdf")
+    suffix = f"variant_{variant_id}_{safe_theme}"
+    if author_filter:
+        author_slug = hashlib.md5(author_filter.encode("utf-8")).hexdigest()[:12]
+        suffix = f"{suffix}_author_{author_slug}"
+    return os.path.join(cache_dir, f"{suffix}.pdf")

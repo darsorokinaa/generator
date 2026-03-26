@@ -4,6 +4,7 @@ from django.utils.html import strip_tags
 from django_ckeditor_5.widgets import CKEditor5Widget
 
 from .models import (
+    Criteria,
     Level,
     LinkedTaskGroup,
     Mark,
@@ -11,15 +12,15 @@ from .models import (
     Part,
     PreviewType,
     Subject,
+    SubTopic,
     SupportInfo,
     Tag,
-    Tags,
-    TagsList,
     Task,
     TaskGroup,
     TaskGroupMember,
     TaskList,
     TaskPreview,
+    Update,
     Variant,
     VariantContent,
 )
@@ -37,9 +38,15 @@ class SearchByIdMixin:
         return queryset, use_distinct
 
 
+class SubTopicInline(admin.TabularInline):
+    model = SubTopic
+    extra = 1
+    fields = ("title", "order")
+
+
 @admin.register(Subject)
 class SubjectAdmin(admin.ModelAdmin):
-    list_display = ("subject_short", "subject_name")
+    list_display = ("id", "subject_short", "subject_name")
     list_filter = ("subject_short",)
     search_fields = ("subject_short", "subject_name")
     list_per_page = 50
@@ -48,33 +55,36 @@ class SubjectAdmin(admin.ModelAdmin):
 
 @admin.register(TaskList)
 class TaskListAdmin(SearchByIdMixin, admin.ModelAdmin):
-    list_display = ("id", "task_number", "task_title", "subject", "level", "part")
-    list_filter = ("subject", "level", "part")
+    list_display = ("id", "task_number", "task_title", "subject", "level", "part", "subdivision")
+    list_filter = ("subject", "level", "part", "subdivision")
+    list_editable = ("subdivision",)
     search_fields = ("task_title",)
     list_select_related = ("subject", "level", "part")
     list_per_page = 25
     show_full_result_count = False
+    inlines = [SubTopicInline]
 
 
 @admin.register(Level)
 class LevelAdmin(admin.ModelAdmin):
-    list_display = ("level", "level_rus")
+    list_display = ("id", "level", "level_rus")
     list_filter = ("level",)
 
 
 @admin.register(Task)
 class TaskAdmin(SearchByIdMixin, admin.ModelAdmin):
-    list_display = ("id", "task", "task_number_display", "max_score", "template_preview", "answer_preview", "created_by", "added_at")
-    list_filter = ("task__subject", "task__level", "task__part", "task__task_number", "created_by", "added_at")
-    search_fields = ("answer", "task_template")
+    list_display = ("id", "task_with_title", "task_template_preview", "subtopic", "max_score", "answer_preview", "created_by", "added_at")
+    list_filter = ("task__subject", "task__level", "task__part", "subtopic", "created_by", "added_at")
+    list_editable = ("subtopic",)
+    search_fields = ("answer",)
     date_hierarchy = "added_at"
-    list_select_related = ("task__subject", "task__level", "task__part")
+    list_select_related = ("task__subject", "task__level", "task__part", "subtopic")
     list_per_page = 25
     show_full_result_count = False
     raw_id_fields = ("task",)
-
+    autocomplete_fields = ("subtopic",)
     fieldsets = (
-        (None, {"fields": ("task", "task_template", "answer", "max_score", "files", "author", "added_at", "created_by")}),
+        (None, {"fields": ("task", "subtopic", "task_template", "answer", "max_score", "files", "author", "added_at", "created_by")}),
     )
 
     def formfield_for_dbfield(self, db_field, request, **kwargs):
@@ -82,23 +92,33 @@ class TaskAdmin(SearchByIdMixin, admin.ModelAdmin):
             kwargs["widget"] = CKEditor5Widget(config_name="default")
         return super().formfield_for_dbfield(db_field, request, **kwargs)
 
-    def task_number_display(self, obj):
-        return obj.task.task_number if obj.task else "-"
-    task_number_display.short_description = "№ задачи"
-    task_number_display.admin_order_field = "task__task_number"
+    def task_with_title(self, obj):
+        if not obj.task:
+            return "—"
+        return f"№{obj.task.task_number} — {obj.task.task_title}"
+    task_with_title.short_description = "Задача"
+    task_with_title.admin_order_field = "task__task_number"
 
-    def template_preview(self, obj):
+    def task_template_preview(self, obj):
         raw = obj.task_template or ""
         plain = strip_tags(raw).strip() if raw else ""
-        return (plain[:100] + "…") if len(plain) > 100 else plain
-    template_preview.short_description = "Условие"
-    template_preview.admin_order_field = "task_template"
+        return (plain[:60] + "…") if len(plain) > 60 else plain
+    task_template_preview.short_description = "Условие задачи"
 
     def answer_preview(self, obj):
         raw = obj.answer or ""
         plain = strip_tags(raw).strip() if raw else ""
         return (plain[:50] + "…") if len(plain) > 50 else plain
+
     answer_preview.short_description = "Ответ"
+
+
+@admin.register(SubTopic)
+class SubTopicAdmin(admin.ModelAdmin):
+    list_display = ("id", "task_list", "title", "order")
+    list_filter = ("task_list__subject", "task_list__level")
+    search_fields = ("title", "task_list__task_title", "task_list__subject__subject_short", "task_list__level__level")
+    ordering = ("task_list", "order", "title")
 
 
 @admin.register(Variant)
@@ -133,6 +153,22 @@ class VariantContentAdmin(admin.ModelAdmin):
         return super().get_search_results(request, queryset, search_term)
 
 
+@admin.register(Criteria)
+class CriteriaAdmin(admin.ModelAdmin):
+    list_display = ("id", "task_number", "criteria_score")
+    list_filter = ("task_number__subject", "task_number__level")
+    list_editable = ("criteria_score",)
+    search_fields = ("criteria_text",)
+    list_select_related = ("task_number__subject", "task_number__level")
+    raw_id_fields = ("task_number",)
+    ordering = ("task_number", "id")
+
+    def formfield_for_dbfield(self, db_field, request, **kwargs):
+        if db_field.name == "criteria_text":
+            kwargs["widget"] = CKEditor5Widget(config_name="default")
+        return super().formfield_for_dbfield(db_field, request, **kwargs)
+
+
 @admin.register(Part)
 class PartAdmin(admin.ModelAdmin):
     list_display = ("id", "part_title")
@@ -154,24 +190,14 @@ class TaskGroupMemberInline(admin.TabularInline):
 
 @admin.register(TaskGroup)
 class TaskGroupAdmin(admin.ModelAdmin):
-    list_display = ("id", "subject", "level")
-    list_filter = ("subject", "level")
-    list_select_related = ("subject", "level")
+    list_display = ("id", "subject", "level", "subtopic")
+    list_filter = ("subject", "level", "subtopic")
+    list_select_related = ("subject", "level", "subtopic")
+    list_editable = ("subtopic",)
     inlines = (TaskGroupMemberInline,)
+    fields = ("subject", "level", "subtopic")
+    autocomplete_fields = ("subtopic",)
 
-
-@admin.register(Tags)
-class TagsAdmin(admin.ModelAdmin):
-    list_display = ("id", "tag")
-    list_filter = ("tag",)
-    search_fields = ("tag",)
-
-
-@admin.register(TagsList)
-class TagsListAdmin(admin.ModelAdmin):
-    list_display = ("id", "tag")
-    list_filter = ("tag",)
-    search_fields = ("tag",)
 
 
 @admin.register(Tag)
@@ -245,3 +271,14 @@ class TaskPreviewAdmin(admin.ModelAdmin):
         return (plain[:50] + "…") if len(plain) > 50 else plain
 
     preview_preview.short_description = "Текст перед задачами"
+
+
+@admin.register(Update)
+class UpdateAdmin(admin.ModelAdmin):
+    list_display = ("id", "created", "title", "show")
+    list_editable = ("show",)
+    list_filter = ("show",)
+    search_fields = ("title", "description")
+    date_hierarchy = "created"
+    ordering = ["-created"]
+    readonly_fields = ("created",)

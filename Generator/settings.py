@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     # your apps
     "Generator",
     "Board",
+    "Cabinet",
 
     # third-party
     "corsheaders",
@@ -52,6 +53,7 @@ CKEDITOR_5_CONFIGS = {
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -88,28 +90,15 @@ CHANNEL_LAYERS = {
     }
 }
 
-# Database
-# На Replit чаще используют SQLite или внешний Postgres.
-# Ваш текущий конфиг в репо указывает на localhost Postgres — на Replit это обычно НЕ работает.
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'generatordb',
-        'USER': 'generator_user',
-        'PASSWORD': 'StrongPass123',
-        'HOST': 'localhost',
-        'PORT': '5432',
-    }
-}
-
+# # Database (те же параметры, что в Generator/Generator/settings.py — одна БД для дампа)
 # DATABASES = {
 #     'default': {
 #         'ENGINE': 'django.db.backends.postgresql',
 #         'NAME': 'generatordb',
-#         'USER': 'postgres',
-#         'PASSWORD': 'postgres',
-#         'HOST': 'localhost',
-#         'PORT': '',
+#         'USER': os.environ.get('PGUSER', 'postgres'),
+#         'PASSWORD': os.environ.get('PGPASSWORD', 'postgres'),
+#         'HOST': os.environ.get('PGHOST', 'localhost'),
+#         'PORT': os.environ.get('PGPORT', ''),
 #     }
 # }
 
@@ -139,10 +128,10 @@ USE_I18N = True
 USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
+# Vite с base: '/static/' отдаёт /static/assets/xxx.css — нужна структура dist целиком
 STATIC_URL = "/static/"
 STATICFILES_DIRS = [
-    # Vite build assets: frontend/dist/assets/*
-    BASE_DIR / "frontend" / "dist" / "assets",
+    BASE_DIR / "frontend" / "dist",
 ]
 STATIC_ROOT = BASE_DIR / "staticfiles"
 

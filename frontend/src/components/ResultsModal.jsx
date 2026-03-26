@@ -17,32 +17,49 @@ export default function ResultsModal({ open, onClose, results }) {
     return () => document.removeEventListener("keydown", handleKey);
   }, [open, onClose]);
 
+  const formatLocalDate = (d) => {
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    return `${day}.${month}.${d.getFullYear()}`;
+  };
+  const formatLocalTime = (d) => {
+    return [d.getHours(), d.getMinutes(), d.getSeconds()]
+      .map((n) => String(n).padStart(2, "0"))
+      .join(":");
+  };
+
   const handleDownloadReport = async (studentName) => {
     if (!results || reportLoading) return;
     setReportLoading(true);
     try {
+      const startDate = results.startTime ? new Date(results.startTime) : null;
+      const endDate = results.endTime ? new Date(results.endTime) : null;
+      const payload = {
+        studentName,
+        variantId: results.variantId,
+        startTime: results.startTime,
+        endTime: results.endTime,
+        dateSolutionLocal: startDate ? formatLocalDate(startDate) : "",
+        timeStartLocal: startDate ? formatLocalTime(startDate) : "",
+        timeEndLocal: endDate ? formatLocalTime(endDate) : "",
+        totalTimeFormatted: results.totalTimeFormatted,
+        taskTimes: results.taskTimes,
+        checkedTasks: results.checkedTasks,
+        scores: results.scores,
+        totalScore: results.totalScore,
+        maxScore: results.maxScore,
+        scoreExam: results.scoreExam,
+        scoreComment: results.scoreComment,
+        markLevel: results.markLevel,
+        tasks: results.tasks,
+      };
       const res = await fetch(
         `/api/${results.level}/${results.subject}/report-pdf/`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "same-origin",
-          body: JSON.stringify({
-            studentName,
-            variantId: results.variantId,
-            startTime: results.startTime,
-            endTime: results.endTime,
-            totalTimeFormatted: results.totalTimeFormatted,
-            taskTimes: results.taskTimes,
-            checkedTasks: results.checkedTasks,
-            scores: results.scores,
-            totalScore: results.totalScore,
-            maxScore: results.maxScore,
-            scoreExam: results.scoreExam,
-            scoreComment: results.scoreComment,
-            markLevel: results.markLevel,
-            tasks: results.tasks,
-          }),
+          body: JSON.stringify(payload),
         }
       );
       if (!res.ok) throw new Error("Ошибка загрузки отчёта");
@@ -65,7 +82,7 @@ export default function ResultsModal({ open, onClose, results }) {
 
   if (!open || !results) return null;
 
-  const { totalTimeFormatted, taskTimes, totalScore, maxScore, scoreExam, scoreComment, markLevel, tasks } = results;
+  const { totalTimeFormatted, taskTimes, totalScore, maxScore, scoreExam, scoreComment, markLevel, tasks, level } = results;
   const levelToClass = { 1: "insufficient", 2: "threshold", 3: "average", 4: "high" };
   const scoreLevelClass = markLevel && levelToClass[markLevel] ? `results-score-${levelToClass[markLevel]}` : "";
   const taskIdToNumber = tasks?.reduce((acc, t) => ({ ...acc, [t.id]: t.number }), {}) ?? {};
@@ -165,7 +182,7 @@ export default function ResultsModal({ open, onClose, results }) {
           })()}
 
           <div className="results-row results-row-primary">
-            <span className="results-label">Тестовые баллы:</span>
+            <span className="results-label">Первичные баллы:</span>
             <span className="results-value">
               {totalScore} из {maxScore}
             </span>
@@ -175,8 +192,14 @@ export default function ResultsModal({ open, onClose, results }) {
           <div className="results-score-exam-block">
             {scoreExam != null && (
               <div className="results-row results-row-primary">
-                <span className="results-label">Вторичные баллы:</span>
-                <span className="results-value">{Number(scoreExam)} из 100</span>
+                <span className="results-label">
+                  {String(level).toLowerCase() === "oge" ? "Оценка:" : "Вторичные баллы:"}
+                </span>
+                <span className="results-value">
+                  {String(level).toLowerCase() === "oge"
+                    ? Number(scoreExam)
+                    : `${Number(scoreExam)} из 100`}
+                </span>
               </div>
             )}
             {scoreComment != null && String(scoreComment).trim() !== "" && (

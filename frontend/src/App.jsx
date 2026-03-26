@@ -8,6 +8,7 @@ import TasksPage from "./pages/TasksPage";
 import ExamPage from "./pages/ExamPage";
 import SearchTaskPage from "./pages/SearchTaskPage";
 import SearchVariantPage from "./pages/SearchVariantPage";
+import AuthorsPage from "./pages/AuthorsPage";
 import NotFoundPage from "./pages/NotFoundPage";
 
 function ScrollToTop() {
@@ -37,6 +38,7 @@ function App() {
         <Route element={<Layout />}>
 
           <Route path="/" element={<IndexPage />} />
+          <Route path="/about" element={<AuthorsPage />} />
 
           <Route path="/search/tasks" element={<SearchTaskWithKey />} />
           <Route path="/search-variant" element={<SearchVariantWithKey />} />

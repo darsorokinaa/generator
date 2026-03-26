@@ -1531,8 +1531,6 @@ header .container {
     gap: 1.5rem;
     transition: all 0.2s ease;
     border: 1px solid rgba(102, 126, 234, 0.06);
-    max-width: 100%;
-    overflow: hidden;
 }
 
 .task-left {
@@ -1826,7 +1824,6 @@ header .container {
 .task-content {
     flex: 1;
     min-width: 0;
-    max-width: 100%;
 }
 
 .task-report-error-wrap {
@@ -3579,35 +3576,6 @@ body.index .exam-grid .exam-card {
         max-width: 100%;
     }
 
-    /* Защита от переполнения длинным текстом/ссылками/инлайн-формулами */
-    .exam-page .task-text,
-    .exam-page .task-text p,
-    .exam-page .task-text li,
-    .exam-page .task-text span,
-    .exam-page .task-text a,
-    .exam-page .task-text strong,
-    .exam-page .task-text em {
-        max-width: 100%;
-        min-width: 0;
-        box-sizing: border-box;
-        overflow-wrap: anywhere;
-        word-break: break-word;
-        white-space: normal;
-    }
-
-    .exam-page .task-text pre,
-    .exam-page .task-text code {
-        white-space: pre-wrap;
-        overflow-wrap: anywhere;
-        word-break: break-word;
-    }
-
-    .exam-page .task-text mjx-container {
-        max-width: 100%;
-        overflow-x: auto;
-        overflow-y: hidden;
-    }
-
     .exam-page .task-content {
         min-width: 0;
         max-width: 100%;
@@ -3631,14 +3599,6 @@ body.index .exam-grid .exam-card {
         display: block;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
-        table-layout: fixed;
-    }
-
-    .exam-page .task-text th,
-    .exam-page .task-text td {
-        white-space: normal;
-        overflow-wrap: anywhere;
-        word-break: break-word;
     }
 
     .variant-hero-content {
@@ -3904,81 +3864,6 @@ body.index .exam-grid .exam-card {
 /* Меньший отступ перед полем ответа и перед «Скачать файл» */
 .exam-page .task-text {
     margin-bottom: 0.1rem !important;
-    max-width: 100% !important;
-    overflow-x: visible;
-    overflow-y: visible;
-    overflow-wrap: anywhere;
-    word-break: break-word;
-    white-space: normal;
-}
-.exam-page .task-content {
-    min-width: 0;
-    max-width: 100%;
-    overflow-x: visible;
-}
-.exam-page .task-text > * {
-    max-width: 100%;
-    min-width: 0;
-    box-sizing: border-box;
-    white-space: normal !important;
-    overflow-wrap: anywhere;
-    word-break: break-word;
-}
-.exam-page .task-text * {
-    white-space: normal !important;
-    overflow-wrap: anywhere !important;
-    word-break: break-word !important;
-}
-.exam-page .task-text nobr {
-    white-space: normal !important;
-}
-.exam-page .task-text mjx-container,
-.exam-page .task-text mjx-container[display="true"] {
-    max-width: 100% !important;
-    overflow-x: auto;
-    overflow-y: hidden;
-}
-
-@media (max-width: 900px) {
-    .exam-page .task-text {
-        font-size: 1rem !important;
-        line-height: 1.65 !important;
-    }
-}
-
-@media (max-width: 600px) {
-    .exam-page .task-text {
-        font-size: 0.92rem !important;
-        line-height: 1.55 !important;
-    }
-}
-
-/* Мобильный индикатор горизонтальной прокрутки условия */
-@media (max-width: 768px) {
-    .exam-page .task-text.task-text--has-overflow {
-        position: relative;
-        padding-bottom: 1.35rem;
-    }
-    .exam-page .task-text.task-text--has-overflow::after {
-        content: "Листайте дальше →";
-        position: absolute;
-        right: 0.2rem;
-        bottom: 0.15rem;
-        font-size: 0.68rem;
-        font-weight: 700;
-        letter-spacing: 0.02em;
-        color: #64748b;
-        background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,0.92) 40%);
-        padding: 0.15rem 0.35rem 0.15rem 1.2rem;
-        border-radius: 999px;
-        pointer-events: none;
-        animation: task-scroll-hint-pulse 1.6s ease-in-out infinite;
-    }
-}
-
-@keyframes task-scroll-hint-pulse {
-    0%, 100% { opacity: 0.62; transform: translateX(0); }
-    50% { opacity: 1; transform: translateX(2px); }
 }
 .exam-page .task-text figure.image img,
 .exam-page .task-text figure img {
@@ -4317,14 +4202,10 @@ body.index .exam-grid .exam-card {
 
 @media (max-width: 768px) {
   .exam-fixed-corner {
-    /* Ниже верхнего меню (шапки) */
-    top: 4.75rem;
+    top: 0.75rem;
     right: 0.75rem;
-    bottom: auto !important;
     gap: 0.4rem;
     padding: 0.4rem;
-    max-width: calc(100vw - 1rem);
-    z-index: 900;
   }
 
   .exam-fixed-timer .variant-timer-display {
@@ -4333,11 +4214,6 @@ body.index .exam-grid .exam-card {
 
   .exam-fixed-corner .variant-score-val {
     font-size: 1.1rem;
-  }
-
-  /* На мобилке показываем текст «Справочная информация», чтобы было понятно. */
-  .exam-fixed-support-btn span {
-    display: inline;
   }
 }
 
@@ -4669,10 +4545,9 @@ body.index .exam-grid .exam-card {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: auto;
-    height: auto;
-    padding: 0.55rem 0.85rem;
-    gap: 0.55rem;
+    width: 44px;
+    height: 44px;
+    padding: 0;
     border: 1.5px solid rgba(102, 126, 234, 0.3);
     border-radius: 12px;
     background: rgba(255, 255, 255, 0.9);
@@ -4691,13 +4566,6 @@ body.index .exam-grid .exam-card {
 
 .variant-btn-copy-link svg {
     display: block;
-}
-
-.variant-btn-copy-link-text {
-    font-size: 0.9rem;
-    font-weight: 600;
-    line-height: 1;
-    white-space: nowrap;
 }
 
 /* Оверлей загрузки PDF */
@@ -4808,7 +4676,7 @@ body.index .exam-grid .exam-card {
 }
 
 .header-nav-cabinet {
-    display: none !important;
+    display: flex;
     align-items: center;
     justify-content: center;
     width: 38px;
@@ -4818,11 +4686,18 @@ body.index .exam-grid .exam-card {
     background: #fff;
     border: 1.5px solid #3b82f6;
     color: #3b82f6;
+    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
 }
 .header-nav-cabinet:hover {
     background: #eff6ff;
-    border-color: #60a5fa;
-    color: #60a5fa;
+    border-color: #2563eb;
+    color: #2563eb;
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
+    transform: translateY(-1px);
+}
+.header-nav-cabinet:active {
+    transform: translateY(0);
+    box-shadow: 0 1px 4px rgba(37, 99, 235, 0.15);
 }
 .header-nav-cabinet svg {
     flex-shrink: 0;

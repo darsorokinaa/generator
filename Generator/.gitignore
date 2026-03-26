@@ -2,21 +2,28 @@
 __pycache__/
 *.py[cod]
 *.sqlite3
-
-# Virtualenv
 .venv/
 venv/
-media/
-Generator/media/
-settings.py
-Generator/settings.py
+.pythonlibs/
+
 # Django
 *.log
 staticfiles/
-media/pdfs/
+**/media/
 
+*.sql
 # Environment variables
 .env
 
+# Node
+node_modules/
+
 # OS
 .DS_Store
+
+# IDE
+.idea/
+
+# Replit
+.cache/
+Generator/Cabinet/

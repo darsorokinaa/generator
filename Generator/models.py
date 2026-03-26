@@ -179,4 +179,5 @@ class Mark(models.Model):
 
     def __str__(self):
         class Meta:
-            verbose_name = "Баллы тестовые-вторичные"
+            verbose_name = "Баллы и оценки"
+            

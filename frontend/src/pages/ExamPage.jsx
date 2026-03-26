@@ -7,11 +7,7 @@ import SupportInfoModal from "../components/SupportInfoModal";
 import ResultsModal from "../components/ResultsModal";
 import ReportErrorModal from "../components/ReportErrorModal";
 
-const COLORS = [
-  { value: "#000000", label: "Чёрный" },
-  { value: "#2196F3", label: "Синий" },
-  { value: "#F44336", label: "Красный" },
-];
+const COLORS = ["#000000", "#ffffff", "#ef4444", "#3b82f6", "#22c55e"];
 
 const SUBJECT_NAMES = {
   math: "математике",
@@ -65,6 +61,13 @@ function ExamPage() {
   // Показанные ответы части 2 — { taskId: true }
   const [visibleAnswers, setVisibleAnswers] = useState({});
 
+  // Критерии части 2: панель открыта для taskId | null
+  const [criteriaOpenForTask, setCriteriaOpenForTask] = useState(null);
+  // Кэш критериев по task_list_id
+  const [criteriaByTaskList, setCriteriaByTaskList] = useState({});
+  // Выбранный критерий: { taskId: criterionId }
+  const [selectedCriterionByTask, setSelectedCriterionByTask] = useState({});
+
   // Доска
   const [boardOpen, setBoardOpen] = useState(false);
   const [tool, setTool] = useState("pen"); // "pen" | "eraser" | "line" | "triangle" | "circle" | "square"
@@ -78,6 +81,9 @@ function ExamPage() {
 
   // Загрузка PDF
   const [pdfLoading, setPdfLoading] = useState(null); // null | "default" | "spring"
+
+  // Копирование ссылки на вариант
+  const [linkCopied, setLinkCopied] = useState(false);
 
   // Lightbox для увеличения изображений
   const [lightbox, setLightbox] = useState({ open: false, src: "" });
@@ -206,6 +212,24 @@ function ExamPage() {
     const timer = setTimeout(tryTypeset, delay);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [variant, boardOpen]);
+
+  /* Подсказка «листайте», если блок условия реально переполнен по ширине */
+  useEffect(() => {
+    const updateScrollHints = () => {
+      const nodes = document.querySelectorAll(".exam-page .task-text");
+      nodes.forEach((node) => {
+        const hasOverflow = node.scrollWidth - node.clientWidth > 4;
+        node.classList.toggle("task-text--has-overflow", hasOverflow);
+      });
+    };
+    updateScrollHints();
+    const t = setTimeout(updateScrollHints, 120);
+    window.addEventListener("resize", updateScrollHints);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener("resize", updateScrollHints);
+    };
+  }, [variant]);
 
   /* =========================
      Лайтбокс: клик по картинке
@@ -651,10 +675,28 @@ function ExamPage() {
     }
   }
 
+  // Для математики: ответы вида "x или y" считаем как несколько допустимых вариантов
+  function isUserAnswerCorrect(rawUserValue, correctAnswerHtml) {
+    const userNorm = normalize(rawUserValue);
+    const correctText = getTextFromHtml(correctAnswerHtml || "");
+    const correctNorm = normalize(correctText);
+
+    if (subject === "math" && /\sили\s/i.test(correctText)) {
+      const alternatives = correctText
+        .split(/\s+или\s+/i)
+        .map((part) => normalize(part))
+        .filter(Boolean);
+      if (alternatives.length > 0) {
+        return alternatives.includes(userNorm);
+      }
+    }
+
+    return userNorm === correctNorm;
+  }
+
   function checkTask(taskId, correctAnswer, userValue = null) {
     const raw = userValue !== null ? userValue : userAnswers[taskId] || "";
-    const correctText = getTextFromHtml(correctAnswer || "");
-    const isCorrect = normalize(raw) === normalize(correctText);
+    const isCorrect = isUserAnswerCorrect(raw, correctAnswer);
     setCheckedTasks((prev) => ({ ...prev, [taskId]: isCorrect }));
   }
 
@@ -664,8 +706,7 @@ function ExamPage() {
     const userValue = useTable
       ? getTableAnswerForCheck(task.id, INF_TABLE_ROWS, INF_TABLE_COLS)
       : (userAnswers[task.id] || "");
-    const correctText = getTextFromHtml(task.answer || "");
-    return normalize(userValue) === normalize(correctText);
+    return isUserAnswerCorrect(userValue, task.answer || "");
   }
 
   // Задания по информатике с таблицей ответов (18, 20, 25, 26, 27): 2 столбца, 7 строк
@@ -701,6 +742,57 @@ function ExamPage() {
     return matrix.map((rowArr) => rowArr.join("\t")).join("\n");
   }
 
+  /** Парсинг эталонного ответа из HTML в матрицу rows×cols (таб/перенос строки). */
+  function parseCorrectTableAnswer(correctAnswerHtml, rows, cols) {
+    const text = getTextFromHtml(correctAnswerHtml || "");
+    const lines = text.split(/\r?\n/);
+    const matrix = [];
+    for (let r = 0; r < rows; r++) {
+      const line = lines[r] || "";
+      matrix.push(line.split(/\t/).slice(0, cols).map((s) => s.trim()));
+      while (matrix[r].length < cols) matrix[r].push("");
+    }
+    return matrix;
+  }
+
+  /** Информатика, задание 26: 2 ответа в одной строке. Оба верны → 2, один верный → 1, иначе 0. */
+  function getInfTask26Score(userMatrix, correctMatrix) {
+    const u = (userMatrix[0] || []).map((c) => normalize(c));
+    const c = (correctMatrix[0] || []).map((cell) => normalize(cell));
+    let match = 0;
+    if (u[0] === c[0]) match++;
+    if (u[1] === c[1]) match++;
+    return match === 2 ? 2 : match === 1 ? 1 : 0;
+  }
+
+  /** Информатика, задание 27: 4 числа в двух строках (2 столбца). Обе строки верны → 2, одна строка верна → 1, иначе 0. */
+  function getInfTask27Score(userMatrix, correctMatrix) {
+    const rowMatch = (r) => {
+      const u = (userMatrix[r] || []).map((cell) => normalize(cell));
+      const c = (correctMatrix[r] || []).map((cell) => normalize(cell));
+      return u[0] === c[0] && u[1] === c[1];
+    };
+    const r0 = rowMatch(0);
+    const r1 = rowMatch(1);
+    if (r0 && r1) return 2;
+    if (r0 || r1) return 1;
+    return 0;
+  }
+
+  /** Проверка задания 26 или 27 по информатике: выставляет баллы 0/1/2 и помечает задание проверенным. */
+  function checkInfTask26Or27(task, rows, cols) {
+    const userMatrix = getTableAnswerString(task.id, rows, cols);
+    const correctMatrix = parseCorrectTableAnswer(task.answer, rows, cols);
+    const score =
+      task.number === 26
+        ? getInfTask26Score(userMatrix, correctMatrix)
+        : task.number === 27
+          ? getInfTask27Score(userMatrix, correctMatrix)
+          : 0;
+    setScores((prev) => ({ ...prev, [task.id]: score }));
+    setCheckedTasks((prev) => ({ ...prev, [task.id]: score > 0 }));
+  }
+
   function resetTask(taskId) {
     setUserAnswers((prev) => {
       const updated = { ...prev };
@@ -718,11 +810,42 @@ function ExamPage() {
     setVisibleAnswers((p) => ({ ...p, [taskId]: !p[taskId] }));
   }
 
-  function resetAllAnswers() {
-    setUserAnswers({});
-    setCheckedTasks({});
-    setScores({});
-    setVisibleAnswers({});
+  /** Ключ кэша критериев: task_list_id или "num_<task_number>" при поиске по номеру */
+  function getCriteriaCacheKey(task) {
+    if (task.task_list_id != null) return task.task_list_id;
+    if (task.number != null) return `num_${task.number}`;
+    return null;
+  }
+
+  function toggleCriteriaPanel(task) {
+    const tid = task.id;
+    const cacheKey = getCriteriaCacheKey(task);
+    if (criteriaOpenForTask === tid) {
+      setCriteriaOpenForTask(null);
+      return;
+    }
+    setCriteriaOpenForTask(tid);
+    if (cacheKey != null && !criteriaByTaskList[cacheKey]?.criteria) {
+      const params = new URLSearchParams();
+      if (task.task_list_id != null) params.set("task_list_id", task.task_list_id);
+      if (task.number != null) params.set("task_number", task.number);
+      fetch(`/api/${level}/${subject}/criteria/?${params.toString()}`)
+        .then((res) => (res.ok ? res.json() : { criteria: [], max_score: null }))
+        .then((data) => setCriteriaByTaskList((prev) => ({
+          ...prev,
+          [cacheKey]: {
+            criteria: data.criteria || [],
+            max_score: data.max_score != null ? data.max_score : (task.max_score ?? 3),
+          },
+        })))
+        .catch(() => setCriteriaByTaskList((prev) => ({ ...prev, [cacheKey]: { criteria: [], max_score: task.max_score ?? 3 } })));
+    }
+  }
+
+  function selectCriterion(taskId, criterion, maxScore) {
+    setSelectedCriterionByTask((prev) => ({ ...prev, [taskId]: criterion.id }));
+    const score = Math.min(criterion.criteria_score ?? 0, maxScore);
+    setScores((prev) => ({ ...prev, [taskId]: Math.max(0, score) }));
   }
 
   function undoBoard() {
@@ -767,8 +890,19 @@ function ExamPage() {
   if (error) return <div style={{ padding: 20 }}>Ошибка: {error}</div>;
   if (!variant) return <div style={{ padding: 20 }}>Загрузка...</div>;
 
-  const part1Tasks = variant.tasks.filter((t) => t.part === 1);
-  const part2Tasks = variant.tasks.filter((t) => t.part === 2);
+  const tasksFilteredByAuthor = variant.tasks;
+  // Fallback: если part не задан, определяем по номеру (ОГЭ матем: 1–19 ч.1, 20+ ч.2; ЕГЭ матем: 1–11 ч.1; ОГЭ инф: 1–15 ч.1)
+  const inferPart = (t) => {
+    if (t.part === 1 || t.part === 2) return t.part;
+    const n = t.number;
+    if (level === "oge" && subject === "math") return n <= 19 ? 1 : 2;
+    if (level === "ege" && subject === "math") return n <= 11 ? 1 : 2;
+    if (level === "oge" && subject === "inf") return n <= 15 ? 1 : 2;
+    if (level === "ege" && subject === "inf") return n <= 27 ? 1 : 2;
+    return n <= 19 ? 1 : 2;
+  };
+  const part1Tasks = tasksFilteredByAuthor.filter((t) => inferPart(t) === 1);
+  const part2Tasks = tasksFilteredByAuthor.filter((t) => inferPart(t) === 2);
 
   // Связанные задания 19–21 — только для ЕГЭ информатика; для математики всё как обычные задания
   const LINKED_19_21 = [19, 20, 21];
@@ -780,7 +914,11 @@ function ExamPage() {
 
   const getTaskMaxScore = (task) => task.max_score ?? 3;
   const part2ScoreSum = part2Tasks.reduce((sum, t) => sum + (scores[t.id] || 0), 0);
-  const maxScore = part1Tasks.length + part2Tasks.reduce((sum, t) => sum + getTaskMaxScore(t), 0);
+  // ЕГЭ информатика: макс. первичный балл 29 (часть 1 + 26 и 27 по 2 балла и др.)
+  const maxScore =
+    String(subject).toLowerCase() === "inf" && String(level).toLowerCase() === "ege"
+      ? 29
+      : part1Tasks.length + part2Tasks.reduce((sum, t) => sum + getTaskMaxScore(t), 0);
 
   /** При завершении: авто-проверка непроверенных заданий части 1, подсчёт эффективных баллов */
   function getEffectiveResults() {
@@ -792,14 +930,19 @@ function ExamPage() {
     const correctCount = part1Tasks.filter((t) => effectiveCheckedTasks[t.id]).length;
     const effectiveScores = {};
     for (const task of variant.tasks) {
-      if (task.part === 2) {
+      if (inferPart(task) === 2) {
         effectiveScores[task.id] = scores[task.id] ?? 0;
       } else {
         effectiveScores[task.id] = effectiveCheckedTasks[task.id] ? 1 : 0;
       }
     }
     const totalScore = correctCount + part2ScoreSum;
-    return { effectiveCheckedTasks, effectiveScores, correctCount, totalScore };
+    // Кол-во верно решённых задач геометрии (subdivision === "geom")
+    const geoCorrectCount =
+      Array.isArray(variant.tasks)
+        ? variant.tasks.filter((t) => t.subdivision === "geom" && (effectiveScores[t.id] || 0) > 0).length
+        : 0;
+    return { effectiveCheckedTasks, effectiveScores, correctCount, totalScore, geoCorrectCount };
   }
 
   const { correctCount, totalScore } = getEffectiveResults();
@@ -838,9 +981,17 @@ function ExamPage() {
     endTimeRef.current = new Date().toISOString();
     const totalTimeFormatted = formatTimer(timerSeconds);
     const taskTimes = { ...taskTimesRef.current };
-    const { effectiveCheckedTasks, effectiveScores, correctCount: effCorrectCount, totalScore: effTotalScore } = getEffectiveResults();
+    const {
+      effectiveCheckedTasks,
+      effectiveScores,
+      correctCount: effCorrectCount,
+      totalScore: effTotalScore,
+      geoCorrectCount,
+    } = getEffectiveResults();
+    const isOgeMath = String(level).toLowerCase() === "oge" && String(subject).toLowerCase() === "math";
+    const geoParam = isOgeMath ? `&geo_correct=${geoCorrectCount}` : "";
     const res = await fetch(
-      `/api/${level}/${subject}/score-conversion/?score=${effTotalScore}`,
+      `/api/${level}/${subject}/score-conversion/?score=${effTotalScore}${geoParam}`,
       { credentials: "same-origin" }
     );
     let scoreExam = null;
@@ -877,8 +1028,8 @@ function ExamPage() {
 
   const openPdf = async (variantId) => {
     setPdfLoading("default");
+    const url = `/api/${level}/${subject}/variant/${variantId}/pdf/`;
     try {
-      const url = `/api/${level}/${subject}/variant/${variantId}/pdf/`;
       const res = await fetch(url, { credentials: "same-origin" });
       if (!res.ok) throw new Error("Ошибка загрузки PDF");
       const blob = await res.blob();
@@ -892,7 +1043,7 @@ function ExamPage() {
       setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
     } catch (err) {
       const a = document.createElement("a");
-      a.href = `/api/${level}/${subject}/variant/${variantId}/pdf/`;
+      a.href = url;
       a.download = `variant-${variantId}.pdf`;
       a.target = "_blank";
       document.body.appendChild(a);
@@ -905,8 +1056,8 @@ function ExamPage() {
 
   const openPdfSpring = async (variantId) => {
     setPdfLoading("spring");
+    const url = `/api/${level}/${subject}/variant/${variantId}/pdf/?theme=spring`;
     try {
-      const url = `/api/${level}/${subject}/variant/${variantId}/pdf/?theme=spring`;
       const res = await fetch(url, { credentials: "same-origin" });
       if (!res.ok) throw new Error("Ошибка загрузки PDF");
       const blob = await res.blob();
@@ -920,7 +1071,7 @@ function ExamPage() {
       setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
     } catch (err) {
       const a = document.createElement("a");
-      a.href = `/api/${level}/${subject}/variant/${variantId}/pdf/?theme=spring`;
+      a.href = url;
       a.download = `variant-${variantId}-spring.pdf`;
       a.target = "_blank";
       document.body.appendChild(a);
@@ -931,8 +1082,19 @@ function ExamPage() {
     }
   };
 
+  const copyVariantLink = async () => {
+    const url = window.location.href;
+    try {
+      await navigator.clipboard.writeText(url);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch (_) {
+      setLinkCopied(false);
+    }
+  };
+
   return (
-    <div ref={mainRef} className="main-wrapper exam-page" id="main-wrapper">
+    <div ref={mainRef} className="main-wrapper exam-page" id="main-wrapper" data-level={level} data-subject={subject}>
       {/* Фиксированный блок: таймер и баллы — остаётся в углу при прокрутке */}
       <div className="exam-fixed-corner">
         <div className="variant-timer exam-fixed-timer">
@@ -1036,9 +1198,6 @@ function ExamPage() {
 
                 <div className="variant-hero-right">
                   <div className="variant-hero-actions">
-                    <button className="variant-btn-danger" onClick={resetAllAnswers}>
-                      ↺ Сбросить всё
-                    </button>
                     <button
                       className="variant-btn-primary"
                       onClick={() => openPdf(variant.id)}
@@ -1052,6 +1211,25 @@ function ExamPage() {
                       disabled={!!pdfLoading}
                     >
                       🌸 Весенний вариант
+                    </button>
+                    <button
+                      type="button"
+                      className="variant-btn-copy-link"
+                      onClick={copyVariantLink}
+                      title={linkCopied ? "Скопировано" : "Скопировать ссылку на вариант"}
+                      aria-label={linkCopied ? "Скопировано" : "Скопировать ссылку на вариант"}
+                    >
+                      {linkCopied ? (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="20" height="20" aria-hidden="true">
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      ) : (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="20" height="20" aria-hidden="true">
+                          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                        </svg>
+                      )}
+                      <span className="variant-btn-copy-link-text">Скопировать ссылку на вариант</span>
                     </button>
                   </div>
                 </div>
@@ -1072,7 +1250,7 @@ function ExamPage() {
               const cols = useTable ? INF_TABLE_COLS : 0;
 
               return (
-                <section key={task.id} className="task" onClick={() => handleTaskFocus(task.id)}>
+                <section key={task.id} className={`task${task.subdivision === "geom" ? " task-geom" : task.subdivision === "alg" ? " task-alg" : ""}${((level === "oge" && subject === "inf" && task.number === 13) || (level === "oge" && subject === "math" && task.number === 1)) ? " task-img-full" : ""}`} onClick={() => handleTaskFocus(task.id)}>
                   <aside className="task-left">
                     <div className="task-number">{task.number}</div>
                     <div className="task-id">{task.id}</div>
@@ -1080,8 +1258,6 @@ function ExamPage() {
 
                   <article className="task-content">
                     <MathContent html={task.text} className="task-text" onImageClick={(src) => setLightbox({ open: true, src })} />
-                    {task.author && <div className="task-author">{task.author}</div>}
-
                     {task.file && (
                       <div className="task-files">
                         <a href={task.file} target="_blank" rel="noreferrer" className="task-file-link">
@@ -1090,6 +1266,7 @@ function ExamPage() {
                         </a>
                       </div>
                     )}
+                    {task.author && <div className="task-author">{task.author}</div>}
 
                     <div className="answer-section">
                       {useTable && rows > 0 && cols > 0 ? (
@@ -1150,7 +1327,9 @@ function ExamPage() {
                                 className="add-button"
                                 style={{ padding: "0.6rem 1rem", fontSize: "0.85rem", whiteSpace: "nowrap" }}
                                 onClick={() =>
-                                  checkTask(task.id, task.answer, getTableAnswerForCheck(task.id, rows, cols))
+                                  subject === "inf" && (task.number === 26 || task.number === 27)
+                                    ? checkInfTask26Or27(task, rows, cols)
+                                    : checkTask(task.id, task.answer, getTableAnswerForCheck(task.id, rows, cols))
                                 }
                               >
                                 Проверить
@@ -1241,7 +1420,7 @@ function ExamPage() {
                       const colsHere = useTableHere ? INF_TABLE_COLS : 0;
 
                       return (
-                        <section key={task.id} className="task task-in-group" onClick={() => handleTaskFocus(task.id)}>
+                        <section key={task.id} className={`task task-in-group${task.subdivision === "geom" ? " task-geom" : task.subdivision === "alg" ? " task-alg" : ""}${((level === "oge" && subject === "inf" && task.number === 13) || (level === "oge" && subject === "math" && task.number === 1)) ? " task-img-full" : ""}`} onClick={() => handleTaskFocus(task.id)}>
                           <aside className="task-left">
                             <div className="task-number">{task.number}</div>
                             <div className="task-id">{task.id}</div>
@@ -1249,8 +1428,6 @@ function ExamPage() {
 
                           <article className="task-content">
                             <MathContent html={task.text} className="task-text" onImageClick={(src) => setLightbox({ open: true, src })} />
-                            {task.author && <div className="task-author">{task.author}</div>}
-
                             {task.file && (
                               <div className="task-files">
                                 <a href={task.file} target="_blank" rel="noreferrer" className="task-file-link">
@@ -1259,6 +1436,7 @@ function ExamPage() {
                                 </a>
                               </div>
                             )}
+                            {task.author && <div className="task-author">{task.author}</div>}
 
                             <div className="answer-section">
                               {useTableHere && rowsHere > 0 && colsHere > 0 ? (
@@ -1319,7 +1497,9 @@ function ExamPage() {
                                         className="add-button"
                                         style={{ padding: "0.6rem 1rem", fontSize: "0.85rem", whiteSpace: "nowrap" }}
                                         onClick={() =>
-                                          checkTask(task.id, task.answer, getTableAnswerForCheck(task.id, rowsHere, colsHere))
+                                          subject === "inf" && (task.number === 26 || task.number === 27)
+                                            ? checkInfTask26Or27(task, rowsHere, colsHere)
+                                            : checkTask(task.id, task.answer, getTableAnswerForCheck(task.id, rowsHere, colsHere))
                                         }
                                       >
                                         Проверить
@@ -1338,36 +1518,77 @@ function ExamPage() {
                                 </>
                               ) : (
                                 <>
-                                  <div className="score-label">Выставьте баллы за решение:</div>
-                                  <div className="score-controls">
-                                    <button onClick={() => changeScore(task.id, -1, getTaskMaxScore(task))} disabled={(scores[task.id] || 0) <= 0}>
-                                      −
-                                    </button>
-                                    <span className="score-display">{scores[task.id] || 0}</span>
-                                    <button onClick={() => changeScore(task.id, 1, getTaskMaxScore(task))} disabled={(scores[task.id] || 0) >= getTaskMaxScore(task)}>
-                                      +
-                                    </button>
-                                  </div>
+                                  {criteriaOpenForTask === task.id ? (
+                                    <div className="criteria-panel">
+                                      <div className="criteria-table-wrap">
+                                        <table className="criteria-table">
+                                          <thead>
+                                            <tr>
+                                              <th className="criteria-th-content">Содержание критерия</th>
+                                              <th className="criteria-th-score">Баллы</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody>
+                                            {((criteriaByTaskList[getCriteriaCacheKey(task)]?.criteria) ?? []).map((c) => (
+                                              <tr key={c.id} className="criteria-row">
+                                                <td className="criteria-td-content">
+                                                  <label className="criteria-radio-label">
+                                                    <input
+                                                      type="radio"
+                                                      name={`criteria-${task.id}`}
+                                                      className="criteria-radio-input"
+                                                      checked={selectedCriterionByTask[task.id] === c.id}
+                                                      onChange={() => selectCriterion(task.id, c, (criteriaByTaskList[getCriteriaCacheKey(task)]?.max_score) ?? getTaskMaxScore(task))}
+                                                    />
+                                                    <span className="criteria-radio-check">{selectedCriterionByTask[task.id] === c.id ? "✓" : ""}</span>
+                                                    <MathContent html={c.criteria_text || ""} className="criteria-text" onImageClick={(src) => setLightbox({ open: true, src })} />
+                                                  </label>
+                                                </td>
+                                                <td className="criteria-td-score">{c.criteria_score}</td>
+                                              </tr>
+                                            ))}
+                                          </tbody>
+                                          <tfoot>
+                                            <tr>
+                                              <td className="criteria-tfoot-label">Максимальный балл</td>
+                                              <td className="criteria-tfoot-score">{(criteriaByTaskList[getCriteriaCacheKey(task)]?.max_score) ?? getTaskMaxScore(task)}</td>
+                                            </tr>
+                                          </tfoot>
+                                        </table>
+                                      </div>
+                                      {((criteriaByTaskList[getCriteriaCacheKey(task)]?.criteria) ?? []).length === 0 && (
+                                        <p className="criteria-empty">Критерии не заданы для этого задания</p>
+                                      )}
+                                    </div>
+                                  ) : null}
                                 </>
                               )}
 
-                              {task.answer != null && task.answer !== "" && (
-                                <>
+                              <div className="part2-answer-criteria-buttons">
+                                {task.answer != null && task.answer !== "" && (
                                   <button
                                     type="button"
                                     className="add-button"
-                                    style={{ padding: "0.6rem 1rem", fontSize: "0.85rem", whiteSpace: "nowrap" }}
                                     onClick={() => togglePart2Answer(task.id)}
                                   >
                                     {visibleAnswers[task.id] ? "Скрыть ответ" : "Ответ"}
                                   </button>
-                                  {visibleAnswers[task.id] && (
-                                    <div className="part2-answer-reveal">
-                                      <span className="part2-answer-label">Правильный ответ:</span>
-                                      <MathContent html={task.answer} className="part2-answer-content" onImageClick={(src) => setLightbox({ open: true, src })} />
-                                    </div>
-                                  )}
-                                </>
+                                )}
+                                {(task.task_list_id != null || task.number != null) && (
+                                  <button
+                                    type="button"
+                                    className={`add-button criteria-btn${criteriaOpenForTask === task.id ? " active" : ""}`}
+                                    onClick={() => toggleCriteriaPanel(task)}
+                                  >
+                                    {criteriaOpenForTask === task.id ? "Скрыть критерии" : "Критерии"}
+                                  </button>
+                                )}
+                              </div>
+                              {task.answer != null && task.answer !== "" && visibleAnswers[task.id] && (
+                                <div className="part2-answer-reveal">
+                                  <span className="part2-answer-label">Правильный ответ:</span>
+                                  <MathContent html={task.answer} className="part2-answer-content" onImageClick={(src) => setLightbox({ open: true, src })} />
+                                </div>
                               )}
                             </div>
                             <div className="task-report-error-wrap">
@@ -1382,7 +1603,7 @@ function ExamPage() {
 
                 {/* Остальные задания части 2 */}
                 {part2Regular.map((task) => (
-                  <section key={task.id} className="task" onClick={() => handleTaskFocus(task.id)}>
+                  <section key={task.id} className={`task${task.subdivision === "geom" ? " task-geom" : task.subdivision === "alg" ? " task-alg" : ""}${((level === "oge" && subject === "inf" && task.number === 13) || (level === "oge" && subject === "math" && task.number === 1)) ? " task-img-full" : ""}`} onClick={() => handleTaskFocus(task.id)}>
                     <aside className="task-left">
                       <div className="task-number">{task.number}</div>
                       <div className="task-id">{task.id}</div>
@@ -1390,8 +1611,6 @@ function ExamPage() {
 
                     <article className="task-content">
                       <MathContent html={task.text} className="task-text" onImageClick={(src) => setLightbox({ open: true, src })} />
-                      {task.author && <div className="task-author">{task.author}</div>}
-
                       {task.file && (
                         <div className="task-files">
                           <a href={task.file} target="_blank" rel="noreferrer" className="task-file-link">
@@ -1400,36 +1619,78 @@ function ExamPage() {
                           </a>
                         </div>
                       )}
+                      {task.author && <div className="task-author">{task.author}</div>}
 
                       <div className="answer-section">
-                        <div className="score-label">Выставьте баллы за решение:</div>
-                        <div className="score-controls">
-                          <button onClick={() => changeScore(task.id, -1, getTaskMaxScore(task))} disabled={(scores[task.id] || 0) <= 0}>
-                            −
-                          </button>
-                          <span className="score-display">{scores[task.id] || 0}</span>
-                          <button onClick={() => changeScore(task.id, 1, getTaskMaxScore(task))} disabled={(scores[task.id] || 0) >= getTaskMaxScore(task)}>
-                            +
-                          </button>
-                        </div>
+                        {criteriaOpenForTask === task.id ? (
+                          <div className="criteria-panel">
+                            <div className="criteria-table-wrap">
+                              <table className="criteria-table">
+                                <thead>
+                                  <tr>
+                                    <th className="criteria-th-content">Содержание критерия</th>
+                                    <th className="criteria-th-score">Баллы</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {((criteriaByTaskList[getCriteriaCacheKey(task)]?.criteria) ?? []).map((c) => (
+                                    <tr key={c.id} className="criteria-row">
+                                      <td className="criteria-td-content">
+                                        <label className="criteria-radio-label">
+                                          <input
+                                            type="radio"
+                                            name={`criteria-${task.id}`}
+                                            className="criteria-radio-input"
+                                            checked={selectedCriterionByTask[task.id] === c.id}
+                                            onChange={() => selectCriterion(task.id, c, (criteriaByTaskList[getCriteriaCacheKey(task)]?.max_score) ?? getTaskMaxScore(task))}
+                                          />
+                                          <span className="criteria-radio-check">{selectedCriterionByTask[task.id] === c.id ? "✓" : ""}</span>
+                                          <MathContent html={c.criteria_text || ""} className="criteria-text" onImageClick={(src) => setLightbox({ open: true, src })} />
+                                        </label>
+                                      </td>
+                                      <td className="criteria-td-score">{c.criteria_score}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                                <tfoot>
+                                  <tr>
+                                    <td className="criteria-tfoot-label">Максимальный балл</td>
+                                    <td className="criteria-tfoot-score">{(criteriaByTaskList[getCriteriaCacheKey(task)]?.max_score) ?? getTaskMaxScore(task)}</td>
+                                  </tr>
+                                </tfoot>
+                              </table>
+                            </div>
+                            {((criteriaByTaskList[getCriteriaCacheKey(task)]?.criteria) ?? []).length === 0 && (
+                              <p className="criteria-empty">Критерии не заданы для этого задания</p>
+                            )}
+                          </div>
+                        ) : null}
 
-                        {task.answer != null && task.answer !== "" && (
-                          <>
+                        <div className="part2-answer-criteria-buttons">
+                          {task.answer != null && task.answer !== "" && (
                             <button
                               type="button"
                               className="add-button"
-                              style={{ padding: "0.6rem 1rem", fontSize: "0.85rem", whiteSpace: "nowrap" }}
                               onClick={() => togglePart2Answer(task.id)}
                             >
                               {visibleAnswers[task.id] ? "Скрыть ответ" : "Ответ"}
                             </button>
-                            {visibleAnswers[task.id] && (
-                              <div className="part2-answer-reveal">
-                                <span className="part2-answer-label">Правильный ответ:</span>
-                                <MathContent html={task.answer} className="part2-answer-content" onImageClick={(src) => setLightbox({ open: true, src })} />
-                              </div>
-                            )}
-                          </>
+                          )}
+                          {(task.task_list_id != null || task.number != null) && (
+                            <button
+                              type="button"
+                              className={`add-button criteria-btn${criteriaOpenForTask === task.id ? " active" : ""}`}
+                              onClick={() => toggleCriteriaPanel(task)}
+                            >
+                              {criteriaOpenForTask === task.id ? "Скрыть критерии" : "Критерии"}
+                            </button>
+                          )}
+                        </div>
+                        {task.answer != null && task.answer !== "" && visibleAnswers[task.id] && (
+                          <div className="part2-answer-reveal">
+                            <span className="part2-answer-label">Правильный ответ:</span>
+                            <MathContent html={task.answer} className="part2-answer-content" onImageClick={(src) => setLightbox({ open: true, src })} />
+                          </div>
                         )}
                       </div>
                       <div className="task-report-error-wrap">
@@ -1562,18 +1823,18 @@ function ExamPage() {
 
             <div className="board-divider" />
 
-            <div className="color-picker">
+            <div className="board-color-palette">
               {COLORS.map((c) => (
                 <button
-                  key={c.value}
+                  key={c}
                   type="button"
-                  className={`board-color-btn${color === c.value && ["pen", "line", "triangle", "circle", "square"].includes(tool) ? " active" : ""}`}
-                  style={{ background: c.value }}
+                  className={`board-color-btn${color === c && ["pen", "line", "triangle", "circle", "square"].includes(tool) ? " active" : ""}`}
+                  style={{ background: c }}
                   onClick={() => {
-                    setColor(c.value);
+                    setColor(c);
                     if (tool === "eraser") setTool("pen");
                   }}
-                  title={c.label}
+                  title={c}
                 />
               ))}
             </div>

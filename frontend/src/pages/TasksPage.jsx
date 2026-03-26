@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 
 const SUBJECT_NAMES = { math: "Математика", inf: "Информатика" };
@@ -15,8 +15,42 @@ function TasksPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  /** Подтемы для тренажёра: список по номерам заданий (только для одиночных заданий) */
+  const [subtopicsByTask, setSubtopicsByTask] = useState([]);
+  /** Выбранные id подтем — при непустом списке в тренажёре только задачи по этим подтемам */
+  const [selectedSubtopicIds, setSelectedSubtopicIds] = useState([]);
+  /** Подтемы показываются только после клика по номеру задания */
+  const [subtopicsPanelOpen, setSubtopicsPanelOpen] = useState(false);
+  /** Идентификатор номера, чьи подтемы сейчас отображаются (заменяется при выборе нового номера) */
+  const [activeForSubtopics, setActiveForSubtopics] = useState(null);
+  const subtopicsBlockRef = useRef(null);
+  /** Количество задач по подтеме (id подтемы → число) */
+  const [subtopicCounts, setSubtopicCounts] = useState({});
+
   /** Блок 2: счётчики по task_N / group_N */
   const [testCounts, setTestCounts] = useState({});
+  /** Счётчики по подтемам для групп: { [identifier]: { [subtopicId]: count } } */
+  const [groupSubtopicCounts, setGroupSubtopicCounts] = useState({});
+  /** Фильтры «Только задачи ФИПИ» */
+  const [onlyFipiVariant, setOnlyFipiVariant] = useState(false);
+  const [onlyFipiTrainer, setOnlyFipiTrainer] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`/api/${level}/${subject}/subtopics/`)
+      .then((res) => (res.ok ? res.json() : { subtopics_by_task: [] }))
+      .then((data) => {
+        if (!cancelled) {
+          setSubtopicsByTask(data.subtopics_by_task || []);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setSubtopicsByTask([]);
+        }
+      });
+    return () => { cancelled = true; };
+  }, [level, subject]);
 
   useEffect(() => {
     let cancelled = false;
@@ -42,6 +76,16 @@ function TasksPage() {
     return () => { cancelled = true; };
   }, [level, subject]);
 
+  // На мобильных прокрутить к блоку подтем при открытии
+  useEffect(() => {
+    if (subtopicsPanelOpen && subtopicsByTask.length > 0 && (activeForSubtopics || Object.keys(testCounts).some((id) => (testCounts[id] ?? 0) > 0))) {
+      const t = setTimeout(() => {
+        subtopicsBlockRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 100);
+      return () => clearTimeout(t);
+    }
+  }, [subtopicsPanelOpen, subtopicsByTask.length, testCounts, activeForSubtopics]);
+
   const matchesSearch = (item) => {
     if (!searchQuery) return true;
     const q = searchQuery.toLowerCase();
@@ -61,8 +105,36 @@ function TasksPage() {
       ? item.tasks?.[0]?.part
       : item.part;
 
-  const part1Tasks = tasks.filter((item) => getItemPart(item) === 1 && matchesSearch(item));
-  const part2Tasks = tasks.filter((item) => getItemPart(item) === 2 && matchesSearch(item));
+  // Определяем, есть ли у TaskList задачи автора ФИПИ (по данным подтем)
+  const hasFipiForTaskList = (taskListId) => {
+    const block = subtopicsByTask.find((b) => b.task_list_id === taskListId);
+    if (!block) return false;
+    return (block.subtopics || []).some((st) => (st.fipi_task_count ?? 0) > 0);
+  };
+
+  // ФИПИ-элемент: у одиночного номера или любой части группы есть хотя бы одна задача ФИПИ
+  const isFipiItem = (item) => {
+    if (item.type === "linked_group" || item.type === "group") {
+      const ids = (item.tasks || []).map((t) => t.tasklist_id).filter(Boolean);
+      return ids.some((id) => hasFipiForTaskList(id));
+    }
+    return hasFipiForTaskList(item.id);
+  };
+
+  // Для генерации варианта: при включённом фильтре берём только ФИПИ-элементы
+  const tasksForVariant =
+    onlyFipiVariant && subtopicsByTask.length > 0 ? tasks.filter(isFipiItem) : tasks;
+
+  // Для тренажёра: фильтр ФИПИ + поиск по номеру/названию
+  const tasksForTrainer =
+    (onlyFipiTrainer && subtopicsByTask.length > 0 ? tasks.filter(isFipiItem) : tasks).filter(matchesSearch);
+
+  const part1Tasks = tasksForVariant.filter(
+    (item) => getItemPart(item) === 1 && matchesSearch(item)
+  );
+  const part2Tasks = tasksForVariant.filter(
+    (item) => getItemPart(item) === 2 && matchesSearch(item)
+  );
 
   const postVariant = (payload, mode = "variant", extra = {}) => {
     const body = JSON.stringify(payload);
@@ -101,29 +173,62 @@ function TasksPage() {
     return payload;
   };
 
+  /** Полный payload для варианта: content + tasks (для групп) + subtopic_ids при выборе подтем */
+  const buildVariantPayload = (items) => {
+    const content = payloadFromTasks(items);
+    const payload = { content, ...(onlyFipiVariant ? { only_fipi: true } : {}) };
+    if (selectedSubtopicIds.length === 0) return payload;
+
+    payload.subtopic_ids = selectedSubtopicIds;
+    const tasksList = [];
+    items.forEach((item) => {
+      if ((item.type === "group" || item.type === "linked_group") && item.tasks?.length) {
+        const nums = item.task_numbers || item.tasks.map((t) => t.task_number);
+        const identifier = item.type === "linked_group" ? `linked_${item.linked_key}` : `group_${item.group_id}`;
+        const bySt = groupSubtopicCounts[identifier];
+        const entry = { task_numbers: nums, count: 1 };
+        if (bySt && Object.keys(bySt).length > 0) {
+          entry.subtopic_ids = Object.keys(bySt).filter((k) => k !== "all").map(Number).filter((n) => !Number.isNaN(n));
+          entry.subtopic_counts = { ...bySt };
+        } else {
+          // Только подтемы, относящиеся к этой группе
+          const groupSubtopicIds = (item.subtopics || []).map((st) => st.id).filter(Boolean);
+          entry.subtopic_ids = selectedSubtopicIds.filter((id) => groupSubtopicIds.includes(id));
+        }
+        tasksList.push(entry);
+      }
+    });
+    if (tasksList.length > 0) payload.tasks = tasksList;
+    return payload;
+  };
+
   const [submitBlock1, setSubmitBlock1] = useState(false);
   const [submitBlock2, setSubmitBlock2] = useState(false);
 
   const onPart1 = () => {
-    const payload = payloadFromTasks(part1Tasks);
-    if (Object.keys(payload).length === 0) return;
+    const items = onlyFipiVariant
+      ? tasks.filter((item) => getItemPart(item) === 1)
+      : part1Tasks;
+    const payload = buildVariantPayload(items);
+    if (Object.keys(payload.content).length === 0) return;
     setSubmitBlock1(true);
     postVariant(payload, "part1").catch((err) => setError(err.message)).finally(() => setSubmitBlock1(false));
   };
   const onPart2 = () => {
-    const payload = payloadFromTasks(part2Tasks);
-    if (Object.keys(payload).length === 0) return;
+    const items = onlyFipiVariant
+      ? tasks.filter((item) => getItemPart(item) === 2)
+      : part2Tasks;
+    const payload = buildVariantPayload(items);
+    if (Object.keys(payload.content).length === 0) return;
     setSubmitBlock1(true);
     postVariant(payload, "part2").catch((err) => setError(err.message)).finally(() => setSubmitBlock1(false));
   };
   const onChooseAll = () => {
-    const payload = payloadFromTasks(tasks);
-    if (Object.keys(payload).length === 0) return;
+    const payload = buildVariantPayload(tasks);
+    if (Object.keys(payload.content).length === 0) return;
     setSubmitBlock1(true);
     postVariant(payload, "variant").catch((err) => setError(err.message)).finally(() => setSubmitBlock1(false));
   };
-
-  
 
   const buildPayloadFromTestCounts = () => {
     const content = {};
@@ -131,30 +236,118 @@ function TasksPage() {
     const itemsById = Object.fromEntries(
       tasks.map((item) => [getIdentifier(item), item])
     );
-    for (const [identifier, count] of Object.entries(testCounts)) {
-      const c = Number(count);
-      if (c <= 0) continue;
+    const allowedIds = new Set(
+      (onlyFipiTrainer && subtopicsByTask.length > 0 ? tasks.filter(isFipiItem) : tasks).map(getIdentifier)
+    );
+    const useSubtopicCounts = selectedSubtopicIds.length > 0;
+    const idsWithCount = tasks
+      .map(getIdentifier)
+      .filter((id) => allowedIds.has(id) && getEffectiveTaskCount(id) > 0);
+    for (const identifier of idsWithCount) {
+      const count = getEffectiveTaskCount(identifier);
       const item = itemsById[identifier];
       if (!item) continue;
       if (identifier.startsWith("task_")) {
-        content[String(item.id)] = c;
-        tasksList.push({ tasklist_id: item.id, task_number: item.task_number, count: c });
+        let slotCount = count;
+        if (useSubtopicCounts && subtopicsByTask.length) {
+          const block = subtopicsByTask.find((b) => b.task_list_id === item.id);
+          if (block?.subtopics) {
+            slotCount = block.subtopics
+              .filter((st) => selectedSubtopicIds.includes(st.id))
+              .reduce((sum, st) => sum + getCappedSubtopicCount(st), 0);
+          }
+        }
+        if (slotCount <= 0) continue;
+        content[String(item.id)] = slotCount;
+        tasksList.push({ tasklist_id: item.id, task_number: item.task_number, count: slotCount });
       } else if (identifier.startsWith("linked_") && item.tasks?.length) {
         const nums = item.task_numbers || item.tasks.map((t) => t.task_number);
+        const bySt = groupSubtopicCounts[identifier];
+        const groupCount = bySt ? Math.max(...Object.values(bySt), 0) : count;
         item.tasks.forEach((t) => {
-          content[String(t.tasklist_id)] = (content[String(t.tasklist_id)] ?? 0) + c;
+          const tlId = t.tasklist_id ?? t.id;
+          if (tlId != null) content[String(tlId)] = Math.max(content[String(tlId)] || 0, groupCount);
         });
-        tasksList.push({ task_numbers: nums, count: c });
+        const entry = { task_numbers: nums, count: groupCount };
+        if (bySt && Object.keys(bySt).length > 0) {
+          entry.subtopic_ids = Object.keys(bySt).filter((k) => k !== "all");
+          entry.subtopic_counts = { ...bySt };
+        }
+        tasksList.push(entry);
       } else if (identifier.startsWith("group_") && item.tasks?.length) {
-        const nums = item.tasks.map((t) => t.task_number);
+        const nums = item.task_numbers || item.tasks.map((t) => t.task_number);
+        const bySt = groupSubtopicCounts[identifier];
+        const groupCount = bySt ? Math.max(...Object.values(bySt), 0) : count;
         item.tasks.forEach((t) => {
-          const tid = t.tasklist_id ?? t.id;
-          content[String(tid)] = (content[String(tid)] ?? 0) + c;
+          const tlId = t.tasklist_id ?? t.id;
+          if (tlId != null) content[String(tlId)] = Math.max(content[String(tlId)] || 0, groupCount);
         });
-        tasksList.push({ task_numbers: nums, count: c });
+        const entry = { task_numbers: nums, count: groupCount };
+        if (bySt && Object.keys(bySt).length > 0) {
+          entry.subtopic_ids = Object.keys(bySt).filter((k) => k !== "all");
+          entry.subtopic_counts = { ...bySt };
+        }
+        tasksList.push(entry);
       }
     }
-    return { content, tasks: tasksList };
+    const payload = {
+      content,
+      tasks: tasksList,
+      ...(onlyFipiTrainer ? { only_fipi: true } : {}),
+    };
+    if (useSubtopicCounts) {
+      payload.subtopic_ids = selectedSubtopicIds;
+      const counts = {};
+      selectedSubtopicIds.forEach((id) => {
+        const st = subtopicsByTask.flatMap((b) => b.subtopics || []).find((s) => s.id === id);
+        const n = st ? getCappedSubtopicCount(st) : (subtopicCounts[id] ?? 0);
+        if (n > 0) counts[id] = n;
+      });
+      if (Object.keys(counts).length) payload.subtopic_counts = counts;
+    }
+    return payload;
+  };
+
+  const toggleSubtopic = (subtopicId) => {
+    setSelectedSubtopicIds((prev) =>
+      prev.includes(subtopicId)
+        ? prev.filter((id) => id !== subtopicId)
+        : [...prev, subtopicId]
+    );
+  };
+
+  const changeSubtopicCount = (subtopicId, delta, maxCount) => {
+    setSubtopicCounts((prev) => {
+      const cur = prev[subtopicId] ?? 0;
+      const next = Math.max(0, Math.min(maxCount, cur + delta));
+      const nextState = { ...prev };
+      if (next > 0) nextState[subtopicId] = next;
+      else delete nextState[subtopicId];
+      return nextState;
+    });
+    setSelectedSubtopicIds((prev) => {
+      const currentSelected = prev.includes(subtopicId);
+      const currentCount = subtopicCounts[subtopicId] ?? 0;
+      const nextCount = Math.max(0, Math.min(maxCount, currentCount + delta));
+      if (nextCount > 0 && !currentSelected) return [...prev, subtopicId];
+      if (nextCount === 0 && currentSelected) return prev.filter((id) => id !== subtopicId);
+      return prev;
+    });
+  };
+
+  const changeGroupSubtopicCount = (identifier, subtopicId, delta, maxCount) => {
+    setGroupSubtopicCounts((prev) => {
+      const byId = prev[identifier] ?? {};
+      const cur = byId[subtopicId] ?? 0;
+      const next = Math.max(0, Math.min(maxCount, cur + delta));
+      const nextById = { ...byId };
+      if (next > 0) nextById[subtopicId] = next;
+      else delete nextById[subtopicId];
+      const nextState = { ...prev };
+      if (Object.keys(nextById).length > 0) nextState[identifier] = nextById;
+      else delete nextState[identifier];
+      return nextState;
+    });
   };
 
   const onStartTest = () => {
@@ -176,7 +369,12 @@ function TasksPage() {
   const getTestCount = (identifier) => testCounts[identifier] ?? 0;
 
   const getMaxCount = (item) => {
-    if (item.type === "linked_group") return Number(item.count_available) || 0;
+    if (item.type === "linked_group") {
+      const avail = Number(item.count_available) || 0;
+      if (avail > 0) return avail;
+      const submax = Math.max(0, ...(item.subtopics || []).map((s) => s.display_count ?? s.group_count ?? 0));
+      return submax;
+    }
     if (item.type === "group") {
       if (!item.tasks?.length) return 0;
       const counts = item.tasks.map((t) => Number(t.count_task) || 0);
@@ -188,18 +386,80 @@ function TasksPage() {
   const changeTestCount = (item, delta) => {
     const identifier = getIdentifier(item);
     const max = getMaxCount(item);
-    setTestCounts((prev) => {
-      const cur = prev[identifier] ?? 0;
-      const next = Math.max(0, Math.min(max, cur + delta));
-      const nextState = { ...prev };
-      if (next > 0) nextState[identifier] = next;
-      else delete nextState[identifier];
-      return nextState;
-    });
+    const hasGroupSubtopics =
+      (item.type === "linked_group" || item.type === "group") &&
+      Array.isArray(item.subtopics) &&
+      item.subtopics.length > 1;
+    if (hasGroupSubtopics) {
+      setGroupSubtopicCounts((prev) => {
+        const byId = prev[identifier] ?? {};
+        const curTotal = Object.values(byId).reduce((s, n) => s + (n || 0), 0);
+        const nextTotal = Math.max(0, Math.min(max, curTotal + delta));
+        if (nextTotal === 0) {
+          const nextState = { ...prev };
+          delete nextState[identifier];
+          return nextState;
+        }
+        if (delta > 0) {
+          const nextById = { ...byId };
+          nextById.all = Math.min(max, (nextById.all ?? 0) + delta);
+          return { ...prev, [identifier]: nextById };
+        }
+        const nextById = { ...byId };
+        let toRemove = curTotal - nextTotal;
+        const keys = Object.keys(nextById).sort((a, b) => (nextById[b] ?? 0) - (nextById[a] ?? 0));
+        for (const k of keys) {
+          if (toRemove <= 0) break;
+          const v = nextById[k] ?? 0;
+          const dec = Math.min(v, toRemove);
+          if (dec > 0) {
+            nextById[k] = v - dec;
+            toRemove -= dec;
+            if (nextById[k] === 0) delete nextById[k];
+          }
+        }
+        return Object.keys(nextById).length > 0 ? { ...prev, [identifier]: nextById } : (() => { const s = { ...prev }; delete s[identifier]; return s; })();
+      });
+    } else {
+      setTestCounts((prev) => {
+        const cur = prev[identifier] ?? 0;
+        const next = Math.max(0, Math.min(max, cur + delta));
+        const nextState = { ...prev };
+        if (next > 0) nextState[identifier] = next;
+        else delete nextState[identifier];
+        return nextState;
+      });
+    }
   };
 
-  const testTotal = Object.values(testCounts).reduce((a, b) => a + b, 0);
-  const testSelectedIds = Object.keys(testCounts).filter((id) => (testCounts[id] ?? 0) > 0);
+  /** При «Только ФИПИ» — не больше fipi_task_count по подтеме */
+  const getCappedSubtopicCount = (st) => {
+    const raw = subtopicCounts[st.id] ?? 0;
+    if (!onlyFipiTrainer || typeof st.fipi_task_count !== "number") return raw;
+    return Math.min(raw, st.fipi_task_count);
+  };
+
+  /** Эффективное кол-во задач для идентификатора */
+  const getEffectiveTaskCount = (identifier) => {
+    const item = tasks.find((t) => getIdentifier(t) === identifier);
+    if (!item) return 0;
+    const useSubtopicCounts = selectedSubtopicIds.length > 0 && subtopicsByTask.length > 0;
+    if (identifier.startsWith("task_") && useSubtopicCounts) {
+      const block = subtopicsByTask.find((b) => b.task_list_id === item.id);
+      if (block?.subtopics) {
+        return block.subtopics
+          .filter((st) => selectedSubtopicIds.includes(st.id))
+          .reduce((sum, st) => sum + getCappedSubtopicCount(st), 0);
+      }
+    }
+    if ((identifier.startsWith("linked_") || identifier.startsWith("group_")) && groupSubtopicCounts[identifier]) {
+      return Object.values(groupSubtopicCounts[identifier]).reduce((s, n) => s + (n || 0), 0);
+    }
+    return testCounts[identifier] ?? 0;
+  };
+
+  const testSelectedIds = tasks.map(getIdentifier).filter((id) => getEffectiveTaskCount(id) > 0);
+  const testTotal = testSelectedIds.reduce((sum, id) => sum + getEffectiveTaskCount(id), 0);
 
   const getLabel = (item) => {
     if ((item.type === "group" || item.type === "linked_group") && item.tasks?.length) {
@@ -224,6 +484,8 @@ function TasksPage() {
     (a, b) => (identifierToSortKey[a] ?? 0) - (identifierToSortKey[b] ?? 0)
   );
 
+  const getTaskCountForIdentifier = (identifier) => getEffectiveTaskCount(identifier);
+
   if (loading) {
     return (
       <div className="container tasks-page">
@@ -244,11 +506,21 @@ function TasksPage() {
 
   return (
     <div className="container tasks-page">
-      
-     
-
       <div className="tasks-page-card">
         <h2 className="tasks-page-card-title">Сгенерировать вариант</h2>
+        <label className="tasks-page-fipi-toggle">
+          <input
+            type="checkbox"
+            className="tasks-page-subtopic-checkbox-input"
+            checked={onlyFipiVariant}
+            onChange={(e) => setOnlyFipiVariant(e.target.checked)}
+          />
+          <span
+            className={`tasks-page-subtopic-checkbox-visual ${onlyFipiVariant ? "selected" : ""}`}
+            aria-hidden
+          />
+          <span className="tasks-page-fipi-text">Только задачи ФИПИ</span>
+        </label>
         <div className="tasks-page-actions">
           <div className="tasks-page-actions-left">
             <button
@@ -278,12 +550,29 @@ function TasksPage() {
 
       <div className="tasks-page-card">
         <h2 className="tasks-page-card-title">Тренажёр по номерам</h2>
+        <label className="tasks-page-fipi-toggle">
+          <input
+            type="checkbox"
+            className="tasks-page-subtopic-checkbox-input"
+            checked={onlyFipiTrainer}
+            onChange={(e) => setOnlyFipiTrainer(e.target.checked)}
+          />
+          <span
+            className={`tasks-page-subtopic-checkbox-visual ${onlyFipiTrainer ? "selected" : ""}`}
+            aria-hidden
+          />
+          <span className="tasks-page-fipi-text">Только задачи ФИПИ</span>
+        </label>
         <div className="tasks-page-test-summary">
           <span className="tasks-page-test-summary-label">Выбраны номера:</span>
           <span className="tasks-page-test-summary-nums">
             {testSelectedIdsSorted.length
               ? testSelectedIdsSorted
-                  .map((id) => `${identifierToLabel[id] ?? id} (${getTestCount(id)})`)
+                  .map((id) => {
+                    const label = identifierToLabel[id] ?? id;
+                    const n = getTaskCountForIdentifier(id);
+                    return n > 0 ? `${label} (${n})` : label;
+                  })
                   .join(", ")
               : "—"}
           </span>
@@ -292,51 +581,263 @@ function TasksPage() {
           </span>
         </div>
         <div className="tasks-page-numbers-grid">
-          {tasks.map((item) => {
+          {tasksForTrainer.map((item) => {
             const identifier = getIdentifier(item);
-            const count = getTestCount(identifier);
+            const count = getEffectiveTaskCount(identifier);
             const max = getMaxCount(item);
             const label = getLabel(item);
+            const isActive = activeForSubtopics === identifier;
+
+            // Для linked_group: всегда открываем панель (подтемы или «Все типы задач»)
+            // Для task_: только если есть подтемы
+            // Для group_: всегда открываем панель
+            const hasSubtopics =
+              (identifier.startsWith("task_") && subtopicsByTask.some((b) => b.task_list_id === item.id)) ||
+              identifier.startsWith("linked_") ||
+              identifier.startsWith("group_");
+
             return (
               <div key={identifier} className="tasks-page-number-cell">
                 <button
                   type="button"
-                  className={`tasks-page-number-btn ${count > 0 ? "selected" : ""}`}
-                  onClick={() => changeTestCount(item, 1)}
-                  disabled={max <= 0 || count >= max}
-                  title={max > 0 ? `Макс. ${max} задач` : "Нет задач в банке"}
+                  className={`tasks-page-number-btn ${count > 0 || (isActive && hasSubtopics) ? "selected" : ""}`}
+                  onClick={() => {
+                    if (hasSubtopics) {
+                      if (count === 0 && !isActive) {
+                        setActiveForSubtopics(identifier);
+                        setSubtopicsPanelOpen(true);
+                      } else if (count > 0 || isActive) {
+                        setActiveForSubtopics((prev) => (prev === identifier ? testSelectedIds.find((id) => id !== identifier) ?? null : prev));
+                        if (count > 0) changeTestCount(item, -1);
+                      }
+                    } else {
+                      setSubtopicsPanelOpen(true);
+                      if (count === 0 && max > 0) {
+                        setActiveForSubtopics(identifier);
+                        changeTestCount(item, 1);
+                      } else if (count > 0) {
+                        setActiveForSubtopics((prev) => (prev === identifier ? testSelectedIds.find((id) => id !== identifier) ?? null : prev));
+                        changeTestCount(item, -1);
+                      }
+                    }
+                  }}
+                  disabled={getMaxCount(item) <= 0}
+                  title={count > 0 || (isActive && hasSubtopics) ? "Убрать из выбора" : hasSubtopics ? "Показать панель" : undefined}
                 >
                   {label}
                 </button>
-                <div className="tasks-page-number-counter">
-                  <span
-                    className="tasks-page-counter-btn"
-                    onClick={() => changeTestCount(item, -1)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => e.key === "Enter" && changeTestCount(item, -1)}
-                    aria-label="Уменьшить"
-                  >
-                    −
-                  </span>
-                  <span className="tasks-page-counter-val">{count}</span>
-                  <span
-                    className="tasks-page-counter-btn"
-                    onClick={() => changeTestCount(item, 1)}
-                    role="button"
-                    tabIndex={0}
-                    onKeyDown={(e) => e.key === "Enter" && changeTestCount(item, 1)}
-                    aria-label="Увеличить"
-                  >
-                    +
-                  </span>
-                </div>
               </div>
             );
           })}
         </div>
+        {subtopicsPanelOpen && activeForSubtopics && (
+          <div ref={subtopicsBlockRef} className="tasks-page-subtopics">
+            <div className="tasks-page-subtopics-list tasks-page-subtopics-column">
+              {(function () {
+                const it = tasks.find((t) => getIdentifier(t) === activeForSubtopics);
+                if (!it) return null;
+
+                // --- Linked-группа и обычная group: только подтемы, счёт — подгруппы ---
+                if ((it.type === "linked_group" || it.type === "group") && it.tasks?.length) {
+                  const subtopics = it.subtopics || [];
+                  const bySt = groupSubtopicCounts[activeForSubtopics] ?? {};
+
+                  if (subtopics.length === 0) {
+                    return (
+                      <div className="tasks-page-subtopic-row">
+                        <span className="tasks-page-subtopic-title">Нет подтем у групп</span>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <>
+                      {subtopics.map((st) => {
+                        const stId = st.id;
+                        const stCount = bySt[stId] ?? 0;
+                        const stMax = st.display_count ?? st.group_count ?? 0;
+                        const isChecked = stCount > 0;
+                        return (
+                          <div key={stId ?? `null_${st.title}`} className="tasks-page-subtopic-row">
+                            <label className="tasks-page-subtopic-label">
+                              <input
+                                type="checkbox"
+                                className="tasks-page-subtopic-checkbox-input"
+                                checked={isChecked}
+                                onChange={() => {
+                                  if (isChecked) {
+                                    changeGroupSubtopicCount(activeForSubtopics, stId, -stCount, stMax);
+                                  } else {
+                                    changeGroupSubtopicCount(activeForSubtopics, stId, 1, stMax);
+                                  }
+                                }}
+                              />
+                              <span
+                                className={`tasks-page-subtopic-checkbox-visual ${isChecked ? "selected" : ""}`}
+                                aria-hidden
+                              />
+                              <span className="tasks-page-subtopic-title">{st.title}</span>
+                            </label>
+                            <div className="tasks-page-subtopic-counter-wrap">
+                              <span
+                                className="tasks-page-subtopic-num"
+                                title={`Подгрупп в выборе: ${stCount} из ${stMax}`}
+                              >
+                                {stCount}
+                              </span>
+                              <span className="tasks-page-subtopic-of">{`задач из ${stMax}`}</span>
+                              <div className="tasks-page-subtopic-stepper">
+                                <button
+                                  type="button"
+                                  className="tasks-page-subtopic-step-btn"
+                                  onClick={() =>
+                                    changeGroupSubtopicCount(activeForSubtopics, stId, -1, stMax)
+                                  }
+                                  disabled={stCount <= 0}
+                                  aria-label="Уменьшить"
+                                >
+                                  −
+                                </button>
+                                <button
+                                  type="button"
+                                  className="tasks-page-subtopic-step-btn"
+                                  onClick={() =>
+                                    changeGroupSubtopicCount(activeForSubtopics, stId, 1, stMax)
+                                  }
+                                  disabled={stMax <= 0 || stCount >= stMax}
+                                  aria-label="Увеличить"
+                                >
+                                  +
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </>
+                  );
+                }
+
+                // --- Одиночное задание с подтемами ---
+                let allSubtopics = [];
+                if (activeForSubtopics.startsWith("task_")) {
+                  const block = subtopicsByTask.find((b) => b.task_list_id === it.id);
+                  if (block) {
+                    allSubtopics = (block.subtopics || []).map((st) => ({
+                      title: st.title || `Подтема ${st.id}`,
+                      ids: [st.id],
+                      stById: { [st.id]: st },
+                      taskCount: st.task_count ?? 0,
+                      fipiCount: st.fipi_task_count ?? 0,
+                    }));
+                  }
+                }
+                const toggleGroup = (ids) => {
+                  const allSelected = ids.every((id) => selectedSubtopicIds.includes(id));
+                  if (allSelected) {
+                    setSelectedSubtopicIds((prev) => prev.filter((id) => !ids.includes(id)));
+                    setSubtopicCounts((prev) => {
+                      const next = { ...prev };
+                      ids.forEach((id) => delete next[id]);
+                      return next;
+                    });
+                  } else {
+                    setSelectedSubtopicIds((prev) => [...new Set([...prev, ...ids])]);
+                  }
+                };
+                const changeGroupCount = (ids, delta, maxCount) => {
+                  const curTotal = ids.reduce((s, id) => s + (subtopicCounts[id] ?? 0), 0);
+                  const nextTotal = Math.max(0, Math.min(maxCount, curTotal + delta));
+                  const perId = Math.floor(nextTotal / ids.length);
+                  const remainder = nextTotal % ids.length;
+                  setSubtopicCounts((prev) => {
+                    const next = { ...prev };
+                    ids.forEach((id, i) => {
+                      const v = perId + (i < remainder ? 1 : 0);
+                      if (v > 0) next[id] = v;
+                      else delete next[id];
+                    });
+                    return next;
+                  });
+                  // При изменении количества задач синхронизируем чекбоксы подтем:
+                  // >0 — подтема отмечена, 0 — снимаем отметку.
+                  setSelectedSubtopicIds((prev) => {
+                    if (nextTotal > 0) {
+                      return [...new Set([...prev, ...ids])];
+                    }
+                    return prev.filter((id) => !ids.includes(id));
+                  });
+                };
+                return allSubtopics.map(({ title, ids, stById, taskCount, fipiCount }) => {
+                  const maxCount = onlyFipiTrainer && typeof fipiCount === "number" ? fipiCount : taskCount;
+                  const count = ids.reduce((s, id) => s + getCappedSubtopicCount(stById[id] || { id }), 0);
+                  const rawCount = ids.reduce((s, id) => s + (subtopicCounts[id] ?? 0), 0);
+                  const isChecked = ids.every((id) => selectedSubtopicIds.includes(id));
+                  return (
+                    <div key={ids.join("-")} className="tasks-page-subtopic-row">
+                      <label className="tasks-page-subtopic-label">
+                        <input
+                          type="checkbox"
+                          className="tasks-page-subtopic-checkbox-input"
+                          checked={isChecked}
+                          onChange={() => toggleGroup(ids)}
+                        />
+                        <span
+                          className={`tasks-page-subtopic-checkbox-visual ${isChecked ? "selected" : ""}`}
+                          aria-hidden
+                        />
+                        <span className="tasks-page-subtopic-title">{title}</span>
+                      </label>
+                      <div className="tasks-page-subtopic-counter-wrap">
+                        <span
+                          className="tasks-page-subtopic-num"
+                          title={`Подгрупп в выборе: ${count} из ${maxCount}`}
+                        >
+                          {count}
+                        </span>
+                        <span className="tasks-page-subtopic-of">
+                          {`задач из ${maxCount}`}
+                        </span>
+                        <div className="tasks-page-subtopic-stepper">
+                          <button
+                            type="button"
+                            className="tasks-page-subtopic-step-btn"
+                            onClick={() => changeGroupCount(ids, -1, maxCount)}
+                            disabled={rawCount <= 0}
+                            aria-label="Уменьшить"
+                          >
+                            −
+                          </button>
+                          <button
+                            type="button"
+                            className="tasks-page-subtopic-step-btn"
+                            onClick={() => changeGroupCount(ids, 1, maxCount)}
+                            disabled={maxCount <= 0 || rawCount >= maxCount}
+                            aria-label="Увеличить"
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+          </div>
+        )}
         <div className="tasks-page-test-actions">
-          <button type="button" className="add-button clear-selection" onClick={() => setTestCounts({})}>
+          <button
+            type="button"
+            className="add-button clear-selection"
+            onClick={() => {
+              setTestCounts({});
+              setGroupSubtopicCounts({});
+              setActiveForSubtopics(null);
+              setSelectedSubtopicIds([]);
+              setSubtopicCounts({});
+            }}
+          >
             Очистить выбор
           </button>
           <button
