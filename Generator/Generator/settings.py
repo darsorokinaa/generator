@@ -153,7 +153,7 @@ WSGI_APPLICATION = 'Generator.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'generatordb',
+        'NAME': 'generatordb_test',
         'USER': 'postgres',
         'PASSWORD': 'postgres',
         'HOST': 'localhost',

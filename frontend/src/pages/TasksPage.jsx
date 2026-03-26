@@ -236,8 +236,13 @@ function TasksPage() {
     const itemsById = Object.fromEntries(
       tasks.map((item) => [getIdentifier(item), item])
     );
+    const allowedIds = new Set(
+      (onlyFipiTrainer && subtopicsByTask.length > 0 ? tasks.filter(isFipiItem) : tasks).map(getIdentifier)
+    );
     const useSubtopicCounts = selectedSubtopicIds.length > 0;
-    const idsWithCount = tasks.map(getIdentifier).filter((id) => getEffectiveTaskCount(id) > 0);
+    const idsWithCount = tasks
+      .map(getIdentifier)
+      .filter((id) => allowedIds.has(id) && getEffectiveTaskCount(id) > 0);
     for (const identifier of idsWithCount) {
       const count = getEffectiveTaskCount(identifier);
       const item = itemsById[identifier];
@@ -319,6 +324,14 @@ function TasksPage() {
       if (next > 0) nextState[subtopicId] = next;
       else delete nextState[subtopicId];
       return nextState;
+    });
+    setSelectedSubtopicIds((prev) => {
+      const currentSelected = prev.includes(subtopicId);
+      const currentCount = subtopicCounts[subtopicId] ?? 0;
+      const nextCount = Math.max(0, Math.min(maxCount, currentCount + delta));
+      if (nextCount > 0 && !currentSelected) return [...prev, subtopicId];
+      if (nextCount === 0 && currentSelected) return prev.filter((id) => id !== subtopicId);
+      return prev;
     });
   };
 
@@ -568,7 +581,7 @@ function TasksPage() {
           </span>
         </div>
         <div className="tasks-page-numbers-grid">
-          {tasks.map((item) => {
+          {tasksForTrainer.map((item) => {
             const identifier = getIdentifier(item);
             const count = getEffectiveTaskCount(identifier);
             const max = getMaxCount(item);
@@ -745,6 +758,14 @@ function TasksPage() {
                       else delete next[id];
                     });
                     return next;
+                  });
+                  // При изменении количества задач синхронизируем чекбоксы подтем:
+                  // >0 — подтема отмечена, 0 — снимаем отметку.
+                  setSelectedSubtopicIds((prev) => {
+                    if (nextTotal > 0) {
+                      return [...new Set([...prev, ...ids])];
+                    }
+                    return prev.filter((id) => !ids.includes(id));
                   });
                 };
                 return allSubtopics.map(({ title, ids, stById, taskCount, fipiCount }) => {

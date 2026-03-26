@@ -310,17 +310,6 @@ def _create_variant(subject_short, level_str, body_bytes, create=True):
     fipi_q = _get_fipi_q() if only_fipi else Q()
 
     tasklist_ids = [int(k) for k in content.keys()]
-    # При «Только ФИПИ» дополняем content всеми слотaми предмета/уровня (по 1 задаче), чтобы не терять номера
-    if only_fipi:
-        all_tls = TaskList.objects.filter(
-            subject=subject_instance,
-            level=level_instance,
-        ).values_list("id", flat=True)
-        content = dict(content)
-        for tl_id in all_tls:
-            if tl_id not in content or content.get(str(tl_id), 0) <= 0:
-                content[str(tl_id)] = 1
-        tasklist_ids = [int(k) for k in content.keys()]
 
     ordered_tasklists = list(
         TaskList.objects.filter(

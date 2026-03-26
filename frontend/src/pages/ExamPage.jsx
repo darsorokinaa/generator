@@ -213,6 +213,24 @@ function ExamPage() {
     return () => { cancelled = true; clearTimeout(timer); };
   }, [variant, boardOpen]);
 
+  /* Подсказка «листайте», если блок условия реально переполнен по ширине */
+  useEffect(() => {
+    const updateScrollHints = () => {
+      const nodes = document.querySelectorAll(".exam-page .task-text");
+      nodes.forEach((node) => {
+        const hasOverflow = node.scrollWidth - node.clientWidth > 4;
+        node.classList.toggle("task-text--has-overflow", hasOverflow);
+      });
+    };
+    updateScrollHints();
+    const t = setTimeout(updateScrollHints, 120);
+    window.addEventListener("resize", updateScrollHints);
+    return () => {
+      clearTimeout(t);
+      window.removeEventListener("resize", updateScrollHints);
+    };
+  }, [variant]);
+
   /* =========================
      Лайтбокс: клик по картинке
   ========================== */
@@ -657,10 +675,28 @@ function ExamPage() {
     }
   }
 
+  // Для математики: ответы вида "x или y" считаем как несколько допустимых вариантов
+  function isUserAnswerCorrect(rawUserValue, correctAnswerHtml) {
+    const userNorm = normalize(rawUserValue);
+    const correctText = getTextFromHtml(correctAnswerHtml || "");
+    const correctNorm = normalize(correctText);
+
+    if (subject === "math" && /\sили\s/i.test(correctText)) {
+      const alternatives = correctText
+        .split(/\s+или\s+/i)
+        .map((part) => normalize(part))
+        .filter(Boolean);
+      if (alternatives.length > 0) {
+        return alternatives.includes(userNorm);
+      }
+    }
+
+    return userNorm === correctNorm;
+  }
+
   function checkTask(taskId, correctAnswer, userValue = null) {
     const raw = userValue !== null ? userValue : userAnswers[taskId] || "";
-    const correctText = getTextFromHtml(correctAnswer || "");
-    const isCorrect = normalize(raw) === normalize(correctText);
+    const isCorrect = isUserAnswerCorrect(raw, correctAnswer);
     setCheckedTasks((prev) => ({ ...prev, [taskId]: isCorrect }));
   }
 
@@ -670,8 +706,7 @@ function ExamPage() {
     const userValue = useTable
       ? getTableAnswerForCheck(task.id, INF_TABLE_ROWS, INF_TABLE_COLS)
       : (userAnswers[task.id] || "");
-    const correctText = getTextFromHtml(task.answer || "");
-    return normalize(userValue) === normalize(correctText);
+    return isUserAnswerCorrect(userValue, task.answer || "");
   }
 
   // Задания по информатике с таблицей ответов (18, 20, 25, 26, 27): 2 столбца, 7 строк
