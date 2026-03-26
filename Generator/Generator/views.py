@@ -44,6 +44,19 @@ ERROR_TYPE_LABELS = {
     "other": "Другое",
 }
 
+
+def _subtopic_ids_for_oge_inf_task13(tasklist_id, variant):
+    """
+    Подтемы задания 13 ОГЭ по информатике: «текст» / «презентация» по названию в админке.
+    variant: 'text' | 'presentation'
+    """
+    qs = SubTopic.objects.filter(task_list_id=tasklist_id)
+    if variant == "presentation":
+        ids = list(qs.filter(title__icontains="презентац").values_list("id", flat=True))
+    else:
+        ids = list(qs.exclude(title__icontains="презентац").values_list("id", flat=True))
+    return ids
+
 FAVICON_SVG = (
     b'<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">'
     b'<defs><filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">'
@@ -223,8 +236,12 @@ def _create_variant(subject_short, level_str, body_bytes, create=True):
 
     # Глобальный флаг "только ФИПИ" (для варианта/теста)
     only_fipi = False
+    inf_oge_task13_variant = None  # 'text' | 'presentation' — одна подтема для №13 ОГЭ инф.
     if isinstance(data, dict):
         only_fipi = bool(data.get("only_fipi"))
+        v = data.get("inf_oge_task13_variant")
+        if v in ("text", "presentation"):
+            inf_oge_task13_variant = v
 
     # Унифицированное извлечение content: либо из поля "content", либо из корневого словаря
     if isinstance(data, dict) and "content" in data:
@@ -492,11 +509,9 @@ def _create_variant(subject_short, level_str, body_bytes, create=True):
                 linked_for_slot = linked
                 group_tasks, group_ids = take_linked_groups(linked)
                 break
-        if linked_for_slot and group_tasks is None and group_ids is None:
-            ids_for_linked = [id_by_number.get(n) for n in (linked_for_slot.task_numbers or [])]
-            if all(i is not None for i in ids_for_linked):
-                handled_tasklist_ids.update(ids_for_linked)
-            continue
+        # Если связанных TaskGroup в БД нет, take_linked_groups вернёт (None, None).
+        # Раньше здесь делали continue и помечали все номера «обработанными» — в вариант не попадали
+        # ни одна задача по этим слотам. Fallback: ниже — выбор по одной Task на TaskList (как для одиночных).
         if group_tasks is not None and group_ids is not None:
             # Для связанных групп: подтемы не используются, показываем все задачи по группам
             if only_fipi and fipi_q:
@@ -564,24 +579,32 @@ def _create_variant(subject_short, level_str, body_bytes, create=True):
             shuffle(pooled)
             tasks_for_slot = list(Task.objects.filter(id__in=pooled[: int(count)]))
         else:
-            # OGE информатика, задание 13: при полном варианте — по одной задаче из каждой подтемы
+            # OGE информатика, задание 13: полный вариант — одна задача (текст или презентация)
             if (
                 subject_instance.subject_short == "inf"
                 and level_instance.level == "oge"
                 and tasklist.task_number == 13
             ):
-                st_ids_with_tasks = list(
-                    qs.exclude(subtopic_id__isnull=True)
-                    .values_list("subtopic_id", flat=True)
-                    .distinct()
-                )
-                tasks_for_slot = []
-                for sid in st_ids_with_tasks:
-                    one = qs.filter(subtopic_id=sid).order_by("?").first()
-                    if one:
-                        tasks_for_slot.append(one)
-                if not tasks_for_slot:
-                    tasks_for_slot = list(qs.order_by("?")[: int(count)])
+                if inf_oge_task13_variant:
+                    st_ids = _subtopic_ids_for_oge_inf_task13(tasklist_id, inf_oge_task13_variant)
+                    qf = qs.filter(subtopic_id__in=st_ids) if st_ids else qs
+                    tasks_for_slot = list(qf.order_by("?")[: int(count)])
+                    if not tasks_for_slot:
+                        tasks_for_slot = list(qs.order_by("?")[: int(count)])
+                else:
+                    # Без выбора типа: по одной задаче из каждой подтемы (прежнее поведение)
+                    st_ids_with_tasks = list(
+                        qs.exclude(subtopic_id__isnull=True)
+                        .values_list("subtopic_id", flat=True)
+                        .distinct()
+                    )
+                    tasks_for_slot = []
+                    for sid in st_ids_with_tasks:
+                        one = qs.filter(subtopic_id=sid).order_by("?").first()
+                        if one:
+                            tasks_for_slot.append(one)
+                    if not tasks_for_slot:
+                        tasks_for_slot = list(qs.order_by("?")[: int(count)])
             else:
                 tasks_for_slot = list(qs.order_by("?")[: int(count)])
         selected_tasks.extend(tasks_for_slot)

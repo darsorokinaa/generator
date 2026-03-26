@@ -57,7 +57,7 @@
 <div class="tasks-wrapper">
 
     {% for item in contents %}
-        <div class="task">
+        <div class="task{% if item.subdivision == 'geom' %} task-geom{% endif %}">
             <div class="task-number">{{ item.order }}</div>
             <div class="task-body">
                 {% if item.text %}{{ item.text|safe }}{% else %}<p>&nbsp;</p>{% endif %}

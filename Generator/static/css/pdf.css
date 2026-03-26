@@ -30,7 +30,8 @@ body {
 /* ===== Задание ===== */
 .task {
     page-break-inside: avoid;
-    margin-bottom: 16pt;
+    margin-bottom: 6pt;
+    overflow: hidden;
 }
 
 .task-number,
@@ -68,15 +69,25 @@ body {
     
 }
 
-/* Изображения — одинаковый размер (180pt×180pt), пропорции сохраняются */
+/* Изображения: единый размер; геометрия — компактнее */
 .task-body img {
-    width: 180pt !important;
-    height: 180pt !important;
-    max-width: 180pt !important;
-    max-height: 180pt !important;
+    width: 195pt !important;
+    height: 195pt !important;
+    max-width: 195pt !important;
+    max-height: 195pt !important;
     object-fit: contain !important;
     display: block;
-    margin: 6pt auto;
+    margin: 4pt auto;
+}
+
+.task-geom .task-body img,
+.task-geom .task-body figure img {
+    width: 155pt !important;
+    max-width: 155pt !important;
+    height: 155pt !important;
+    max-height: 155pt !important;
+    object-fit: contain !important;
+    margin: 4pt auto !important;
 }
 
 /* Таблицы внутри заданий (CKEditor) — явные цвета для WeasyPrint */
@@ -120,7 +131,8 @@ body {
 
 /* ===== Ответ ===== */
 .answer-line {
-    margin-top: 6pt;
+    margin-top: 4pt;
+    clear: both;
 }
 
 .answer-field {
@@ -259,14 +271,14 @@ body {
 /* ===== Задачи в две колонки ===== */
 .tasks-wrapper {
     column-count: 2;
-    column-gap: 20pt;
+    column-gap: 14pt;
     column-fill: balance;
 }
 
 /* ===== Напоминание в рамке (формат картинки 2) — с восклицательным знаком ===== */
 .pdf-preview.pdf-framed {
     page-break-inside: avoid;
-    margin-bottom: 16pt;
+    margin-bottom: 10pt;
     column-span: all;
 }
 .pdf-framed .preview-reminder-row {

@@ -177,6 +177,9 @@ function TasksPage() {
   const buildVariantPayload = (items) => {
     const content = payloadFromTasks(items);
     const payload = { content, ...(onlyFipiVariant ? { only_fipi: true } : {}) };
+    if (level === "oge" && subject === "inf") {
+      payload.inf_oge_task13_variant = ogeInfTask13Kind;
+    }
     if (selectedSubtopicIds.length === 0) return payload;
 
     payload.subtopic_ids = selectedSubtopicIds;
@@ -204,6 +207,8 @@ function TasksPage() {
 
   const [submitBlock1, setSubmitBlock1] = useState(false);
   const [submitBlock2, setSubmitBlock2] = useState(false);
+  /** ОГЭ информатика, задание 13: полный вариант — тип подтемы (текст / презентация) */
+  const [ogeInfTask13Kind, setOgeInfTask13Kind] = useState("text");
 
   const onPart1 = () => {
     const items = onlyFipiVariant
@@ -546,6 +551,51 @@ function TasksPage() {
             </button>
           </div>
         </div>
+        {level === "oge" && subject === "inf" && (
+          <div
+            className="tasks-page-subtopics tasks-page-oge13-block"
+            role="group"
+            aria-label="Задание 13: тип работы"
+          >
+            <p className="tasks-page-subtopics-intro">Задание 13</p>
+            <div className="tasks-page-subtopics-checkboxes tasks-page-oge13-inline">
+              <div className="tasks-page-subtopic-row">
+                <label className="tasks-page-subtopic-label">
+                  <input
+                    type="radio"
+                    name="oge_inf_task13_kind"
+                    className="tasks-page-subtopic-checkbox-input"
+                    value="text"
+                    checked={ogeInfTask13Kind === "text"}
+                    onChange={() => setOgeInfTask13Kind("text")}
+                  />
+                  <span
+                    className={`tasks-page-subtopic-checkbox-visual ${ogeInfTask13Kind === "text" ? "selected" : ""}`}
+                    aria-hidden
+                  />
+                  <span className="tasks-page-subtopic-title">текст</span>
+                </label>
+              </div>
+              <div className="tasks-page-subtopic-row">
+                <label className="tasks-page-subtopic-label">
+                  <input
+                    type="radio"
+                    name="oge_inf_task13_kind"
+                    className="tasks-page-subtopic-checkbox-input"
+                    value="presentation"
+                    checked={ogeInfTask13Kind === "presentation"}
+                    onChange={() => setOgeInfTask13Kind("presentation")}
+                  />
+                  <span
+                    className={`tasks-page-subtopic-checkbox-visual ${ogeInfTask13Kind === "presentation" ? "selected" : ""}`}
+                    aria-hidden
+                  />
+                  <span className="tasks-page-subtopic-title">презентация</span>
+                </label>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="tasks-page-card">

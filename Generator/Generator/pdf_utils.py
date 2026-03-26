@@ -199,6 +199,9 @@ def build_pdf_context(request, variant, subject, author_filter=None):
                 rel = (media_url.rstrip("/") + "/" + f.name.lstrip("/")).replace("//", "/")
                 file_url = request.build_absolute_uri(rel)
 
+        tl = item.task.task
+        subdivision = (getattr(tl, "subdivision", None) or "").strip() if tl else ""
+
         entry = {
             "type": "task",
             "order": item.order,
@@ -207,6 +210,7 @@ def build_pdf_context(request, variant, subject, author_filter=None):
             "part": part,
             "part_id": part_id,
             "subject": subject,
+            "subdivision": subdivision,
             "file_url": file_url,
         }
         processed_contents.append(entry)

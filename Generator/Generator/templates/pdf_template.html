@@ -103,7 +103,7 @@
             </div>
             {% endif %}
         {% else %}
-        <div class="task{% if item.start_new_page %} pdf-start-new-page{% endif %}">
+        <div class="task{% if item.start_new_page %} pdf-start-new-page{% endif %}{% if item.subdivision == 'geom' %} task-geom{% endif %}">
 
             <div class="ta">
                 {{ item.order }}

@@ -1081,6 +1081,33 @@ header .container {
     color: var(--text-secondary);
 }
 
+/* Блок выбора типа задания 13 ОГЭ инф. — те же классы, что у подтем */
+.tasks-page-oge13-block {
+    margin-top: 1rem;
+    margin-bottom: 0;
+}
+
+.tasks-page-card .tasks-page-oge13-block.tasks-page-subtopics {
+    margin-bottom: 0;
+}
+
+.tasks-page-oge13-inline {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1.25rem;
+}
+
+.tasks-page-oge13-inline .tasks-page-subtopic-row {
+    width: auto;
+    margin: 0;
+    padding: 0.375rem 0.5rem;
+}
+
+.tasks-page-oge13-inline .tasks-page-subtopic-label {
+    flex: 0 1 auto;
+}
+
 .tasks-page-card-desc {
     font-size: 0.95rem;
     color: var(--text-secondary);
@@ -3752,7 +3779,7 @@ body.index .exam-grid .exam-card {
 .exam-page .task-text figure.image {
     text-align: center;
 }
-/* Геометрия: компактный размер (320px) */
+/* Геометрия: компактный размер */
 .exam-page .task-geom .task-text img,
 .exam-page .task-geom .task-text figure img,
 .exam-page .task-geom .task-text figure.image img,
@@ -3760,10 +3787,10 @@ body.index .exam-grid .exam-card {
 .exam-page .task-geom .part2-answer-content img {
     display: block !important;
     margin: 0.06rem auto !important;
-    width: min(320px, 90vw) !important;
+    width: min(260px, 90vw) !important;
     max-width: 100% !important;
-    height: min(320px, 90vw) !important;
-    max-height: min(320px, 90vw) !important;
+    height: min(260px, 90vw) !important;
+    max-height: min(260px, 90vw) !important;
     object-fit: contain !important;
     object-position: center !important;
     cursor: pointer;
@@ -3789,12 +3816,27 @@ body.index .exam-grid .exam-card {
 .exam-page[data-subject="inf"] .task:not(.task-geom) .criteria-text img {
     display: block !important;
     width: auto !important;
-    max-width: min(420px, 95vw) !important;
+    max-width: min(300px, 95vw) !important;
     height: auto !important;
-    max-height: min(420px, 85vh) !important;
+    max-height: min(300px, 85vh) !important;
     margin: 0 auto !important;
     object-fit: contain !important;
     cursor: pointer;
+}
+
+/* ОГЭ: инф. №13 и мат. №1 — как у геометрии (перекрывает 100% / инф-правила) */
+.exam-page .task.task-img-full .task-text img,
+.exam-page .task.task-img-full .task-text figure img,
+.exam-page .task.task-img-full .task-text figure.image img,
+.exam-page .task.task-img-full .correct-answer-content img,
+.exam-page .task.task-img-full .part2-answer-content img {
+    display: block !important;
+    width: min(260px, 90vw) !important;
+    max-width: 100% !important;
+    height: min(260px, 90vw) !important;
+    max-height: min(260px, 90vw) !important;
+    object-fit: contain !important;
+    margin: 0.06rem auto !important;
 }
 
 /* Всё кроме геометрии и информатики: картинки 100% ширины */
