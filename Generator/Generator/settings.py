@@ -44,7 +44,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'Generator.apps.GeneratorConfig',
     'Board',
-    'Cabinet',
+    # 'Cabinet',
     'corsheaders',
      "django_ckeditor_5",
     
@@ -127,16 +127,16 @@ WSGI_APPLICATION = 'Generator.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': 'generatordb_test',
-#         'USER': 'generator_test_user',
-#         'PASSWORD': 'StrongPass123test',
-#         'HOST': 'localhost',
-#         'PORT': '5432',
-#     }
-# }
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'generatordb',
+        'USER': 'generator_user',
+        'PASSWORD': 'StrongPass123',
+        'HOST': 'localhost',
+        'PORT': '5432',
+    }
+}
 
 # Используем env vars из gunicorn.service при наличии (prod), иначе — локальные значения
 # DATABASES = {
@@ -149,17 +149,17 @@ WSGI_APPLICATION = 'Generator.wsgi.application'
 #         'PORT': os.environ.get('PGPORT', '5432'),
 #     }
 # }
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'generatordb_test',
-        'USER': 'postgres',
-        'PASSWORD': 'postgres',
-        'HOST': 'localhost',
-        'PORT': '',
-    }
-}
+#
+# DATABASES = {
+#     'default': {
+#         'ENGINE': 'django.db.backends.postgresql',
+#         'NAME': 'generatordb',
+#         'USER': 'postgres',
+#         'PASSWORD': 'postgres',
+#         'HOST': 'localhost',
+#         'PORT': '',
+#     }
+# }
 
 
 

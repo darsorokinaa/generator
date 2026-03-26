@@ -30,7 +30,7 @@ urlpatterns = [
     # path('api/<str:level>/<str:subject>/variant/<int:variant_id>/pdf/spring', views.variant_pdfSpring),
 
     path("", include("Board.urls")),
-    path("cabinet/", include("Cabinet.urls")),
+    # path("cabinet/", include("Cabinet.urls")),
 
 ]
 
