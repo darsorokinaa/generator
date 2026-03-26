@@ -79,6 +79,12 @@
         .report-table td.numeric {
             text-align: right;
         }
+        .report-task-subtopic {
+            font-size: 6.5pt;
+            color: #555;
+            margin-top: 1.5pt;
+            line-height: 1.2;
+        }
         .report-table tr.row-score-zero {
             background: rgba(220, 38, 38, 0.08);
         }
@@ -162,7 +168,10 @@
                     {% for row in report_col1 %}
                     <tr class="{% if row.score == 0 %}row-score-zero{% elif row.max_score > 0 and row.score >= row.max_score %}row-score-max{% else %}row-score-mid{% endif %}">
                         <td>{{ row.number }}</td>
-                        <td>{{ row.title|default:"—" }}</td>
+                        <td>
+                            <div>{{ row.title|default:"—" }}</div>
+                            {% if row.subtopic_title %}<div class="report-task-subtopic">{{ row.subtopic_title }}</div>{% endif %}
+                        </td>
                         <td class="numeric">{{ row.score }}/{{ row.max_score }}</td>
                         <td>{{ row.time|default:"—" }}</td>
                     </tr>
@@ -184,7 +193,10 @@
                     {% for row in report_col2 %}
                     <tr class="{% if row.score == 0 %}row-score-zero{% elif row.max_score > 0 and row.score >= row.max_score %}row-score-max{% else %}row-score-mid{% endif %}">
                         <td>{{ row.number }}</td>
-                        <td>{{ row.title|default:"—" }}</td>
+                        <td>
+                            <div>{{ row.title|default:"—" }}</div>
+                            {% if row.subtopic_title %}<div class="report-task-subtopic">{{ row.subtopic_title }}</div>{% endif %}
+                        </td>
                         <td class="numeric">{{ row.score }}/{{ row.max_score }}</td>
                         <td>{{ row.time|default:"—" }}</td>
                     </tr>

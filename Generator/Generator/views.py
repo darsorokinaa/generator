@@ -980,8 +980,8 @@ def api_variant_detail(request, level, subject, variant_id):
     contents = (
         VariantContent.objects
         .filter(variant=variant)
-        .select_related('task', 'task__task')
-        .order_by('order')
+        .select_related("task", "task__task", "task__subtopic")
+        .order_by("order")
     )
 
     tasks_data = []
@@ -1010,11 +1010,15 @@ def api_variant_detail(request, level, subject, variant_id):
             if max_score is None:
                 max_score = 1
 
+        st = getattr(item.task, "subtopic", None)
+        subtopic_title = (st.title or "").strip() if st else ""
+
         tasks_data.append({
             "id": item.task.id,
             "task_list_id": task_list.id if task_list else None,
             "number": task_list.task_number if task_list else item.order,
             "task_title": task_list.task_title if task_list else "",
+            "subtopic_title": subtopic_title or None,
             "text": process_latex(str(item.task.task_template or ""), for_browser=True),
             "answer": process_latex(str(item.task.answer or ""), for_browser=True),
             "part": task_list.part_id if task_list else None,
@@ -1173,6 +1177,11 @@ def report_pdf(request, level, subject):
         tid = str(t.get("id", ""))
         num = t.get("number", tid)
         title = t.get("task_title", "")
+        subtopic_title = t.get("subtopic_title")
+        if isinstance(subtopic_title, str):
+            subtopic_title = subtopic_title.strip() or None
+        else:
+            subtopic_title = None
         max_s = t.get("max_score", 1)
         sc = scores.get(tid, scores.get(int(tid) if tid.isdigit() else tid, 0))
         sec = task_times.get(tid, task_times.get(int(tid) if tid.isdigit() else tid, 0))
@@ -1180,6 +1189,7 @@ def report_pdf(request, level, subject):
         report_rows.append({
             "number": num,
             "title": title,
+            "subtopic_title": subtopic_title,
             "score": sc,
             "max_score": max_s,
             "time": time_str,
@@ -1211,6 +1221,7 @@ def report_pdf(request, level, subject):
         "total_score": total_score,
         "max_score": max_score,
         "score_exam": score_exam,
+        "is_oge": level_val == "oge",
         "score_comment": score_comment,
         "score_comment_class": score_comment_class,
         "pdf_css": pdf_utils.get_pdf_css(),
