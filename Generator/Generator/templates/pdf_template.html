@@ -489,20 +489,23 @@
         }
 
         /*
-         * Таблицы в условии (CKEditor): этот блок идёт после встроенного pdf.css —
-         * inline width / table-layout:fixed из редактора ломали колонки (275/55 рвётся по /).
-         * scrub_task_tables_for_pdf убирает sizing из HTML; здесь — страховка !important.
+         * Таблицы в условии: вписываем в колонку (раньше nowrap + min-content выносили таблицу за край).
+         * scrub_task_tables_for_pdf по-прежнему убирает sizing из HTML.
          */
         .pdf-doc .task-body table {
-            table-layout: auto !important;
-            width: auto !important;
+            table-layout: fixed !important;
+            width: 100% !important;
             max-width: 100% !important;
-            min-width: min-content !important;
+            min-width: 0 !important;
+            box-sizing: border-box;
         }
         .pdf-doc .task-body figure.table,
         .pdf-doc .task-body figure.image:has(table) {
-            width: auto !important;
+            display: block;
+            width: 100% !important;
             max-width: 100% !important;
+            min-width: 0;
+            box-sizing: border-box;
         }
         .pdf-doc .task-body col,
         .pdf-doc .task-body colgroup col {
@@ -510,15 +513,17 @@
         }
         .pdf-doc .task-body th,
         .pdf-doc .task-body td {
-            white-space: nowrap !important;
+            white-space: normal !important;
             word-break: normal !important;
-            overflow-wrap: normal !important;
-            width: auto !important;
-            min-width: min-content !important;
+            overflow-wrap: break-word !important;
+            min-width: 0 !important;
+            max-width: 100%;
+            padding: 3pt 4pt;
+            box-sizing: border-box;
         }
         .pdf-doc .task-body th p,
         .pdf-doc .task-body td p {
-            white-space: nowrap !important;
+            white-space: normal !important;
             margin: 0 !important;
             text-align: inherit !important;
         }
