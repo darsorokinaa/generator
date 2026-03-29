@@ -112,6 +112,11 @@ class TaskAdmin(SearchByIdMixin, admin.ModelAdmin):
 
     answer_preview.short_description = "Ответ"
 
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.created_by = request.user.username
+        super().save_model(request, obj, form, change)
+
 
 @admin.register(SubTopic)
 class SubTopicAdmin(admin.ModelAdmin):
@@ -282,3 +287,4 @@ class UpdateAdmin(admin.ModelAdmin):
     date_hierarchy = "created"
     ordering = ["-created"]
     readonly_fields = ("created",)
+from .models import Mark, Tag, TagsList, Tags
