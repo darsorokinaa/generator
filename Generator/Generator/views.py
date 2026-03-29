@@ -415,43 +415,10 @@ def _create_variant(subject_short, level_str, body_bytes, create=True):
                         all_tasks.extend(m.task for m in members)
             if all_tasks:
                 return all_tasks, ids_for_group
-            # Fallback: групп нет, но есть отдельные задачи с подтемой — собираем из Task
-            if st_counts:
-                from random import shuffle
-                fallback_tasks = []
-                for sid, cnt in st_counts.items():
-                    cnt = int(cnt) if cnt else 0
-                    if cnt <= 0 or sid in ("all", None) or str(sid) == "null":
-                        continue
-                    # По каждому task_number — cnt задач с subtopic_id
-                    tasks_per_num = []
-                    for i, tn in enumerate(task_numbers):
-                        tl_id = ids_for_group[i] if i < len(ids_for_group) else None
-                        if not tl_id:
-                            tasks_per_num.append([])
-                            continue
-                        pool = list(
-                            Task.objects.filter(
-                                task_id=tl_id,
-                                subtopic_id=sid,
-                            ).values_list("id", flat=True)
-                        )
-                        shuffle(pool)
-                        tasks_per_num.append(pool[:cnt])
-                    # Собираем группы: группа j = tasks_per_num[0][j], tasks_per_num[1][j], ...
-                    min_len = min(len(p) for p in tasks_per_num) if tasks_per_num else 0
-                    if min_len > 0:
-                        ordered_ids = []
-                        for j in range(min_len):
-                            for pool in tasks_per_num:
-                                if j < len(pool):
-                                    ordered_ids.append(pool[j])
-                        task_by_id = {t.id: t for t in Task.objects.filter(id__in=ordered_ids)}
-                        fallback_tasks.extend(task_by_id[i] for i in ordered_ids if i in task_by_id)
-                if fallback_tasks:
-                    return fallback_tasks, ids_for_group
-            return None, None
-        # Без фильтра по подтемам
+            # Нет цельных TaskGroup под выбранные подтемы — не склеиваем j-е задачи из разных
+            # пулов (это давало несвязные сценарии и разных авторов). Ниже — запасной выбор
+            # полных групп из БД без фильтра по подтемам.
+        # Без фильтра по подтемам (или запас после неудачи с подтемами)
         num_groups = min(content.get(str(i), 0) for i in ids_for_group)
         num_groups = int(num_groups)
         if num_groups <= 0:
@@ -711,11 +678,8 @@ def api_tasks(request, level, subject):
         if groups_count == 0 and not has_subtopics_with_tasks:
             continue
         linked_tasklist_ids.update(ids_for_group)
-        # Reuse already-loaded tasklist data instead of a new DB query
-        tasklists = sorted(
-            [tl_by_id[i] for i in ids_for_group if i in tl_by_id],
-            key=lambda tl: tl.task_number,
-        )
+        # Порядок слотов как в LinkedTaskGroup.task_numbers (не сортировка по номеру)
+        tasklists = [tl_by_id[i] for i in ids_for_group if i in tl_by_id]
         linked_group_items.append({
             "type": "linked_group",
             "linked_key": "_".join(str(n) for n in task_numbers),
@@ -739,7 +703,9 @@ def api_tasks(request, level, subject):
     )
     group_members = TaskGroupMember.objects.filter(
         task_group__in=groups
-    ).select_related("task_group", "task", "task__task")
+    ).select_related("task_group", "task", "task__task").order_by(
+        "task_group_id", "task_number"
+    )
 
     group_dict = {}
     grouped_tasklist_ids = set(linked_tasklist_ids)
