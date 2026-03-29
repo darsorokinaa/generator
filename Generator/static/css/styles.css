@@ -4063,6 +4063,18 @@ body.index .exam-grid .exam-card {
 .exam-page .task-files {
     margin: 0.08rem 0 0.3rem !important;
 }
+
+.exam-page .task-file-link,
+.exam-page .task-file-link:visited {
+    text-decoration: none !important;
+    border-bottom: none !important;
+}
+
+.exam-page .task-file-link::before,
+.exam-page .task-file-link::after {
+    content: none !important;
+    display: none !important;
+}
 .exam-page .task-report-error-wrap {
     margin-top: 0.1rem !important;
 }

@@ -180,6 +180,16 @@
             font-size: 10pt;
             color: #0066cc;
             text-decoration: none !important;
+            border-bottom: none !important;
+        }
+
+        .pdf-file-link::before,
+        .pdf-file-link::after {
+            content: none !important;
+        }
+
+        body.pdf-doc .task-file-download a {
+            text-decoration: none !important;
         }
 
         /* ─── Геометрические задания (чертежи 150pt вместо 195pt) ─── */
@@ -583,7 +593,6 @@
                 <div class="task-file-download">
                     <a href="{{ item.file_url }}" class="pdf-file-link" target="_blank">Скачать файл</a>
                 </div>
-                <img src="{{ item.file_url }}">
                 {% endif %}
 
                 <div class="answer-line">
