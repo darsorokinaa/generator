@@ -14,13 +14,27 @@ from .models import TaskPreview
 
 
 def get_pdf_css():
-    css_path = finders.find('css/pdf.css')
-    if not css_path:
-        css_path = os.path.join(django_settings.STATIC_ROOT or '', 'css', 'pdf.css')
-    if css_path and os.path.exists(css_path):
-        with open(css_path, 'r', encoding='utf-8') as f:
-            return f.read()
-    return ''
+    """
+    Весь pdf.css встраивается в HTML (<style>{{ pdf_css }}</style>), чтобы WeasyPrint
+    не ходил по HTTP за /static/... (на сервере это часто недоступно из процесса PDF).
+
+    Ищем файл в нескольких местах: staticfiles finders → STATIC_ROOT после collectstatic
+    → прямой путь Generator/static/css (деплой без полного collectstatic).
+    """
+    root = Path(django_settings.BASE_DIR)
+    static_root = django_settings.STATIC_ROOT
+    candidates = [
+        finders.find("css/pdf.css"),
+        Path(static_root) / "css" / "pdf.css" if static_root else None,
+        root / "static" / "css" / "pdf.css",
+    ]
+    for p in candidates:
+        if not p:
+            continue
+        path = Path(p) if not isinstance(p, Path) else p
+        if path.is_file():
+            return path.read_text(encoding="utf-8")
+    return ""
 
 
 def scrub_task_tables_for_pdf(html: str) -> str:
