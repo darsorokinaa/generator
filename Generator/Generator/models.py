@@ -309,6 +309,54 @@ class Update(models.Model):
     def __str__(self):
         return f"{self.created.strftime('%Y-%m-%d %H:%M')}: {self.title}"
 
+
+class Announcement(models.Model):
+    """Объявление на главной странице (index)."""
+    ACCENT_CHOICES = [
+        ("default", "Синий"),
+        ("violet", "Фиолетовый"),
+        ("teal", "Бирюзовый"),
+        ("amber", "Тёплый"),
+    ]
+    title = models.CharField(verbose_name="Заголовок", max_length=255)
+    body = CKEditor5Field(verbose_name="Текст", blank=True, config_name="default")
+    corner_image = models.ImageField(
+        upload_to="announcements",
+        blank=True,
+        null=True,
+        verbose_name="Картинка в углу",
+        help_text="Необязательно. Нижний левый угол карточки на главной странице.",
+    )
+    button_label = models.CharField(verbose_name="Подпись кнопки", max_length=120, blank=True)
+    button_url = models.CharField(
+        verbose_name="Ссылка кнопки",
+        max_length=500,
+        blank=True,
+        help_text="Полный URL или путь на сайте, например /oge",
+    )
+    accent = models.CharField(
+        verbose_name="Акцент",
+        max_length=20,
+        choices=ACCENT_CHOICES,
+        default="default",
+    )
+    show = models.BooleanField(verbose_name="Показывать", default=True)
+    sort_order = models.PositiveSmallIntegerField(
+        verbose_name="Порядок",
+        default=0,
+        help_text="Чем меньше число, тем выше объявление в списке",
+    )
+    created = models.DateTimeField(verbose_name="Создано", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Объявление"
+        verbose_name_plural = "Объявления"
+        ordering = ["sort_order", "-created"]
+
+    def __str__(self):
+        return self.title
+
+
 class Criteria(models.Model):
     task_number = models.ForeignKey(TaskList, on_delete=CASCADE)
     criteria_text = CKEditor5Field()

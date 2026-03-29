@@ -4,6 +4,7 @@ from django.utils.html import strip_tags
 from django_ckeditor_5.widgets import CKEditor5Widget
 
 from .models import (
+    Announcement,
     Criteria,
     Level,
     LinkedTaskGroup,
@@ -282,3 +283,18 @@ class UpdateAdmin(admin.ModelAdmin):
     date_hierarchy = "created"
     ordering = ["-created"]
     readonly_fields = ("created",)
+
+
+@admin.register(Announcement)
+class AnnouncementAdmin(admin.ModelAdmin):
+    list_display = ("id", "sort_order", "title", "accent", "show", "created")
+    list_editable = ("sort_order", "show")
+    list_filter = ("show", "accent")
+    search_fields = ("title", "body")
+    ordering = ["sort_order", "-created"]
+    readonly_fields = ("created",)
+    fieldsets = (
+        (None, {"fields": ("title", "body", "corner_image", "accent")}),
+        ("Кнопка (необязательно)", {"fields": ("button_label", "button_url")}),
+        ("Публикация", {"fields": ("show", "sort_order", "created")}),
+    )

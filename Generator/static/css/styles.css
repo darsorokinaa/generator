@@ -115,16 +115,21 @@ header .container {
 
 .welcome-banner-owl {
     position: absolute;
-    right: 0;
-    bottom: -35px;
-    right: -65px;
-    height: 180px;
+    left: -56px;
+    bottom: -42px;
+    right: auto;
+    height: 280px;
     width: auto;
+    max-width: min(52vw, 340px);
     object-fit: contain;
+    object-position: left bottom;
     pointer-events: none;
+    z-index: 0;
 }
 
 .welcome-banner-title {
+    position: relative;
+    z-index: 1;
     font-size: 1.5rem;
     font-weight: 700;
     margin: 0 0 1rem 0;
@@ -134,6 +139,8 @@ header .container {
 }
 
 .welcome-banner-text {
+    position: relative;
+    z-index: 1;
     font-size: 0.9375rem;
     line-height: 1.6;
     margin: 0 auto 1.5rem auto;
@@ -142,6 +149,8 @@ header .container {
 }
 
 .welcome-banner-cta {
+    position: relative;
+    z-index: 1;
     display: inline-block;
     background: #7eb8f7;
     color: white;
@@ -159,6 +168,262 @@ header .container {
     background: #8fc4ff;
     transform: translateY(-1px);
     box-shadow: 0 0 28px rgba(126, 184, 247, 0.6), 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+@media (max-width: 640px) {
+    .welcome-banner-owl {
+        left: auto;
+        right: -28px;
+        bottom: -56px;
+        height: min(220px, 58vw);
+        max-width: min(62vw, 280px);
+        object-position: right bottom;
+    }
+}
+
+/* ===== Объявления (главная) ===== */
+.index-announcements {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin: 0 0 1.75rem 0;
+}
+
+.announcement-card {
+    --announce-border: rgba(129, 140, 248, 0.45);
+    --announce-glow-1: rgba(99, 102, 241, 0.35);
+    --announce-glow-2: rgba(59, 130, 246, 0.22);
+    --announce-cta-bg: linear-gradient(135deg, #6366f1, #4f46e5);
+    --announce-cta-shadow: rgba(79, 70, 229, 0.45);
+    position: relative;
+    border-radius: 20px;
+    overflow: visible;
+    border: 1px solid var(--announce-border);
+    background-color: #0e0b1a;
+    background-image:
+        radial-gradient(1px 1px at 6% 12%, rgba(255, 255, 255, 0.92) 50%, transparent 52%),
+        radial-gradient(1px 1px at 14% 38%, rgba(224, 231, 255, 0.75) 50%, transparent 52%),
+        radial-gradient(1.2px 1.2px at 24% 22%, rgba(255, 255, 255, 0.88) 50%, transparent 52%),
+        radial-gradient(1px 1px at 32% 68%, rgba(255, 255, 255, 0.55) 50%, transparent 52%),
+        radial-gradient(1.5px 1.5px at 42% 14%, rgba(255, 255, 255, 1) 50%, transparent 52%),
+        radial-gradient(1px 1px at 52% 52%, rgba(196, 210, 255, 0.5) 50%, transparent 52%),
+        radial-gradient(1px 1px at 62% 28%, rgba(255, 255, 255, 0.7) 50%, transparent 52%),
+        radial-gradient(1.2px 1.2px at 72% 78%, rgba(238, 242, 255, 0.85) 50%, transparent 52%),
+        radial-gradient(1px 1px at 82% 18%, rgba(255, 255, 255, 0.65) 50%, transparent 52%),
+        radial-gradient(1px 1px at 90% 48%, rgba(255, 255, 255, 0.5) 50%, transparent 52%),
+        radial-gradient(1.3px 1.3px at 95% 82%, rgba(255, 255, 255, 0.78) 50%, transparent 52%),
+        radial-gradient(1px 1px at 18% 88%, rgba(224, 231, 255, 0.45) 50%, transparent 52%),
+        radial-gradient(1px 1px at 48% 92%, rgba(255, 255, 255, 0.4) 50%, transparent 52%),
+        radial-gradient(1.2px 1.2px at 68% 8%, rgba(255, 255, 255, 0.55) 50%, transparent 52%),
+        linear-gradient(155deg, #0c0820 0%, #151032 38%, #1e1b4b 72%, #1a1740 100%);
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.07) inset,
+        0 8px 32px rgba(2, 6, 23, 0.55),
+        0 0 48px -12px rgba(99, 102, 241, 0.25);
+}
+
+.announcement-card--violet {
+    --announce-border: rgba(167, 139, 250, 0.5);
+    --announce-glow-1: rgba(139, 92, 246, 0.38);
+    --announce-glow-2: rgba(167, 139, 250, 0.22);
+    --announce-cta-bg: linear-gradient(135deg, #8b5cf6, #6d28d9);
+    --announce-cta-shadow: rgba(109, 40, 217, 0.45);
+}
+
+.announcement-card--teal {
+    --announce-border: rgba(45, 212, 191, 0.42);
+    --announce-glow-1: rgba(20, 184, 166, 0.32);
+    --announce-glow-2: rgba(45, 212, 191, 0.2);
+    --announce-cta-bg: linear-gradient(135deg, #14b8a6, #0d9488);
+    --announce-cta-shadow: rgba(13, 148, 136, 0.45);
+}
+
+.announcement-card--amber {
+    --announce-border: rgba(251, 191, 36, 0.45);
+    --announce-glow-1: rgba(245, 158, 11, 0.28);
+    --announce-glow-2: rgba(252, 211, 77, 0.16);
+    --announce-cta-bg: linear-gradient(135deg, #f59e0b, #d97706);
+    --announce-cta-shadow: rgba(217, 119, 6, 0.45);
+}
+
+.announcement-card-glow {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    overflow: hidden;
+    height: 100%;
+    background:
+        radial-gradient(ellipse 90% 70% at 18% 15%, var(--announce-glow-1), transparent 52%),
+        radial-gradient(ellipse 70% 55% at 88% 25%, var(--announce-glow-2), transparent 48%),
+        radial-gradient(ellipse 55% 45% at 50% 95%, rgba(99, 102, 241, 0.12), transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.announcement-card-inner {
+    position: relative;
+    z-index: 1;
+    padding: 1.25rem 1.35rem 1.35rem;
+    border-radius: inherit;
+}
+
+.announcement-card--has-corner-img {
+    margin-bottom: calc(clamp(2.25rem, 10vw, 4.5rem) + 35px);
+}
+
+.announcement-card--has-corner-img .announcement-card-inner {
+    padding-left: clamp(5.5rem, 18vw, 7rem);
+}
+
+@media (min-width: 640px) {
+    .announcement-card-inner {
+        padding: 1.4rem 1.6rem 1.5rem;
+    }
+
+    .announcement-card--has-corner-img .announcement-card-inner {
+        padding-left: 7.5rem;
+    }
+}
+
+.announcement-card-corner-img {
+    position: absolute;
+    left: -40px;
+    bottom: -91px;
+    z-index: 2;
+    height: clamp(150px, 42vw, 230px);
+    width: auto;
+    max-width: min(240px, 48vw);
+    object-fit: contain;
+    object-position: left bottom;
+    pointer-events: none;
+    filter: drop-shadow(0 6px 20px rgba(0, 0, 0, 0.45)) drop-shadow(0 0 12px rgba(129, 140, 248, 0.2));
+}
+
+@media (min-width: 640px) {
+    .announcement-card-corner-img {
+        left: -48px;
+        bottom: -99px;
+        height: 240px;
+        max-width: 280px;
+    }
+}
+
+@media (max-width: 480px) {
+    .announcement-card-corner-img {
+        left: -28px;
+        bottom: -79px;
+        height: min(170px, 46vw);
+        max-width: min(200px, 52vw);
+    }
+
+    .announcement-card--has-corner-img .announcement-card-inner {
+        padding-left: clamp(4.5rem, 36vw, 6rem);
+    }
+}
+
+.announcement-card-content {
+    min-width: 0;
+}
+
+.announcement-card-title {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.125rem;
+    font-weight: 700;
+    line-height: 1.3;
+    letter-spacing: -0.02em;
+    color: #f1f5f9;
+    font-family: "Montserrat", system-ui, sans-serif;
+}
+
+@media (min-width: 640px) {
+    .announcement-card-title {
+        font-size: 1.2rem;
+        margin-bottom: 0.55rem;
+    }
+}
+
+.announcement-card-body {
+    font-size: 0.9375rem;
+    line-height: 1.55;
+    color: #cbd5e1;
+    text-align: justify;
+    text-justify: inter-word;
+}
+
+.announcement-card-body p {
+    margin: 0 0 0.65rem 0;
+}
+
+.announcement-card-body p:last-child {
+    margin-bottom: 0;
+    text-align: right;
+}
+
+.announcement-card-body ul,
+.announcement-card-body ol {
+    margin: 0 0 0.65rem 0;
+    padding-left: 1.35em;
+    text-align: start;
+}
+
+.announcement-card-body li {
+    margin-bottom: 0.35rem;
+}
+
+.announcement-card-body hr {
+    border: none;
+    border-top: 1px solid rgba(148, 163, 184, 0.22);
+    margin: 0.85rem 0;
+}
+
+.announcement-card-body strong {
+    font-weight: 700;
+    color: #f8fafc;
+}
+
+.announcement-card-body a {
+    color: #a5b4fc;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.announcement-card-body a:hover {
+    color: #c7d2fe;
+}
+
+.announcement-card-body img,
+.announcement-card-body figure img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+}
+
+.announcement-card-actions {
+    margin-top: 1rem;
+}
+
+.announcement-card-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.55rem 1.25rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    font-family: "Montserrat", system-ui, sans-serif;
+    color: #fff !important;
+    text-decoration: none !important;
+    border-radius: 999px;
+    background: var(--announce-cta-bg);
+    box-shadow: 0 2px 12px var(--announce-cta-shadow);
+    transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+}
+
+.announcement-card-cta:hover {
+    filter: brightness(1.06);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 18px var(--announce-cta-shadow);
 }
 
 /* ========================================
@@ -331,6 +596,19 @@ header .container {
     border: 1px solid rgba(59, 130, 246, 0.12);
     display: inline-block;
     align-self: flex-start;
+}
+
+@media (max-width: 1023px) {
+    .index-updates-block {
+        margin-top: 1.5rem;
+        margin-left: 0;
+        margin-right: 0;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        padding-left: 1.25rem;
+        padding-right: 1.25rem;
+    }
 }
 
 .index-updates-block .index-updates-title {
@@ -4520,7 +4798,8 @@ body.index .exam-grid .exam-card {
 }
 
 .variant-btn-cosmos {
-    background: linear-gradient(135deg, #1e1b4b, #312e81);
+    position: relative;
+    overflow: hidden;
     color: #e0e7ff;
     border: 1.5px solid rgba(129, 140, 248, 0.45);
     padding: 0.7rem 1.4rem;
@@ -4532,13 +4811,46 @@ body.index .exam-grid .exam-card {
     transition: all 0.2s ease;
     white-space: nowrap;
     box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25);
+    background-color: #1e1b4b;
+    background-image:
+        radial-gradient(1px 1px at 8% 22%, rgba(255, 255, 255, 0.95) 50%, transparent 52%),
+        radial-gradient(1.2px 1.2px at 18% 78%, rgba(224, 231, 255, 0.85) 50%, transparent 52%),
+        radial-gradient(1px 1px at 32% 14%, rgba(255, 255, 255, 0.75) 50%, transparent 52%),
+        radial-gradient(1.5px 1.5px at 44% 62%, rgba(255, 255, 255, 1) 50%, transparent 52%),
+        radial-gradient(1px 1px at 55% 28%, rgba(196, 210, 255, 0.7) 50%, transparent 52%),
+        radial-gradient(1px 1px at 68% 85%, rgba(255, 255, 255, 0.9) 50%, transparent 52%),
+        radial-gradient(1.2px 1.2px at 78% 38%, rgba(255, 255, 255, 0.8) 50%, transparent 52%),
+        radial-gradient(1px 1px at 88% 12%, rgba(238, 242, 255, 0.85) 50%, transparent 52%),
+        radial-gradient(1px 1px at 92% 68%, rgba(255, 255, 255, 0.65) 50%, transparent 52%),
+        radial-gradient(1.4px 1.4px at 12% 52%, rgba(255, 255, 255, 0.55) 50%, transparent 52%),
+        radial-gradient(1px 1px at 26% 92%, rgba(224, 231, 255, 0.6) 50%, transparent 52%),
+        radial-gradient(1px 1px at 61% 8%, rgba(255, 255, 255, 0.5) 50%, transparent 52%),
+        radial-gradient(1.2px 1.2px at 95% 42%, rgba(255, 255, 255, 0.75) 50%, transparent 52%),
+        linear-gradient(135deg, #1e1b4b, #312e81);
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
 }
 
 .variant-btn-cosmos:hover {
-    background: linear-gradient(135deg, #312e81, #4338ca);
     border-color: rgba(165, 180, 252, 0.55);
     box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35);
     transform: translateY(-2px);
+    background-color: #312e81;
+    background-image:
+        radial-gradient(1px 1px at 8% 22%, rgba(255, 255, 255, 1) 50%, transparent 52%),
+        radial-gradient(1.2px 1.2px at 18% 78%, rgba(238, 242, 255, 0.95) 50%, transparent 52%),
+        radial-gradient(1px 1px at 32% 14%, rgba(255, 255, 255, 0.9) 50%, transparent 52%),
+        radial-gradient(1.5px 1.5px at 44% 62%, rgba(255, 255, 255, 1) 50%, transparent 52%),
+        radial-gradient(1px 1px at 55% 28%, rgba(224, 231, 255, 0.85) 50%, transparent 52%),
+        radial-gradient(1px 1px at 68% 85%, rgba(255, 255, 255, 1) 50%, transparent 52%),
+        radial-gradient(1.2px 1.2px at 78% 38%, rgba(255, 255, 255, 0.95) 50%, transparent 52%),
+        radial-gradient(1px 1px at 88% 12%, rgba(255, 255, 255, 0.95) 50%, transparent 52%),
+        radial-gradient(1px 1px at 92% 68%, rgba(255, 255, 255, 0.8) 50%, transparent 52%),
+        radial-gradient(1.4px 1.4px at 12% 52%, rgba(255, 255, 255, 0.75) 50%, transparent 52%),
+        radial-gradient(1px 1px at 26% 92%, rgba(238, 242, 255, 0.85) 50%, transparent 52%),
+        radial-gradient(1px 1px at 61% 8%, rgba(255, 255, 255, 0.65) 50%, transparent 52%),
+        radial-gradient(1.2px 1.2px at 95% 42%, rgba(255, 255, 255, 0.9) 50%, transparent 52%),
+        linear-gradient(135deg, #312e81, #4338ca);
 }
 
 .variant-btn-copy-link {

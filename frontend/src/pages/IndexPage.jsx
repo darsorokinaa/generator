@@ -1,9 +1,31 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+
+function AnnouncementCta({ url, label }) {
+  const href = (url || "").trim();
+  const text = (label || "").trim();
+  if (!href || !text) return null;
+  const external = /^https?:\/\//i.test(href);
+  const className = "announcement-card-cta";
+  if (external) {
+    return (
+      <a className={className} href={href} target="_blank" rel="noopener noreferrer">
+        {text}
+      </a>
+    );
+  }
+  const to = href.startsWith("/") ? href : `/${href}`;
+  return (
+    <Link className={className} to={to}>
+      {text}
+    </Link>
+  );
+}
 
 function IndexPage() {
   const navigate = useNavigate();
   const [updates, setUpdates] = useState([]);
+  const [announcements, setAnnouncements] = useState([]);
 
   useEffect(() => {
     fetch("/api/updates/", { credentials: "include" })
@@ -12,12 +34,68 @@ function IndexPage() {
       .catch(() => setUpdates([]));
   }, []);
 
+  useEffect(() => {
+    fetch("/api/announcements/", { credentials: "include" })
+      .then((res) => (res.ok ? res.json() : { announcements: [] }))
+      .then((data) =>
+        setAnnouncements(Array.isArray(data.announcements) ? data.announcements : [])
+      )
+      .catch(() => setAnnouncements([]));
+  }, []);
+
   return (
     <div>
 
+      {announcements.length > 0 && (
+        <div className="index-announcements" aria-label="Объявления">
+          {announcements.map((a) => {
+            const accent = ["default", "violet", "teal", "amber"].includes(a.accent)
+              ? a.accent
+              : "default";
+            const bodyHtml = (a.body || "").trim();
+            const hasCornerImg = Boolean((a.image_url || "").trim());
+            return (
+              <article
+                key={a.id}
+                className={`announcement-card announcement-card--${accent}${
+                  hasCornerImg ? " announcement-card--has-corner-img" : ""
+                }`}
+              >
+                <div className="announcement-card-glow" aria-hidden="true" />
+                <div className="announcement-card-inner">
+                  <div className="announcement-card-content">
+                    <h2 className="announcement-card-title">{a.title}</h2>
+                    {bodyHtml ? (
+                      <div
+                        className="announcement-card-body"
+                        dangerouslySetInnerHTML={{ __html: bodyHtml }}
+                      />
+                    ) : null}
+                    {a.has_button ? (
+                      <div className="announcement-card-actions">
+                        <AnnouncementCta url={a.button_url} label={a.button_label} />
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+                {hasCornerImg ? (
+                  <img
+                    className="announcement-card-corner-img"
+                    src={a.image_url}
+                    alt=""
+                    decoding="async"
+                    loading="lazy"
+                  />
+                ) : null}
+              </article>
+            );
+          })}
+        </div>
+      )}
+
       <section className="welcome-banner" aria-label="О платформе">
         <img
-          src={`${import.meta.env.BASE_URL}img/banner-owl.png`}
+          src={`${import.meta.env.BASE_URL}img/banner-owl12.png`}
           alt=""
           className="welcome-banner-owl"
           aria-hidden="true"

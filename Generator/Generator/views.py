@@ -16,6 +16,7 @@ from django.views.decorators.http import require_http_methods
 from weasyprint import HTML as WeasyHTML
 
 from .models import (
+    Announcement,
     Criteria,
     Level,
     LinkedTaskGroup,
@@ -1083,6 +1084,33 @@ def api_updates(request):
             item["created_iso"] = ""
         del item["created"]
     return JsonResponse({"updates": items})
+
+
+@require_http_methods(["GET"])
+def api_announcements(request):
+    """Активные объявления для главной страницы (show=True), по порядку."""
+    qs = Announcement.objects.filter(show=True).order_by("sort_order", "-created")[:10]
+    rows = []
+    for obj in qs:
+        image_url = ""
+        if obj.corner_image:
+            try:
+                image_url = request.build_absolute_uri(obj.corner_image.url)
+            except (ValueError, TypeError):
+                image_url = ""
+        rows.append({
+            "id": obj.id,
+            "title": obj.title,
+            "body": str(obj.body or ""),
+            "image_url": image_url,
+            "button_label": obj.button_label,
+            "button_url": obj.button_url,
+            "accent": obj.accent,
+            "has_button": bool(
+                (obj.button_label or "").strip() and (obj.button_url or "").strip()
+            ),
+        })
+    return JsonResponse({"announcements": rows})
 
 
 @csrf_exempt

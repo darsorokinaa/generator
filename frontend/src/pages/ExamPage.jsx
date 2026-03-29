@@ -1083,7 +1083,13 @@ function ExamPage() {
   };
 
   const copyVariantLink = async () => {
-    const url = window.location.href;
+    const loc = window.location;
+    const pathWithQuery = `${loc.pathname}${loc.search}${loc.hash}`;
+    const isLocal =
+      loc.hostname === "localhost" ||
+      loc.hostname === "127.0.0.1" ||
+      loc.hostname === "[::1]";
+    const url = isLocal ? loc.href : `https://генурок.рф${pathWithQuery}`;
     try {
       await navigator.clipboard.writeText(url);
       setLinkCopied(true);

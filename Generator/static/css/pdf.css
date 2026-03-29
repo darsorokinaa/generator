@@ -28,27 +28,43 @@ body {
 }
 
 /* ===== Задание ===== */
+/* flex: номер слева от текста; align-items: flex-start — рамка номера не растягивается на высоту задания (в отличие от table-cell) */
 .task {
-    page-break-inside: avoid;
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 8pt;
+    width: 100%;
     margin-bottom: 16pt;
+    page-break-inside: avoid;
+    break-inside: avoid;
+    -webkit-column-break-inside: avoid;
 }
 
 .task-number,
 .ta {
-    float: left;
-    width: 30pt;
-    height: 18pt;
+    flex: 0 0 32pt;
+    width: 32pt;
+    min-width: 32pt;
+    max-width: 32pt;
+    height: auto;
+    min-height: 18pt;
+    padding: 3pt 2pt;
+    box-sizing: border-box;
     background-color: rgb(255, 255, 255);
     border: 0.5pt solid #000;
     text-align: center;
     font-weight: bold;
     font-size: 11pt;
-    line-height: 18pt;
-    margin-right: 6pt;
+    line-height: 1.15;
+    margin: 0;
 }
 
 .task-body {
-    margin-left: 30pt;
+    flex: 1 1 auto;
+    min-width: 0;
+    padding-left: 0;
+    margin-left: 0;
 }
 
 .task-body p {
@@ -68,15 +84,15 @@ body {
     
 }
 
-/* Изображения — одинаковый размер (180pt×180pt), пропорции сохраняются */
+/* Изображения — на всю ширину колонки задания, высота по пропорциям */
 .task-body img {
-    width: 180pt !important;
-    height: 180pt !important;
-    max-width: 180pt !important;
-    max-height: 180pt !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: 340pt !important;
     object-fit: contain !important;
     display: block;
-    margin: 6pt auto;
+    margin: 6pt 0;
 }
 
 /* Таблицы внутри заданий (CKEditor) — явные цвета для WeasyPrint */
@@ -105,9 +121,22 @@ body {
     text-align: left;
 }
 /* Figure/изображения — без чёрного фона при ошибке загрузки */
+.task-body figure {
+    margin: 6pt 0;
+    max-width: 100%;
+}
 .task-body figure,
 .task-body figure img {
     background-color: transparent !important;
+}
+.task-body figure img {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: 340pt !important;
+    object-fit: contain !important;
+    display: block;
+    margin: 0 auto;
 }
 .task-body code,
 .task-body table code {
@@ -121,6 +150,8 @@ body {
 /* ===== Ответ ===== */
 .answer-line {
     margin-top: 6pt;
+    page-break-inside: avoid;
+    break-inside: avoid;
 }
 
 .answer-field {
@@ -190,10 +221,19 @@ body {
 
 .answers-page .answers-table {
     margin-bottom: 12pt;
+    page-break-inside: avoid;
+    break-inside: avoid;
 }
 
 .answers-page .answers-table:last-child {
     margin-bottom: 0;
+}
+
+.answers-table thead,
+.answers-table tbody,
+.answers-table tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
 }
 /* ===== Страница с инструкцией: инструкция слева, заметки справа ===== */
 .pdf-instruction-page {

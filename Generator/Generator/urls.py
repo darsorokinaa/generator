@@ -13,6 +13,7 @@ urlpatterns = [
 
     path("api/csrf/", views.api_csrf, name="api_csrf"),
     path("api/updates/", views.api_updates, name="api_updates"),
+    path("api/announcements/", views.api_announcements, name="api_announcements"),
     path("api/search_task/", views.search_task, name="search_task"),
     path("api/search_variant/", views.search_variant, name="search_variant"),
     path("favicon.svg", views.favicon),
