@@ -24,11 +24,56 @@ def get_pdf_css():
 
 
 MATH_CSS = mark_safe("""<style>
-/* MathJax SVG output — color для WeasyPrint (currentColor заменяется в latex_utils) */
-.math-display { display: block; text-align: center; margin: .8em 0; font-size: 1.1em; color: #000; }
-.math-display svg { display: inline-block; vertical-align: middle; max-width: 100%; }
-.math-inline { display: inline; vertical-align: middle; color: #000; }
-.math-inline svg { display: inline-block; vertical-align: middle; }
+/* SVG после Node MathJax (tex-svg); размер через ex + PDF_MATH_SCALE в latex_utils */
+.math-display {
+    display: block;
+    text-align: center;
+    margin: 0.4em 0;
+    color: #000;
+    page-break-inside: avoid;
+    line-height: 1.15;
+}
+.math-display svg {
+    display: inline-block;
+    vertical-align: middle;
+    max-width: 100%;
+    height: auto;
+    overflow: visible;
+}
+.math-inline {
+    display: inline-block;
+    max-width: 100%;
+    color: #000;
+    line-height: 1;
+    vertical-align: middle;
+    overflow: visible;
+}
+.math-inline svg {
+    display: inline-block;
+    vertical-align: -0.2ex;
+    max-width: 100%;
+    height: auto;
+    overflow: visible;
+    box-sizing: content-box;
+}
+/* MathJax 3 full: обёртка вокруг SVG (не путать с браузерным рантаймом) */
+.math-inline mjx-container,
+span.math-inline > mjx-container {
+    display: inline-block !important;
+    vertical-align: middle;
+    margin: 0;
+    padding: 0;
+    line-height: 1;
+    max-width: 100%;
+}
+.math-display mjx-container,
+div.math-display > mjx-container {
+    display: block !important;
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 100%;
+    line-height: 1.15;
+}
 /* Fallback: HTML math (frac, sqrt, etc.) when MathJax unavailable */
 .frac { display: inline-block; vertical-align: middle; text-align: center; margin: 0 .15em; }
 .num { display: block; border-bottom: 1px solid #000; padding: 0 .2em .1em; min-width: 1em; }

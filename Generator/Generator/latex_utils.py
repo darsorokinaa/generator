@@ -70,6 +70,11 @@ _RE_ENV = re.compile(
 )
 _RE_ARRAY = re.compile(r'\\begin\{array\}\{[^}]*\}(.*?)\\end\{array\}', re.DOTALL)
 _RE_TABULAR = re.compile(r'\\begin\{tabular\}\{[^}]*\}(.*?)\\end\{tabular\}', re.DOTALL)
+# MathJax (браузер и Node) не поддерживает tabular/array — только наш HTML-конвертер
+_RE_HAS_TABULAR_OR_ARRAY = re.compile(
+    r'\\begin\s*\{(?:tabular|array)\}',
+    re.IGNORECASE | re.DOTALL,
+)
 _RE_VERBATIM = re.compile(r'\\begin\{verbatim\}(.*?)\\end\{verbatim\}', re.DOTALL)
 _RE_POWER_GROUP = re.compile(r'\^\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}')
 _RE_INDEX_GROUP = re.compile(r'_\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}')
@@ -304,7 +309,8 @@ def _convert_math_block(content: str, display: bool = False) -> str:
     return f'<{tag}>{content}</{close}>'
 
 
-PDF_MATH_SCALE = 1.4
+# Под 10pt основной текст: ~1.0 совпадает по визуальному весу со строкой
+PDF_MATH_SCALE = 1.0
 
 _RE_SVG_WIDTH = re.compile(r'(<svg\b[^>]*\s)width="([\d.]+)ex"')
 _RE_SVG_HEIGHT = re.compile(r'(<svg\b[^>]*\s)height="([\d.]+)ex"')
@@ -367,7 +373,11 @@ def batch_render_mathjax(formulas: list[tuple[str, bool]]) -> None:
     """
     if not MATHJAX_AVAILABLE or not formulas:
         return
-    to_render = [(latex, display) for latex, display in formulas if (latex, display) not in _svg_cache]
+    to_render = [
+        (latex, display)
+        for latex, display in formulas
+        if (latex, display) not in _svg_cache and not _RE_HAS_TABULAR_OR_ARRAY.search(latex or "")
+    ]
     if not to_render:
         return
     payload = json.dumps([{"latex": latex, "display": display} for latex, display in to_render])
@@ -439,7 +449,8 @@ def _is_display_math(latex: str, span_html: str = "") -> bool:
 
 
 def _render_math_block(latex: str, display: bool, for_pdf: bool = False, for_browser: bool = False) -> str:
-    if for_pdf and (r'\begin{array}' in latex or r'\begin{tabular}' in latex):
+    # tabular/array не поддерживаются MathJax — конвертируем в HTML (и для PDF, и для SPA в браузере)
+    if latex and _RE_HAS_TABULAR_OR_ARRAY.search(latex):
         return _convert_math_block(latex, display=display)
     if MATHJAX_AVAILABLE and not for_browser:
         try:

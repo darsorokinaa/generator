@@ -190,14 +190,7 @@ function TasksPage() {
         const identifier = item.type === "linked_group" ? `linked_${item.linked_key}` : `group_${item.group_id}`;
         const bySt = groupSubtopicCounts[identifier];
         const entry = { task_numbers: nums, count: 1 };
-        if (bySt && Object.keys(bySt).length > 0) {
-          entry.subtopic_ids = Object.keys(bySt).filter((k) => k !== "all").map(Number).filter((n) => !Number.isNaN(n));
-          entry.subtopic_counts = { ...bySt };
-        } else {
-          // Только подтемы, относящиеся к этой группе
-          const groupSubtopicIds = (item.subtopics || []).map((st) => st.id).filter(Boolean);
-          entry.subtopic_ids = selectedSubtopicIds.filter((id) => groupSubtopicIds.includes(id));
-        }
+        Object.assign(entry, buildGroupSubtopicPayload(item, bySt, true));
         tasksList.push(entry);
       }
     });
@@ -233,6 +226,68 @@ function TasksPage() {
     if (Object.keys(payload.content).length === 0) return;
     setSubmitBlock1(true);
     postVariant(payload, "variant").catch((err) => setError(err.message)).finally(() => setSubmitBlock1(false));
+  };
+
+  const subtopicIdNum = (id) => {
+    const n = Number(id);
+    return Number.isNaN(n) ? null : n;
+  };
+
+  /** id подтем у связанной/обычной группы с сервера (числа — без сбоя сравнения с выбранными) */
+  const groupItemSubtopicIds = (item) =>
+    (item.subtopics || [])
+      .map((st) => subtopicIdNum(st.id))
+      .filter((id) => id != null);
+
+  /** subtopic_ids / subtopic_counts для элемента tasks[] варианта (группы) */
+  const buildGroupSubtopicPayload = (item, bySt, useSt) => {
+    const gIds = groupItemSubtopicIds(item);
+    const gIdSet = new Set(gIds);
+    const globalIntersect = useSt
+      ? selectedSubtopicIds
+          .map((id) => subtopicIdNum(id))
+          .filter((id) => id != null && gIdSet.has(id))
+      : [];
+    const entry = {};
+    const hasBySt = bySt && Object.keys(bySt).length > 0;
+    if (!hasBySt) {
+      if (useSt && globalIntersect.length > 0) {
+        entry.subtopic_ids = [...globalIntersect];
+        const sc = {};
+        globalIntersect.forEach((id) => {
+          const n = subtopicCounts[id];
+          if (n > 0) sc[id] = n;
+        });
+        if (Object.keys(sc).length > 0) entry.subtopic_counts = sc;
+      }
+      return entry;
+    }
+    const keys = Object.keys(bySt);
+    const allOnly = keys.length === 1 && keys[0] === "all";
+    if (allOnly && useSt && globalIntersect.length > 0) {
+      entry.subtopic_ids = [...globalIntersect];
+      return entry;
+    }
+    if (allOnly) {
+      entry.subtopic_counts = { ...bySt };
+      return entry;
+    }
+    let stIds = keys
+      .filter((k) => k !== "all")
+      .map((k) => Number(k))
+      .filter((n) => !Number.isNaN(n));
+    if (useSt && globalIntersect.length > 0) {
+      stIds = stIds.filter((id) => globalIntersect.includes(id));
+    }
+    if (stIds.length > 0) entry.subtopic_ids = stIds;
+    const sc = {};
+    stIds.forEach((id) => {
+      const v = bySt[id] ?? bySt[String(id)];
+      if (v != null && Number(v) > 0) sc[id] = Number(v);
+    });
+    if (bySt.all != null && bySt.all !== undefined) sc.all = bySt.all;
+    if (Object.keys(sc).length > 0) entry.subtopic_counts = sc;
+    return entry;
   };
 
   const buildPayloadFromTestCounts = () => {
@@ -274,10 +329,7 @@ function TasksPage() {
           if (tlId != null) content[String(tlId)] = Math.max(content[String(tlId)] || 0, groupCount);
         });
         const entry = { task_numbers: nums, count: groupCount };
-        if (bySt && Object.keys(bySt).length > 0) {
-          entry.subtopic_ids = Object.keys(bySt).filter((k) => k !== "all");
-          entry.subtopic_counts = { ...bySt };
-        }
+        Object.assign(entry, buildGroupSubtopicPayload(item, bySt, useSubtopicCounts));
         tasksList.push(entry);
       } else if (identifier.startsWith("group_") && item.tasks?.length) {
         const nums = item.task_numbers || item.tasks.map((t) => t.task_number);
@@ -288,10 +340,7 @@ function TasksPage() {
           if (tlId != null) content[String(tlId)] = Math.max(content[String(tlId)] || 0, groupCount);
         });
         const entry = { task_numbers: nums, count: groupCount };
-        if (bySt && Object.keys(bySt).length > 0) {
-          entry.subtopic_ids = Object.keys(bySt).filter((k) => k !== "all");
-          entry.subtopic_counts = { ...bySt };
-        }
+        Object.assign(entry, buildGroupSubtopicPayload(item, bySt, useSubtopicCounts));
         tasksList.push(entry);
       }
     }
@@ -457,8 +506,20 @@ function TasksPage() {
           .reduce((sum, st) => sum + getCappedSubtopicCount(st), 0);
       }
     }
-    if ((identifier.startsWith("linked_") || identifier.startsWith("group_")) && groupSubtopicCounts[identifier]) {
-      return Object.values(groupSubtopicCounts[identifier]).reduce((s, n) => s + (n || 0), 0);
+    if (identifier.startsWith("linked_") || identifier.startsWith("group_")) {
+      if (useSubtopicCounts && item.subtopics?.length) {
+        const gids = new Set(
+          item.subtopics.map((st) => subtopicIdNum(st.id)).filter((id) => id != null)
+        );
+        const any = selectedSubtopicIds.some((id) => {
+          const n = subtopicIdNum(id);
+          return n != null && gids.has(n);
+        });
+        if (!any) return 0;
+      }
+      if (groupSubtopicCounts[identifier]) {
+        return Object.values(groupSubtopicCounts[identifier]).reduce((s, n) => s + (n || 0), 0);
+      }
     }
     return testCounts[identifier] ?? 0;
   };

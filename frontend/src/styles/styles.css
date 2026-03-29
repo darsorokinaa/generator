@@ -906,6 +906,8 @@ header .container {
     overflow: hidden;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
     border: 1px solid #e2e8f0;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .search-task-card-header {
@@ -931,6 +933,51 @@ header .container {
 
 .search-task-card-body {
     padding: 1.75rem 2rem;
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+/* Картинки в условии/ответе — вписываются в ширину карточки */
+.search-task-card-body img,
+.search-task-card-body .task-img-zoomable img {
+    max-width: 100% !important;
+    width: auto !important;
+    height: auto !important;
+    object-fit: contain;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    border-radius: 8px;
+    box-sizing: border-box;
+}
+
+.search-task-card-body .task-img-zoomable {
+    display: block;
+    max-width: 100%;
+    margin: 0.75rem auto;
+    box-sizing: border-box;
+}
+
+.search-task-card-body figure,
+.search-task-card-body .image {
+    margin: 0.75rem 0;
+    max-width: 100%;
+}
+
+.search-task-card-body figure img,
+.search-task-card-body .image img {
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.search-task-answer-content {
+    line-height: 1.7;
+    color: var(--text-primary);
+    min-width: 0;
+    max-width: 100%;
 }
 
 .search-task-section {
