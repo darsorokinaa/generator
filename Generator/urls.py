@@ -14,7 +14,7 @@ urlpatterns = [
     path("api/search_task/", views.search_task),
     path("api/search_variant/", views.search_variant),
     path("api/variant-lookup/<int:variant_id>/", views.api_variant_lookup),
-     path("api/<str:level>/<str:subject>/variant/<int:variant_id>/pdf/spring", views.variant_pdfSpring),
+     path("api/<str:level>/<str:subject>/variant/<int:variant_id>/pdf/cosmos", views.variant_pdfCosmos),
      path("api/<str:level>/<str:subject>/variant/<int:variant_id>/pdf/", views.variant_pdf),
      path("api/<str:level>/<str:subject>/variant/<int:variant_id>/", views.api_variant_detail),
      path("api/<str:level>/<str:subject>/variant/", views.api_generate_variant),
@@ -22,8 +22,8 @@ urlpatterns = [
      path("api/<str:level>/<str:subject>/", views.api_tasks),         # оставить для совместимости
 
     # PDF (legacy without api prefix)
-    path("<str:level>/<str:subject>/variant/<int:variant_id>/pdf/spring",
-         views.variant_pdfSpring),
+    path("<str:level>/<str:subject>/variant/<int:variant_id>/pdf/cosmos",
+         views.variant_pdfCosmos),
     path("<str:level>/<str:subject>/variant/<int:variant_id>/pdf/",
          views.variant_pdf),
 

@@ -27,7 +27,7 @@ urlpatterns = [
     path("api/<str:level>/<str:subject>/report-pdf/", views.report_pdf),
     path("api/<str:level>/<str:subject>/report-error/", views.report_error),
     path('api/<str:level>/<str:subject>/variant/<int:variant_id>/pdf/', views.variant_pdf),
-    # path('api/<str:level>/<str:subject>/variant/<int:variant_id>/pdf/spring', views.variant_pdfSpring),
+    # path('api/<str:level>/<str:subject>/variant/<int:variant_id>/pdf/cosmos', views.variant_pdfCosmos),
 
     path("", include("Board.urls")),
     path("cabinet/", include("Cabinet.urls")),

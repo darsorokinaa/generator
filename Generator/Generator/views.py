@@ -1259,8 +1259,8 @@ def _render_variant_pdf(request, level, subject, variant_id, background_url="", 
 def variant_pdf(request, level, subject, variant_id):
     theme = request.GET.get("theme", "").lower()
     background_url = ""
-    if theme == "spring":
-        background_url = pdf_utils.resolve_background_image("img/spring.png", request=request)
+    if theme == "cosmos":
+        background_url = pdf_utils.resolve_background_image("img/cosmos.png", request=request)
     return _render_variant_pdf(
         request,
         level,
@@ -1271,16 +1271,16 @@ def variant_pdf(request, level, subject, variant_id):
     )
 
 
-def variant_pdfSpring(request, level, subject, variant_id):
-    """PDF варианта с весенней темой (алиас для /pdf/spring)."""
-    background_url = pdf_utils.resolve_background_image("img/spring.png", request=request)
+def variant_pdfCosmos(request, level, subject, variant_id):
+    """PDF варианта с космической темой (алиас для /pdf/cosmos)."""
+    background_url = pdf_utils.resolve_background_image("img/cosmos.png", request=request)
     return _render_variant_pdf(
         request,
         level,
         subject,
         variant_id,
         background_url=background_url,
-        theme="spring",
+        theme="cosmos",
     )
 
 

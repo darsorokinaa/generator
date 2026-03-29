@@ -80,7 +80,7 @@ function ExamPage() {
   const [timerStatus, setTimerStatus] = useState("idle"); // "idle" | "running" | "paused"
 
   // Загрузка PDF
-  const [pdfLoading, setPdfLoading] = useState(null); // null | "default" | "spring"
+  const [pdfLoading, setPdfLoading] = useState(null); // null | "default" | "cosmos"
 
   // Копирование ссылки на вариант
   const [linkCopied, setLinkCopied] = useState(false);
@@ -1054,9 +1054,9 @@ function ExamPage() {
     }
   };
 
-  const openPdfSpring = async (variantId) => {
-    setPdfLoading("spring");
-    const url = `/api/${level}/${subject}/variant/${variantId}/pdf/?theme=spring`;
+  const openPdfCosmos = async (variantId) => {
+    setPdfLoading("cosmos");
+    const url = `/api/${level}/${subject}/variant/${variantId}/pdf/?theme=cosmos`;
     try {
       const res = await fetch(url, { credentials: "same-origin" });
       if (!res.ok) throw new Error("Ошибка загрузки PDF");
@@ -1064,7 +1064,7 @@ function ExamPage() {
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = blobUrl;
-      a.download = `variant-${variantId}-spring.pdf`;
+      a.download = `variant-${variantId}-cosmos.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -1072,7 +1072,7 @@ function ExamPage() {
     } catch (err) {
       const a = document.createElement("a");
       a.href = url;
-      a.download = `variant-${variantId}-spring.pdf`;
+      a.download = `variant-${variantId}-cosmos.pdf`;
       a.target = "_blank";
       document.body.appendChild(a);
       a.click();
@@ -1206,11 +1206,11 @@ function ExamPage() {
                       ⬇ Скачать PDF
                     </button>
                     <button
-                      className="variant-btn-spring"
-                      onClick={() => openPdfSpring(variant.id)}
+                      className="variant-btn-cosmos"
+                      onClick={() => openPdfCosmos(variant.id)}
                       disabled={!!pdfLoading}
                     >
-                      🌸 Весенний вариант
+                      🪐 Космический вариант
                     </button>
                     <button
                       type="button"

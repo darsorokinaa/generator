@@ -4519,10 +4519,10 @@ body.index .exam-grid .exam-card {
     border-color: rgba(96, 165, 250, 0.5);
 }
 
-.variant-btn-spring {
-    background: linear-gradient(135deg, #fef3c7, #fde68a);
-    color: #92400e;
-    border: 1.5px solid rgba(251, 191, 36, 0.4);
+.variant-btn-cosmos {
+    background: linear-gradient(135deg, #1e1b4b, #312e81);
+    color: #e0e7ff;
+    border: 1.5px solid rgba(129, 140, 248, 0.45);
     padding: 0.7rem 1.4rem;
     border-radius: 12px;
     font-weight: 600;
@@ -4531,13 +4531,13 @@ body.index .exam-grid .exam-card {
     font-family: "Montserrat", sans-serif;
     transition: all 0.2s ease;
     white-space: nowrap;
-    box-shadow: 0 2px 8px rgba(251, 191, 36, 0.2);
+    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25);
 }
 
-.variant-btn-spring:hover {
-    background: linear-gradient(135deg, #fde68a, #fcd34d);
-    border-color: rgba(251, 191, 36, 0.6);
-    box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3);
+.variant-btn-cosmos:hover {
+    background: linear-gradient(135deg, #312e81, #4338ca);
+    border-color: rgba(165, 180, 252, 0.55);
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35);
     transform: translateY(-2px);
 }
 
