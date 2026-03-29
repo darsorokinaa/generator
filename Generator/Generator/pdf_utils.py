@@ -23,6 +23,146 @@ def get_pdf_css():
     return ''
 
 
+def scrub_task_tables_for_pdf(html: str) -> str:
+    """
+    CKEditor часто задаёт table/td width:100%, table-layout:fixed и col width —
+    колонки сжимаются, «275/55» переносится по слэшу. Убираем sizing из разметки.
+    """
+    if not html:
+        return html
+
+    _re_sizing_in_style = re.compile(
+        r"(?:^|;)\s*(?:(?:min-|max-)?width|table-layout)\s*:\s*[^;]+",
+        re.IGNORECASE,
+    )
+
+    def _scrub_style_val(style: str) -> str:
+        s = style
+        for _ in range(8):
+            n = _re_sizing_in_style.sub("", s)
+            if n == s:
+                break
+            s = n
+        s = re.sub(r";+", ";", s).strip("; \t\n\r")
+        return s
+
+    def _repl_style_dq(m):
+        open_tag, before, style_val, after = m.group(1), m.group(2), m.group(3), m.group(4)
+        new = _scrub_style_val(style_val)
+        if new:
+            return f'{open_tag}{before}style="{new}"{after}>'
+        merged = f"{before.rstrip()}{after}".strip()
+        return f"{open_tag} {merged}>" if merged else f"{open_tag}>"
+
+    def _repl_style_sq(m):
+        open_tag, before, style_val, after = m.group(1), m.group(2), m.group(3), m.group(4)
+        new = _scrub_style_val(style_val)
+        if new:
+            return f"{open_tag}{before}style='{new}'{after}>"
+        merged = f"{before.rstrip()}{after}".strip()
+        return f"{open_tag} {merged}>" if merged else f"{open_tag}>"
+
+    for _pat, _repl in (
+        (
+            r'(?is)(<(?:table|td|th|col)\b)([^>]*?)\sstyle="([^"]*)"([^>]*)>',
+            _repl_style_dq,
+        ),
+        (
+            r"(?is)(<(?:table|td|th|col)\b)([^>]*?)\sstyle='([^']*)'([^>]*)>",
+            _repl_style_sq,
+        ),
+    ):
+        html = re.sub(_pat, _repl, html)
+
+    # HTML-атрибут width (без CSS)
+    html = re.sub(
+        r'(?is)(<(?:table|td|th|col)\b[^>]*?)\s+width\s*=\s*"[^"]*"',
+        r"\1",
+        html,
+    )
+    html = re.sub(
+        r"(?is)(<(?:table|td|th|col)\b[^>]*?)\s+width\s*=\s*'[^']*'",
+        r"\1",
+        html,
+    )
+    html = re.sub(
+        r"(?is)(<(?:table|td|th|col)\b[^>]*?)\s+width\s*=\s*\d+",
+        r"\1",
+        html,
+    )
+    return html
+
+
+def sanitize_html_for_weasyprint(html: str) -> str:
+    """
+    Снижает риск падений WeasyPrint (IndexError в layout/inline.py) из‑за пустых
+    inline-боксов и пустых math-inline рядом с SVG.
+    """
+    if not html:
+        return html
+    html = re.sub(
+        r'<div class="task-body">\s*</div>',
+        '<div class="task-body"><p>&nbsp;</p></div>',
+        html,
+        flags=re.IGNORECASE,
+    )
+    html = re.sub(
+        r'<span class="answer-field">\s*</span>',
+        '<span class="answer-field">&nbsp;</span>',
+        html,
+        flags=re.IGNORECASE,
+    )
+    html = re.sub(
+        r'<span([^>]*\bclass="[^"]*math-inline[^"]*"[^>]*)>\s*</span>',
+        lambda m: '<span{}>\xa0</span>'.format(m.group(1)),
+        html,
+        flags=re.IGNORECASE,
+    )
+    html = re.sub(
+        r'<div([^>]*\bclass="[^"]*math-display[^"]*"[^>]*)>\s*</div>',
+        r'<div\1><span>&nbsp;</span></div>',
+        html,
+        flags=re.IGNORECASE,
+    )
+    return html
+
+
+def sanitize_html_for_weasyprint_aggressive(html: str) -> str:
+    """
+    Вторая попытка: после </svg> добавляется zero-width space — у раскладки inline
+    появляется «текстовый» узел, и не срабатывает баг в skip_first_whitespace.
+    """
+    html = sanitize_html_for_weasyprint(html)
+    zwsp = '\u200b'
+    html = re.sub(r'</svg>', lambda m: m.group(0) + zwsp, html, flags=re.IGNORECASE)
+    return html
+
+
+def sanitize_html_for_weasyprint_last_resort(html: str) -> str:
+    """
+    Третья попытка: убрать SVG только из таблиц answers-table (лист «Ответы»).
+    Условия задач выше по HTML остаются с формулами; в ячейках ответов может
+    остаться текст или пусто — лучше, чем 500 от WeasyPrint.
+    """
+    html = sanitize_html_for_weasyprint_aggressive(html)
+
+    def strip_svg_from_table(m: re.Match) -> str:
+        fragment = m.group(0)
+        return re.sub(
+            r'<svg\b[^>]*>.*?</svg>',
+            '',
+            fragment,
+            flags=re.DOTALL | re.IGNORECASE,
+        )
+
+    return re.sub(
+        r'<table\b[^>]*\bclass="[^"]*answers-table[^"]*"[^>]*>.*?</table>',
+        strip_svg_from_table,
+        html,
+        flags=re.DOTALL | re.IGNORECASE,
+    )
+
+
 MATH_CSS = mark_safe("""<style>
 /* SVG после Node MathJax (tex-svg); размер через ex + PDF_MATH_SCALE в latex_utils */
 .math-display {
@@ -201,7 +341,9 @@ def build_pdf_context(request, variant, subject, author_filter=None):
 
     def fix_pdf_html(html: str) -> str:
         """Исправление &аmp; (кириллическая а) и двойного escape для PDF."""
-        return html.replace("&\u0430mp;", "&amp;").replace("&amp;amp;", "&amp;")
+        html = html.replace("&\u0430mp;", "&amp;").replace("&amp;amp;", "&amp;")
+        html = scrub_task_tables_for_pdf(html)
+        return html
 
     for item in contents:
         raw_text = str(item.task.task_template or "").strip()

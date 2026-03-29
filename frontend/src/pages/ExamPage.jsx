@@ -6,6 +6,7 @@ import ImageLightbox from "../components/ImageLightbox";
 import SupportInfoModal from "../components/SupportInfoModal";
 import ResultsModal from "../components/ResultsModal";
 import ReportErrorModal from "../components/ReportErrorModal";
+import { devApiBase } from "../utils/devApiBase";
 
 const COLORS = ["#000000", "#ffffff", "#ef4444", "#3b82f6", "#22c55e"];
 
@@ -39,6 +40,13 @@ const LEVEL_NAMES = {
   ege: "ЕГЭ",
   oge: "ОГЭ",
 };
+
+/** ОГЭ инф. №13; мат. №1 (ОГЭ и ЕГЭ) — усиленная раскладка иллюстраций */
+function isExamTaskImgFull(level, subject, taskNumber) {
+  if (level === "oge" && subject === "inf" && taskNumber === 13) return true;
+  if (subject === "math" && taskNumber === 1 && (level === "oge" || level === "ege")) return true;
+  return false;
+}
 
 function ExamPage() {
   const { level, subject, variant_id } = useParams();
@@ -914,11 +922,19 @@ function ExamPage() {
 
   const getTaskMaxScore = (task) => task.max_score ?? 3;
   const part2ScoreSum = part2Tasks.reduce((sum, t) => sum + (scores[t.id] || 0), 0);
-  // ЕГЭ информатика: макс. первичный балл 29 (часть 1 + 26 и 27 по 2 балла и др.)
+  /** Сумма макс. баллов только по заданиям в этом варианте (часть 1 — по 1 баллу). */
+  const computedMaxScore =
+    part1Tasks.length + part2Tasks.reduce((sum, t) => sum + getTaskMaxScore(t), 0);
+  /**
+   * ЕГЭ инф.: полный вариант — официальные 29 первичных баллов; тренажёр по номерам / часть 1 / часть 2 —
+   * максимум от фактического набора задач, а не как за весь экзамен.
+   */
   const maxScore =
-    String(subject).toLowerCase() === "inf" && String(level).toLowerCase() === "ege"
+    String(subject).toLowerCase() === "inf" &&
+    String(level).toLowerCase() === "ege" &&
+    mode === "variant"
       ? 29
-      : part1Tasks.length + part2Tasks.reduce((sum, t) => sum + getTaskMaxScore(t), 0);
+      : computedMaxScore;
 
   /** При завершении: авто-проверка непроверенных заданий части 1, подсчёт эффективных баллов */
   function getEffectiveResults() {
@@ -1028,10 +1044,19 @@ function ExamPage() {
 
   const openPdf = async (variantId) => {
     setPdfLoading("default");
-    const url = `/api/${level}/${subject}/variant/${variantId}/pdf/`;
+    const apiBase = devApiBase();
+    const url = `${apiBase}/api/${level}/${subject}/variant/${variantId}/pdf/`;
+    const fetchOpts = apiBase ? { credentials: "omit" } : { credentials: "same-origin" };
     try {
-      const res = await fetch(url, { credentials: "same-origin" });
-      if (!res.ok) throw new Error("Ошибка загрузки PDF");
+      const res = await fetch(url, fetchOpts);
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        throw new Error(
+          res.status === 500 && errText
+            ? `Сервер не смог собрать PDF (${errText.slice(0, 200)})`
+            : `Ошибка загрузки PDF (${res.status})`
+        );
+      }
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -1056,10 +1081,19 @@ function ExamPage() {
 
   const openPdfSpring = async (variantId) => {
     setPdfLoading("spring");
-    const url = `/api/${level}/${subject}/variant/${variantId}/pdf/?theme=spring`;
+    const apiBase = devApiBase();
+    const url = `${apiBase}/api/${level}/${subject}/variant/${variantId}/pdf/?theme=spring`;
+    const fetchOpts = apiBase ? { credentials: "omit" } : { credentials: "same-origin" };
     try {
-      const res = await fetch(url, { credentials: "same-origin" });
-      if (!res.ok) throw new Error("Ошибка загрузки PDF");
+      const res = await fetch(url, fetchOpts);
+      if (!res.ok) {
+        const errText = await res.text().catch(() => "");
+        throw new Error(
+          res.status === 500 && errText
+            ? `Сервер не смог собрать PDF (${errText.slice(0, 200)})`
+            : `Ошибка загрузки PDF (${res.status})`
+        );
+      }
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -1250,7 +1284,7 @@ function ExamPage() {
               const cols = useTable ? INF_TABLE_COLS : 0;
 
               return (
-                <section key={task.id} className={`task${task.subdivision === "geom" ? " task-geom" : task.subdivision === "alg" ? " task-alg" : ""}${((level === "oge" && subject === "inf" && task.number === 13) || (level === "oge" && subject === "math" && task.number === 1)) ? " task-img-full" : ""}`} onClick={() => handleTaskFocus(task.id)}>
+                <section key={task.id} className={`task${task.subdivision === "geom" ? " task-geom" : task.subdivision === "alg" ? " task-alg" : ""}${isExamTaskImgFull(level, subject, task.number) ? " task-img-full" : ""}`} onClick={() => handleTaskFocus(task.id)}>
                   <aside className="task-left">
                     <div className="task-number">{task.number}</div>
                     <div className="task-id">{task.id}</div>
@@ -1261,7 +1295,6 @@ function ExamPage() {
                     {task.file && (
                       <div className="task-files">
                         <a href={task.file} target="_blank" rel="noreferrer" className="task-file-link">
-                          <span className="task-file-icon">📎</span>
                           <span className="task-file-label">Скачать файл</span>
                         </a>
                       </div>
@@ -1420,7 +1453,7 @@ function ExamPage() {
                       const colsHere = useTableHere ? INF_TABLE_COLS : 0;
 
                       return (
-                        <section key={task.id} className={`task task-in-group${task.subdivision === "geom" ? " task-geom" : task.subdivision === "alg" ? " task-alg" : ""}${((level === "oge" && subject === "inf" && task.number === 13) || (level === "oge" && subject === "math" && task.number === 1)) ? " task-img-full" : ""}`} onClick={() => handleTaskFocus(task.id)}>
+                        <section key={task.id} className={`task task-in-group${task.subdivision === "geom" ? " task-geom" : task.subdivision === "alg" ? " task-alg" : ""}${isExamTaskImgFull(level, subject, task.number) ? " task-img-full" : ""}`} onClick={() => handleTaskFocus(task.id)}>
                           <aside className="task-left">
                             <div className="task-number">{task.number}</div>
                             <div className="task-id">{task.id}</div>
@@ -1431,7 +1464,6 @@ function ExamPage() {
                             {task.file && (
                               <div className="task-files">
                                 <a href={task.file} target="_blank" rel="noreferrer" className="task-file-link">
-                                  <span className="task-file-icon">📎</span>
                                   <span className="task-file-label">Скачать файл</span>
                                 </a>
                               </div>
@@ -1603,7 +1635,7 @@ function ExamPage() {
 
                 {/* Остальные задания части 2 */}
                 {part2Regular.map((task) => (
-                  <section key={task.id} className={`task${task.subdivision === "geom" ? " task-geom" : task.subdivision === "alg" ? " task-alg" : ""}${((level === "oge" && subject === "inf" && task.number === 13) || (level === "oge" && subject === "math" && task.number === 1)) ? " task-img-full" : ""}`} onClick={() => handleTaskFocus(task.id)}>
+                  <section key={task.id} className={`task${task.subdivision === "geom" ? " task-geom" : task.subdivision === "alg" ? " task-alg" : ""}${isExamTaskImgFull(level, subject, task.number) ? " task-img-full" : ""}`} onClick={() => handleTaskFocus(task.id)}>
                     <aside className="task-left">
                       <div className="task-number">{task.number}</div>
                       <div className="task-id">{task.id}</div>
@@ -1614,7 +1646,6 @@ function ExamPage() {
                       {task.file && (
                         <div className="task-files">
                           <a href={task.file} target="_blank" rel="noreferrer" className="task-file-link">
-                            <span className="task-file-icon">📎</span>
                             <span className="task-file-label">Скачать файл</span>
                           </a>
                         </div>

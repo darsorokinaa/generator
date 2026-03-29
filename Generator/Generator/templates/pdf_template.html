@@ -12,10 +12,10 @@
     <style>
         @page {
             size: A4 landscape;
-            margin-top: 18mm;
-            margin-bottom: 15mm;
-            margin-left: 11mm;
-            margin-right: 11mm;
+            margin-top: 14mm;
+            margin-bottom: 12mm;
+            margin-left: 7mm;
+            margin-right: 7mm;
             @top-left {
                 content: "{{ header_subject_level }}";
                 font-size: 9pt;
@@ -63,6 +63,10 @@
         @page {
             size: A4 landscape;
             background-color: rgb(254, 254, 253);
+            margin-top: 14mm;
+            margin-bottom: 12mm;
+            margin-left: 7mm;
+            margin-right: 7mm;
         }
     </style>
     {% endif %}
@@ -169,18 +173,130 @@
 
         /* ─── Файл-приложение к заданию ─── */
         .task-file-download {
-            margin: 8px 0;
+            margin: 1pt 0 2pt;
         }
 
         .pdf-file-link {
             font-size: 10pt;
             color: #0066cc;
-            text-decoration: underline;
+            text-decoration: none !important;
         }
 
-        /* ─── Геометрические задания ─── */
+        /* ─── Геометрические задания (чертежи 150pt вместо 195pt) ─── */
         .task-geom .task-body {
             line-height: 1.45;
+        }
+        .pdf-doc .task-geom {
+            margin-bottom: 7pt;
+        }
+
+        /*
+         * Алгебра: лимиты max-height / min-height (ещё ×1.5 к предыдущим значениям).
+         */
+        /* Математика, алгебра: один рисунок — на всю колонку; два в ряд (Рис.1 / Рис.2) — ~по половине */
+        .pdf-subject-math .task:not(.task-geom) .task-body figure,
+        .pdf-subject-math .task:not(.task-geom) .task-body figure.image {
+            display: block !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 4pt auto !important;
+            text-align: center !important;
+        }
+        .pdf-subject-math .task:not(.task-geom) .task-body figure img {
+            width: auto !important;
+            max-width: 100% !important;
+            height: auto !important;
+            max-height: 300pt !important;
+            min-height: 90pt !important;
+            object-fit: contain !important;
+            display: inline-block !important;
+            margin: 3pt auto !important;
+            vertical-align: top !important;
+        }
+        .pdf-subject-math .task:not(.task-geom) .task-body figure:has(> img ~ img) img {
+            max-width: 48% !important;
+            max-height: 249pt !important;
+            min-height: 81pt !important;
+            margin: 3pt 1.5% !important;
+        }
+        /* Два и более рисунка подряд в абзаце (Рис.1 и Рис.2) */
+        .pdf-subject-math .task:not(.task-geom) .task-body p:has(> img ~ img) > img {
+            display: inline-block !important;
+            width: auto !important;
+            max-width: 48% !important;
+            height: auto !important;
+            max-height: 249pt !important;
+            min-height: 81pt !important;
+            object-fit: contain !important;
+            vertical-align: top !important;
+            margin: 3pt 1.5% !important;
+        }
+        /* Один рисунок в абзаце */
+        .pdf-subject-math .task:not(.task-geom) .task-body p:has(> img):not(:has(> img ~ img)) > img {
+            display: block !important;
+            width: auto !important;
+            max-width: 100% !important;
+            height: auto !important;
+            max-height: 300pt !important;
+            min-height: 90pt !important;
+            object-fit: contain !important;
+            margin: 4pt auto !important;
+        }
+        .pdf-subject-math .task:not(.task-geom) .task-body p:has(> img) {
+            text-align: center !important;
+        }
+        /* Два рисунка в таблице (часто так в вёрстке условия) */
+        .pdf-subject-math .task:not(.task-geom) .task-body table img {
+            display: block !important;
+            width: auto !important;
+            max-width: 100% !important;
+            height: auto !important;
+            max-height: 276pt !important;
+            min-height: 81pt !important;
+            object-fit: contain !important;
+            margin: 3pt auto !important;
+        }
+        /* Прочие img в условии (например вложенный блок) */
+        .pdf-subject-math .task:not(.task-geom) .task-body > img {
+            display: block !important;
+            width: auto !important;
+            max-width: 100% !important;
+            height: auto !important;
+            max-height: 300pt !important;
+            min-height: 90pt !important;
+            object-fit: contain !important;
+            margin: 4pt auto !important;
+        }
+        .pdf-subject-math .task-geom .task-body img,
+        .pdf-subject-math .task-geom .task-body figure img {
+            width: 150pt !important;
+            max-width: 150pt !important;
+            height: 150pt !important;
+            max-height: 150pt !important;
+            object-fit: contain !important;
+            display: block !important;
+            margin: 3pt auto !important;
+        }
+        /* Информатика: как exam — до 300px; геометрия в инф. — как 260px */
+        .pdf-subject-inf .task:not(.task-geom) .task-body img,
+        .pdf-subject-inf .task:not(.task-geom) .task-body figure img {
+            width: auto !important;
+            max-width: 225pt !important;
+            height: auto !important;
+            max-height: 225pt !important;
+            object-fit: contain !important;
+            display: block !important;
+            margin: 4pt auto !important;
+        }
+        .pdf-subject-inf .task-geom .task-body img,
+        .pdf-subject-inf .task-geom .task-body figure img {
+            width: 150pt !important;
+            max-width: 150pt !important;
+            height: 150pt !important;
+            max-height: 150pt !important;
+            object-fit: contain !important;
+            display: block !important;
+            margin: 3pt auto !important;
         }
 
         /* ─── Страница ответов ─── */
@@ -198,17 +314,23 @@
 
         .answers-table {
             border-collapse: collapse;
+            table-layout: fixed;
             width: 100%;
             margin-bottom: 12px;
             font-size: 10pt;
+        }
+
+        .answers-col-label {
+            width: 9%;
         }
 
         .answers-table th,
         .answers-table td {
             border: 1px solid #000;
             text-align: center;
-            padding: 5px 8px;
-            min-width: 36px;
+            padding: 4pt 3pt;
+            min-width: 0;
+            vertical-align: top;
         }
 
         .answers-table th {
@@ -218,6 +340,50 @@
 
         .answer-cell {
             font-size: 10pt;
+            vertical-align: top;
+            word-break: break-word;
+            overflow-wrap: break-word;
+        }
+
+        /* Обёртка: inline+SVG внутри td ломает WeasyPrint (IndexError в inline.py) */
+        .answer-cell-inner {
+            display: block;
+            width: 100%;
+            text-align: center;
+            line-height: 1.25;
+            min-width: 0;
+        }
+
+        /* Код / длинный текст — не разъезжает шапку и колонки */
+        .answer-cell-inner pre,
+        .answer-cell-inner code,
+        .answer-cell-inner .latex-verbatim {
+            text-align: left;
+            font-family: "Courier New", Courier, monospace;
+            font-size: 8pt;
+            line-height: 1.3;
+            white-space: pre-wrap;
+            word-break: break-word;
+            display: block;
+            margin: 0;
+            padding: 2pt 0;
+            max-width: 100%;
+        }
+
+        /* Формулы в листе ответов — блочная вёрстка, не inline-наследие таблицы */
+        .answer-cell-inner .math-inline,
+        .answer-cell-inner .math-display {
+            display: block !important;
+            margin: 3pt auto;
+            text-align: center;
+            max-width: 100%;
+            line-height: 1.15;
+        }
+        .answer-cell-inner svg {
+            display: block !important;
+            margin: 0 auto;
+            max-width: 100%;
+            height: auto;
         }
 
         /* ─── Таблица расстояний (матрица смежности) ─── */
@@ -312,12 +478,52 @@
             page-break-before: always;
         }
 
+        /*
+         * Таблицы в условии (CKEditor): этот блок идёт после встроенного pdf.css —
+         * inline width / table-layout:fixed из редактора ломали колонки (275/55 рвётся по /).
+         * scrub_task_tables_for_pdf убирает sizing из HTML; здесь — страховка !important.
+         */
+        .pdf-doc .task-body table {
+            table-layout: auto !important;
+            width: auto !important;
+            max-width: 100% !important;
+            min-width: min-content !important;
+        }
+        .pdf-doc .task-body figure.table,
+        .pdf-doc .task-body figure.image:has(table) {
+            width: auto !important;
+            max-width: 100% !important;
+        }
+        .pdf-doc .task-body col,
+        .pdf-doc .task-body colgroup col {
+            width: auto !important;
+        }
+        .pdf-doc .task-body th,
+        .pdf-doc .task-body td {
+            white-space: nowrap !important;
+            word-break: normal !important;
+            overflow-wrap: normal !important;
+            width: auto !important;
+            min-width: min-content !important;
+        }
+        .pdf-doc .task-body th p,
+        .pdf-doc .task-body td p {
+            white-space: nowrap !important;
+            margin: 0 !important;
+            text-align: inherit !important;
+        }
+        .pdf-doc .task-body td .math-inline,
+        .pdf-doc .task-body th .math-inline {
+            white-space: nowrap !important;
+            max-width: none !important;
+        }
+
         @media print {
             body { background: white; }
         }
     </style>
 </head>
-<body>
+<body class="pdf-doc pdf-subject-{{ subject }}">
 
 <div class="pdf-footer-running">{{ footer_left|safe }}</div>
 
@@ -364,16 +570,18 @@
 
         <div class="task{% if item.start_new_page %} pdf-start-new-page{% endif %}{% if item.subdivision == 'geom' %} task-geom{% endif %}">
 
+            <div class="task-main">
             <div class="ta">
-                {{ item.order }}
+                <span class="ta-inner">{{ item.order }}</span>
             </div>
 
             <div class="task-body">
+                <div class="task-with-answer">
                 {% if item.text %}{{ item.text|safe }}{% else %}<p>&nbsp;</p>{% endif %}
 
                 {% if item.file_url %}
                 <div class="task-file-download">
-                    <a href="{{ item.file_url }}" class="pdf-file-link" target="_blank">📎 Скачать файл</a>
+                    <a href="{{ item.file_url }}" class="pdf-file-link" target="_blank">Скачать файл</a>
                 </div>
                 <img src="{{ item.file_url }}">
                 {% endif %}
@@ -381,6 +589,8 @@
                 <div class="answer-line">
                     Ответ: <span class="answer-field">&nbsp;</span>
                 </div>
+                </div>
+            </div>
             </div>
 
         </div>
@@ -396,16 +606,22 @@
 
     {% for chunk in answers_chunks %}
     <table class="answers-table">
+        <colgroup>
+            <col class="answers-col-label" />
+            {% for item in chunk %}
+            <col class="answers-col-answer" />
+            {% endfor %}
+        </colgroup>
         <tr>
             <th>№</th>
             {% for item in chunk %}
-                <th>{{ item.order }}</th>
+                <th>{% if item.order is not None %}{{ item.order }}{% else %}—{% endif %}</th>
             {% endfor %}
         </tr>
         <tr>
             <td><strong>Ответ</strong></td>
             {% for item in chunk %}
-                <td class="answer-cell">{{ item.answer|safe }}</td>
+                <td class="answer-cell"><div class="answer-cell-inner">{{ item.answer|safe }}</div></td>
             {% endfor %}
         </tr>
     </table>

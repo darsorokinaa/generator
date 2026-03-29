@@ -26,45 +26,94 @@ body {
 
 /* ===== Задание: номер в узком прямоугольнике слева, текст справа ===== */
 .task {
-    display: flex;
-    align-items: flex-start;
-    gap: 6pt;
-    page-break-inside: avoid;
-    break-inside: avoid;
-    margin-bottom: 13pt;
+    display: block;
+    margin-bottom: 8pt;
     overflow: visible;
+    /* целиком задание по возможности не режем между страницами */
+    break-inside: avoid;
+    page-break-inside: avoid;
 }
 
+/*
+ * Номер + текст: display:table вместо flex — в WeasyPrint flex-строка иногда
+ * рвётся между номером и условием на границе страницы/колонки.
+ */
+.task-main {
+    display: table;
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: separate;
+    border-spacing: 4pt 0;
+    min-width: 0;
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
+/* Ячейка без рамки — иначе border тянется на всю высоту строки таблицы */
 .task-number,
 .ta {
-    flex: 0 0 auto;
-    min-width: 32pt;
-    width: auto;
-    height: 16pt;
-    min-height: 16pt;
-    padding: 0 6pt;
+    display: table-cell;
+    vertical-align: top;
+    width: 36pt;
+    min-width: 36pt;
+    max-width: 44pt;
+    padding: 0;
+    border: none;
+    background: transparent;
+    box-sizing: border-box;
+}
+
+/* Рамка только вокруг номера, не на всю высоту задания */
+.ta-inner {
+    display: inline-block;
+    min-width: 28pt;
+    min-height: 14pt;
+    padding: 0 4pt;
     background-color: #fff;
     border: 0.35pt solid #000;
     text-align: center;
     font-weight: bold;
     font-size: 10pt;
-    line-height: 16pt;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    line-height: 14pt;
+    white-space: nowrap;
     box-sizing: border-box;
 }
 
 .task-body {
-    flex: 1 1 0;
+    display: table-cell;
+    vertical-align: top;
+    width: auto;
     min-width: 0;
     font-size: 10pt;
     line-height: 1.38;
 }
 
+/* Условие + строка «Ответ» не разрываются между колонками/страницами (WeasyPrint) */
+.task-with-answer {
+    break-inside: avoid;
+    page-break-inside: avoid;
+}
+
 .task-body p {
-    margin-bottom: 4pt;
-    text-align: justify;
+    margin-bottom: 2pt;
+    /* По ширине в двух колонках даёт «реки» в длинных условиях (ОГЭ инф. №13 и т.п.) */
+    text-align: left;
+}
+.task-body ul,
+.task-body ol {
+    margin: 3pt 0 5pt;
+    padding-left: 16pt;
+    text-align: left;
+}
+.task-body li {
+    margin-bottom: 2pt;
+    text-align: left;
+}
+.task-body li:last-child {
+    margin-bottom: 0;
+}
+.task-body li p {
+    text-align: left;
 }
 
 /* Формулы (SVG MathJax) в строке 10pt: выравнивание и запас по высоте */
@@ -79,7 +128,7 @@ body {
 }
 .task-body .math-display {
     line-height: 1.2;
-    margin: 0.4em 0;
+    margin: 0.2em 0;
 }
 .task-body .math-display svg {
     max-width: 100%;
@@ -101,43 +150,49 @@ body {
 
 /* Ссылка на скачивание файла */
 .task-file-download {
-    margin: 6pt 0;
+    margin: 1pt 0 2pt;
 }
 
 .pdf-file-link {
     color: #0066cc;
     text-decoration: none;
-    font-size: 9pt;
-    
+    font-size: 10pt;
 }
 
-/* Изображения: единый размер; геометрия — компактнее */
-.task-body img {
-    width: 195pt !important;
-    height: 195pt !important;
-    max-width: 195pt !important;
-    max-height: 195pt !important;
-    object-fit: contain !important;
+/*
+ * Размеры картинок по предмету (алгебра / геометрия / инф.) — в pdf_template.html
+ * у body заданы классы .pdf-doc.pdf-subject-math | .pdf-subject-inf (как на ExamPage).
+ * Здесь только база, если классы не подставились.
+ */
+.task-body img,
+.task-body figure img {
     display: block;
-    margin: 4pt auto;
-}
-
-.task-geom .task-body img,
-.task-geom .task-body figure img {
-    width: 155pt !important;
-    max-width: 155pt !important;
-    height: 155pt !important;
-    max-height: 155pt !important;
-    object-fit: contain !important;
-    margin: 4pt auto !important;
+    margin: 2pt auto;
+    object-fit: contain;
+    max-width: 100%;
+    height: auto;
 }
 
 /* Таблицы внутри заданий (CKEditor) — явные цвета для WeasyPrint */
 .task-body table {
     border-collapse: collapse;
-    margin: 6pt auto;
+    margin: 3pt auto;
     color: #000;
     background-color: #fff;
+    /* !important — перебить inline style из CKEditor (width, table-layout) */
+    table-layout: auto !important;
+    width: auto !important;
+    max-width: 100% !important;
+    min-width: min-content !important;
+}
+.task-body figure.table,
+.task-body figure.image:has(table) {
+    width: auto !important;
+    max-width: 100% !important;
+}
+.task-body col,
+.task-body colgroup col {
+    width: auto !important;
 }
 .task-body th,
 .task-body td {
@@ -145,6 +200,25 @@ body {
     padding: 4pt 6pt;
     color: #000;
     background-color: #fff;
+    vertical-align: middle;
+    width: auto !important;
+    min-width: min-content !important;
+    /* «275/55» не рвать по слэшу */
+    white-space: nowrap !important;
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+}
+/* CKEditor часто кладёт текст в <p> — иначе перенос остаётся у параграфа */
+.task-body th p,
+.task-body td p {
+    margin: 0;
+    white-space: nowrap !important;
+    text-align: inherit;
+}
+.task-body td .math-inline,
+.task-body th .math-inline {
+    white-space: nowrap !important;
+    max-width: none !important;
 }
 .task-body th {
     font-weight: bold;
@@ -173,19 +247,24 @@ body {
 
 /* ===== Ответ ===== */
 .answer-line {
-    margin-top: 9pt;
+    margin-top: 4pt;
     font-size: 10pt;
-    line-height: 1.28;
+    line-height: 1.25;
+    break-before: avoid;
+    page-break-before: avoid;
+    break-inside: avoid;
+    page-break-inside: avoid;
 }
 
 .answer-field {
     border-bottom: 0.35pt solid #000;
     display: inline-block;
-    min-width: 160pt;
-    width: 55%;
-    max-width: 100%;
-    min-height: 12pt;
-    margin-left: 4pt;
+    /* Короче линия: раньше 50% колонки + 140pt min — слишком широко для коротких ответов */
+    min-width: 70pt;
+    width: 34%;
+    max-width: 115pt;
+    min-height: 10pt;
+    margin-left: 3pt;
     vertical-align: bottom;
 }
 
@@ -227,13 +306,18 @@ body {
     text-align: center;
     font-size: 11pt;
     font-weight: bold;
-    margin-bottom: 12pt;
+    margin-bottom: 8pt;
 }
 
 .answers-table {
     width: 100%;
+    table-layout: fixed;
     border-collapse: collapse;
     border: 0.8pt solid #000;
+}
+
+.answers-col-label {
+    width: 9%;
 }
 
 .answers-table th,
@@ -244,6 +328,8 @@ body {
     font-size: 10pt;
     color: #000;
     background-color: #fff;
+    min-width: 0;
+    vertical-align: top;
 }
 
 .answers-table th {
@@ -256,11 +342,50 @@ body {
     overflow-wrap: break-word;
     white-space: normal;
     word-break: break-word;
+    text-align: center;
+    vertical-align: top;
+}
+
+.answer-cell-inner {
+    display: block;
+    width: 100%;
+    text-align: center;
+    line-height: 1.25;
+    min-width: 0;
+}
+
+.answer-cell-inner pre,
+.answer-cell-inner code,
+.answer-cell-inner .latex-verbatim {
     text-align: left;
+    font-family: "Courier New", Courier, monospace;
+    font-size: 8pt;
+    line-height: 1.3;
+    white-space: pre-wrap;
+    word-break: break-word;
+    display: block;
+    margin: 0;
+    padding: 2pt 0;
+    max-width: 100%;
+}
+
+.answer-cell-inner .math-inline,
+.answer-cell-inner .math-display {
+    display: block !important;
+    margin: 3pt auto;
+    text-align: center;
+    max-width: 100%;
+}
+
+.answer-cell-inner svg {
+    display: block !important;
+    margin: 0 auto;
+    max-width: 100%;
+    height: auto;
 }
 
 .answers-page .answers-table {
-    margin-bottom: 12pt;
+    margin-bottom: 8pt;
 }
 
 .answers-page .answers-table:last-child {
@@ -331,8 +456,9 @@ body {
 /* ===== Задачи в две колонки (как на бланке ОГЭ/ЕГЭ) ===== */
 .tasks-wrapper {
     column-count: 2;
-    column-gap: 20pt;
-    column-fill: balance;
+    column-gap: 14pt;
+    /* auto: сначала заполняется левая колонка — меньше «пустого поля» внизу страницы, чем при balance */
+    column-fill: auto;
     column-rule: none;
     width: 100%;
 }

@@ -10,6 +10,8 @@
     <style>
         @page {
             margin-top: 18mm;
+            margin-left: 7mm;
+            margin-right: 7mm;
             @top-left {
                 content: "{{ header_subject_level }}";
                 font-size: 9pt;
@@ -58,13 +60,15 @@
 
     {% for item in contents %}
         <div class="task{% if item.subdivision == 'geom' %} task-geom{% endif %}">
-            <div class="task-number">{{ item.order }}</div>
+            <div class="task-main">
+            <div class="task-number"><span class="ta-inner">{{ item.order }}</span></div>
             <div class="task-body">
+                <div class="task-with-answer">
                 {% if item.text %}{{ item.text|safe }}{% else %}<p>&nbsp;</p>{% endif %}
 
                 {% if item.file_url %}
                     <div class="task-file-download">
-                        <a href="{{ item.file_url }}" class="pdf-file-link" target="_blank">📎 Скачать файл</a>
+                        <a href="{{ item.file_url }}" class="pdf-file-link" target="_blank">Скачать файл</a>
                     </div>
                     <img src="{{ item.file_url }}">
                 {% endif %}
@@ -72,6 +76,8 @@
                 <div class="answer-line">
                     Ответ: <span class="answer-field">&nbsp;</span>
                 </div>
+                </div>
+            </div>
             </div>
         </div>
     {% endfor %}
@@ -85,16 +91,22 @@
 
     {% for chunk in answers_chunks %}
     <table class="answers-table">
+        <colgroup>
+            <col class="answers-col-label" />
+            {% for item in chunk %}
+            <col class="answers-col-answer" />
+            {% endfor %}
+        </colgroup>
         <tr>
             <th>Номер задания</th>
             {% for item in chunk %}
-                <th>{{ item.order }}</th>
+                <th>{% if item.order is not None %}{{ item.order }}{% else %}—{% endif %}</th>
             {% endfor %}
         </tr>
         <tr>
             <td><strong>Ответ</strong></td>
             {% for item in chunk %}
-                <td class="answer-cell">{{ item.answer|safe }}</td>
+                <td class="answer-cell"><div class="answer-cell-inner">{{ item.answer|safe }}</div></td>
             {% endfor %}
         </tr>
     </table>

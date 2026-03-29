@@ -12,6 +12,8 @@ export default defineConfig(({ command }) => ({
       '/api': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
+        // WeasyPrint + MathJax (Node) для PDF могут занимать минуты — дефолтный таймаут прокси обрывает ответ
+        timeout: 600000,
       },
       '/media': {
         target: 'http://127.0.0.1:8000',

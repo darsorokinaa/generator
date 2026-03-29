@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import MathContent from "../components/MathContent";
+import { devApiBase } from "../utils/devApiBase";
 
 function SearchVariantPage() {
   const location = useLocation();
@@ -17,9 +18,10 @@ function SearchVariantPage() {
     }
     setLoading(true);
     setError(null);
-    const origin = typeof window !== "undefined" && window.location.origin;
-    const apiBase = origin && origin.includes(":5000") ? "http://localhost:8000" : "";
-    fetch(`${apiBase}/api/search_variant/?q=${encodeURIComponent(q)}`, { credentials: "include" })
+    const apiBase = devApiBase();
+    fetch(`${apiBase}/api/search_variant/?q=${encodeURIComponent(q)}`, {
+      credentials: apiBase ? "omit" : "same-origin",
+    })
       .then((res) => {
         if (!res.ok) throw new Error(res.statusText);
         return res.json();

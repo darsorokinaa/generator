@@ -3955,6 +3955,57 @@ body.index .exam-grid .exam-card {
     cursor: pointer;
 }
 
+/*
+ * Математика, алгебра: width:100% на обёртке и img — иначе width:auto сжимает блок
+ * до натурального размера растра (картинки «мыльные» и узкие посередине).
+ */
+.exam-page[data-subject="math"] .task:not(.task-geom) .task-img-zoomable {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+.exam-page[data-subject="math"] .task:not(.task-geom) .task-text img,
+.exam-page[data-subject="math"] .task:not(.task-geom) .task-text figure img,
+.exam-page[data-subject="math"] .task:not(.task-geom) .task-text figure.image img {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    object-fit: contain !important;
+}
+.exam-page[data-subject="math"] .task:not(.task-geom) .correct-answer-content img,
+.exam-page[data-subject="math"] .task:not(.task-geom) .part2-answer-content img {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    display: block !important;
+}
+/* Мат. №1 (ОГЭ/ЕГЭ): на всю ширину колонки, без квадратного лимита 260px */
+.exam-page[data-subject="math"] .task.task-img-full .task-text img,
+.exam-page[data-subject="math"] .task.task-img-full .task-text figure img,
+.exam-page[data-subject="math"] .task.task-img-full .task-text figure.image img,
+.exam-page[data-subject="math"] .task.task-img-full .correct-answer-content img,
+.exam-page[data-subject="math"] .task.task-img-full .part2-answer-content img {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    object-fit: contain !important;
+}
+/* Два рисунка подряд в одном абзаце — в ряд, ~половина ширины каждый */
+.exam-page[data-subject="math"] .task-text p:has(> .task-img-zoomable + .task-img-zoomable) {
+    text-align: center !important;
+}
+.exam-page[data-subject="math"] .task-text p:has(> .task-img-zoomable + .task-img-zoomable) .task-img-zoomable {
+    display: inline-block !important;
+    width: calc(50% - 6px) !important;
+    max-width: calc(50% - 6px) !important;
+    vertical-align: top !important;
+    box-sizing: border-box !important;
+}
+
 /* Иконка лупы — прямо в правом нижнем углу картинки */
 .task-img-zoomable {
     display: inline-block;
@@ -3999,6 +4050,23 @@ body.index .exam-grid .exam-card {
     overflow-wrap: anywhere;
     word-break: break-word;
     white-space: normal;
+    /* Длинные условия со списками (инф. №13): без выравнивания по ширине — меньше «рек» */
+    text-align: start;
+}
+.exam-page .task-text p,
+.exam-page .task-text li {
+    text-align: start !important;
+}
+.exam-page .task-text ol,
+.exam-page .task-text ul {
+    margin: 0.45rem 0 0.55rem;
+    padding-left: 1.35rem;
+}
+.exam-page .task-text li {
+    margin-bottom: 0.3rem;
+}
+.exam-page .task-text li:last-child {
+    margin-bottom: 0;
 }
 .exam-page .task-content {
     min-width: 0;

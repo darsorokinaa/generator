@@ -1272,7 +1272,18 @@ def report_pdf(request, level, subject):
     base_url = request.build_absolute_uri("/")
 
     try:
-        pdf = WeasyHTML(string=html_string, base_url=base_url).write_pdf()
+        html_for_pdf = pdf_utils.sanitize_html_for_weasyprint(html_string)
+        try:
+            pdf = WeasyHTML(string=html_for_pdf, base_url=base_url).write_pdf()
+        except IndexError:
+            logger.warning("WeasyPrint IndexError on report PDF, retrying with aggressive sanitize")
+            html_for_pdf = pdf_utils.sanitize_html_for_weasyprint_aggressive(html_string)
+            try:
+                pdf = WeasyHTML(string=html_for_pdf, base_url=base_url).write_pdf()
+            except IndexError:
+                logger.warning("WeasyPrint IndexError on report PDF, last resort strip SVG in answers-table")
+                html_for_pdf = pdf_utils.sanitize_html_for_weasyprint_last_resort(html_string)
+                pdf = WeasyHTML(string=html_for_pdf, base_url=base_url).write_pdf()
     except Exception as e:
         logger.exception("WeasyPrint report PDF failed: %s", e)
         return HttpResponse("Ошибка генерации PDF", status=500, content_type="text/plain; charset=utf-8")
@@ -1311,11 +1322,24 @@ def _render_variant_pdf(request, level, subject, variant_id, background_url="", 
     base_url = request.build_absolute_uri('/')
 
     try:
-        pdf = WeasyHTML(string=html_string, base_url=base_url).write_pdf()
-    except IndexError:
-        html_safe = re.sub(r'<div class="task-body">\s*</div>', '<div class="task-body"><p>&nbsp;</p></div>', html_string)
-        html_safe = re.sub(r'<span class="answer-field">\s*</span>', '<span class="answer-field">&nbsp;</span>', html_safe)
-        pdf = WeasyHTML(string=html_safe, base_url=base_url).write_pdf()
+        html_for_pdf = pdf_utils.sanitize_html_for_weasyprint(html_string)
+        try:
+            pdf = WeasyHTML(string=html_for_pdf, base_url=base_url).write_pdf()
+        except IndexError:
+            logger.warning(
+                "WeasyPrint IndexError on variant %s PDF, retrying with aggressive HTML sanitize",
+                variant_id,
+            )
+            html_for_pdf = pdf_utils.sanitize_html_for_weasyprint_aggressive(html_string)
+            try:
+                pdf = WeasyHTML(string=html_for_pdf, base_url=base_url).write_pdf()
+            except IndexError:
+                logger.warning(
+                    "WeasyPrint IndexError on variant %s PDF, last resort: strip SVG in answers-table",
+                    variant_id,
+                )
+                html_for_pdf = pdf_utils.sanitize_html_for_weasyprint_last_resort(html_string)
+                pdf = WeasyHTML(string=html_for_pdf, base_url=base_url).write_pdf()
     except Exception as e:
         logger.exception("WeasyPrint PDF generation failed for variant %s: %s", variant_id, e)
         return HttpResponse("Ошибка генерации PDF", status=500, content_type="text/plain; charset=utf-8")
