@@ -27,3 +27,4 @@ node_modules/
 # Replit
 .cache/
 Generator/Cabinet/
+settings.py

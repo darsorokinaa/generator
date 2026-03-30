@@ -7,6 +7,7 @@ import SupportInfoModal from "../components/SupportInfoModal";
 import ResultsModal from "../components/ResultsModal";
 import ReportErrorModal from "../components/ReportErrorModal";
 import { devApiBase } from "../utils/devApiBase";
+import { getShareablePageUrl } from "../utils/shareablePageUrl";
 
 const COLORS = ["#000000", "#ffffff", "#ef4444", "#3b82f6", "#22c55e"];
 
@@ -220,24 +221,6 @@ function ExamPage() {
     const timer = setTimeout(tryTypeset, delay);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [variant, boardOpen]);
-
-  /* Подсказка «листайте», если блок условия реально переполнен по ширине */
-  useEffect(() => {
-    const updateScrollHints = () => {
-      const nodes = document.querySelectorAll(".exam-page .task-text");
-      nodes.forEach((node) => {
-        const hasOverflow = node.scrollWidth - node.clientWidth > 4;
-        node.classList.toggle("task-text--has-overflow", hasOverflow);
-      });
-    };
-    updateScrollHints();
-    const t = setTimeout(updateScrollHints, 120);
-    window.addEventListener("resize", updateScrollHints);
-    return () => {
-      clearTimeout(t);
-      window.removeEventListener("resize", updateScrollHints);
-    };
-  }, [variant]);
 
   /* =========================
      Лайтбокс: клик по картинке
@@ -1117,7 +1100,7 @@ function ExamPage() {
   };
 
   const copyVariantLink = async () => {
-    const url = window.location.href;
+    const url = getShareablePageUrl();
     try {
       await navigator.clipboard.writeText(url);
       setLinkCopied(true);
