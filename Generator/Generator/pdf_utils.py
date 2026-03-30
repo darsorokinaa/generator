@@ -107,6 +107,129 @@ def scrub_task_tables_for_pdf(html: str) -> str:
     return html
 
 
+_RE_FIGURE_TABLE_DQ = re.compile(
+    r'<figure\b[^>]*\bclass="[^"]*\btable\b[^"]*"[^>]*>', re.I
+)
+_RE_FIGURE_TABLE_SQ = re.compile(
+    r"<figure\b[^>]*\bclass='[^']*\btable\b[^']*'[^>]*>", re.I
+)
+_RE_TABLE_OPEN = re.compile(r"<table\b", re.I)
+
+
+def _span_balanced(html: str, open_start: int, tag: str) -> int | None:
+    """Индекс сразу после закрывающего </tag>, соответствующего открывающему на open_start."""
+    open_re = re.compile(rf"<{re.escape(tag)}\b", re.I)
+    close_re = re.compile(rf"</{re.escape(tag)}\s*>", re.I)
+    m0 = open_re.match(html, open_start)
+    if not m0:
+        return None
+    depth = 1
+    pos = m0.end()
+    while pos < len(html) and depth > 0:
+        mo = open_re.search(html, pos)
+        mc = close_re.search(html, pos)
+        if mc and (not mo or mc.start() < mo.start()):
+            depth -= 1
+            pos = mc.end()
+            if depth == 0:
+                return pos
+        elif mo:
+            depth += 1
+            pos = mo.end()
+        else:
+            return None
+    return None
+
+
+def _next_followup_block(html: str, i: int) -> tuple[str, int] | None:
+    """Следующий блок текста вопроса после таблицы: p, ul, ol, blockquote, div.formula."""
+    m = re.match(r"\s*", html[i:])
+    if m:
+        i += m.end()
+    patterns: list[tuple[str, str]] = [
+        ("p", r"<p\b"),
+        ("ul", r"<ul\b"),
+        ("ol", r"<ol\b"),
+        ("blockquote", r"<blockquote\b"),
+        ("div", r'<div\b[^>]*\bclass="[^"]*\bformula\b[^"]*"'),
+        ("div", r"<div\b[^>]*\bclass='[^']*\bformula\b[^']*'"),
+    ]
+    for tag, pat in patterns:
+        if re.match(pat, html[i:], re.I):
+            return tag, i
+    return None
+
+
+def _collect_followup_after_table(html: str, table_end: int, max_blocks: int = 14) -> int:
+    """Конец HTML, включающий таблицу/figure и следующие абзацы до следующей таблицы."""
+    i = table_end
+    end_collect = table_end
+    for _ in range(max_blocks):
+        nxt = _next_followup_block(html, i)
+        if not nxt:
+            break
+        tag, idx = nxt
+        end = _span_balanced(html, idx, tag)
+        if end is None:
+            break
+        end_collect = end
+        i = end
+    return end_collect
+
+
+def _find_next_table_block(html: str, start: int) -> tuple[str, int] | None:
+    """Следующий блок: figure.table (CKEditor) или «голая» table."""
+    sub = html[start:]
+    cand: list[tuple[int, str]] = []
+    mfd = _RE_FIGURE_TABLE_DQ.search(sub)
+    if mfd:
+        cand.append((mfd.start(), "figure"))
+    mfs = _RE_FIGURE_TABLE_SQ.search(sub)
+    if mfs:
+        cand.append((mfs.start(), "figure"))
+    mt = _RE_TABLE_OPEN.search(sub)
+    if mt:
+        cand.append((mt.start(), "table"))
+    if not cand:
+        return None
+    pos, tag = min(cand, key=lambda x: x[0])
+    return tag, start + pos
+
+
+def wrap_table_task_units_for_pdf(html: str) -> str:
+    """
+    Оборачивает таблицу условия и следующий за ней текст вопроса в .task-body-table-unit,
+    чтобы WeasyPrint не рвал таблицу и формулировку между страницами.
+
+    Не трогаем уже обёрнутый фрагмент (идемпотентность при повторном вызове).
+    """
+    if not html or "task-body-table-unit" in html:
+        return html
+    low = html.lower()
+    if "<table" not in low and "<figure" not in low:
+        return html
+
+    parts: list[str] = []
+    cursor = 0
+    while True:
+        found = _find_next_table_block(html, cursor)
+        if not found:
+            parts.append(html[cursor:])
+            break
+        tag, idx = found
+        parts.append(html[cursor:idx])
+        end = _span_balanced(html, idx, tag)
+        if end is None:
+            parts.append(html[idx:])
+            break
+        follow_end = _collect_followup_after_table(html, end)
+        parts.append('<div class="task-body-table-unit">')
+        parts.append(html[idx:follow_end])
+        parts.append("</div>")
+        cursor = follow_end
+    return "".join(parts)
+
+
 def sanitize_html_for_weasyprint(html: str) -> str:
     """
     Снижает риск падений WeasyPrint (IndexError в layout/inline.py) из‑за пустых
@@ -359,6 +482,7 @@ def build_pdf_context(request, variant, subject, author_filter=None):
         """Исправление &аmp; (кириллическая а) и двойного escape для PDF."""
         html = html.replace("&\u0430mp;", "&amp;").replace("&amp;amp;", "&amp;")
         html = scrub_task_tables_for_pdf(html)
+        html = wrap_table_task_units_for_pdf(html)
         return html
 
     for item in contents:

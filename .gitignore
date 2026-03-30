@@ -27,4 +27,5 @@ node_modules/
 # Replit
 .cache/
 Generator/Cabinet/
-settings.py
+# Локальные настройки Django (БД, секреты)
+Generator/Generator/settings.py
