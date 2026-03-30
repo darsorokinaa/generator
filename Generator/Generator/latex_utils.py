@@ -70,6 +70,10 @@ _RE_ENV = re.compile(
 )
 _RE_ARRAY = re.compile(r'\\begin\{array\}\{[^}]*\}(.*?)\\end\{array\}', re.DOTALL)
 _RE_TABULAR = re.compile(r'\\begin\{tabular\}\{[^}]*\}(.*?)\\end\{tabular\}', re.DOTALL)
+_RE_NAKED_ENV_BLOCK = re.compile(
+    r'\\begin\{(tabular|array|matrix|pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix|cases|aligned|align\*?|gather\*?|equation\*?)\}(?:\{[^}]*\})?(.*?)\\end\{\1\}',
+    re.DOTALL,
+)
 # MathJax (браузер и Node) не поддерживает tabular/array — только наш HTML-конвертер
 _RE_HAS_TABULAR_OR_ARRAY = re.compile(
     r'\\begin\s*\{(?:tabular|array|matrix|pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix)\}',
@@ -552,6 +556,12 @@ def process_latex(html_text: str, for_pdf: bool = False, for_browser: bool = Fal
     # 6. Inline $...$
     html_text = _RE_INLINE_DOLLAR.sub(
         lambda m: _render_math_block(_normalize_latex(m.group(1)), False, for_pdf=for_pdf, for_browser=for_browser),
+        html_text,
+    )
+    # 6a. Голые блочные LaTeX-окружения без $...$, \(...\), \[...\]
+    # Например: \begin{array}...\end{array} в тексте задачи.
+    html_text = _RE_NAKED_ENV_BLOCK.sub(
+        lambda m: _render_math_block(_normalize_latex(m.group(0)), True, for_pdf=for_pdf, for_browser=for_browser),
         html_text,
     )
     # 6b. Naked LaTeX in text (no delimiters) — e.g. "5^{x-4}=\frac{1}{125}"
