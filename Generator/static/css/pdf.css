@@ -557,6 +557,27 @@ body.pdf-doc a.pdf-file-link {
     width: 100%;
 }
 
+/*
+ * Большая таблица в условии (см. pdf_utils.task_html_needs_pdf_full_width):
+ * отдельный лист на всю ширину — не две колонки, как у обычных номеров.
+ */
+.tasks-wrapper .task.task-pdf-full-width {
+    column-span: all;
+    width: 100%;
+    page-break-before: always;
+    break-before: page;
+    page-break-after: always;
+    break-after: page;
+    /* высокое задание может занять >1 страницы */
+    break-inside: auto;
+    page-break-inside: auto;
+}
+.tasks-wrapper .task.task-pdf-full-width .task-main,
+.tasks-wrapper .task.task-pdf-full-width .task-with-answer {
+    break-inside: auto;
+    page-break-inside: auto;
+}
+
 /* ===== Напоминание в рамке (формат картинки 2) — с восклицательным знаком ===== */
 .pdf-preview.pdf-framed {
     page-break-inside: avoid;

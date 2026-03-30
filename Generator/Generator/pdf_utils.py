@@ -230,6 +230,26 @@ def wrap_table_task_units_for_pdf(html: str) -> str:
     return "".join(parts)
 
 
+def task_html_needs_pdf_full_width(html: str) -> bool:
+    """
+    Большая таблица в условии: в двух колонках PDF нечитаема — выводим задание
+    на отдельный лист на всю ширину (см. .task-pdf-full-width в pdf.css).
+
+    Эвристика: много строк и/или ≥5 колонок в какой-либо строке.
+    """
+    if not html or "<table" not in html.lower():
+        return False
+    tr_count = len(re.findall(r"<tr\b", html, re.I))
+    # Шапка + несколько строк данных — в половине листа (две колонки) уже тесно
+    if tr_count >= 6:
+        return True
+    for m in re.finditer(r"<tr\b[^>]*>.*?</tr>", html, re.I | re.DOTALL):
+        cell_count = len(re.findall(r"<t[dh]\b", m.group(0), re.I))
+        if cell_count >= 5:
+            return True
+    return False
+
+
 def sanitize_html_for_weasyprint(html: str) -> str:
     """
     Снижает риск падений WeasyPrint (IndexError в layout/inline.py) из‑за пустых
@@ -489,11 +509,13 @@ def build_pdf_context(request, variant, subject, author_filter=None):
         raw_text = str(item.task.task_template or "").strip()
         if not raw_text:
             rendered_text = mark_safe("<p>&nbsp;</p>")
+            pdf_full_width = False
         else:
             html = process_latex(raw_text, for_pdf=True)
             html = fix_pdf_html(html)
             html = rewrite_content_image_urls(html, request)
             rendered_text = mark_safe(html)
+            pdf_full_width = task_html_needs_pdf_full_width(html)
         part_obj = item.task.task.part
         part = part_obj.part_title if part_obj else None
         part_id = part_obj.pk if part_obj else None
@@ -539,6 +561,7 @@ def build_pdf_context(request, variant, subject, author_filter=None):
             "subject": subject,
             "subdivision": subdivision,
             "file_url": file_url,
+            "pdf_full_width": pdf_full_width,
         }
         processed_contents.append(entry)
         answers_by_part.setdefault(part or "Без части", []).append(entry)

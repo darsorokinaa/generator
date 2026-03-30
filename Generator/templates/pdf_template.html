@@ -59,7 +59,7 @@
 <div class="tasks-wrapper">
 
     {% for item in contents %}
-        <div class="task{% if item.subdivision == 'geom' %} task-geom{% endif %}">
+        <div class="task{% if item.subdivision == 'geom' %} task-geom{% endif %}{% if item.pdf_full_width %} task-pdf-full-width{% endif %}">
             <div class="task-main">
             <div class="task-number"><span class="ta-inner">{{ item.order }}</span></div>
             <div class="task-body">
