@@ -2010,37 +2010,63 @@ mjx-container {
     margin-bottom: 0;
 }
 
-.task-text table {
+/* Таблицы из редактора */
+.task-text table:not(.array-table),
+.criteria-text table:not(.array-table),
+.correct-answer-content table:not(.array-table),
+.part2-answer-content table:not(.array-table) {
     border-collapse: collapse;
-    margin: 10px auto;
+    margin: 0.65rem auto;
+    width: 100%;
+    max-width: 100%;
+    table-layout: auto;
+    font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 1rem;
+    line-height: 1.5;
+    color: #1e293b;
+    background: #fff;
 }
 
-.task-text th,
-.task-text td {
-    border: 1px solid rgba(0, 0, 0, 0.2);
-    padding: 6px 14px;
+.task-text table:not(.array-table) th,
+.task-text table:not(.array-table) td,
+.criteria-text table:not(.array-table) th,
+.criteria-text table:not(.array-table) td,
+.correct-answer-content table:not(.array-table) th,
+.correct-answer-content table:not(.array-table) td,
+.part2-answer-content table:not(.array-table) th,
+.part2-answer-content table:not(.array-table) td {
+    border: 1px solid #d1d5db;
+    padding: 0.5rem 0.75rem;
     text-align: center;
-    font-size: 18px;
-    min-width: 40px;
+    vertical-align: middle;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    font-weight: 400;
+    background-color: #fff;
+    min-width: 2rem;
 }
 
-.task-text th {
-    background-color: #e9e9e9;
+.task-text table:not(.array-table) th,
+.criteria-text table:not(.array-table) th,
+.correct-answer-content table:not(.array-table) th,
+.part2-answer-content table:not(.array-table) th {
     font-weight: 600;
 }
 
-/* LaTeX \\begin{array}/tabular (HTML): полная сетка как на печатной карточке */
+/* LaTeX array/tabular: как MathJax/PDF — по ширине содержимого, serif, без разрыва слов посередине */
 .task-text table.array-table,
 .criteria-text table.array-table {
     border-collapse: collapse;
     margin: 0.65rem auto;
-    width: auto;
-    max-width: 100%;
+    width: max-content;
+    max-width: none;
+    min-width: min-content;
     table-layout: auto;
-    font-family: "Times New Roman", Times, "Noto Serif", "Liberation Serif", serif;
-    font-size: 1.125rem;
+    font-family: "Times New Roman", Times, "STIX Two Text", "Noto Serif", "Liberation Serif", serif;
+    font-size: 1.0625rem;
     line-height: 1.35;
-    color: #111;
+    color: #000;
     background: #fff;
 }
 
@@ -2048,50 +2074,47 @@ mjx-container {
 .task-text table.array-table td,
 .criteria-text table.array-table th,
 .criteria-text table.array-table td {
-    border: 1px solid #000;
+    border: 1px solid #d1d5db;
     padding: 0.45rem 0.65rem;
     text-align: center;
     vertical-align: middle;
-    white-space: normal;
+    white-space: pre-line;
+    overflow-wrap: normal;
     word-break: normal;
     font-weight: 400;
     background-color: #fff;
-    min-width: 2.25rem;
 }
 
-/* Ответы: длинные формулы не сжимать — шире ячейка/таблица, при необходимости горизонтальный скролл (как на печатной карточке) */
+.task-text table.array-table th,
+.criteria-text table.array-table th {
+    font-weight: 600;
+}
+
+/* Длинные формулы в ответах: таблица по ширине содержимого, блок с горизонтальным скроллом */
 .correct-answer-content table.array-table,
 .part2-answer-content table.array-table {
-    border-collapse: collapse;
-    margin: 0.65rem auto;
-    table-layout: auto;
-    font-family: "Times New Roman", Times, "Noto Serif", "Liberation Serif", serif;
-    font-size: 1.125rem;
-    line-height: 1.35;
-    color: #111;
-    background: #fff;
     width: max-content;
     max-width: none;
-    min-width: 0;
+    min-width: min-content;
+    font-family: "Times New Roman", Times, "STIX Two Text", "Noto Serif", "Liberation Serif", serif;
+    font-size: 1.0625rem;
+    line-height: 1.35;
+    color: #000;
 }
 .correct-answer-content table.array-table th,
 .correct-answer-content table.array-table td,
 .part2-answer-content table.array-table th,
 .part2-answer-content table.array-table td {
-    border: 1px solid #000;
-    padding: 0.5rem 0.85rem;
-    text-align: center;
-    vertical-align: middle;
-    white-space: nowrap;
+    white-space: pre-line;
+    overflow-wrap: normal;
     word-break: normal;
-    font-weight: 400;
-    background-color: #fff;
-    min-width: min-content;
 }
 .correct-answer-content,
 .part2-answer-content {
     overflow-x: auto;
+    overflow-y: clip;
     max-width: 100%;
+    -webkit-overflow-scrolling: touch;
 }
 .correct-answer-content table.array-table mjx-container,
 .part2-answer-content table.array-table mjx-container,
@@ -3718,6 +3741,7 @@ body.index .exam-grid .exam-card {
 
     .exam-page .task-text {
         overflow-x: auto;
+        overflow-y: clip;
         -webkit-overflow-scrolling: touch;
         overflow-wrap: break-word;
         word-wrap: break-word;
@@ -3744,7 +3768,7 @@ body.index .exam-grid .exam-card {
         overflow-wrap: break-word;
     }
 
-    /* Таблица остаётся display:table — иначе пропадают границы и сетка */
+    /* Таблицы из редактора — на всю ширину; LaTeX array — по содержимому */
     .exam-page .task-text table:not(.array-table) {
         display: table !important;
         width: max-content !important;
@@ -3759,6 +3783,22 @@ body.index .exam-grid .exam-card {
         white-space: normal;
         overflow-wrap: anywhere;
         word-break: break-word;
+    }
+
+    .exam-page .task-text table.array-table {
+        display: table !important;
+        width: max-content !important;
+        min-width: min-content !important;
+        max-width: none !important;
+        border-collapse: collapse !important;
+        table-layout: auto !important;
+    }
+
+    .exam-page .task-text table.array-table th,
+    .exam-page .task-text table.array-table td {
+        white-space: pre-line !important;
+        overflow-wrap: normal !important;
+        word-break: normal !important;
     }
 
     .variant-hero-content {
@@ -4122,8 +4162,16 @@ body.index .exam-grid .exam-card {
 }
 
 /* Меньший отступ перед полем ответа и перед «Скачать файл» */
+/* overflow-y: clip — иначе при overflow-x: auto видимый вертикальный скролл (правило CSS) */
 .exam-page .task-text {
     margin-bottom: 0.1rem !important;
+    max-width: 100% !important;
+    overflow-x: auto;
+    overflow-y: clip;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: normal;
+    -webkit-overflow-scrolling: touch;
     text-align: start;
 }
 .exam-page .task-text p,
@@ -4141,6 +4189,58 @@ body.index .exam-grid .exam-card {
 .exam-page .task-text li:last-child {
     margin-bottom: 0;
 }
+.exam-page .task-content {
+    min-width: 0;
+    max-width: 100%;
+    overflow-x: visible;
+}
+.exam-page .task-text > * {
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+.exam-page .task-text * {
+    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+}
+.exam-page .task-text nobr {
+    white-space: normal !important;
+}
+/* MathJax: max-width:100% сжимал SVG — читаемый размер в rem */
+.exam-page .task-text mjx-container,
+.exam-page .criteria-text mjx-container,
+.exam-page .correct-answer-content mjx-container,
+.exam-page .part2-answer-content mjx-container {
+    max-width: none !important;
+    overflow: visible;
+    font-size: 1.14rem !important;
+}
+.exam-page .task-text mjx-container[display="true"],
+.exam-page .criteria-text mjx-container[display="true"],
+.exam-page .correct-answer-content mjx-container[display="true"],
+.exam-page .part2-answer-content mjx-container[display="true"] {
+    max-width: none !important;
+    font-size: 1.32rem !important;
+}
+
+@media (max-width: 900px) {
+    .exam-page .task-text {
+        font-size: 1rem !important;
+        line-height: 1.65 !important;
+    }
+}
+
+@media (max-width: 600px) {
+    .exam-page .task-text {
+        font-size: 1rem !important;
+        line-height: 1.6 !important;
+    }
+}
+
 .exam-page .task-text figure.image img,
 .exam-page .task-text figure img {
     margin-top: 0 !important;
@@ -4150,78 +4250,115 @@ body.index .exam-grid .exam-card {
 .exam-page .task-text figure.image {
     margin: 0.06rem auto !important;
 }
-/* Таблицы в условии: на всю ширину, компактные отступы */
-.exam-page .task-text table:not(.array-table) {
+/* Таблицы из редактора — на ширину карточки */
+.exam-page .task-text table:not(.array-table),
+.exam-page .criteria-text table:not(.array-table) {
     width: 100% !important;
     max-width: 100% !important;
-    margin: 0.3rem auto !important;
+    margin: 0.45rem auto !important;
     border-collapse: collapse !important;
-}
-.exam-page .task-text table:not(.array-table) th,
-.exam-page .task-text table:not(.array-table) td {
-    padding: 0.5rem 0.75rem !important;
-    border: 1px solid rgba(0, 0, 0, 0.22) !important;
-}
-.exam-page .task-text table:not(.array-table) th {
-    background-color: #e9e9e9 !important;
-    font-weight: 600 !important;
-}
-/* LaTeX-таблицы: как на карточке, переопределяем общие правила */
-.exam-page .task-text table.array-table,
-.exam-page .criteria-text table.array-table {
-    width: auto !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
-    margin: 0.5rem auto !important;
-    border-collapse: collapse !important;
-    font-family: "Times New Roman", Times, "Noto Serif", "Liberation Serif", serif !important;
-    font-size: 1.05rem !important;
-    line-height: 1.35 !important;
-    color: #111 !important;
+    table-layout: auto !important;
+    font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+    font-size: 1rem !important;
+    line-height: 1.5 !important;
+    color: #1e293b !important;
     background: #fff !important;
 }
-/* В ответах — не сжимать длинную формулу: таблица по ширине содержимого, при узком экране прокрутка */
+/* LaTeX \\begin{array}/tabular — как PDF/MathJax */
+.exam-page .task-text table.array-table,
+.exam-page .criteria-text table.array-table {
+    width: max-content !important;
+    max-width: none !important;
+    min-width: min-content !important;
+    margin: 0.5rem auto !important;
+    border-collapse: collapse !important;
+    table-layout: auto !important;
+    font-family: "Times New Roman", Times, "STIX Two Text", "Noto Serif", "Liberation Serif", serif !important;
+    font-size: 1.0625rem !important;
+    line-height: 1.35 !important;
+    color: #000 !important;
+    background: #fff !important;
+}
+.exam-page .correct-answer-content table,
+.exam-page .part2-answer-content table {
+    margin: 0.45rem auto !important;
+    border-collapse: collapse !important;
+    table-layout: auto !important;
+    font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+    font-size: 1rem !important;
+    line-height: 1.5 !important;
+    color: #1e293b !important;
+    background: #fff !important;
+    width: 100% !important;
+    max-width: 100% !important;
+}
 .exam-page .correct-answer-content table.array-table,
 .exam-page .part2-answer-content table.array-table {
     width: max-content !important;
     max-width: none !important;
-    min-width: 0 !important;
-    margin: 0.5rem auto !important;
-    border-collapse: collapse !important;
-    font-family: "Times New Roman", Times, "Noto Serif", "Liberation Serif", serif !important;
-    font-size: 1.05rem !important;
+    min-width: min-content !important;
+    font-family: "Times New Roman", Times, "STIX Two Text", "Noto Serif", "Liberation Serif", serif !important;
+    font-size: 1.0625rem !important;
     line-height: 1.35 !important;
-    color: #111 !important;
-    background: #fff !important;
+    color: #000 !important;
+}
+.exam-page .task-text table:not(.array-table) th,
+.exam-page .task-text table:not(.array-table) td,
+.exam-page .criteria-text table:not(.array-table) th,
+.exam-page .criteria-text table:not(.array-table) td,
+.exam-page .correct-answer-content table:not(.array-table) th,
+.exam-page .correct-answer-content table:not(.array-table) td,
+.exam-page .part2-answer-content table:not(.array-table) th,
+.exam-page .part2-answer-content table:not(.array-table) td {
+    border: 1px solid #d1d5db !important;
+    background-color: #fff !important;
+    padding: 0.5rem 0.75rem !important;
+    text-align: center !important;
+    vertical-align: middle !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
 }
 .exam-page .task-text table.array-table th,
 .exam-page .task-text table.array-table td,
 .exam-page .criteria-text table.array-table th,
-.exam-page .criteria-text table.array-table td {
-    border: 1px solid #000 !important;
-    background-color: #fff !important;
-    font-weight: 400 !important;
-    text-align: center !important;
-    vertical-align: middle !important;
-    white-space: normal !important;
-    padding: 0.45rem 0.65rem !important;
-}
+.exam-page .criteria-text table.array-table td,
 .exam-page .correct-answer-content table.array-table th,
 .exam-page .correct-answer-content table.array-table td,
 .exam-page .part2-answer-content table.array-table th,
 .exam-page .part2-answer-content table.array-table td {
-    border: 1px solid #000 !important;
+    border: 1px solid #d1d5db !important;
     background-color: #fff !important;
-    font-weight: 400 !important;
+    padding: 0.45rem 0.65rem !important;
     text-align: center !important;
     vertical-align: middle !important;
-    white-space: nowrap !important;
-    padding: 0.5rem 0.85rem !important;
+    white-space: pre-line !important;
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+    hyphens: manual !important;
+    font-weight: 400 !important;
+}
+.exam-page .task-text table:not(.array-table) th,
+.exam-page .criteria-text table:not(.array-table) th,
+.exam-page .correct-answer-content table:not(.array-table) th,
+.exam-page .part2-answer-content table:not(.array-table) th {
+    font-weight: 600 !important;
+}
+.exam-page .task-text table.array-table th,
+.exam-page .criteria-text table.array-table th,
+.exam-page .correct-answer-content table.array-table th,
+.exam-page .part2-answer-content table.array-table th {
+    font-weight: 600 !important;
+}
+.exam-page .task-text table:not(.array-table) th,
+.exam-page .task-text table:not(.array-table) td {
+    white-space: normal !important;
 }
 .exam-page .correct-answer-content,
 .exam-page .part2-answer-content {
     overflow-x: auto !important;
+    overflow-y: clip !important;
     max-width: 100% !important;
+    -webkit-overflow-scrolling: touch !important;
 }
 .exam-page .correct-answer-content table.array-table mjx-container,
 .exam-page .part2-answer-content table.array-table mjx-container {
@@ -4238,22 +4375,6 @@ body.index .exam-grid .exam-card {
     min-height: 0 !important;
     margin-top: 2px !important;
     padding: 0 !important;
-}
-
-@media (max-width: 900px) {
-    /* Прокрутка у .task-text (уже задана на узких экранах); таблица — нормальная сетка */
-    .exam-page .task-text table:not(.array-table) {
-        display: table !important;
-        width: max-content !important;
-        min-width: 100% !important;
-        max-width: none !important;
-        border-collapse: collapse !important;
-    }
-
-    .exam-page .task-text table:not(.array-table) th,
-    .exam-page .task-text table:not(.array-table) td {
-        white-space: nowrap !important;
-    }
 }
 
 /* Компактные отступы в карточке задания */

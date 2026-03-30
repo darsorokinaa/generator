@@ -251,7 +251,7 @@ body.pdf-doc a.pdf-file-link {
     text-align: left;
 }
 
-/* LaTeX array/tabular: сетка как на печатной карточке (не стили CKEditor) */
+/* LaTeX array/tabular: тот же вид, что и таблицы в условии (серая сетка, без засечек) */
 .task-body table.array-table,
 .task-body table.cases-table,
 .task-body .cases-table table {
@@ -260,10 +260,10 @@ body.pdf-doc a.pdf-file-link {
     max-width: 100% !important;
     table-layout: auto !important;
     margin: 3pt auto !important;
-    font-family: "Times New Roman", Times, "Noto Serif", "Liberation Serif", serif !important;
+    font-family: "Montserrat", "DejaVu Sans", Arial, sans-serif !important;
     font-size: 10pt !important;
-    line-height: 1.25 !important;
-    color: #000 !important;
+    line-height: 1.35 !important;
+    color: #1e293b !important;
     background: #fff !important;
 }
 .task-body table.array-table td,
@@ -272,14 +272,17 @@ body.pdf-doc a.pdf-file-link {
 .task-body table.cases-table th,
 .task-body .cases-table table td,
 .task-body .cases-table table th {
-    border: 0.8pt solid #000 !important;
+    border: 0.6pt solid #d1d5db !important;
     background: #fff !important;
-    padding: 4pt 6pt !important;
+    padding: 5pt 7pt !important;
     text-align: center !important;
     vertical-align: middle !important;
     white-space: normal !important;
-    line-height: 1.25 !important;
+    line-height: 1.35 !important;
     font-weight: normal !important;
+}
+.task-body table.array-table th {
+    font-weight: 600 !important;
 }
 .task-body table.cases-table td,
 .task-body table.cases-table th,
