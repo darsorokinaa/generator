@@ -705,8 +705,8 @@ def get_pdf_cache_path(variant_id, theme, author_filter=None):
     base_dir = django_settings.MEDIA_ROOT or os.path.join(django_settings.BASE_DIR, "media")
     cache_dir = os.path.join(base_dir, "pdfs")
     os.makedirs(cache_dir, exist_ok=True)
-    # v2: широкие задания вне .tasks-wrapper (иначе WeasyPrint рвёт таблицу по колонкам)
-    suffix = f"variant_{variant_id}_{safe_theme}_v2"
+    # v3: шаблон PDF из app templates/ (Generator/templates), не только Generator/Generator/templates/
+    suffix = f"variant_{variant_id}_{safe_theme}_v3"
     if author_filter:
         author_slug = hashlib.md5(author_filter.encode("utf-8")).hexdigest()[:12]
         suffix = f"{suffix}_author_{author_slug}"
