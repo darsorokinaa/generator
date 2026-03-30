@@ -12,6 +12,10 @@ from django.utils.safestring import mark_safe
 from .latex_utils import process_latex, batch_render_mathjax, extract_latex_formulas
 from .models import TaskPreview
 
+# Полноширинный блок PDF (вне двух колонок) — только для этой пары: подтема + номер из банка (TaskList)
+PDF_FULL_WIDTH_SUBTOPIC_ID = 222
+PDF_FULL_WIDTH_TASKLIST_ID = 67
+
 
 def get_pdf_css():
     """
@@ -250,6 +254,21 @@ def task_html_needs_pdf_full_width(html: str) -> bool:
         if cell_count >= 5:
             return True
     return False
+
+
+def pdf_full_width_allowed_for_task(task, html: str) -> bool:
+    """
+    Отдельный лист на всю ширину — только для заданий с заданными subtopic и TaskList,
+    при этом в условии по-прежнему должна быть «большая» таблица (эвристика по HTML).
+    """
+    if not task:
+        return False
+    if getattr(task, "subtopic_id", None) != PDF_FULL_WIDTH_SUBTOPIC_ID:
+        return False
+    # FK на банк номеров — в БД поле task_id
+    if getattr(task, "task_id", None) != PDF_FULL_WIDTH_TASKLIST_ID:
+        return False
+    return task_html_needs_pdf_full_width(html)
 
 
 def segment_tasks_for_pdf_layout(tasks_content):
@@ -537,7 +556,7 @@ def build_pdf_context(request, variant, subject, author_filter=None):
             html = fix_pdf_html(html)
             html = rewrite_content_image_urls(html, request)
             rendered_text = mark_safe(html)
-            pdf_full_width = task_html_needs_pdf_full_width(html)
+            pdf_full_width = pdf_full_width_allowed_for_task(item.task, html)
         part_obj = item.task.task.part
         part = part_obj.part_title if part_obj else None
         part_id = part_obj.pk if part_obj else None
@@ -705,8 +724,8 @@ def get_pdf_cache_path(variant_id, theme, author_filter=None):
     base_dir = django_settings.MEDIA_ROOT or os.path.join(django_settings.BASE_DIR, "media")
     cache_dir = os.path.join(base_dir, "pdfs")
     os.makedirs(cache_dir, exist_ok=True)
-    # v3: шаблон PDF из app templates/ (Generator/templates), не только Generator/Generator/templates/
-    suffix = f"variant_{variant_id}_{safe_theme}_v3"
+    # v4: полноширинный режим только для subtopic=222 + TaskList=67
+    suffix = f"variant_{variant_id}_{safe_theme}_v4"
     if author_filter:
         author_slug = hashlib.md5(author_filter.encode("utf-8")).hexdigest()[:12]
         suffix = f"{suffix}_author_{author_slug}"
