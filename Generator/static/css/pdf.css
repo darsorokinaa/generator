@@ -189,7 +189,7 @@ body.pdf-doc a.pdf-file-link {
 }
 
 /* Таблицы внутри заданий (CKEditor) — вписываем в ширину колонки условия */
-.task-body table {
+.task-body table:not(.array-table):not(.cases-table) {
     border-collapse: collapse;
     margin: 3pt auto;
     color: #000;
@@ -213,8 +213,8 @@ body.pdf-doc a.pdf-file-link {
 .task-body colgroup col {
     width: auto !important;
 }
-.task-body th,
-.task-body td {
+.task-body table:not(.array-table):not(.cases-table) th,
+.task-body table:not(.array-table):not(.cases-table) td {
     border: 0.8pt solid #000;
     padding: 3pt 4pt;
     color: #000;
@@ -228,27 +228,51 @@ body.pdf-doc a.pdf-file-link {
     box-sizing: border-box;
 }
 /* CKEditor часто кладёт текст в <p> — перенос как у ячейки */
-.task-body th p,
-.task-body td p {
+.task-body table:not(.array-table):not(.cases-table) th p,
+.task-body table:not(.array-table):not(.cases-table) td p {
     margin: 0;
     white-space: normal !important;
     text-align: inherit;
 }
-.task-body td .math-inline,
-.task-body th .math-inline {
+.task-body table:not(.array-table):not(.cases-table) td .math-inline,
+.task-body table:not(.array-table):not(.cases-table) th .math-inline {
     white-space: nowrap !important;
     max-width: none !important;
 }
-.task-body th {
+.task-body table:not(.array-table):not(.cases-table) th {
     font-weight: bold;
     text-align: center;
 }
 /* Запросы — по левому краю, числа — по правому (WeasyPrint: используем first-of-type вместо :not) */
-.task-body td {
+.task-body table:not(.array-table):not(.cases-table) td {
     text-align: right;
 }
-.task-body td:first-of-type {
+.task-body table:not(.array-table):not(.cases-table) td:first-of-type {
     text-align: left;
+}
+
+/* LaTeX array/cases: не применять табличные стили CKEditor */
+.task-body table.array-table,
+.task-body table.cases-table,
+.task-body .cases-table table {
+    border-collapse: collapse !important;
+    width: auto !important;
+    max-width: 100% !important;
+    table-layout: auto !important;
+    margin: 2pt auto !important;
+}
+.task-body table.array-table td,
+.task-body table.array-table th,
+.task-body table.cases-table td,
+.task-body table.cases-table th,
+.task-body .cases-table table td,
+.task-body .cases-table table th {
+    border: none !important;
+    background: transparent !important;
+    padding: 0 2pt !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+    line-height: 1.2 !important;
 }
 /* Figure/изображения — без чёрного фона при ошибке загрузки */
 .task-body figure,

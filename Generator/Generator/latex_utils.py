@@ -65,14 +65,14 @@ _RE_DISPLAY_DOUBLE = re.compile(r'\$\$(.+?)\$\$', re.DOTALL)
 _RE_INLINE_PAREN = re.compile(r'\\\((.*?)\\\)', re.DOTALL)
 _RE_INLINE_DOLLAR = re.compile(r'\$(.+?)\$')
 _RE_ENV = re.compile(
-    r'\\begin\{(aligned|align\*?|cases|gather\*?|equation\*?)\}(.*?)\\end\{\1\}',
+    r'\\begin\{(aligned|align\*?|cases|gather\*?|equation\*?|matrix|pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix)\}(.*?)\\end\{\1\}',
     re.DOTALL,
 )
 _RE_ARRAY = re.compile(r'\\begin\{array\}\{[^}]*\}(.*?)\\end\{array\}', re.DOTALL)
 _RE_TABULAR = re.compile(r'\\begin\{tabular\}\{[^}]*\}(.*?)\\end\{tabular\}', re.DOTALL)
 # MathJax (браузер и Node) не поддерживает tabular/array — только наш HTML-конвертер
 _RE_HAS_TABULAR_OR_ARRAY = re.compile(
-    r'\\begin\s*\{(?:tabular|array)\}',
+    r'\\begin\s*\{(?:tabular|array|matrix|pmatrix|bmatrix|Bmatrix|vmatrix|Vmatrix)\}',
     re.IGNORECASE | re.DOTALL,
 )
 _RE_VERBATIM = re.compile(r'\\begin\{verbatim\}(.*?)\\end\{verbatim\}', re.DOTALL)
@@ -237,8 +237,8 @@ def _split_array_row(row: str) -> list[str]:
 
 
 def _convert_environments(text: str) -> str:
-    def replace_array(m):
-        rows = re.split(r'\\\\', m.group(1))
+    def _to_array_table(body: str) -> str:
+        rows = re.split(r'\\\\', body)
         rows_html = []
         for row in rows:
             row = row.replace(r'\hline', '').strip()
@@ -251,6 +251,9 @@ def _convert_environments(text: str) -> str:
             rows_html.append(f'<tr class="array-row">{row_html}</tr>')
         return f'<table class="array-table"><tbody>{"".join(rows_html)}</tbody></table>' if rows_html else ''
 
+    def replace_array(m):
+        return _to_array_table(m.group(1))
+
     def replace_env(m):
         env_name = m.group(1)
         rows = re.split(r'\\\\', m.group(2))
@@ -262,6 +265,8 @@ def _convert_environments(text: str) -> str:
                 f'<td class="cases-brace" rowspan="{len(cleaned)}">{{</td>'
                 f'<td><table><tbody>{rows_html}</tbody></table></td></tr></tbody></table>'
             )
+        if env_name in {'matrix', 'pmatrix', 'bmatrix', 'Bmatrix', 'vmatrix', 'Vmatrix'}:
+            return _to_array_table(m.group(2))
         return f'<div class="math-env">' + ''.join(f'<div class="math-row">{row}</div>' for row in cleaned) + '</div>'
 
     text = _RE_ARRAY.sub(replace_array, text)

@@ -3607,7 +3607,23 @@ body.index .exam-grid .exam-card {
     }
 
     /* Страница экзамена — ввод ответов и проверка на мобильных */
-    .exam-page .answer-section {
+@media (max-width: 900px) {
+    .exam-page .task-text table {
+        display: block !important;
+        width: max-content !important;
+        min-width: 100% !important;
+        max-width: none !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .exam-page .task-text th,
+    .exam-page .task-text td {
+        white-space: nowrap !important;
+    }
+}
+
+.exam-page .answer-section {
         gap: 0.75rem;
     }
 
