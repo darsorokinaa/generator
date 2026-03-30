@@ -233,21 +233,43 @@ def wrap_table_task_units_for_pdf(html: str) -> str:
 def task_html_needs_pdf_full_width(html: str) -> bool:
     """
     Большая таблица в условии: в двух колонках PDF нечитаема — выводим задание
-    на отдельный лист на всю ширину (см. .task-pdf-full-width в pdf.css).
+    на отдельный лист на всю ширину (вне column-count, см. tasks_segments).
 
-    Эвристика: много строк и/или ≥5 колонок в какой-либо строке.
+    Эвристика: много строк и/или ≥5 колонок в строке; либо блок task-body-table-unit
+    с ≥5 строками (таблица + вопрос после wrap_table_task_units_for_pdf).
     """
     if not html or "<table" not in html.lower():
         return False
     tr_count = len(re.findall(r"<tr\b", html, re.I))
-    # Шапка + несколько строк данных — в половине листа (две колонки) уже тесно
-    if tr_count >= 6:
+    if tr_count >= 5:
+        return True
+    if "task-body-table-unit" in html and tr_count >= 4:
         return True
     for m in re.finditer(r"<tr\b[^>]*>.*?</tr>", html, re.I | re.DOTALL):
         cell_count = len(re.findall(r"<t[dh]\b", m.group(0), re.I))
         if cell_count >= 5:
             return True
     return False
+
+
+def segment_tasks_for_pdf_layout(tasks_content):
+    """
+    WeasyPrint часто игнорирует column-span: all — задание рвётся на две колонки.
+    Выносим pdf_full_width за пределы .tasks-wrapper (без column-count).
+    """
+    segments = []
+    buffer = []
+    for item in tasks_content or []:
+        if item.get("type") == "task" and item.get("pdf_full_width"):
+            if buffer:
+                segments.append({"mode": "columns", "items": buffer})
+                buffer = []
+            segments.append({"mode": "full", "item": item})
+        else:
+            buffer.append(item)
+    if buffer:
+        segments.append({"mode": "columns", "items": buffer})
+    return segments
 
 
 def sanitize_html_for_weasyprint(html: str) -> str:
@@ -658,11 +680,13 @@ def build_pdf_context(request, variant, subject, author_filter=None):
     # Инструкции — отдельно (одна колонка сверху), остальное — задачи и напоминания
     instruction_blocks = [b for b in merged_contents if b.get("type") == "preview" and b.get("is_instruction")]
     tasks_content = [b for b in merged_contents if b.get("type") != "preview" or not b.get("is_instruction")]
+    tasks_segments = segment_tasks_for_pdf_layout(tasks_content)
 
     return {
         "variant": variant,
         "instruction_blocks": instruction_blocks,
         "tasks_content": tasks_content,
+        "tasks_segments": tasks_segments,
         "contents": merged_contents,
         "answers_chunks": answers_chunks,
         "answers_parts": answers_parts,
@@ -681,7 +705,8 @@ def get_pdf_cache_path(variant_id, theme, author_filter=None):
     base_dir = django_settings.MEDIA_ROOT or os.path.join(django_settings.BASE_DIR, "media")
     cache_dir = os.path.join(base_dir, "pdfs")
     os.makedirs(cache_dir, exist_ok=True)
-    suffix = f"variant_{variant_id}_{safe_theme}"
+    # v2: широкие задания вне .tasks-wrapper (иначе WeasyPrint рвёт таблицу по колонкам)
+    suffix = f"variant_{variant_id}_{safe_theme}_v2"
     if author_filter:
         author_slug = hashlib.md5(author_filter.encode("utf-8")).hexdigest()[:12]
         suffix = f"{suffix}_author_{author_slug}"

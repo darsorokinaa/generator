@@ -598,9 +598,10 @@
 </div>
 {% endfor %}
 
+{% for segment in tasks_segments %}
+    {% if segment.mode == "columns" %}
 <div class="tasks-wrapper">
-    {% for item in tasks_content %}
-
+    {% for item in segment.items %}
         {% if item.type == "preview" %}
             {% if not item.is_instruction %}
             <div class="pdf-preview pdf-framed{% if item.start_new_page %} pdf-start-new-page{% endif %}">
@@ -622,39 +623,17 @@
                 {% endif %}
             </div>
             {% endif %}
-
         {% else %}
-
-        <div class="task{% if item.start_new_page %} pdf-start-new-page{% endif %}{% if item.subdivision == 'geom' %} task-geom{% endif %}{% if item.pdf_full_width %} task-pdf-full-width{% endif %}">
-
-            <div class="task-main">
-            <div class="ta">
-                <span class="ta-inner">{{ item.order }}</span>
-            </div>
-
-            <div class="task-body">
-                <div class="task-with-answer">
-                {% if item.text %}{{ item.text|safe }}{% else %}<p>&nbsp;</p>{% endif %}
-
-                {% if item.file_url %}
-                <div class="task-file-download">
-                    <a href="{{ item.file_url }}" class="pdf-file-link" target="_blank">Скачать файл</a>
-                </div>
-                {% endif %}
-
-                <div class="answer-line">
-                    Ответ: <span class="answer-field">&nbsp;</span>
-                </div>
-                </div>
-            </div>
-            </div>
-
-        </div>
-
+            {% include "pdf_fragment_task.html" with item=item full_width=False %}
         {% endif %}
-
     {% endfor %}
 </div>
+    {% else %}
+<div class="task-pdf-full-width-wrap">
+    {% include "pdf_fragment_task.html" with item=segment.item full_width=True %}
+</div>
+    {% endif %}
+{% endfor %}
 
 <!-- СТРАНИЦА ОТВЕТОВ -->
 <div class="answers-page">

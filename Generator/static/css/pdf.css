@@ -558,22 +558,26 @@ body.pdf-doc a.pdf-file-link {
 }
 
 /*
- * Большая таблица в условии (см. pdf_utils.task_html_needs_pdf_full_width):
- * отдельный лист на всю ширину — не две колонки, как у обычных номеров.
+ * Большая таблица: блок вне .tasks-wrapper — см. tasks_segments + .task-pdf-full-width-wrap.
+ * (WeasyPrint нестабильно применяет column-span: all внутри column-count.)
  */
-.tasks-wrapper .task.task-pdf-full-width {
-    column-span: all;
+.task-pdf-full-width-wrap {
     width: 100%;
+    display: block;
+    clear: both;
     page-break-before: always;
     break-before: page;
     page-break-after: always;
     break-after: page;
-    /* высокое задание может занять >1 страницы */
+}
+.task-pdf-full-width-wrap .task.task-pdf-full-width {
+    width: 100%;
+    max-width: 100%;
     break-inside: auto;
     page-break-inside: auto;
 }
-.tasks-wrapper .task.task-pdf-full-width .task-main,
-.tasks-wrapper .task.task-pdf-full-width .task-with-answer {
+.task-pdf-full-width-wrap .task.task-pdf-full-width .task-main,
+.task-pdf-full-width-wrap .task.task-pdf-full-width .task-with-answer {
     break-inside: auto;
     page-break-inside: auto;
 }
