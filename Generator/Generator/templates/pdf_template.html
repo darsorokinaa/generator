@@ -540,7 +540,12 @@
             width: auto !important;
             max-width: 100% !important;
             table-layout: auto !important;
-            margin: 2pt auto !important;
+            margin: 3pt auto !important;
+            font-family: "Times New Roman", Times, "Noto Serif", "Liberation Serif", serif !important;
+            font-size: 10pt !important;
+            line-height: 1.25 !important;
+            color: #000 !important;
+            background: #fff !important;
         }
         .pdf-doc .task-body table.array-table td,
         .pdf-doc .task-body table.array-table th,
@@ -548,12 +553,23 @@
         .pdf-doc .task-body table.cases-table th,
         .pdf-doc .task-body .cases-table table td,
         .pdf-doc .task-body .cases-table table th {
+            border: 0.8pt solid #000 !important;
+            background: #fff !important;
+            padding: 4pt 6pt !important;
+            text-align: center !important;
+            vertical-align: middle !important;
+            white-space: normal !important;
+            line-height: 1.25 !important;
+            font-weight: normal !important;
+        }
+        .pdf-doc .task-body table.cases-table td,
+        .pdf-doc .task-body table.cases-table th,
+        .pdf-doc .task-body .cases-table table td,
+        .pdf-doc .task-body .cases-table table th {
             border: none !important;
             background: transparent !important;
             padding: 0 2pt !important;
-            text-align: center !important;
             white-space: nowrap !important;
-            line-height: 1.2 !important;
         }
 
         @media print {

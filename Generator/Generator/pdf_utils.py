@@ -238,8 +238,8 @@ div.math-display > mjx-container {
 .cases-table { display: inline-table; vertical-align: middle; border-collapse: collapse; margin: .3em 0; }
 .cases-brace { font-size: 2.2em; line-height: 1; padding-right: .15em; vertical-align: middle; font-family: serif; font-weight: 100; }
 .cases-row { padding: .15em 0; }
-.array-table { display: inline-table; border-collapse: collapse; margin: .3em 0; table-layout: fixed; }
-.array-cell { padding: 0 .4em; text-align: center; width: 1%; }
+.array-table { display: inline-table; border-collapse: collapse; margin: .45em auto; table-layout: auto; font-family: "Times New Roman", Times, "Noto Serif", serif; font-size: 10pt; line-height: 1.25; color: #000; background: #fff; }
+.array-table th, .array-table td { border: 0.8pt solid #000; padding: 4pt 6pt; text-align: center; vertical-align: middle; white-space: normal; font-weight: normal; background: #fff; }
 .mf { font-style: normal; }
 sup { font-size: .75em; vertical-align: super; }
 sub { font-size: .75em; vertical-align: sub; }

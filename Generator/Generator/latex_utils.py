@@ -240,23 +240,109 @@ def _split_array_row(row: str) -> list[str]:
     return [cell.strip().replace(PLACEHOLDER, '&') for cell in ''.join(out).split('&')]
 
 
-def _convert_environments(text: str) -> str:
-    def _to_array_table(body: str) -> str:
-        rows = re.split(r'\\\\', body)
-        rows_html = []
-        for row in rows:
+def _split_array_rows(body: str) -> list[str]:
+    """Разбивает тело array/tabular по \\\\ (конец строки), не внутри {...} (вложенные массивы, \\shortstack)."""
+    if not body:
+        return []
+    rows = []
+    buf: list[str] = []
+    depth = 0
+    i = 0
+    n = len(body)
+    while i < n:
+        c = body[i]
+        if c == '{':
+            depth += 1
+            buf.append(c)
+            i += 1
+        elif c == '}':
+            depth -= 1
+            buf.append(c)
+            i += 1
+        elif depth == 0 and i + 1 < n and c == '\\' and body[i + 1] == '\\':
+            row = ''.join(buf).strip()
             row = row.replace(r'\hline', '').strip()
-            if not row:
-                continue
+            if row:
+                rows.append(row)
+            buf = []
+            i += 2
+        else:
+            buf.append(c)
+            i += 1
+    tail = ''.join(buf).strip()
+    tail = tail.replace(r'\hline', '').strip()
+    if tail:
+        rows.append(tail)
+    return rows
+
+
+def _replace_shortstack_in_cell(cell: str) -> str:
+    """\\shortstack{а\\\\б} → многострочная ячейка (<br>); рекурсия не требуется."""
+    if r'\shortstack' not in cell:
+        return cell
+    out: list[str] = []
+    i = 0
+    key = r'\shortstack'
+    while i < len(cell):
+        j = cell.find(key, i)
+        if j == -1:
+            out.append(cell[i:])
+            break
+        out.append(cell[i:j])
+        k = j + len(key)
+        while k < len(cell) and cell[k].isspace():
+            k += 1
+        if k >= len(cell) or cell[k] != '{':
+            out.append(key)
+            i = j + len(key)
+            continue
+        inner, end = _extract_balanced(cell, k)
+        lines = re.split(r'\\\\', inner)
+        parts = [p.strip() for p in lines if p.strip()]
+        inner_html = '<br>'.join(parts)
+        out.append(inner_html)
+        i = end
+    return ''.join(out)
+
+
+def _convert_environments(text: str) -> str:
+    def _to_array_table(body: str, *, use_thead: bool) -> str:
+        raw_rows = _split_array_rows(body)
+        rows_cells: list[list[str]] = []
+        for row in raw_rows:
             cells = _split_array_row(row)
+            cells = [_replace_shortstack_in_cell(c) for c in cells]
             if not any(cells):
                 continue
-            row_html = ''.join(f'<td class="array-cell">{cell}</td>' for cell in cells)
-            rows_html.append(f'<tr class="array-row">{row_html}</tr>')
-        return f'<table class="array-table"><tbody>{"".join(rows_html)}</tbody></table>' if rows_html else ''
+            rows_cells.append(cells)
+        if not rows_cells:
+            return ''
+
+        def row_cells_to_tds(cells: list[str], tag: str) -> str:
+            if tag == 'th':
+                return ''.join(
+                    f'<th class="array-cell" scope="col">{cell}</th>' for cell in cells
+                )
+            return ''.join(f'<td class="array-cell">{cell}</td>' for cell in cells)
+
+        if use_thead and len(rows_cells) >= 1:
+            head = rows_cells[0]
+            rest = rows_cells[1:]
+            thead_html = (
+                f'<thead><tr class="array-row">{row_cells_to_tds(head, "th")}</tr></thead>'
+            )
+            body_rows = ''.join(
+                f'<tr class="array-row">{row_cells_to_tds(cells, "td")}</tr>' for cells in rest
+            )
+            return f'<table class="array-table" role="table">{thead_html}<tbody>{body_rows}</tbody></table>'
+
+        rows_html = ''.join(
+            f'<tr class="array-row">{row_cells_to_tds(cells, "td")}</tr>' for cells in rows_cells
+        )
+        return f'<table class="array-table" role="table"><tbody>{rows_html}</tbody></table>'
 
     def replace_array(m):
-        return _to_array_table(m.group(1))
+        return _to_array_table(m.group(1), use_thead=True)
 
     def replace_env(m):
         env_name = m.group(1)
@@ -270,7 +356,7 @@ def _convert_environments(text: str) -> str:
                 f'<td><table><tbody>{rows_html}</tbody></table></td></tr></tbody></table>'
             )
         if env_name in {'matrix', 'pmatrix', 'bmatrix', 'Bmatrix', 'vmatrix', 'Vmatrix'}:
-            return _to_array_table(m.group(2))
+            return _to_array_table(m.group(2), use_thead=False)
         return f'<div class="math-env">' + ''.join(f'<div class="math-row">{row}</div>' for row in cleaned) + '</div>'
 
     text = _RE_ARRAY.sub(replace_array, text)
