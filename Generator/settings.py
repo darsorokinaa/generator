@@ -30,7 +30,7 @@ INSTALLED_APPS = [
     # your apps
     "Generator",
     "Board",
-    "Cabinet",
+    # "Cabinet",
 
     # third-party
     "corsheaders",
