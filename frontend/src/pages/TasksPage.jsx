@@ -239,6 +239,12 @@ function TasksPage() {
       .map((st) => subtopicIdNum(st.id))
       .filter((id) => id != null);
 
+  /** Счётчик по подтеме в groupSubtopicCounts (ключ в state может быть числом или строкой) */
+  const getGroupSubcount = (bySt, stId) => {
+    if (!bySt || stId == null) return 0;
+    return Number(bySt[stId] ?? bySt[String(stId)] ?? 0) || 0;
+  };
+
   /** subtopic_ids / subtopic_counts для элемента tasks[] варианта (группы) */
   const buildGroupSubtopicPayload = (item, bySt, useSt) => {
     const gIds = groupItemSubtopicIds(item);
@@ -276,9 +282,7 @@ function TasksPage() {
       .filter((k) => k !== "all")
       .map((k) => Number(k))
       .filter((n) => !Number.isNaN(n));
-    if (useSt && globalIntersect.length > 0) {
-      stIds = stIds.filter((id) => globalIntersect.includes(id));
-    }
+    /* Не сужаем по globalIntersect: выбор в панели группы хранится в bySt и не дублируется в selectedSubtopicIds */
     if (stIds.length > 0) entry.subtopic_ids = stIds;
     const sc = {};
     stIds.forEach((id) => {
@@ -308,18 +312,10 @@ function TasksPage() {
       const item = itemsById[identifier];
       if (!item) continue;
       if (identifier.startsWith("task_")) {
-        let slotCount = count;
-        if (useSubtopicCounts && subtopicsByTask.length) {
-          const block = subtopicsByTask.find((b) => b.task_list_id === item.id);
-          if (block?.subtopics) {
-            slotCount = block.subtopics
-              .filter((st) => selectedSubtopicIds.includes(st.id))
-              .reduce((sum, st) => sum + getCappedSubtopicCount(st), 0);
-          }
-        }
-        if (slotCount <= 0) continue;
-        content[String(item.id)] = slotCount;
-        tasksList.push({ tasklist_id: item.id, task_number: item.task_number, count: slotCount });
+        /* count уже из getEffectiveTaskCount (подтемы или счётчик с кнопки) */
+        if (count <= 0) continue;
+        content[String(item.id)] = count;
+        tasksList.push({ tasklist_id: item.id, task_number: item.task_number, count });
       } else if (identifier.startsWith("linked_") && item.tasks?.length) {
         const nums = item.task_numbers || item.tasks.map((t) => t.task_number);
         const bySt = groupSubtopicCounts[identifier];
@@ -501,9 +497,11 @@ function TasksPage() {
     if (identifier.startsWith("task_") && useSubtopicCounts) {
       const block = subtopicsByTask.find((b) => b.task_list_id === item.id);
       if (block?.subtopics) {
-        return block.subtopics
+        const fromSubtopics = block.subtopics
           .filter((st) => selectedSubtopicIds.includes(st.id))
           .reduce((sum, st) => sum + getCappedSubtopicCount(st), 0);
+        /* Если для этого номера подтемы не отмечены — не обнуляем счётчик с кнопки «+» */
+        if (fromSubtopics > 0) return fromSubtopics;
       }
     }
     if (identifier.startsWith("linked_") || identifier.startsWith("group_")) {
@@ -515,7 +513,13 @@ function TasksPage() {
           const n = subtopicIdNum(id);
           return n != null && gids.has(n);
         });
-        if (!any) return 0;
+        /* Нет пересечения с глобальным списком подтем — всё равно учитываем счётчики с кнопки */
+        if (!any) {
+          if (groupSubtopicCounts[identifier]) {
+            return Object.values(groupSubtopicCounts[identifier]).reduce((s, n) => s + (n || 0), 0);
+          }
+          return testCounts[identifier] ?? 0;
+        }
       }
       if (groupSubtopicCounts[identifier]) {
         return Object.values(groupSubtopicCounts[identifier]).reduce((s, n) => s + (n || 0), 0);
@@ -765,7 +769,7 @@ function TasksPage() {
                     <>
                       {subtopics.map((st) => {
                         const stId = st.id;
-                        const stCount = bySt[stId] ?? 0;
+                        const stCount = getGroupSubcount(bySt, stId);
                         const stMax = st.display_count ?? st.group_count ?? 0;
                         const isChecked = stCount > 0;
                         return (

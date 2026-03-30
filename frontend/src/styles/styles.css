@@ -1961,8 +1961,17 @@ header .container {
     word-break: break-word;
 }
 
+/*
+ * MathJax CHTML: не задавать font-family на mjx-container / mjx-math / потомках —
+ * иначе ломаются растягиваемые символы (√, дробная черта и т.д.).
+ * Calibri для обычного текста в формулах: только mjx-mtext (см. ниже).
+ */
 mjx-container {
     font-size: 110% !important;
+}
+
+mjx-mtext {
+    font-family: "Calibri", "Segoe UI", sans-serif !important;
 }
 
 .task-text table {
@@ -2057,7 +2066,7 @@ mjx-container {
     font-weight: 600;
 }
 
-/* LaTeX array/tabular: как MathJax/PDF — по ширине содержимого, serif, без разрыва слов посередине */
+/* LaTeX array/tabular — Calibri, без разрыва слов посередине */
 .task-text table.array-table,
 .criteria-text table.array-table {
     border-collapse: collapse;
@@ -2066,7 +2075,7 @@ mjx-container {
     max-width: none;
     min-width: min-content;
     table-layout: auto;
-    font-family: "Times New Roman", Times, "STIX Two Text", "Noto Serif", "Liberation Serif", serif;
+    font-family: "Calibri", "Segoe UI", sans-serif;
     font-size: 1.0625rem;
     line-height: 1.35;
     color: #000;
@@ -2099,7 +2108,7 @@ mjx-container {
     width: max-content;
     max-width: none;
     min-width: min-content;
-    font-family: "Times New Roman", Times, "STIX Two Text", "Noto Serif", "Liberation Serif", serif;
+    font-family: "Calibri", "Segoe UI", sans-serif;
     font-size: 1.0625rem;
     line-height: 1.35;
     color: #000;
@@ -4242,7 +4251,7 @@ body.index .exam-grid .exam-card {
 .exam-page .task-text nobr {
     white-space: normal !important;
 }
-/* MathJax: max-width:100% сжимал SVG — делаем читаемый размер в rem (не от уменьшенного родителя) */
+/* MathJax: размер (без font-family на формулах — см. комментарий у глобального mjx-container) */
 .exam-page .task-text mjx-container,
 .exam-page .criteria-text mjx-container,
 .exam-page .correct-answer-content mjx-container,
@@ -4296,7 +4305,7 @@ body.index .exam-grid .exam-card {
     color: #1e293b !important;
     background: #fff !important;
 }
-/* LaTeX \\begin{array}/tabular — как PDF/MathJax: ширина по содержимому, serif, без разрыва слов посередине */
+/* LaTeX \\begin{array}/tabular — Calibri */
 .exam-page .task-text table.array-table,
 .exam-page .criteria-text table.array-table {
     width: max-content !important;
@@ -4305,7 +4314,7 @@ body.index .exam-grid .exam-card {
     margin: 0.5rem auto !important;
     border-collapse: collapse !important;
     table-layout: auto !important;
-    font-family: "Times New Roman", Times, "STIX Two Text", "Noto Serif", "Liberation Serif", serif !important;
+    font-family: "Calibri", "Segoe UI", sans-serif !important;
     font-size: 1.0625rem !important;
     line-height: 1.35 !important;
     color: #000 !important;
@@ -4329,7 +4338,7 @@ body.index .exam-grid .exam-card {
     width: max-content !important;
     max-width: none !important;
     min-width: min-content !important;
-    font-family: "Times New Roman", Times, "STIX Two Text", "Noto Serif", "Liberation Serif", serif !important;
+    font-family: "Calibri", "Segoe UI", sans-serif !important;
     font-size: 1.0625rem !important;
     line-height: 1.35 !important;
     color: #000 !important;

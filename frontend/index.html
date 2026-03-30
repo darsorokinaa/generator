@@ -32,12 +32,17 @@
         inlineMath: [['$', '$'], ['\\(', '\\)']],
         displayMath: [['$$', '$$'], ['\\[', '\\]']]
       },
-      svg: { fontCache: 'global' },
+      /* CHTML: глифы формул — шрифт MathJax; Calibri только через CSS для mjx-mtext (\text{}) */
+      chtml: {
+        scale: 1,
+        mtextInheritFont: true,
+        matchFontHeight: true
+      },
       startup: { typeset: false }
     };
   </script>
 
-  <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
+  <script async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js"></script>
 
   <!-- Yandex.Metrika counter -->
   <script type="text/javascript">
