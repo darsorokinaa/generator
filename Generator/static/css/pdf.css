@@ -86,8 +86,8 @@ body {
 
 /* Изображения — на всю ширину колонки задания, высота по пропорциям */
 .task-body img {
-    width: 100% !important;
-    max-width: 100% !important;
+    width: auto !important;
+    max-width: 60% !important;
     height: auto !important;
     max-height: 340pt !important;
     object-fit: contain !important;
@@ -130,8 +130,8 @@ body {
     background-color: transparent !important;
 }
 .task-body figure img {
-    width: 100% !important;
-    max-width: 100% !important;
+    width: auto !important;
+    max-width: 60% !important;
     height: auto !important;
     max-height: 340pt !important;
     object-fit: contain !important;
