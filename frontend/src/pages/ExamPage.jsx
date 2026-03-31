@@ -1104,13 +1104,24 @@ function ExamPage() {
       loc.hostname === "127.0.0.1" ||
       loc.hostname === "[::1]";
     const url = isLocal ? loc.href : `https://генурок.рф${pathWithQuery}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      setLinkCopied(true);
-      setTimeout(() => setLinkCopied(false), 2000);
-    } catch (_) {
-      setLinkCopied(false);
+    let ok = false;
+    if (navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(url);
+        ok = true;
+      } catch { /* fallback below */ }
     }
+    if (!ok) {
+      const ta = document.createElement("textarea");
+      ta.value = url;
+      ta.style.cssText = "position:fixed;opacity:0;left:-9999px";
+      document.body.appendChild(ta);
+      ta.select();
+      try { ok = document.execCommand("copy"); } catch { /* ignore */ }
+      ta.remove();
+    }
+    setLinkCopied(ok);
+    if (ok) setTimeout(() => setLinkCopied(false), 2000);
   };
 
   return (
