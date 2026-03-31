@@ -1090,25 +1090,32 @@ def api_updates(request):
 def api_announcements(request):
     """Активные объявления для главной страницы (show=True), по порядку."""
     qs = Announcement.objects.filter(show=True).order_by("sort_order", "-created")[:10]
+    def build_url(field):
+        if field:
+            try:
+                return request.build_absolute_uri(field.url)
+            except (ValueError, TypeError):
+                pass
+        return ""
+
     rows = []
     for obj in qs:
-        image_url = ""
-        if obj.corner_image:
-            try:
-                image_url = request.build_absolute_uri(obj.corner_image.url)
-            except (ValueError, TypeError):
-                image_url = ""
         rows.append({
             "id": obj.id,
             "title": obj.title,
             "body": str(obj.body or ""),
-            "image_url": image_url,
+            "image_url": build_url(obj.corner_image),
             "button_label": obj.button_label,
             "button_url": obj.button_url,
-            "accent": obj.accent,
+            "background_url": build_url(obj.background),
             "has_button": bool(
                 (obj.button_label or "").strip() and (obj.button_url or "").strip()
             ),
+            "theme_overlay_url": build_url(obj.theme_overlay),
+            "theme_header_bg_url": build_url(obj.theme_header_bg),
+            "theme_logo_url": build_url(obj.theme_logo),
+            "theme_decor_url": build_url(obj.theme_decor),
+            "theme_worksheet_bg_url": build_url(obj.theme_worksheet_bg),
         })
     return JsonResponse({"announcements": rows})
 
@@ -1286,8 +1293,11 @@ def _render_variant_pdf(request, level, subject, variant_id, background_url="", 
 
 def variant_pdf(request, level, subject, variant_id):
     theme = request.GET.get("theme", "").lower()
+    bg_url = (request.GET.get("bg_url") or "").strip()
     background_url = ""
-    if theme == "cosmos":
+    if bg_url:
+        background_url = bg_url
+    elif theme == "cosmos":
         background_url = pdf_utils.resolve_background_image("img/cosmos.png", request=request)
     return _render_variant_pdf(
         request,

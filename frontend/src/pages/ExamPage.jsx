@@ -80,7 +80,7 @@ function ExamPage() {
   const [timerStatus, setTimerStatus] = useState("idle"); // "idle" | "running" | "paused"
 
   // Загрузка PDF
-  const [pdfLoading, setPdfLoading] = useState(null); // null | "default" | "cosmos"
+  const [pdfLoading, setPdfLoading] = useState(null); // null | "default" | "cosmos" | "easter"
 
   // Копирование ссылки на вариант
   const [linkCopied, setLinkCopied] = useState(false);
@@ -1054,9 +1054,23 @@ function ExamPage() {
     }
   };
 
-  const openPdfCosmos = async (variantId) => {
-    setPdfLoading("cosmos");
-    const url = `/api/${level}/${subject}/variant/${variantId}/pdf/?theme=cosmos`;
+  const getThemeWorksheetBg = () => {
+    try {
+      const raw = sessionStorage.getItem("theme_data");
+      if (raw) {
+        const data = JSON.parse(raw);
+        return (data.worksheetBg || "").trim();
+      }
+    } catch { /* ignore */ }
+    return "";
+  };
+
+  const openThemedPdf = async (variantId, themeName) => {
+    setPdfLoading(themeName);
+    const bgUrl = getThemeWorksheetBg();
+    const params = new URLSearchParams({ theme: themeName });
+    if (bgUrl) params.set("bg_url", bgUrl);
+    const url = `/api/${level}/${subject}/variant/${variantId}/pdf/?${params}`;
     try {
       const res = await fetch(url, { credentials: "same-origin" });
       if (!res.ok) throw new Error("Ошибка загрузки PDF");
@@ -1064,15 +1078,15 @@ function ExamPage() {
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = blobUrl;
-      a.download = `variant-${variantId}-cosmos.pdf`;
+      a.download = `variant-${variantId}-${themeName}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(blobUrl), 5000);
-    } catch (err) {
+    } catch {
       const a = document.createElement("a");
       a.href = url;
-      a.download = `variant-${variantId}-cosmos.pdf`;
+      a.download = `variant-${variantId}-${themeName}.pdf`;
       a.target = "_blank";
       document.body.appendChild(a);
       a.click();
@@ -1213,10 +1227,17 @@ function ExamPage() {
                     </button>
                     <button
                       className="variant-btn-cosmos"
-                      onClick={() => openPdfCosmos(variant.id)}
+                      onClick={() => openThemedPdf(variant.id, "cosmos")}
                       disabled={!!pdfLoading}
                     >
                       🪐 Космический вариант
+                    </button>
+                    <button
+                      className="variant-btn-easter"
+                      onClick={() => openThemedPdf(variant.id, "easter")}
+                      disabled={!!pdfLoading}
+                    >
+                      🐣 Пасхальный вариант
                     </button>
                     <button
                       type="button"
