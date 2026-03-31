@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 
 function AnnouncementCta({ url, label }) {
@@ -22,10 +22,107 @@ function AnnouncementCta({ url, label }) {
   );
 }
 
+function stripHtml(html) {
+  if (!html) return "";
+  if (typeof window === "undefined") {
+    return String(html).replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  }
+  const temp = document.createElement("div");
+  temp.innerHTML = String(html);
+  return (temp.textContent || temp.innerText || "").replace(/\s+/g, " ").trim();
+}
+
+function clampText(value, maxLength = 260) {
+  const text = (value || "").trim();
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength).trimEnd()}...`;
+}
+
+function getImageBrightness(src) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      const size = 64;
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext("2d");
+      ctx.drawImage(img, 0, 0, size, size);
+      let data;
+      try {
+        data = ctx.getImageData(0, 0, size, size).data;
+      } catch {
+        resolve(null);
+        return;
+      }
+      let totalLum = 0;
+      let count = 0;
+      for (let i = 0; i < data.length; i += 16) {
+        totalLum += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        count++;
+      }
+      resolve(count > 0 ? totalLum / count : null);
+    };
+    img.onerror = () => resolve(null);
+    img.src = src;
+  });
+}
+
 function IndexPage() {
   const navigate = useNavigate();
   const [updates, setUpdates] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
+  const [welcomeSlideIndex, setWelcomeSlideIndex] = useState(0);
+  const [slideBgLight, setSlideBgLight] = useState({});
+
+  const welcomeSlides = useMemo(() => {
+    const firstSlide = {
+      id: "default-welcome-slide",
+      title: "Платформа для подготовки к ОГЭ и ЕГЭ",
+      bodyHtml: "",
+      textPlain: "Удобные материалы и генератор заданий для уроков и домашней работы. Актуальная структура по предметам, готовые варианты и подборки по темам — чтобы готовить класс к экзаменам системно и с меньшими затратами времени.",
+      cta: "к материалам",
+      buttonUrl: "",
+      hasButton: false,
+      image: "img/banner-owl.png",
+      backgroundUrl: "",
+    };
+
+    const announcementSlides = announcements.map((a) => {
+      const themeOverlay = (a.theme_overlay_url || "").trim();
+      const themeHeaderBg = (a.theme_header_bg_url || "").trim();
+      const themeLogo = (a.theme_logo_url || "").trim();
+      const themeDecor = (a.theme_decor_url || "").trim();
+      const themeWorksheetBg = (a.theme_worksheet_bg_url || "").trim();
+      return {
+        id: a.id,
+        title: (a.title || "").trim() || "Объявление",
+        bodyHtml: (a.body || "").trim(),
+        textPlain: "",
+        cta: (a.button_label || "").trim() || "к материалам",
+        buttonUrl: (a.button_url || "").trim(),
+        hasButton: Boolean(a.has_button),
+        image: (a.image_url || "").trim() || "img/banner-owl12.png",
+        backgroundUrl: (a.background_url || "").trim(),
+        themeOverlay,
+        themeHeaderBg,
+        themeLogo,
+        themeDecor,
+        themeWorksheetBg,
+        hasTheme: !!(themeOverlay || themeHeaderBg || themeLogo || themeDecor || themeWorksheetBg),
+      };
+    });
+
+    return [firstSlide, ...announcementSlides];
+  }, [announcements]);
+
+  const goToNextWelcomeSlide = useCallback(() => {
+    setWelcomeSlideIndex((prev) => (prev + 1) % welcomeSlides.length);
+  }, [welcomeSlides.length]);
+  const goToPrevWelcomeSlide = useCallback(() => {
+    setWelcomeSlideIndex((prev) => (prev - 1 + welcomeSlides.length) % welcomeSlides.length);
+  }, [welcomeSlides.length]);
 
   useEffect(() => {
     fetch("/api/updates/", { credentials: "include" })
@@ -43,76 +140,135 @@ function IndexPage() {
       .catch(() => setAnnouncements([]));
   }, []);
 
+  useEffect(() => {
+    if (welcomeSlides.length < 2) return undefined;
+    const sliderTimer = window.setInterval(() => {
+      setWelcomeSlideIndex((prev) => (prev + 1) % welcomeSlides.length);
+    }, 7000);
+    return () => window.clearInterval(sliderTimer);
+  }, [welcomeSlides.length]);
+
+  useEffect(() => {
+    setWelcomeSlideIndex((prev) => (prev >= welcomeSlides.length ? 0 : prev));
+  }, [welcomeSlides.length]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const urls = welcomeSlides
+      .filter((s) => s.backgroundUrl)
+      .map((s) => ({ id: s.id, url: s.backgroundUrl }));
+    if (urls.length === 0) return;
+
+    (async () => {
+      const results = {};
+      await Promise.all(
+        urls.map(async ({ id, url }) => {
+          const brightness = await getImageBrightness(url);
+          if (brightness !== null) {
+            results[id] = brightness > 160;
+          }
+        })
+      );
+      if (!cancelled) setSlideBgLight((prev) => ({ ...prev, ...results }));
+    })();
+
+    return () => { cancelled = true; };
+  }, [welcomeSlides]);
+
+  const currentSlide = welcomeSlides[welcomeSlideIndex] || welcomeSlides[0];
+  const currentSlideIsLight = slideBgLight[currentSlide.id] === true;
+
   return (
     <div>
+      <section className={`welcome-banner${currentSlideIsLight ? " welcome-banner--light" : ""}`} aria-label="О платформе">
+        {welcomeSlides.length > 1 ? (
+          <>
+            <button
+              type="button"
+              className="welcome-banner-nav welcome-banner-nav-prev"
+              aria-label="Предыдущий слайд"
+              onClick={goToPrevWelcomeSlide}
+            >
+              ‹
+            </button>
+            <button
+              type="button"
+              className="welcome-banner-nav welcome-banner-nav-next"
+              aria-label="Следующий слайд"
+              onClick={goToNextWelcomeSlide}
+            >
+              ›
+            </button>
+          </>
+        ) : null}
 
-      {announcements.length > 0 && (
-        <div className="index-announcements" aria-label="Объявления">
-          {announcements.map((a) => {
-            const accent = ["default", "violet", "teal", "amber"].includes(a.accent)
-              ? a.accent
-              : "default";
-            const bodyHtml = (a.body || "").trim();
-            const hasCornerImg = Boolean((a.image_url || "").trim());
-            return (
-              <article
-                key={a.id}
-                className={`announcement-card announcement-card--${accent}${
-                  hasCornerImg ? " announcement-card--has-corner-img" : ""
-                }`}
+        <div className="welcome-banner-slides">
+          {welcomeSlides.map((slide, i) => (
+            <div
+              key={slide.id}
+              className={`welcome-banner-slide${i === welcomeSlideIndex ? " welcome-banner-slide--active" : ""}${slide.backgroundUrl ? " welcome-banner-slide--has-bg" : ""}${slideBgLight[slide.id] ? " welcome-banner-slide--light-bg" : ""}`}
+              style={slide.backgroundUrl ? { backgroundImage: `url(${slide.backgroundUrl})` } : undefined}
+              aria-hidden={i !== welcomeSlideIndex}
+            >
+              <img
+                src={
+                  /^https?:\/\//i.test(slide.image)
+                    ? slide.image
+                    : `${import.meta.env.BASE_URL}${slide.image.replace(/^\//, "")}`
+                }
+                alt=""
+                className="welcome-banner-owl"
+                aria-hidden="true"
+              />
+              <h2 className="welcome-banner-title">{slide.title}</h2>
+              {slide.bodyHtml ? (
+                <div
+                  className="welcome-banner-text"
+                  dangerouslySetInnerHTML={{ __html: slide.bodyHtml }}
+                />
+              ) : (
+                <p className="welcome-banner-text">{slide.textPlain}</p>
+              )}
+              <button
+                type="button"
+                className="welcome-banner-cta"
+                tabIndex={i === welcomeSlideIndex ? 0 : -1}
+                onClick={() => {
+                  if (slide.hasTheme) {
+                    const existing = sessionStorage.getItem("theme_data");
+                    const newTheme = JSON.stringify({
+                      overlay: slide.themeOverlay,
+                      headerBg: slide.themeHeaderBg,
+                      logo: slide.themeLogo,
+                      decor: slide.themeDecor,
+                      worksheetBg: slide.themeWorksheetBg,
+                    });
+                    if (existing === newTheme) {
+                      sessionStorage.removeItem("theme_data");
+                    } else {
+                      sessionStorage.setItem("theme_data", newTheme);
+                    }
+                    window.dispatchEvent(new Event("theme-change"));
+                    return;
+                  }
+                  if (!slide.hasButton || !slide.buttonUrl) {
+                    document.getElementById("exam-choice")?.scrollIntoView({ behavior: "smooth" });
+                    return;
+                  }
+                  const href = slide.buttonUrl;
+                  const isExternal = /^https?:\/\//i.test(href);
+                  if (isExternal) {
+                    window.open(href, "_blank", "noopener,noreferrer");
+                    return;
+                  }
+                  navigate(href.startsWith("/") ? href : `/${href}`);
+                }}
               >
-                <div className="announcement-card-glow" aria-hidden="true" />
-                <div className="announcement-card-inner">
-                  <div className="announcement-card-content">
-                    <h2 className="announcement-card-title">{a.title}</h2>
-                    {bodyHtml ? (
-                      <div
-                        className="announcement-card-body"
-                        dangerouslySetInnerHTML={{ __html: bodyHtml }}
-                      />
-                    ) : null}
-                    {a.has_button ? (
-                      <div className="announcement-card-actions">
-                        <AnnouncementCta url={a.button_url} label={a.button_label} />
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-                {hasCornerImg ? (
-                  <img
-                    className="announcement-card-corner-img"
-                    src={a.image_url}
-                    alt=""
-                    decoding="async"
-                    loading="lazy"
-                  />
-                ) : null}
-              </article>
-            );
-          })}
+                {slide.cta}
+              </button>
+            </div>
+          ))}
         </div>
-      )}
-
-      <section className="welcome-banner" aria-label="О платформе">
-        <img
-          src={`${import.meta.env.BASE_URL}img/banner-owl12.png`}
-          alt=""
-          className="welcome-banner-owl"
-          aria-hidden="true"
-        />
-        <h2 className="welcome-banner-title">
-          Платформа для подготовки к ОГЭ и ЕГЭ
-        </h2>
-        <p className="welcome-banner-text">
-          Удобные материалы и генератор заданий для уроков и домашней работы. Актуальная структура по предметам, готовые варианты и подборки по темам — чтобы готовить класс к экзаменам системно и с меньшими затратами времени.
-        </p>
-        <button
-          type="button"
-          className="welcome-banner-cta"
-          onClick={() => document.getElementById("exam-choice")?.scrollIntoView({ behavior: "smooth" })}
-        >
-          к материалам
-        </button>
       </section>
 
       <div className="index-desktop-wrap">

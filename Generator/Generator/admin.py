@@ -287,14 +287,20 @@ class UpdateAdmin(admin.ModelAdmin):
 
 @admin.register(Announcement)
 class AnnouncementAdmin(admin.ModelAdmin):
-    list_display = ("id", "sort_order", "title", "accent", "show", "created")
+    list_display = ("id", "sort_order", "title", "background", "show", "created")
     list_editable = ("sort_order", "show")
-    list_filter = ("show", "accent")
+    list_filter = ("show",)
     search_fields = ("title", "body")
     ordering = ["sort_order", "-created"]
     readonly_fields = ("created",)
     fieldsets = (
-        (None, {"fields": ("title", "body", "corner_image", "accent")}),
+        (None, {"fields": ("title", "body", "corner_image", "background")}),
         ("Кнопка (необязательно)", {"fields": ("button_label", "button_url")}),
+        ("Тематическое оформление", {
+            "fields": ("theme_overlay", "theme_header_bg", "theme_logo", "theme_decor", "theme_worksheet_bg"),
+            "classes": ("collapse",),
+        }),
         ("Публикация", {"fields": ("show", "sort_order", "created")}),
     )
+
+

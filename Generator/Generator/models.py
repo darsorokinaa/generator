@@ -312,12 +312,6 @@ class Update(models.Model):
 
 class Announcement(models.Model):
     """Объявление на главной странице (index)."""
-    ACCENT_CHOICES = [
-        ("default", "Синий"),
-        ("violet", "Фиолетовый"),
-        ("teal", "Бирюзовый"),
-        ("amber", "Тёплый"),
-    ]
     title = models.CharField(verbose_name="Заголовок", max_length=255)
     body = CKEditor5Field(verbose_name="Текст", blank=True, config_name="default")
     corner_image = models.ImageField(
@@ -334,11 +328,35 @@ class Announcement(models.Model):
         blank=True,
         help_text="Полный URL или путь на сайте, например /oge",
     )
-    accent = models.CharField(
-        verbose_name="Акцент",
-        max_length=20,
-        choices=ACCENT_CHOICES,
-        default="default",
+    background = models.ImageField(
+        upload_to="announcements/bg",
+        blank=True,
+        null=True,
+        verbose_name="Фон слайда",
+        help_text="Фоновая картинка слайда на главной. Если не указана — синий градиент по умолчанию.",
+    )
+    theme_overlay = models.ImageField(
+        upload_to="announcements/theme", blank=True, null=True,
+        verbose_name="Тема: оверлей на фон",
+        help_text="Картинка поверх фона сайта (repeat). Пусто = без оверлея.",
+    )
+    theme_header_bg = models.ImageField(
+        upload_to="announcements/theme", blank=True, null=True,
+        verbose_name="Тема: фон шапки",
+    )
+    theme_logo = models.ImageField(
+        upload_to="announcements/theme", blank=True, null=True,
+        verbose_name="Тема: иконка у логотипа",
+    )
+    theme_decor = models.ImageField(
+        upload_to="announcements/theme", blank=True, null=True,
+        verbose_name="Тема: декоративные элементы",
+        help_text="Картинка-декор поверх контента (repeat, полупрозрачная).",
+    )
+    theme_worksheet_bg = models.ImageField(
+        upload_to="announcements/theme", blank=True, null=True,
+        verbose_name="Тема: фон рабочего листа",
+        help_text="Фоновая картинка для рабочего листа (основной контентной области).",
     )
     show = models.BooleanField(verbose_name="Показывать", default=True)
     sort_order = models.PositiveSmallIntegerField(
