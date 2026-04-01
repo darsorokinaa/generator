@@ -324,44 +324,47 @@
 
         .answers-table {
             border-collapse: collapse;
-            table-layout: fixed;
+            table-layout: auto;
             width: 100%;
             margin-bottom: 12px;
             font-size: 10pt;
         }
 
         .answers-col-label {
-            width: 9%;
+            width: 30pt;
+            white-space: nowrap;
         }
 
         .answers-table th,
         .answers-table td {
             border: 1px solid #000;
             text-align: center;
-            padding: 4pt 3pt;
-            min-width: 0;
+            padding: 5pt 4pt;
             vertical-align: top;
         }
 
         .answers-table th {
             font-weight: bold;
             background: none;
+            white-space: nowrap;
         }
 
         .answer-cell {
             font-size: 10pt;
             vertical-align: top;
+            white-space: normal;
             word-break: break-word;
             overflow-wrap: break-word;
+            min-width: 28pt;
         }
 
         /* Обёртка: inline+SVG внутри td ломает WeasyPrint (IndexError в inline.py) */
         .answer-cell-inner {
             display: block;
-            width: 100%;
             text-align: center;
-            line-height: 1.25;
-            min-width: 0;
+            line-height: 1.4;
+            white-space: normal;
+            word-break: break-word;
         }
 
         /* Код / длинный текст — не разъезжает шапку и колонки */

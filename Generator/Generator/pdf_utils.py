@@ -295,7 +295,7 @@ def build_pdf_context(request, variant, subject, author_filter=None):
     footer_left = mark_safe(f'© <a href="{base_url}" class="pdf-footer-link">Генератор</a>')
 
     # Разбиваем ответы на блоки по 10 для переноса таблицы на несколько строк
-    chunk_size = 10
+    chunk_size = 7
     answers_chunks = [
         processed_contents[i:i + chunk_size]
         for i in range(0, len(processed_contents), chunk_size)

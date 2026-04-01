@@ -30,44 +30,42 @@ body {
 /* ===== Задание ===== */
 /* flex: номер слева от текста; align-items: flex-start — рамка номера не растягивается на высоту задания (в отличие от table-cell) */
 .task {
-    display: flex;
-    flex-direction: row;
-    align-items: flex-start;
-    gap: 8pt;
+    display: table;
+    table-layout: fixed;
     width: 100%;
     max-width: 100%;
-    margin-bottom: 16pt;
+    margin-bottom: 14pt;
     page-break-inside: avoid;
     break-inside: avoid;
     -webkit-column-break-inside: avoid;
-    overflow: hidden;
+}
+
+.task-main {
+    display: table-row;
 }
 
 .task-number,
 .ta {
-    flex: 0 0 32pt;
-    width: 32pt;
-    min-width: 32pt;
-    max-width: 32pt;
-    height: auto;
-    min-height: 18pt;
+    display: table-cell;
+    width: 28pt;
+    min-width: 28pt;
+    max-width: 28pt;
     padding: 3pt 2pt;
     box-sizing: border-box;
-    background-color: rgb(255, 255, 255);
+    background-color: #fff;
     border: 0.5pt solid #000;
     text-align: center;
     font-weight: bold;
     font-size: 11pt;
     line-height: 1.15;
-    margin: 0;
+    vertical-align: top;
 }
 
 .task-body {
-    flex: 1 1 auto;
-    min-width: 0;
-    max-width: 100%;
-    padding-left: 0;
-    margin-left: 0;
+    display: table-cell;
+    width: auto;
+    padding-left: 6pt;
+    vertical-align: top;
     overflow: hidden;
 }
 
@@ -207,20 +205,23 @@ body {
     width: 100%;
     border-collapse: collapse;
     border: 0.8pt solid #000;
+    table-layout: auto;
 }
 
 .answers-table th,
 .answers-table td {
     border: 0.8pt solid #000;
-    padding: 4pt 3pt;
+    padding: 5pt 4pt;
     text-align: center;
-    font-size: 11pt;
+    font-size: 10pt;
     color: #000;
     background-color: #fff;
+    vertical-align: top;
 }
 
 .answers-table th {
     font-weight: bold;
+    white-space: nowrap;
 }
 
 /* Перенос длинных ответов на несколько строк */
@@ -229,7 +230,8 @@ body {
     overflow-wrap: break-word;
     white-space: normal;
     word-break: break-word;
-    text-align: left;
+    text-align: center;
+    min-width: 28pt;
 }
 
 .answers-page .answers-table {
