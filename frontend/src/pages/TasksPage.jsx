@@ -177,9 +177,6 @@ function TasksPage() {
   const buildVariantPayload = (items) => {
     const content = payloadFromTasks(items);
     const payload = { content, ...(onlyFipiVariant ? { only_fipi: true } : {}) };
-    if (level === "oge" && subject === "inf") {
-      payload.inf_oge_task13_variant = ogeInfTask13Kind;
-    }
     if (selectedSubtopicIds.length === 0) return payload;
 
     payload.subtopic_ids = selectedSubtopicIds;
@@ -190,7 +187,14 @@ function TasksPage() {
         const identifier = item.type === "linked_group" ? `linked_${item.linked_key}` : `group_${item.group_id}`;
         const bySt = groupSubtopicCounts[identifier];
         const entry = { task_numbers: nums, count: 1 };
-        Object.assign(entry, buildGroupSubtopicPayload(item, bySt, true));
+        if (bySt && Object.keys(bySt).length > 0) {
+          entry.subtopic_ids = Object.keys(bySt).filter((k) => k !== "all").map(Number).filter((n) => !Number.isNaN(n));
+          entry.subtopic_counts = { ...bySt };
+        } else {
+          // Только подтемы, относящиеся к этой группе
+          const groupSubtopicIds = (item.subtopics || []).map((st) => st.id).filter(Boolean);
+          entry.subtopic_ids = selectedSubtopicIds.filter((id) => groupSubtopicIds.includes(id));
+        }
         tasksList.push(entry);
       }
     });
@@ -200,8 +204,6 @@ function TasksPage() {
 
   const [submitBlock1, setSubmitBlock1] = useState(false);
   const [submitBlock2, setSubmitBlock2] = useState(false);
-  /** ОГЭ информатика, задание 13: полный вариант — тип подтемы (текст / презентация) */
-  const [ogeInfTask13Kind, setOgeInfTask13Kind] = useState("text");
 
   const onPart1 = () => {
     const items = onlyFipiVariant
@@ -228,72 +230,6 @@ function TasksPage() {
     postVariant(payload, "variant").catch((err) => setError(err.message)).finally(() => setSubmitBlock1(false));
   };
 
-  const subtopicIdNum = (id) => {
-    const n = Number(id);
-    return Number.isNaN(n) ? null : n;
-  };
-
-  /** id подтем у связанной/обычной группы с сервера (числа — без сбоя сравнения с выбранными) */
-  const groupItemSubtopicIds = (item) =>
-    (item.subtopics || [])
-      .map((st) => subtopicIdNum(st.id))
-      .filter((id) => id != null);
-
-  /** Счётчик по подтеме в groupSubtopicCounts (ключ в state может быть числом или строкой) */
-  const getGroupSubcount = (bySt, stId) => {
-    if (!bySt || stId == null) return 0;
-    return Number(bySt[stId] ?? bySt[String(stId)] ?? 0) || 0;
-  };
-
-  /** subtopic_ids / subtopic_counts для элемента tasks[] варианта (группы) */
-  const buildGroupSubtopicPayload = (item, bySt, useSt) => {
-    const gIds = groupItemSubtopicIds(item);
-    const gIdSet = new Set(gIds);
-    const globalIntersect = useSt
-      ? selectedSubtopicIds
-          .map((id) => subtopicIdNum(id))
-          .filter((id) => id != null && gIdSet.has(id))
-      : [];
-    const entry = {};
-    const hasBySt = bySt && Object.keys(bySt).length > 0;
-    if (!hasBySt) {
-      if (useSt && globalIntersect.length > 0) {
-        entry.subtopic_ids = [...globalIntersect];
-        const sc = {};
-        globalIntersect.forEach((id) => {
-          const n = subtopicCounts[id];
-          if (n > 0) sc[id] = n;
-        });
-        if (Object.keys(sc).length > 0) entry.subtopic_counts = sc;
-      }
-      return entry;
-    }
-    const keys = Object.keys(bySt);
-    const allOnly = keys.length === 1 && keys[0] === "all";
-    if (allOnly && useSt && globalIntersect.length > 0) {
-      entry.subtopic_ids = [...globalIntersect];
-      return entry;
-    }
-    if (allOnly) {
-      entry.subtopic_counts = { ...bySt };
-      return entry;
-    }
-    let stIds = keys
-      .filter((k) => k !== "all")
-      .map((k) => Number(k))
-      .filter((n) => !Number.isNaN(n));
-    /* Не сужаем по globalIntersect: выбор в панели группы хранится в bySt и не дублируется в selectedSubtopicIds */
-    if (stIds.length > 0) entry.subtopic_ids = stIds;
-    const sc = {};
-    stIds.forEach((id) => {
-      const v = bySt[id] ?? bySt[String(id)];
-      if (v != null && Number(v) > 0) sc[id] = Number(v);
-    });
-    if (bySt.all != null && bySt.all !== undefined) sc.all = bySt.all;
-    if (Object.keys(sc).length > 0) entry.subtopic_counts = sc;
-    return entry;
-  };
-
   const buildPayloadFromTestCounts = () => {
     const content = {};
     const tasksList = [];
@@ -312,10 +248,18 @@ function TasksPage() {
       const item = itemsById[identifier];
       if (!item) continue;
       if (identifier.startsWith("task_")) {
-        /* count уже из getEffectiveTaskCount (подтемы или счётчик с кнопки) */
-        if (count <= 0) continue;
-        content[String(item.id)] = count;
-        tasksList.push({ tasklist_id: item.id, task_number: item.task_number, count });
+        let slotCount = count;
+        if (useSubtopicCounts && subtopicsByTask.length) {
+          const block = subtopicsByTask.find((b) => b.task_list_id === item.id);
+          if (block?.subtopics) {
+            slotCount = block.subtopics
+              .filter((st) => selectedSubtopicIds.includes(st.id))
+              .reduce((sum, st) => sum + getCappedSubtopicCount(st), 0);
+          }
+        }
+        if (slotCount <= 0) continue;
+        content[String(item.id)] = slotCount;
+        tasksList.push({ tasklist_id: item.id, task_number: item.task_number, count: slotCount });
       } else if (identifier.startsWith("linked_") && item.tasks?.length) {
         const nums = item.task_numbers || item.tasks.map((t) => t.task_number);
         const bySt = groupSubtopicCounts[identifier];
@@ -325,7 +269,10 @@ function TasksPage() {
           if (tlId != null) content[String(tlId)] = Math.max(content[String(tlId)] || 0, groupCount);
         });
         const entry = { task_numbers: nums, count: groupCount };
-        Object.assign(entry, buildGroupSubtopicPayload(item, bySt, useSubtopicCounts));
+        if (bySt && Object.keys(bySt).length > 0) {
+          entry.subtopic_ids = Object.keys(bySt).filter((k) => k !== "all");
+          entry.subtopic_counts = { ...bySt };
+        }
         tasksList.push(entry);
       } else if (identifier.startsWith("group_") && item.tasks?.length) {
         const nums = item.task_numbers || item.tasks.map((t) => t.task_number);
@@ -336,7 +283,10 @@ function TasksPage() {
           if (tlId != null) content[String(tlId)] = Math.max(content[String(tlId)] || 0, groupCount);
         });
         const entry = { task_numbers: nums, count: groupCount };
-        Object.assign(entry, buildGroupSubtopicPayload(item, bySt, useSubtopicCounts));
+        if (bySt && Object.keys(bySt).length > 0) {
+          entry.subtopic_ids = Object.keys(bySt).filter((k) => k !== "all");
+          entry.subtopic_counts = { ...bySt };
+        }
         tasksList.push(entry);
       }
     }
@@ -497,33 +447,13 @@ function TasksPage() {
     if (identifier.startsWith("task_") && useSubtopicCounts) {
       const block = subtopicsByTask.find((b) => b.task_list_id === item.id);
       if (block?.subtopics) {
-        const fromSubtopics = block.subtopics
+        return block.subtopics
           .filter((st) => selectedSubtopicIds.includes(st.id))
           .reduce((sum, st) => sum + getCappedSubtopicCount(st), 0);
-        /* Если для этого номера подтемы не отмечены — не обнуляем счётчик с кнопки «+» */
-        if (fromSubtopics > 0) return fromSubtopics;
       }
     }
-    if (identifier.startsWith("linked_") || identifier.startsWith("group_")) {
-      if (useSubtopicCounts && item.subtopics?.length) {
-        const gids = new Set(
-          item.subtopics.map((st) => subtopicIdNum(st.id)).filter((id) => id != null)
-        );
-        const any = selectedSubtopicIds.some((id) => {
-          const n = subtopicIdNum(id);
-          return n != null && gids.has(n);
-        });
-        /* Нет пересечения с глобальным списком подтем — всё равно учитываем счётчики с кнопки */
-        if (!any) {
-          if (groupSubtopicCounts[identifier]) {
-            return Object.values(groupSubtopicCounts[identifier]).reduce((s, n) => s + (n || 0), 0);
-          }
-          return testCounts[identifier] ?? 0;
-        }
-      }
-      if (groupSubtopicCounts[identifier]) {
-        return Object.values(groupSubtopicCounts[identifier]).reduce((s, n) => s + (n || 0), 0);
-      }
+    if ((identifier.startsWith("linked_") || identifier.startsWith("group_")) && groupSubtopicCounts[identifier]) {
+      return Object.values(groupSubtopicCounts[identifier]).reduce((s, n) => s + (n || 0), 0);
     }
     return testCounts[identifier] ?? 0;
   };
@@ -616,51 +546,6 @@ function TasksPage() {
             </button>
           </div>
         </div>
-        {level === "oge" && subject === "inf" && (
-          <div
-            className="tasks-page-subtopics tasks-page-oge13-block"
-            role="group"
-            aria-label="Задание 13: тип работы"
-          >
-            <p className="tasks-page-subtopics-intro">Задание 13</p>
-            <div className="tasks-page-subtopics-checkboxes tasks-page-oge13-inline">
-              <div className="tasks-page-subtopic-row">
-                <label className="tasks-page-subtopic-label">
-                  <input
-                    type="radio"
-                    name="oge_inf_task13_kind"
-                    className="tasks-page-subtopic-checkbox-input"
-                    value="text"
-                    checked={ogeInfTask13Kind === "text"}
-                    onChange={() => setOgeInfTask13Kind("text")}
-                  />
-                  <span
-                    className={`tasks-page-subtopic-checkbox-visual ${ogeInfTask13Kind === "text" ? "selected" : ""}`}
-                    aria-hidden
-                  />
-                  <span className="tasks-page-subtopic-title">текст</span>
-                </label>
-              </div>
-              <div className="tasks-page-subtopic-row">
-                <label className="tasks-page-subtopic-label">
-                  <input
-                    type="radio"
-                    name="oge_inf_task13_kind"
-                    className="tasks-page-subtopic-checkbox-input"
-                    value="presentation"
-                    checked={ogeInfTask13Kind === "presentation"}
-                    onChange={() => setOgeInfTask13Kind("presentation")}
-                  />
-                  <span
-                    className={`tasks-page-subtopic-checkbox-visual ${ogeInfTask13Kind === "presentation" ? "selected" : ""}`}
-                    aria-hidden
-                  />
-                  <span className="tasks-page-subtopic-title">презентация</span>
-                </label>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       <div className="tasks-page-card">
@@ -769,7 +654,7 @@ function TasksPage() {
                     <>
                       {subtopics.map((st) => {
                         const stId = st.id;
-                        const stCount = getGroupSubcount(bySt, stId);
+                        const stCount = bySt[stId] ?? 0;
                         const stMax = st.display_count ?? st.group_count ?? 0;
                         const isChecked = stCount > 0;
                         return (

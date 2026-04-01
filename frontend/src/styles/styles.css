@@ -10,7 +10,7 @@
     --primary-peach: #fff4e6;
 
     --bg-main: #ffffff;
-    --bg-card: #F8FAFF;
+    --bg-card: #ffffff;
 
     --text-primary: #2d3748;
     --text-secondary: #718096;
@@ -25,12 +25,30 @@
     --radius-sm: 12px;
     --radius-md: 16px;
     --radius-lg: 24px;
+
+    --border-hairline: rgba(0, 0, 0, 0.08);
+    --header-gradient: linear-gradient(90deg, #3e73ef 0%, #4b91f7 100%);
 }
 
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+}
+
+html {
+    overflow-x: clip;
+    width: 100%;
+}
+
+body {
+    overflow-x: hidden;
+    width: 100%;
+}
+
+#root {
+    min-height: 100vh;
+    width: 100%;
 }
 
 body {
@@ -43,6 +61,32 @@ body {
     color: var(--text-primary);
     line-height: 1.6;
     min-height: 100vh;
+    transition: background-color 0.35s ease, color 0.25s ease;
+}
+
+/* Космический фон (оболочка Layout) */
+.app-shell {
+    position: relative;
+    min-height: 100vh;
+    z-index: 0;
+    width: 100%;
+}
+
+.app-shell-pattern {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    background-repeat: repeat;
+    background-attachment: fixed;
+    opacity: 1;
+}
+
+
+.app-shell-content {
+    position: relative;
+    z-index: 2;
+    width: 100%;
 }
 
 h1,
@@ -64,25 +108,26 @@ h6 {
 ======================================== */
 
 header {
-    background: linear-gradient(90deg, #3e73ef 0%, #4b91f7 100%);
+    background: var(--header-gradient);
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-    padding: 8px 0;
+    padding: 0;
+    margin: 0;
     position: relative;
     z-index: 100;
     font-family: "Unbounded", sans-serif;
-}
-
-header .container {
-    padding: 0.7rem 1rem;
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
 }
 
 .header-wrapper {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 0 1rem;
+    width: 100%;
+    padding: 0.85rem 1.5rem;
+    min-height: 64px;
+    box-sizing: border-box;
 }
 
 /* ========================================
@@ -104,27 +149,95 @@ header .container {
 .welcome-banner {
     position: relative;
     overflow: visible;
-    background: linear-gradient(90deg, #3e73ef 0%, #4b91f7 100%);
     border-radius: 24px;
-    padding: 2.5rem 3rem;
     margin-bottom: 2rem;
     color: white;
-    box-shadow: 0 4px 20px rgba(62, 115, 239, 0.25);
     text-align: center;
+}
+
+.welcome-banner-slides {
+    display: grid;
+}
+
+.welcome-banner-slide {
+    grid-area: 1 / 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 2.5rem 4.5rem;
+    border-radius: 24px;
+    background: linear-gradient(90deg, #3e73ef 0%, #4b91f7 100%);
+    box-shadow: 0 4px 20px rgba(62, 115, 239, 0.25);
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.45s ease, visibility 0.45s ease;
+}
+
+.welcome-banner-slide--has-bg {
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+.welcome-banner-slide--light-bg {
+    color: #1e293b;
+}
+
+.welcome-banner-slide--light-bg .welcome-banner-title {
+    color: #0f172a;
+}
+
+.welcome-banner-slide--light-bg .welcome-banner-text {
+    color: #334155;
+    opacity: 1;
+}
+
+.welcome-banner-slide--light-bg .welcome-banner-cta {
+    background: rgba(0, 0, 0, 0.15);
+    color: #1e293b;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+}
+
+.welcome-banner-slide--light-bg .welcome-banner-cta:hover {
+    background: rgba(0, 0, 0, 0.22);
+}
+
+.welcome-banner--light .welcome-banner-nav {
+    background: rgba(0, 0, 0, 0.15);
+    color: #1e293b;
+}
+
+.welcome-banner--light .welcome-banner-nav:hover {
+    background: rgba(0, 0, 0, 0.25);
+}
+
+.welcome-banner-slide--active {
+    visibility: visible;
+    opacity: 1;
 }
 
 .welcome-banner-owl {
     position: absolute;
-    right: 0;
-    bottom: -35px;
-    right: -65px;
-    height: 180px;
-    width: auto;
+    right: -10px;
+    bottom: 0;
+    left: auto;
+    width: 220px;
+    height: 220px;
     object-fit: contain;
+    object-position: center bottom;
     pointer-events: none;
+    z-index: 2;
+}
+
+.welcome-banner-owl--db {
+    width: 220px;
+    height: 260px;
 }
 
 .welcome-banner-title {
+    position: relative;
+    z-index: 1;
     font-size: 1.5rem;
     font-weight: 700;
     margin: 0 0 1rem 0;
@@ -134,14 +247,20 @@ header .container {
 }
 
 .welcome-banner-text {
+    position: relative;
+    z-index: 1;
     font-size: 0.9375rem;
     line-height: 1.6;
     margin: 0 auto 1.5rem auto;
     opacity: 0.98;
     max-width: 720px;
+    text-align: justify;
+    text-justify: inter-word;
 }
 
 .welcome-banner-cta {
+    position: relative;
+    z-index: 1;
     display: inline-block;
     background: #7eb8f7;
     color: white;
@@ -161,6 +280,341 @@ header .container {
     box-shadow: 0 0 28px rgba(126, 184, 247, 0.6), 0 4px 16px rgba(0, 0, 0, 0.12);
 }
 
+.welcome-banner-nav {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 38px;
+    height: 38px;
+    border: none;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.2);
+    color: #ffffff;
+    font-size: 1.8rem;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    z-index: 2;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.welcome-banner-nav:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-50%) scale(1.03);
+}
+
+.welcome-banner-nav-prev {
+    left: 1rem;
+}
+
+.welcome-banner-nav-next {
+    right: 1rem;
+}
+
+@media (max-width: 640px) {
+    .welcome-banner-slide {
+        padding: 1.25rem 3rem 1.1rem;
+        align-items: stretch;
+    }
+
+    .welcome-banner-title {
+        font-size: 1.35rem;
+        line-height: 1.25;
+        margin-bottom: 0.75rem;
+        text-align: center;
+    }
+
+    .welcome-banner-text {
+        max-width: 100%;
+        margin-bottom: 1rem;
+        font-size: 0.86rem;
+        line-height: 1.42;
+        text-align: left;
+        text-justify: auto;
+    }
+
+    .welcome-banner-cta {
+        align-self: center;
+    }
+
+    .welcome-banner-nav {
+        width: 34px;
+        height: 34px;
+        font-size: 1.6rem;
+    }
+
+    .welcome-banner-nav-prev {
+        left: 0.5rem;
+    }
+
+    .welcome-banner-nav-next {
+        right: 0.5rem;
+    }
+
+    .welcome-banner-owl {
+        left: auto;
+        right: -5px;
+        bottom: -12px;
+        width: 130px;
+        height: 130px;
+        object-position: center bottom;
+    }
+
+    .welcome-banner-owl--db {
+        width: 160px;
+        height: 195px;
+    }
+}
+
+/* ===== Объявления (главная) ===== */
+.index-announcements {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    margin: 0 0 1.75rem 0;
+}
+
+.announcement-card {
+    --announce-border: rgba(129, 140, 248, 0.45);
+    --announce-glow-1: rgba(99, 102, 241, 0.35);
+    --announce-glow-2: rgba(59, 130, 246, 0.22);
+    --announce-cta-bg: linear-gradient(135deg, #6366f1, #4f46e5);
+    --announce-cta-shadow: rgba(79, 70, 229, 0.45);
+    position: relative;
+    border-radius: 20px;
+    overflow: visible;
+    border: 1px solid var(--announce-border);
+    background-color: #0e0b1a;
+    background-image:
+        radial-gradient(1px 1px at 6% 12%, rgba(255, 255, 255, 0.92) 50%, transparent 52%),
+        radial-gradient(1px 1px at 14% 38%, rgba(224, 231, 255, 0.75) 50%, transparent 52%),
+        radial-gradient(1.2px 1.2px at 24% 22%, rgba(255, 255, 255, 0.88) 50%, transparent 52%),
+        radial-gradient(1px 1px at 32% 68%, rgba(255, 255, 255, 0.55) 50%, transparent 52%),
+        radial-gradient(1.5px 1.5px at 42% 14%, rgba(255, 255, 255, 1) 50%, transparent 52%),
+        radial-gradient(1px 1px at 52% 52%, rgba(196, 210, 255, 0.5) 50%, transparent 52%),
+        radial-gradient(1px 1px at 62% 28%, rgba(255, 255, 255, 0.7) 50%, transparent 52%),
+        radial-gradient(1.2px 1.2px at 72% 78%, rgba(238, 242, 255, 0.85) 50%, transparent 52%),
+        radial-gradient(1px 1px at 82% 18%, rgba(255, 255, 255, 0.65) 50%, transparent 52%),
+        radial-gradient(1px 1px at 90% 48%, rgba(255, 255, 255, 0.5) 50%, transparent 52%),
+        radial-gradient(1.3px 1.3px at 95% 82%, rgba(255, 255, 255, 0.78) 50%, transparent 52%),
+        radial-gradient(1px 1px at 18% 88%, rgba(224, 231, 255, 0.45) 50%, transparent 52%),
+        radial-gradient(1px 1px at 48% 92%, rgba(255, 255, 255, 0.4) 50%, transparent 52%),
+        radial-gradient(1.2px 1.2px at 68% 8%, rgba(255, 255, 255, 0.55) 50%, transparent 52%),
+        linear-gradient(155deg, #0c0820 0%, #151032 38%, #1e1b4b 72%, #1a1740 100%);
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
+    box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.07) inset,
+        0 8px 32px rgba(2, 6, 23, 0.55),
+        0 0 48px -12px rgba(99, 102, 241, 0.25);
+}
+
+.announcement-card--violet {
+    --announce-border: rgba(167, 139, 250, 0.5);
+    --announce-glow-1: rgba(139, 92, 246, 0.38);
+    --announce-glow-2: rgba(167, 139, 250, 0.22);
+    --announce-cta-bg: linear-gradient(135deg, #8b5cf6, #6d28d9);
+    --announce-cta-shadow: rgba(109, 40, 217, 0.45);
+}
+
+.announcement-card--teal {
+    --announce-border: rgba(45, 212, 191, 0.42);
+    --announce-glow-1: rgba(20, 184, 166, 0.32);
+    --announce-glow-2: rgba(45, 212, 191, 0.2);
+    --announce-cta-bg: linear-gradient(135deg, #14b8a6, #0d9488);
+    --announce-cta-shadow: rgba(13, 148, 136, 0.45);
+}
+
+.announcement-card--amber {
+    --announce-border: rgba(251, 191, 36, 0.45);
+    --announce-glow-1: rgba(245, 158, 11, 0.28);
+    --announce-glow-2: rgba(252, 211, 77, 0.16);
+    --announce-cta-bg: linear-gradient(135deg, #f59e0b, #d97706);
+    --announce-cta-shadow: rgba(217, 119, 6, 0.45);
+}
+
+.announcement-card-glow {
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    overflow: hidden;
+    height: 100%;
+    background:
+        radial-gradient(ellipse 90% 70% at 18% 15%, var(--announce-glow-1), transparent 52%),
+        radial-gradient(ellipse 70% 55% at 88% 25%, var(--announce-glow-2), transparent 48%),
+        radial-gradient(ellipse 55% 45% at 50% 95%, rgba(99, 102, 241, 0.12), transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+.announcement-card-inner {
+    position: relative;
+    z-index: 1;
+    padding: 1.25rem 1.35rem 1.35rem;
+    border-radius: inherit;
+}
+
+/* место под картинку, «выпадающую» вниз за карточку (как сова у баннера) */
+.announcement-card--has-corner-img {
+    margin-bottom: calc(clamp(2.25rem, 10vw, 4.5rem) + 35px);
+}
+
+.announcement-card--has-corner-img .announcement-card-inner {
+    padding-left: clamp(5.5rem, 18vw, 7rem);
+}
+
+@media (min-width: 640px) {
+    .announcement-card-inner {
+        padding: 1.4rem 1.6rem 1.5rem;
+    }
+
+    .announcement-card--has-corner-img .announcement-card-inner {
+        padding-left: 7.5rem;
+    }
+}
+
+/* слева, выходит за рамку карточки вниз и влево */
+.announcement-card-corner-img {
+    position: absolute;
+    left: -40px;
+    bottom: -91px;
+    z-index: 2;
+    height: clamp(150px, 42vw, 230px);
+    width: auto;
+    max-width: min(240px, 48vw);
+    object-fit: contain;
+    object-position: left bottom;
+    pointer-events: none;
+    filter: drop-shadow(0 6px 20px rgba(0, 0, 0, 0.45)) drop-shadow(0 0 12px rgba(129, 140, 248, 0.2));
+}
+
+@media (min-width: 640px) {
+    .announcement-card-corner-img {
+        left: -48px;
+        bottom: -99px;
+        height: 240px;
+        max-width: 280px;
+    }
+}
+
+@media (max-width: 480px) {
+    .announcement-card-corner-img {
+        left: -28px;
+        bottom: -79px;
+        height: min(170px, 46vw);
+        max-width: min(200px, 52vw);
+    }
+
+    .announcement-card--has-corner-img .announcement-card-inner {
+        padding-left: clamp(4.5rem, 36vw, 6rem);
+    }
+}
+
+.announcement-card-content {
+    min-width: 0;
+}
+
+.announcement-card-title {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.125rem;
+    font-weight: 700;
+    line-height: 1.3;
+    letter-spacing: -0.02em;
+    color: #f1f5f9;
+    font-family: "Montserrat", system-ui, sans-serif;
+}
+
+@media (min-width: 640px) {
+    .announcement-card-title {
+        font-size: 1.2rem;
+        margin-bottom: 0.55rem;
+    }
+}
+
+.announcement-card-body {
+    font-size: 0.9375rem;
+    line-height: 1.55;
+    color: #cbd5e1;
+    text-align: justify;
+    text-justify: inter-word;
+}
+
+.announcement-card-body p {
+    margin: 0 0 0.65rem 0;
+}
+
+.announcement-card-body p:last-child {
+    margin-bottom: 0;
+    text-align: right;
+}
+
+.announcement-card-body ul,
+.announcement-card-body ol {
+    margin: 0 0 0.65rem 0;
+    padding-left: 1.35em;
+    text-align: start;
+}
+
+.announcement-card-body li {
+    margin-bottom: 0.35rem;
+}
+
+.announcement-card-body hr {
+    border: none;
+    border-top: 1px solid rgba(148, 163, 184, 0.22);
+    margin: 0.85rem 0;
+}
+
+.announcement-card-body strong {
+    font-weight: 700;
+    color: #f8fafc;
+}
+
+.announcement-card-body a {
+    color: #a5b4fc;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.announcement-card-body a:hover {
+    color: #c7d2fe;
+}
+
+.announcement-card-body img,
+.announcement-card-body figure img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+}
+
+.announcement-card-actions {
+    margin-top: 1rem;
+}
+
+.announcement-card-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.55rem 1.25rem;
+    font-size: 0.9rem;
+    font-weight: 600;
+    font-family: "Montserrat", system-ui, sans-serif;
+    color: #fff !important;
+    text-decoration: none !important;
+    border-radius: 999px;
+    background: var(--announce-cta-bg);
+    box-shadow: 0 2px 12px var(--announce-cta-shadow);
+    transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease;
+}
+
+.announcement-card-cta:hover {
+    filter: brightness(1.06);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 18px var(--announce-cta-shadow);
+}
+
 /* ========================================
    INDEX LAYOUT (DESKTOP)
 ======================================== */
@@ -168,7 +622,13 @@ header .container {
 .index-desktop-wrap {
     display: flex;
     flex-direction: column;
-    gap: 0;
+    gap: 1.25rem;
+}
+
+.index-main {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
 }
 
 @media (min-width: 1024px) {
@@ -184,7 +644,7 @@ header .container {
         min-width: 0;
         display: flex;
         flex-direction: column;
-        gap: 0.4rem;
+        gap: 1.25rem;
     }
 
     .index-main .hero {
@@ -210,7 +670,7 @@ header .container {
 ======================================== */
 
 .steps-block {
-    margin-bottom: 0.4rem;
+    margin-bottom: 0;
     background: #fcfcfe;
     padding: 1rem 1.1rem 1rem 1.25rem;
     border-radius: var(--radius-md);
@@ -282,7 +742,7 @@ header .container {
     background: white;
     padding: 3rem 2.5rem;
     border-radius: var(--radius-lg);
-    margin: 2rem 0 3rem 0;
+    margin: 0;
     color: #2563EB;
     box-shadow: var(--shadow-lg);
     position: relative;
@@ -331,6 +791,19 @@ header .container {
     border: 1px solid rgba(59, 130, 246, 0.12);
     display: inline-block;
     align-self: flex-start;
+}
+
+@media (max-width: 1023px) {
+    .index-updates-block {
+        margin-top: 1.5rem;
+        margin-left: 0;
+        margin-right: 0;
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        padding-left: 1.25rem;
+        padding-right: 1.25rem;
+    }
 }
 
 .index-updates-block .index-updates-title {
@@ -501,7 +974,7 @@ header .container {
     align-items: center;
     padding-top: 0.875rem;
     margin-top: 0.125rem;
-    border-top: 1px solid rgba(0, 0, 0, 0.08);
+    border-top: 1px solid var(--border-hairline);
 }
 
 .exam-card-left {
@@ -906,8 +1379,6 @@ header .container {
     overflow: hidden;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
     border: 1px solid #e2e8f0;
-    min-width: 0;
-    max-width: 100%;
 }
 
 .search-task-card-header {
@@ -933,51 +1404,6 @@ header .container {
 
 .search-task-card-body {
     padding: 1.75rem 2rem;
-    min-width: 0;
-    max-width: 100%;
-    overflow-x: auto;
-    overflow-wrap: anywhere;
-    word-break: break-word;
-}
-
-/* Картинки в условии/ответе — вписываются в ширину карточки */
-.search-task-card-body img,
-.search-task-card-body .task-img-zoomable img {
-    max-width: 100% !important;
-    width: auto !important;
-    height: auto !important;
-    object-fit: contain;
-    display: block;
-    margin-left: auto;
-    margin-right: auto;
-    border-radius: 8px;
-    box-sizing: border-box;
-}
-
-.search-task-card-body .task-img-zoomable {
-    display: block;
-    max-width: 100%;
-    margin: 0.75rem auto;
-    box-sizing: border-box;
-}
-
-.search-task-card-body figure,
-.search-task-card-body .image {
-    margin: 0.75rem 0;
-    max-width: 100%;
-}
-
-.search-task-card-body figure img,
-.search-task-card-body .image img {
-    margin-top: 0;
-    margin-bottom: 0;
-}
-
-.search-task-answer-content {
-    line-height: 1.7;
-    color: var(--text-primary);
-    min-width: 0;
-    max-width: 100%;
 }
 
 .search-task-section {
@@ -1126,33 +1552,6 @@ header .container {
 .tasks-page-fipi-text {
     font-size: 0.9rem;
     color: var(--text-secondary);
-}
-
-/* Блок выбора типа задания 13 ОГЭ инф. — те же классы, что у подтем */
-.tasks-page-oge13-block {
-    margin-top: 1rem;
-    margin-bottom: 0;
-}
-
-.tasks-page-card .tasks-page-oge13-block.tasks-page-subtopics {
-    margin-bottom: 0;
-}
-
-.tasks-page-oge13-inline {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.5rem 1.25rem;
-}
-
-.tasks-page-oge13-inline .tasks-page-subtopic-row {
-    width: auto;
-    margin: 0;
-    padding: 0.375rem 0.5rem;
-}
-
-.tasks-page-oge13-inline .tasks-page-subtopic-label {
-    flex: 0 1 auto;
 }
 
 .tasks-page-card-desc {
@@ -1650,6 +2049,10 @@ header .container {
     gap: 1.5rem;
 }
 
+.subject-page .exam-grid {
+    margin-top: 2.5rem;
+}
+
 @media (min-width: 1024px) {
     .subject-page-layout {
         flex-direction: row;
@@ -1851,7 +2254,7 @@ header .container {
 }
 
 .task {
-    background: #fff;
+    background: var(--bg-card);
     padding: 2rem;
     margin-bottom: 1.5rem;
     border-radius: var(--radius-lg);
@@ -1961,18 +2364,14 @@ header .container {
     word-break: break-word;
 }
 
-/*
- * MathJax CHTML: не задавать font-family на mjx-container / mjx-math / потомках —
- * иначе ломаются растягиваемые символы (√, дробная черта и т.д.).
- * Calibri для обычного текста в формулах: только mjx-mtext (см. ниже).
- */
+.task-text mjx-container {
+    color: inherit !important;
+}
+
 mjx-container {
     font-size: 110% !important;
 }
 
-mjx-mtext {
-    font-family: "Calibri", "Segoe UI", sans-serif !important;
-}
 
 .task-text table {
     max-width: 100%;
@@ -1982,6 +2381,15 @@ mjx-mtext {
 .task-text figure {
     max-width: 100%;
     height: auto;
+}
+
+/* Белая подложка для всех картинок в задачах */
+.task-text img,
+.task-text figure img,
+.correct-answer-content img,
+.part2-answer-content img,
+.criteria-text img {
+    background: #fff;
 }
 
 .task-files {
@@ -2022,117 +2430,23 @@ mjx-mtext {
     margin-bottom: 0;
 }
 
-/* Таблицы из редактора */
-.task-text table:not(.array-table),
-.criteria-text table:not(.array-table),
-.correct-answer-content table:not(.array-table),
-.part2-answer-content table:not(.array-table) {
+.task-text table {
     border-collapse: collapse;
-    margin: 0.65rem auto;
-    width: 100%;
-    max-width: 100%;
-    table-layout: auto;
-    font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    font-size: 1rem;
-    line-height: 1.5;
-    color: #1e293b;
-    background: #fff;
+    margin: 10px auto;
 }
 
-.task-text table:not(.array-table) th,
-.task-text table:not(.array-table) td,
-.criteria-text table:not(.array-table) th,
-.criteria-text table:not(.array-table) td,
-.correct-answer-content table:not(.array-table) th,
-.correct-answer-content table:not(.array-table) td,
-.part2-answer-content table:not(.array-table) th,
-.part2-answer-content table:not(.array-table) td {
-    border: 1px solid #d1d5db;
-    padding: 0.5rem 0.75rem;
+.task-text th,
+.task-text td {
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    padding: 6px 14px;
     text-align: center;
-    vertical-align: middle;
-    white-space: normal;
-    overflow-wrap: anywhere;
-    word-break: break-word;
-    font-weight: 400;
-    background-color: #fff;
-    min-width: 2rem;
+    font-size: 18px;
+    min-width: 40px;
 }
 
-.task-text table:not(.array-table) th,
-.criteria-text table:not(.array-table) th,
-.correct-answer-content table:not(.array-table) th,
-.part2-answer-content table:not(.array-table) th {
+.task-text th {
+    background-color: #e9e9e9;
     font-weight: 600;
-}
-
-/* LaTeX array/tabular — Calibri, без разрыва слов посередине */
-.task-text table.array-table,
-.criteria-text table.array-table {
-    border-collapse: collapse;
-    margin: 0.65rem auto;
-    width: max-content;
-    max-width: none;
-    min-width: min-content;
-    table-layout: auto;
-    font-family: "Calibri", "Segoe UI", sans-serif;
-    font-size: 1.0625rem;
-    line-height: 1.35;
-    color: #000;
-    background: #fff;
-}
-
-.task-text table.array-table th,
-.task-text table.array-table td,
-.criteria-text table.array-table th,
-.criteria-text table.array-table td {
-    border: 1px solid #d1d5db;
-    padding: 0.45rem 0.65rem;
-    text-align: center;
-    vertical-align: middle;
-    white-space: pre-line;
-    overflow-wrap: normal;
-    word-break: normal;
-    font-weight: 400;
-    background-color: #fff;
-}
-
-.task-text table.array-table th,
-.criteria-text table.array-table th {
-    font-weight: 600;
-}
-
-/* Длинные формулы в ответах: таблица по ширине содержимого, блок с горизонтальным скроллом */
-.correct-answer-content table.array-table,
-.part2-answer-content table.array-table {
-    width: max-content;
-    max-width: none;
-    min-width: min-content;
-    font-family: "Calibri", "Segoe UI", sans-serif;
-    font-size: 1.0625rem;
-    line-height: 1.35;
-    color: #000;
-}
-.correct-answer-content table.array-table th,
-.correct-answer-content table.array-table td,
-.part2-answer-content table.array-table th,
-.part2-answer-content table.array-table td {
-    white-space: pre-line;
-    overflow-wrap: normal;
-    word-break: normal;
-}
-.correct-answer-content,
-.part2-answer-content {
-    overflow-x: auto;
-    overflow-y: clip;
-    max-width: 100%;
-    -webkit-overflow-scrolling: touch;
-}
-.correct-answer-content table.array-table mjx-container,
-.part2-answer-content table.array-table mjx-container,
-.correct-answer-content table.array-table .math-display mjx-container,
-.part2-answer-content table.array-table .math-display mjx-container {
-    max-width: none !important;
 }
 
 .answer-section {
@@ -2267,10 +2581,6 @@ mjx-mtext {
     flex: 1;
     min-width: 0;
     font-weight: 600;
-}
-/* Таблица с ответом не должна сжиматься во flex — иначе MathJax становится мельче */
-.correct-answer-display .correct-answer-content:has(table.array-table) {
-    min-width: min-content;
 }
 
 .correct-answer-display.visible {
@@ -3141,6 +3451,17 @@ mjx-mtext {
     color: #9ca3af;
 }
 
+.report-error-hint {
+    font-size: 0.8rem;
+    line-height: 1.45;
+    color: var(--text-secondary, #64748b);
+    background: rgba(59, 130, 246, 0.06);
+    border-left: 3px solid rgba(59, 130, 246, 0.4);
+    padding: 8px 12px;
+    border-radius: 0 8px 8px 0;
+    margin: 0;
+}
+
 .report-error-actions {
     display: flex;
     gap: 12px;
@@ -3430,7 +3751,7 @@ footer {
     font-size: 0.9rem;
     background: var(--bg-card);
     margin-top: 4rem;
-    border-top: 1px solid rgba(102, 126, 234, 0.08);
+    border-top: 1px solid var(--border-hairline);
 }
 
 /* ========================================
@@ -3714,7 +4035,7 @@ body.index .exam-grid .exam-card {
     }
 
     /* Страница экзамена — ввод ответов и проверка на мобильных */
-.exam-page .answer-section {
+    .exam-page .answer-section {
         gap: 0.75rem;
     }
 
@@ -3753,7 +4074,6 @@ body.index .exam-grid .exam-card {
 
     .exam-page .task-text {
         overflow-x: auto;
-        overflow-y: clip;
         -webkit-overflow-scrolling: touch;
         overflow-wrap: break-word;
         word-wrap: break-word;
@@ -3785,8 +4105,9 @@ body.index .exam-grid .exam-card {
     }
 
     .exam-page .task-text mjx-container {
-        max-width: none !important;
-        overflow: visible;
+        max-width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
     }
 
     .exam-page .task-content {
@@ -3808,37 +4129,18 @@ body.index .exam-grid .exam-card {
         overflow-wrap: break-word;
     }
 
-    /* Таблицы из редактора — на всю ширину; LaTeX array — по содержимому (иначе ломаются слова) */
-    .exam-page .task-text table:not(.array-table) {
-        display: table !important;
-        width: max-content !important;
-        min-width: 100% !important;
-        max-width: none !important;
-        border-collapse: collapse !important;
-        table-layout: auto !important;
+    .exam-page .task-text table {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        table-layout: fixed;
     }
 
-    .exam-page .task-text table:not(.array-table) th,
-    .exam-page .task-text table:not(.array-table) td {
+    .exam-page .task-text th,
+    .exam-page .task-text td {
         white-space: normal;
         overflow-wrap: anywhere;
         word-break: break-word;
-    }
-
-    .exam-page .task-text table.array-table {
-        display: table !important;
-        width: max-content !important;
-        min-width: min-content !important;
-        max-width: none !important;
-        border-collapse: collapse !important;
-        table-layout: auto !important;
-    }
-
-    .exam-page .task-text table.array-table th,
-    .exam-page .task-text table.array-table td {
-        white-space: pre-line !important;
-        overflow-wrap: normal !important;
-        word-break: normal !important;
     }
 
     .variant-hero-content {
@@ -3863,8 +4165,31 @@ body.index .exam-grid .exam-card {
     }
 
     .variant-hero-actions {
-        flex-wrap: wrap;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        width: 100%;
+        gap: 0.5rem;
+    }
+
+    .variant-hero-actions > button {
+        width: 100%;
+        min-width: 0;
+        padding: 0.6rem 0.6rem;
+        font-size: 0.78rem;
         justify-content: center;
+        text-align: center;
+        white-space: normal;
+        line-height: 1.2;
+    }
+
+    .variant-btn-copy-link {
+        grid-column: 1 / -1;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .variant-btn-copy-link-text {
+        white-space: normal;
     }
 }
 
@@ -3992,7 +4317,7 @@ body.index .exam-grid .exam-card {
 .exam-page .task-text figure.image {
     text-align: center;
 }
-/* Геометрия: компактный размер */
+/* Геометрия: компактный размер (320px) */
 .exam-page .task-geom .task-text img,
 .exam-page .task-geom .task-text figure img,
 .exam-page .task-geom .task-text figure.image img,
@@ -4000,10 +4325,10 @@ body.index .exam-grid .exam-card {
 .exam-page .task-geom .part2-answer-content img {
     display: block !important;
     margin: 0.06rem auto !important;
-    width: min(225px, 81vw) !important;
+    width: min(320px, 90vw) !important;
     max-width: 100% !important;
-    height: min(225px, 81vw) !important;
-    max-height: min(225px, 81vw) !important;
+    height: min(320px, 90vw) !important;
+    max-height: min(320px, 90vw) !important;
     object-fit: contain !important;
     object-position: center !important;
     cursor: pointer;
@@ -4029,27 +4354,12 @@ body.index .exam-grid .exam-card {
 .exam-page[data-subject="inf"] .task:not(.task-geom) .criteria-text img {
     display: block !important;
     width: auto !important;
-    max-width: min(300px, 95vw) !important;
+    max-width: min(420px, 95vw) !important;
     height: auto !important;
-    max-height: min(300px, 85vh) !important;
+    max-height: min(420px, 85vh) !important;
     margin: 0 auto !important;
     object-fit: contain !important;
     cursor: pointer;
-}
-
-/* ОГЭ: инф. №13 и мат. №1 — как у геометрии (перекрывает 100% / инф-правила) */
-.exam-page .task.task-img-full .task-text img,
-.exam-page .task.task-img-full .task-text figure img,
-.exam-page .task.task-img-full .task-text figure.image img,
-.exam-page .task.task-img-full .correct-answer-content img,
-.exam-page .task.task-img-full .part2-answer-content img {
-    display: block !important;
-    width: min(225px, 81vw) !important;
-    max-width: 100% !important;
-    height: min(225px, 81vw) !important;
-    max-height: min(225px, 81vw) !important;
-    object-fit: contain !important;
-    margin: 0.06rem auto !important;
 }
 
 /* Всё кроме геометрии и информатики: картинки 100% ширины */
@@ -4081,89 +4391,25 @@ body.index .exam-grid .exam-card {
     cursor: pointer;
 }
 
-/*
- * Математика, алгебра: width:100% на обёртке и img — иначе width:auto сжимает блок
- * до натурального размера растра (картинки «мыльные» и узкие посередине).
- */
-.exam-page[data-subject="math"] .task:not(.task-geom) .task-img-zoomable {
-    width: 100% !important;
-    max-width: 100% !important;
-    margin-left: auto !important;
-    margin-right: auto !important;
-}
-.exam-page[data-subject="math"] .task:not(.task-geom) .task-text img,
-.exam-page[data-subject="math"] .task:not(.task-geom) .task-text figure img,
-.exam-page[data-subject="math"] .task:not(.task-geom) .task-text figure.image img {
-    width: 100% !important;
-    max-width: 100% !important;
-    height: auto !important;
-    max-height: none !important;
-    object-fit: contain !important;
-}
-.exam-page[data-subject="math"] .task:not(.task-geom) .correct-answer-content img,
-.exam-page[data-subject="math"] .task:not(.task-geom) .part2-answer-content img {
-    width: 100% !important;
-    max-width: 100% !important;
-    margin-left: auto !important;
-    margin-right: auto !important;
-    display: block !important;
-}
-/* Мат. №1 (ОГЭ/ЕГЭ): на всю ширину колонки — только не геометрия (там task-geom + task-img-full) */
-.exam-page[data-subject="math"] .task.task-img-full:not(.task-geom) .task-text img,
-.exam-page[data-subject="math"] .task.task-img-full:not(.task-geom) .task-text figure img,
-.exam-page[data-subject="math"] .task.task-img-full:not(.task-geom) .task-text figure.image img,
-.exam-page[data-subject="math"] .task.task-img-full:not(.task-geom) .correct-answer-content img,
-.exam-page[data-subject="math"] .task.task-img-full:not(.task-geom) .part2-answer-content img {
-    width: 100% !important;
-    max-width: 100% !important;
-    height: auto !important;
-    max-height: none !important;
-    object-fit: contain !important;
-}
-/* Два рисунка подряд в одном абзаце — в ряд, ~половина ширины каждый */
-.exam-page[data-subject="math"] .task-text p:has(> .task-img-zoomable + .task-img-zoomable) {
-    text-align: center !important;
-}
-.exam-page[data-subject="math"] .task-text p:has(> .task-img-zoomable + .task-img-zoomable) .task-img-zoomable {
-    display: inline-block !important;
-    width: calc(50% - 6px) !important;
-    max-width: calc(50% - 6px) !important;
-    vertical-align: top !important;
-    box-sizing: border-box !important;
+/* Убираем встроенные белые подложки у текста в задачах */
+.exam-page .task-text [style*="background"],
+.exam-page .task-text [style*="background-color"],
+.exam-page .correct-answer-content [style*="background"],
+.exam-page .correct-answer-content [style*="background-color"],
+.exam-page .part2-answer-content [style*="background"],
+.exam-page .part2-answer-content [style*="background-color"],
+.exam-page .criteria-text [style*="background"],
+.exam-page .criteria-text [style*="background-color"] {
+    background: transparent !important;
+    background-color: transparent !important;
 }
 
-/* Алгебра: иллюстрации в 1.25 раза меньше (80% от ширины мат.) */
-.exam-page[data-subject="math"] .task-alg .task-text figure,
-.exam-page[data-subject="math"] .task-alg .task-text figure.image {
-    width: 80% !important;
-    max-width: 80% !important;
-}
-.exam-page[data-subject="math"] .task-alg .task-img-zoomable {
-    width: 80% !important;
-    max-width: 80% !important;
-}
-.exam-page[data-subject="math"] .task-alg .task-text img,
-.exam-page[data-subject="math"] .task-alg .task-text figure img,
-.exam-page[data-subject="math"] .task-alg .task-text figure.image img {
-    width: 80% !important;
-    max-width: 80% !important;
-}
-.exam-page[data-subject="math"] .task-alg .correct-answer-content img,
-.exam-page[data-subject="math"] .task-alg .part2-answer-content img {
-    width: 80% !important;
-    max-width: 80% !important;
-}
-.exam-page[data-subject="math"] .task-alg.task-img-full .task-text img,
-.exam-page[data-subject="math"] .task-alg.task-img-full .task-text figure img,
-.exam-page[data-subject="math"] .task-alg.task-img-full .task-text figure.image img,
-.exam-page[data-subject="math"] .task-alg.task-img-full .correct-answer-content img,
-.exam-page[data-subject="math"] .task-alg.task-img-full .part2-answer-content img {
-    width: 80% !important;
-    max-width: 80% !important;
-}
-.exam-page[data-subject="math"] .task-alg .task-text p:has(> .task-img-zoomable + .task-img-zoomable) .task-img-zoomable {
-    width: calc(40% - 6px) !important;
-    max-width: calc(40% - 6px) !important;
+/* Инлайновые цвета текста тоже подстраиваем под тему */
+.exam-page .task-text [style*="color"],
+.exam-page .correct-answer-content [style*="color"],
+.exam-page .part2-answer-content [style*="color"],
+.exam-page .criteria-text [style*="color"] {
+    color: var(--text-primary) !important;
 }
 
 /* Иконка лупы — прямо в правом нижнем углу картинки */
@@ -4202,33 +4448,14 @@ body.index .exam-grid .exam-card {
 }
 
 /* Меньший отступ перед полем ответа и перед «Скачать файл» */
-/* overflow-y: clip — при overflow-x: auto иначе visible→auto и появляется лишний вертикальный скролл */
 .exam-page .task-text {
     margin-bottom: 0.1rem !important;
     max-width: 100% !important;
-    overflow-x: auto;
-    overflow-y: clip;
+    overflow-x: visible;
+    overflow-y: visible;
     overflow-wrap: anywhere;
     word-break: break-word;
     white-space: normal;
-    -webkit-overflow-scrolling: touch;
-    /* Длинные условия со списками (инф. №13): без выравнивания по ширине — меньше «рек» */
-    text-align: start;
-}
-.exam-page .task-text p,
-.exam-page .task-text li {
-    text-align: start !important;
-}
-.exam-page .task-text ol,
-.exam-page .task-text ul {
-    margin: 0.45rem 0 0.55rem;
-    padding-left: 1.35rem;
-}
-.exam-page .task-text li {
-    margin-bottom: 0.3rem;
-}
-.exam-page .task-text li:last-child {
-    margin-bottom: 0;
 }
 .exam-page .task-content {
     min-width: 0;
@@ -4251,21 +4478,11 @@ body.index .exam-grid .exam-card {
 .exam-page .task-text nobr {
     white-space: normal !important;
 }
-/* MathJax: размер (без font-family на формулах — см. комментарий у глобального mjx-container) */
 .exam-page .task-text mjx-container,
-.exam-page .criteria-text mjx-container,
-.exam-page .correct-answer-content mjx-container,
-.exam-page .part2-answer-content mjx-container {
-    max-width: none !important;
-    overflow: visible;
-    font-size: 1.14rem !important;
-}
-.exam-page .task-text mjx-container[display="true"],
-.exam-page .criteria-text mjx-container[display="true"],
-.exam-page .correct-answer-content mjx-container[display="true"],
-.exam-page .part2-answer-content mjx-container[display="true"] {
-    max-width: none !important;
-    font-size: 1.32rem !important;
+.exam-page .task-text mjx-container[display="true"] {
+    max-width: 100% !important;
+    overflow-x: auto;
+    overflow-y: hidden;
 }
 
 @media (max-width: 900px) {
@@ -4277,11 +4494,38 @@ body.index .exam-grid .exam-card {
 
 @media (max-width: 600px) {
     .exam-page .task-text {
-        font-size: 1rem !important;
-        line-height: 1.6 !important;
+        font-size: 0.92rem !important;
+        line-height: 1.55 !important;
     }
 }
 
+/* Мобильный индикатор горизонтальной прокрутки условия */
+@media (max-width: 768px) {
+    .exam-page .task-text.task-text--has-overflow {
+        position: relative;
+        padding-bottom: 1.35rem;
+    }
+    .exam-page .task-text.task-text--has-overflow::after {
+        content: "Листайте дальше →";
+        position: absolute;
+        right: 0.2rem;
+        bottom: 0.15rem;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        color: #64748b;
+        background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,0.92) 40%);
+        padding: 0.15rem 0.35rem 0.15rem 1.2rem;
+        border-radius: 999px;
+        pointer-events: none;
+        animation: task-scroll-hint-pulse 1.6s ease-in-out infinite;
+    }
+}
+
+@keyframes task-scroll-hint-pulse {
+    0%, 100% { opacity: 0.62; transform: translateX(0); }
+    50% { opacity: 1; transform: translateX(2px); }
+}
 .exam-page .task-text figure.image img,
 .exam-page .task-text figure img {
     margin-top: 0 !important;
@@ -4291,124 +4535,15 @@ body.index .exam-grid .exam-card {
 .exam-page .task-text figure.image {
     margin: 0.06rem auto !important;
 }
-/* Таблицы из редактора — на ширину карточки */
-.exam-page .task-text table:not(.array-table),
-.exam-page .criteria-text table:not(.array-table) {
+/* Таблицы в условии: на всю ширину, компактные отступы */
+.exam-page .task-text table {
     width: 100% !important;
     max-width: 100% !important;
-    margin: 0.45rem auto !important;
-    border-collapse: collapse !important;
-    table-layout: auto !important;
-    font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
-    font-size: 1rem !important;
-    line-height: 1.5 !important;
-    color: #1e293b !important;
-    background: #fff !important;
+    margin: 0.3rem auto !important;
 }
-/* LaTeX \\begin{array}/tabular — Calibri */
-.exam-page .task-text table.array-table,
-.exam-page .criteria-text table.array-table {
-    width: max-content !important;
-    max-width: none !important;
-    min-width: min-content !important;
-    margin: 0.5rem auto !important;
-    border-collapse: collapse !important;
-    table-layout: auto !important;
-    font-family: "Calibri", "Segoe UI", sans-serif !important;
-    font-size: 1.0625rem !important;
-    line-height: 1.35 !important;
-    color: #000 !important;
-    background: #fff !important;
-}
-.exam-page .correct-answer-content table,
-.exam-page .part2-answer-content table {
-    margin: 0.45rem auto !important;
-    border-collapse: collapse !important;
-    table-layout: auto !important;
-    font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
-    font-size: 1rem !important;
-    line-height: 1.5 !important;
-    color: #1e293b !important;
-    background: #fff !important;
-    width: 100% !important;
-    max-width: 100% !important;
-}
-.exam-page .correct-answer-content table.array-table,
-.exam-page .part2-answer-content table.array-table {
-    width: max-content !important;
-    max-width: none !important;
-    min-width: min-content !important;
-    font-family: "Calibri", "Segoe UI", sans-serif !important;
-    font-size: 1.0625rem !important;
-    line-height: 1.35 !important;
-    color: #000 !important;
-}
-/* Общие ячейки (редактор) */
-.exam-page .task-text table:not(.array-table) th,
-.exam-page .task-text table:not(.array-table) td,
-.exam-page .criteria-text table:not(.array-table) th,
-.exam-page .criteria-text table:not(.array-table) td,
-.exam-page .correct-answer-content table:not(.array-table) th,
-.exam-page .correct-answer-content table:not(.array-table) td,
-.exam-page .part2-answer-content table:not(.array-table) th,
-.exam-page .part2-answer-content table:not(.array-table) td {
-    border: 1px solid #d1d5db !important;
-    background-color: #fff !important;
+.exam-page .task-text th,
+.exam-page .task-text td {
     padding: 0.5rem 0.75rem !important;
-    text-align: center !important;
-    vertical-align: middle !important;
-    overflow-wrap: anywhere !important;
-    word-break: break-word !important;
-}
-/* Ячейки LaTeX-таблиц: перенос только по пробелам / целиком строка — не «Объек|ты» */
-.exam-page .task-text table.array-table th,
-.exam-page .task-text table.array-table td,
-.exam-page .criteria-text table.array-table th,
-.exam-page .criteria-text table.array-table td,
-.exam-page .correct-answer-content table.array-table th,
-.exam-page .correct-answer-content table.array-table td,
-.exam-page .part2-answer-content table.array-table th,
-.exam-page .part2-answer-content table.array-table td {
-    border: 1px solid #d1d5db !important;
-    background-color: #fff !important;
-    padding: 0.45rem 0.65rem !important;
-    text-align: center !important;
-    vertical-align: middle !important;
-    white-space: pre-line !important;
-    overflow-wrap: normal !important;
-    word-break: normal !important;
-    hyphens: manual !important;
-    font-weight: 400 !important;
-}
-.exam-page .task-text table:not(.array-table) th,
-.exam-page .criteria-text table:not(.array-table) th,
-.exam-page .correct-answer-content table:not(.array-table) th,
-.exam-page .part2-answer-content table:not(.array-table) th {
-    font-weight: 600 !important;
-}
-.exam-page .task-text table.array-table th,
-.exam-page .criteria-text table.array-table th,
-.exam-page .correct-answer-content table.array-table th,
-.exam-page .part2-answer-content table.array-table th {
-    font-weight: 600 !important;
-}
-.exam-page .task-text table:not(.array-table) th,
-.exam-page .task-text table:not(.array-table) td {
-    white-space: normal !important;
-}
-.exam-page .correct-answer-content,
-.exam-page .part2-answer-content {
-    overflow-x: auto !important;
-    overflow-y: clip !important;
-    max-width: 100% !important;
-    -webkit-overflow-scrolling: touch !important;
-}
-.exam-page .correct-answer-content table.array-table mjx-container,
-.exam-page .part2-answer-content table.array-table mjx-container {
-    max-width: none !important;
-}
-.exam-page .correct-answer-display .correct-answer-content:has(table.array-table) {
-    min-width: min-content !important;
 }
 .exam-page .answer-section {
     margin-top: 0.2rem !important;
@@ -4431,19 +4566,7 @@ body.index .exam-grid .exam-card {
     margin-bottom: 0.4rem !important;
 }
 .exam-page .task-files {
-    margin: 0.08rem 0 0.3rem !important;
-}
-
-.exam-page .task-file-link,
-.exam-page .task-file-link:visited {
-    text-decoration: none !important;
-    border-bottom: none !important;
-}
-
-.exam-page .task-file-link::before,
-.exam-page .task-file-link::after {
-    content: none !important;
-    display: none !important;
+    margin: 1.2rem 0 0.4rem !important;
 }
 .exam-page .task-report-error-wrap {
     margin-top: 0.1rem !important;
@@ -4627,7 +4750,8 @@ body.index .exam-grid .exam-card {
 
 .exam-fixed-corner {
   position: fixed;
-  top: 1rem;
+  /* Фиксируем блок ниже верхнего меню/шапки */
+  top: 4.75rem;
   right: 1rem;
   z-index: 1000;
   display: flex;
@@ -4741,7 +4865,7 @@ body.index .exam-grid .exam-card {
 @media (max-width: 768px) {
   .exam-fixed-corner {
     /* Ниже верхнего меню (шапки) */
-    top: 4.75rem;
+    top: 6.5rem;
     right: 0.75rem;
     bottom: auto !important;
     gap: 0.4rem;
@@ -5066,10 +5190,11 @@ body.index .exam-grid .exam-card {
     border-color: rgba(96, 165, 250, 0.5);
 }
 
-.variant-btn-spring {
-    background: linear-gradient(135deg, #fef3c7, #fde68a);
-    color: #92400e;
-    border: 1.5px solid rgba(251, 191, 36, 0.4);
+.variant-btn-cosmos {
+    position: relative;
+    overflow: hidden;
+    color: #e0e7ff;
+    border: 1.5px solid rgba(129, 140, 248, 0.45);
     padding: 0.7rem 1.4rem;
     border-radius: 12px;
     font-weight: 600;
@@ -5078,14 +5203,75 @@ body.index .exam-grid .exam-card {
     font-family: "Montserrat", sans-serif;
     transition: all 0.2s ease;
     white-space: nowrap;
-    box-shadow: 0 2px 8px rgba(251, 191, 36, 0.2);
+    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25);
+    background-color: #1e1b4b;
+    background-image:
+        radial-gradient(1px 1px at 8% 22%, rgba(255, 255, 255, 0.95) 50%, transparent 52%),
+        radial-gradient(1.2px 1.2px at 18% 78%, rgba(224, 231, 255, 0.85) 50%, transparent 52%),
+        radial-gradient(1px 1px at 32% 14%, rgba(255, 255, 255, 0.75) 50%, transparent 52%),
+        radial-gradient(1.5px 1.5px at 44% 62%, rgba(255, 255, 255, 1) 50%, transparent 52%),
+        radial-gradient(1px 1px at 55% 28%, rgba(196, 210, 255, 0.7) 50%, transparent 52%),
+        radial-gradient(1px 1px at 68% 85%, rgba(255, 255, 255, 0.9) 50%, transparent 52%),
+        radial-gradient(1.2px 1.2px at 78% 38%, rgba(255, 255, 255, 0.8) 50%, transparent 52%),
+        radial-gradient(1px 1px at 88% 12%, rgba(238, 242, 255, 0.85) 50%, transparent 52%),
+        radial-gradient(1px 1px at 92% 68%, rgba(255, 255, 255, 0.65) 50%, transparent 52%),
+        radial-gradient(1.4px 1.4px at 12% 52%, rgba(255, 255, 255, 0.55) 50%, transparent 52%),
+        radial-gradient(1px 1px at 26% 92%, rgba(224, 231, 255, 0.6) 50%, transparent 52%),
+        radial-gradient(1px 1px at 61% 8%, rgba(255, 255, 255, 0.5) 50%, transparent 52%),
+        radial-gradient(1.2px 1.2px at 95% 42%, rgba(255, 255, 255, 0.75) 50%, transparent 52%),
+        linear-gradient(135deg, #1e1b4b, #312e81);
+    background-repeat: no-repeat;
+    background-size: 100% 100%;
 }
 
-.variant-btn-spring:hover {
-    background: linear-gradient(135deg, #fde68a, #fcd34d);
-    border-color: rgba(251, 191, 36, 0.6);
-    box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3);
+.variant-btn-cosmos:hover {
+    border-color: rgba(165, 180, 252, 0.55);
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35);
     transform: translateY(-2px);
+    background-color: #312e81;
+    background-image:
+        radial-gradient(1px 1px at 8% 22%, rgba(255, 255, 255, 1) 50%, transparent 52%),
+        radial-gradient(1.2px 1.2px at 18% 78%, rgba(238, 242, 255, 0.95) 50%, transparent 52%),
+        radial-gradient(1px 1px at 32% 14%, rgba(255, 255, 255, 0.9) 50%, transparent 52%),
+        radial-gradient(1.5px 1.5px at 44% 62%, rgba(255, 255, 255, 1) 50%, transparent 52%),
+        radial-gradient(1px 1px at 55% 28%, rgba(224, 231, 255, 0.85) 50%, transparent 52%),
+        radial-gradient(1px 1px at 68% 85%, rgba(255, 255, 255, 1) 50%, transparent 52%),
+        radial-gradient(1.2px 1.2px at 78% 38%, rgba(255, 255, 255, 0.95) 50%, transparent 52%),
+        radial-gradient(1px 1px at 88% 12%, rgba(255, 255, 255, 0.95) 50%, transparent 52%),
+        radial-gradient(1px 1px at 92% 68%, rgba(255, 255, 255, 0.8) 50%, transparent 52%),
+        radial-gradient(1.4px 1.4px at 12% 52%, rgba(255, 255, 255, 0.75) 50%, transparent 52%),
+        radial-gradient(1px 1px at 26% 92%, rgba(238, 242, 255, 0.85) 50%, transparent 52%),
+        radial-gradient(1px 1px at 61% 8%, rgba(255, 255, 255, 0.65) 50%, transparent 52%),
+        radial-gradient(1.2px 1.2px at 95% 42%, rgba(255, 255, 255, 0.9) 50%, transparent 52%),
+        linear-gradient(135deg, #312e81, #4338ca);
+}
+
+.variant-btn-easter {
+    position: relative;
+    overflow: hidden;
+    color: #4a6741;
+    border: 1.5px solid rgba(120, 170, 100, 0.35);
+    padding: 0.7rem 1.4rem;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.88rem;
+    cursor: pointer;
+    font-family: "Montserrat", sans-serif;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(120, 170, 100, 0.15);
+    background:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Ctext x='10' y='30' font-size='18' opacity='0.45' transform='rotate(-15 10 30)'%3E🌿%3C/text%3E%3Ctext x='65' y='70' font-size='14' opacity='0.40' transform='rotate(20 65 70)'%3E🍃%3C/text%3E%3Ctext x='30' y='100' font-size='16' opacity='0.42' transform='rotate(-8 30 100)'%3E🌱%3C/text%3E%3Ctext x='85' y='25' font-size='12' opacity='0.38' transform='rotate(12 85 25)'%3E🍀%3C/text%3E%3C/svg%3E") repeat,
+        linear-gradient(135deg, #f0f7ee, #e8f3e5);
+}
+
+.variant-btn-easter:hover {
+    border-color: rgba(120, 170, 100, 0.55);
+    box-shadow: 0 4px 12px rgba(120, 170, 100, 0.25);
+    transform: translateY(-2px);
+    background:
+        url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Ctext x='10' y='30' font-size='18' opacity='0.55' transform='rotate(-15 10 30)'%3E🌿%3C/text%3E%3Ctext x='65' y='70' font-size='14' opacity='0.50' transform='rotate(20 65 70)'%3E🍃%3C/text%3E%3Ctext x='30' y='100' font-size='16' opacity='0.52' transform='rotate(-8 30 100)'%3E🌱%3C/text%3E%3Ctext x='85' y='25' font-size='12' opacity='0.48' transform='rotate(12 85 25)'%3E🍀%3C/text%3E%3C/svg%3E") repeat,
+        linear-gradient(135deg, #e8f3e5, #dcefd8);
 }
 
 .variant-btn-copy-link {
@@ -5201,6 +5387,16 @@ body.index .exam-grid .exam-card {
     color: rgba(255, 255, 255, 0.95);
 }
 
+.logo-theme-icon {
+    height: 36px;
+    width: auto;
+    border-radius: 6px;
+    object-fit: contain;
+    flex-shrink: 0;
+    display: block;
+    margin: 0;
+}
+
 .logo-text {
     font-size: 1.125rem;
     font-weight: 600;
@@ -5212,7 +5408,58 @@ body.index .exam-grid .exam-card {
 .header-nav {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 0.65rem;
+}
+
+.theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    padding: 0;
+    border: none;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.95);
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.theme-toggle:hover {
+    background: rgba(255, 255, 255, 0.22);
+}
+
+.theme-toggle:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.85);
+    outline-offset: 2px;
+}
+
+.theme-toggle:active {
+    transform: scale(0.96);
+}
+
+.theme-toggle--active {
+    background: rgba(255, 255, 255, 0.32);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
+}
+
+.theme-toggle-reset {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1.5px solid rgba(255, 255, 255, 0.3);
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.78rem;
+    font-weight: 600;
+    width: auto;
+    padding: 0 10px;
+    gap: 5px;
+    letter-spacing: 0.2px;
+}
+
+.theme-toggle-reset:hover {
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.6);
 }
 
 .header-nav-link {
@@ -5428,7 +5675,7 @@ body.index .exam-grid .exam-card {
 .about-author-text--html {
     font-size: 0.8rem;
     line-height: 1.6;
-    color: #1e293b;
+    color: var(--text-primary, #1e293b);
     text-align: left;
 }
 
@@ -5498,4 +5745,450 @@ body.index .exam-grid .exam-card {
 .task-text figure.image:has(table) table {
     width: 100% !important;
     max-width: 100% !important;
+}
+
+/* ===== Rocket intro (TasksPage) ===== */
+.rocket-intro-overlay {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 99999;
+}
+
+.rocket-intro-center {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    width: 0;
+    height: 0;
+}
+
+.rocket-intro-orbit {
+    position: absolute;
+    left: 0;
+    top: 0;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    border: 1px dashed rgba(129, 140, 248, 0.25);
+    opacity: 0.55;
+    z-index: 0;
+    /* показываем только верхнюю половину пунктирной орбиты (полукруг) */
+    clip-path: inset(0 0 50% 0);
+}
+
+.rocket-intro-rocket {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 72px;
+    height: 72px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 56px;
+    filter: drop-shadow(0 8px 18px rgba(99, 102, 241, 0.35));
+    will-change: transform, opacity;
+    transform-origin: center center;
+    z-index: 1;
+}
+
+.rocket-intro-emoji {
+    line-height: 1;
+}
+
+.rocket-intro-flame {
+    margin-top: -6px;
+    font-size: 22px;
+    line-height: 1;
+    filter: drop-shadow(0 6px 12px rgba(245, 158, 11, 0.35));
+}
+
+@media (max-width: 640px) {
+    .rocket-intro-rocket {
+        width: 62px;
+        height: 62px;
+        font-size: 46px;
+    }
+
+    .rocket-intro-flame {
+        font-size: 18px;
+        margin-top: -5px;
+    }
+}
+
+/* ===== Theme overlay / decor (session theme from announcements) ===== */
+.app-shell-theme-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    background-repeat: repeat;
+    background-size: auto;
+    opacity: 0.35;
+    pointer-events: none;
+}
+
+.theme-decor-active .exam-card,
+.theme-decor-active .task,
+.theme-decor-active .task-group {
+    position: relative;
+    overflow: hidden;
+}
+
+.theme-decor-active .exam-card::after,
+.theme-decor-active .task::after,
+.theme-decor-active .task-group::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background-image: var(--theme-decor-url);
+    background-repeat: repeat;
+    background-size: 300px;
+    opacity: 0.15;
+    pointer-events: none;
+    z-index: 0;
+}
+
+.theme-decor-active .task > *,
+.theme-decor-active .exam-card > *,
+.theme-decor-active .task-group > * {
+    position: relative;
+    z-index: 1;
+}
+
+header.header--themed {
+    background-color: transparent;
+    background-size: auto 100%;
+    background-position: left center;
+    background-repeat: repeat-x;
+    width: 100%;
+}
+
+@media (max-width: 640px) {
+    header {
+        box-shadow: 0 2px 16px rgba(0, 0, 0, 0.18);
+    }
+
+    .header-wrapper {
+        padding: 0.6rem 1rem;
+        gap: 0.5rem;
+        min-height: 52px;
+    }
+
+    .logo-link {
+        gap: 6px;
+    }
+
+    .logo-icon-sum {
+        width: 28px;
+        height: 28px;
+        font-size: 1.1rem;
+        border-radius: 7px;
+    }
+
+    .logo-text {
+        font-size: 0.95rem;
+        letter-spacing: 0.3px;
+    }
+
+    .logo-theme-icon {
+        height: 28px;
+        margin: 0;
+    }
+
+    .header-nav {
+        gap: 0.4rem;
+    }
+
+    .theme-toggle {
+        width: 34px;
+        height: 34px;
+        border-radius: 9px;
+    }
+
+    .theme-toggle span {
+        font-size: 16px !important;
+    }
+
+    .header-nav-link {
+        font-size: 0.82rem;
+        padding: 0.3rem 0.45rem;
+        border-radius: 7px;
+    }
+
+    header.header--themed {
+        overflow: hidden;
+    }
+}
+
+/* ========================================
+   ФУТЕР САЙТА
+   ======================================== */
+.site-footer {
+    background: var(--bg-card, #fff);
+    border-top: 1px solid rgba(0, 0, 0, 0.07);
+    padding: 1.2rem 1.5rem;
+    margin-top: 3rem;
+}
+
+.site-footer-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.site-footer-copy {
+    font-size: 0.85rem;
+    color: var(--text-secondary, #64748b);
+}
+
+.site-footer-links {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.site-footer-link {
+    font-size: 0.82rem;
+    color: var(--primary-purple, #667eea);
+    text-decoration: none;
+    transition: color 0.15s ease;
+}
+
+.site-footer-link:hover {
+    color: #4c51bf;
+    text-decoration: underline;
+}
+
+.site-footer-sep {
+    color: var(--text-muted, #94a3b8);
+    font-size: 0.85rem;
+}
+
+@media (max-width: 480px) {
+    .site-footer-inner {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+    }
+}
+
+/* ========================================
+   COOKIE БАННЕР
+   ======================================== */
+.cookie-banner {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 9999;
+    background: rgba(255, 255, 255, 0.97);
+    border-top: 1px solid rgba(102, 126, 234, 0.2);
+    box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(8px);
+    padding: 1rem 1.5rem;
+    animation: cookieSlideUp 0.3s ease;
+}
+
+@keyframes cookieSlideUp {
+    from { transform: translateY(100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.cookie-banner-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.cookie-banner-text {
+    flex: 1;
+    min-width: 200px;
+    font-size: 0.85rem;
+    color: var(--text-primary, #1e293b);
+    line-height: 1.5;
+    margin: 0;
+}
+
+.cookie-banner-link {
+    color: var(--primary-purple, #667eea);
+    text-decoration: underline;
+}
+
+.cookie-banner-link:hover {
+    color: #4c51bf;
+}
+
+.cookie-banner-btn {
+    flex-shrink: 0;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 0.6rem 1.4rem;
+    font-size: 0.88rem;
+    font-weight: 700;
+    font-family: "Montserrat", sans-serif;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.cookie-banner-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+@media (max-width: 480px) {
+    .cookie-banner-inner {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.75rem;
+    }
+    .cookie-banner-btn {
+        width: 100%;
+    }
+}
+
+/* ========================================
+   СТРАНИЦА ПОЛИТИКИ КОНФИДЕНЦИАЛЬНОСТИ
+   ======================================== */
+.privacy-page {
+    padding: 2rem 0 4rem;
+}
+
+.privacy-container {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 2.5rem 2.5rem 3rem;
+    background: #fff;
+    border-radius: 20px;
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.07);
+}
+
+@media (max-width: 640px) {
+    .privacy-container {
+        padding: 1.5rem 1.25rem 2rem;
+        border-radius: 14px;
+    }
+}
+
+.privacy-title {
+    font-size: 1.9rem;
+    font-weight: 800;
+    color: var(--text-primary, #1e293b);
+    margin-bottom: 0.4rem;
+}
+
+.privacy-updated {
+    font-size: 0.85rem;
+    color: var(--text-secondary, #64748b);
+    margin-bottom: 2.5rem;
+}
+
+.privacy-section {
+    margin-bottom: 2rem;
+}
+
+.privacy-section h2 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-primary, #1e293b);
+    margin-bottom: 0.75rem;
+}
+
+.privacy-section p,
+.privacy-section li {
+    font-size: 0.92rem;
+    color: var(--text-secondary, #475569);
+    line-height: 1.7;
+}
+
+.privacy-section ul {
+    padding-left: 1.5rem;
+    margin: 0.5rem 0;
+}
+
+.privacy-section li {
+    margin-bottom: 0.35rem;
+}
+
+.privacy-inline-link {
+    color: var(--primary-purple, #667eea);
+    text-decoration: underline;
+}
+
+.privacy-inline-link:hover {
+    color: #4c51bf;
+}
+
+.privacy-intro {
+    font-size: 0.92rem;
+    color: var(--text-secondary, #475569);
+    line-height: 1.75;
+    margin-bottom: 2rem;
+}
+
+.privacy-divider {
+    border: none;
+    border-top: 2px solid rgba(102, 126, 234, 0.15);
+    margin: 3rem 0 0;
+}
+
+.privacy-ref {
+    color: var(--primary-purple, #667eea);
+    text-decoration: none;
+    font-size: 0.78rem;
+}
+
+.privacy-refs p {
+    font-size: 0.82rem;
+    color: var(--text-muted, #94a3b8);
+    margin-bottom: 0.25rem;
+}
+
+.privacy-table-wrap {
+    overflow-x: auto;
+    margin: 1rem 0;
+    border-radius: 12px;
+    border: 1px solid rgba(102, 126, 234, 0.15);
+}
+
+.privacy-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+}
+
+.privacy-table th {
+    background: rgba(102, 126, 234, 0.08);
+    color: var(--text-primary, #1e293b);
+    font-weight: 700;
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid rgba(102, 126, 234, 0.15);
+}
+
+.privacy-table td {
+    padding: 0.7rem 1rem;
+    color: var(--text-secondary, #475569);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    line-height: 1.5;
+    vertical-align: top;
+}
+
+.privacy-table tr:last-child td {
+    border-bottom: none;
+}
+
+.privacy-table tr:nth-child(even) td {
+    background: rgba(248, 250, 252, 0.6);
 }

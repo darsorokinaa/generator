@@ -35,7 +35,7 @@ function AuthorsPage() {
       <div className="about-page-intro">
         <h1 className="about-page-title">От авторов проекта</h1>
         <p className="about-page-lead">
-          Платформа «Генератор» создана для учителей и школьников: готовьтесь к ОГЭ и ЕГЭ, собирайте варианты и тренируйтесь по темам.
+          Платформа «ГенУрок» создана для учителей и школьников: готовьтесь к ОГЭ и ЕГЭ, собирайте варианты и тренируйтесь по темам.
         </p>
         <div className="about-page-intro-text">
           <p><strong>ГенУрок создают практикующие специалисты, которые объединили опыт в преподавании, методике и IT, чтобы сделать современные технологии по-настоящему полезными для обучения.</strong></p>
@@ -76,11 +76,11 @@ function AuthorsPage() {
       <div className="about-page-footer subject-sidebar-card subject-sidebar-support">
         <h3 className="subject-sidebar-title">Связаться с нами</h3>
         <p className="subject-sidebar-text">
-          Связаться с нами или предложить идеи можно через раздел «Сообщить об ошибке» в варианте или у администратора платформы.
+          Связаться с нами или предложить идеи можно по электронной почте — ответим как можно скорее.
         </p>
-        <Link to="/" className="subject-sidebar-btn">
-          На главную
-        </Link>
+        <a href="mailto:genurok@yandex.ru" className="subject-sidebar-btn">
+          ✉ genurok@yandex.ru
+        </a>
       </div>
     </div>
   );

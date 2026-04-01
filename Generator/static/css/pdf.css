@@ -1,4 +1,7 @@
-/* @page задаётся в pdf_template.html (колонтитулы + поля) */
+@page {
+    size: A4 landscape;
+    margin: 7mm;
+}
 
 * {
     box-sizing: border-box;
@@ -8,8 +11,8 @@
 
 body {
     font-family: "Times New Roman", Times, serif;
-    font-size: 10pt;
-    line-height: 1.38;
+    font-size: 9.5pt;
+    line-height: 1.25;
     color: #000;
 }
 
@@ -24,311 +27,129 @@ body {
     font-weight: bold;
 }
 
-/* ===== Задание: номер в узком прямоугольнике слева, текст справа ===== */
+/* ===== Задание ===== */
+/* flex: номер слева от текста; align-items: flex-start — рамка номера не растягивается на высоту задания (в отличие от table-cell) */
 .task {
-    display: block;
-    margin-bottom: 8pt;
-    overflow: visible;
-    /* целиком задание по возможности не режем между страницами */
-    break-inside: avoid;
-    page-break-inside: avoid;
-}
-
-/*
- * Номер + текст: display:table вместо flex — в WeasyPrint flex-строка иногда
- * рвётся между номером и условием на границе страницы/колонки.
- */
-.task-main {
-    display: table;
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 8pt;
     width: 100%;
-    table-layout: fixed;
-    border-collapse: separate;
-    border-spacing: 4pt 0;
-    min-width: 0;
-    break-inside: avoid;
+    max-width: 100%;
+    margin-bottom: 16pt;
     page-break-inside: avoid;
+    break-inside: avoid;
+    -webkit-column-break-inside: avoid;
+    overflow: hidden;
 }
 
-/* Ячейка без рамки — иначе border тянется на всю высоту строки таблицы */
 .task-number,
 .ta {
-    display: table-cell;
-    vertical-align: top;
-    width: 36pt;
-    min-width: 36pt;
-    max-width: 44pt;
-    padding: 0;
-    border: none;
-    background: transparent;
+    flex: 0 0 32pt;
+    width: 32pt;
+    min-width: 32pt;
+    max-width: 32pt;
+    height: auto;
+    min-height: 18pt;
+    padding: 3pt 2pt;
     box-sizing: border-box;
-}
-
-/* Рамка только вокруг номера, не на всю высоту задания */
-.ta-inner {
-    display: inline-block;
-    min-width: 24pt;
-    min-height: 14pt;
-    padding: 0 4pt;
-    background-color: #fff;
-    /* 0.35pt в WeasyPrint часто почти не виден — минимум ~0.75pt */
-    border: 0.75pt solid #000;
+    background-color: rgb(255, 255, 255);
+    border: 0.5pt solid #000;
     text-align: center;
     font-weight: bold;
-    font-size: 10pt;
-    line-height: 14pt;
-    white-space: nowrap;
-    box-sizing: border-box;
-    print-color-adjust: exact;
-    -webkit-print-color-adjust: exact;
+    font-size: 11pt;
+    line-height: 1.15;
+    margin: 0;
 }
 
 .task-body {
-    display: table-cell;
-    vertical-align: top;
-    width: auto;
+    flex: 1 1 auto;
     min-width: 0;
-    font-size: 10pt;
-    line-height: 1.38;
-}
-
-/* Условие + строка «Ответ» не разрываются между колонками/страницами (WeasyPrint) */
-.task-with-answer {
-    break-inside: avoid;
-    page-break-inside: avoid;
+    max-width: 100%;
+    padding-left: 0;
+    margin-left: 0;
+    overflow: hidden;
 }
 
 .task-body p {
-    margin-bottom: 2pt;
-    /* По ширине в двух колонках даёт «реки» в длинных условиях (ОГЭ инф. №13 и т.п.) */
-    text-align: left;
-}
-.task-body ul,
-.task-body ol {
-    margin: 3pt 0 5pt;
-    padding-left: 16pt;
-    text-align: left;
-}
-.task-body li {
-    margin-bottom: 2pt;
-    text-align: left;
-}
-.task-body li:last-child {
-    margin-bottom: 0;
-}
-.task-body li p {
-    text-align: left;
-}
-
-/* Формулы (SVG MathJax) в строке 10pt: выравнивание и запас по высоте */
-.task-body .math-inline {
-    vertical-align: middle;
-    line-height: 1;
-}
-.task-body .math-inline svg {
-    vertical-align: -0.2ex;
-    max-width: 100%;
-    height: auto;
-}
-.task-body .math-display {
-    line-height: 1.2;
-    margin: 0.2em 0;
-}
-.task-body .math-display svg {
-    max-width: 100%;
-    height: auto;
-}
-.task-body .math-inline mjx-container,
-.task-body span.math-inline > mjx-container {
-    display: inline-block !important;
-    vertical-align: middle;
-    line-height: 1;
-    max-width: 100%;
-}
-.task-body .math-display mjx-container {
-    display: block !important;
-    margin-left: auto;
-    margin-right: auto;
-    max-width: 100%;
+    margin-bottom: 4pt;
+    text-align: justify;
 }
 
 /* Ссылка на скачивание файла */
 .task-file-download {
-    margin: 1pt 0 2pt;
+    margin: 6pt 0;
 }
 
 .pdf-file-link {
     color: #0066cc;
-    text-decoration: none !important;
-    border-bottom: none !important;
-    font-size: 10pt;
+    text-decoration: none;
+    font-size: 9pt;
+    
 }
 
-.task-file-download a.pdf-file-link::before,
-.task-file-download a.pdf-file-link::after {
-    content: none !important;
-}
-
-/* WeasyPrint по умолчанию подчёркивает ссылки */
-body.pdf-doc .task-file-download a,
-body.pdf-doc a.pdf-file-link {
-    text-decoration: none !important;
-}
-
-/*
- * Размеры картинок по предмету (алгебра / геометрия / инф.) — в pdf_template.html
- * у body заданы классы .pdf-doc.pdf-subject-math | .pdf-subject-inf (как на ExamPage).
- * Здесь только база, если классы не подставились.
- */
-.task-body img,
-.task-body figure img {
-    display: block;
-    margin: 2pt auto;
-    object-fit: contain;
-    max-width: 100%;
-    height: auto;
-}
-
-/* Таблицы внутри заданий (CKEditor) — вписываем в ширину колонки условия */
-.task-body table:not(.array-table):not(.cases-table) {
-    border-collapse: collapse;
-    margin: 3pt auto;
-    color: #000;
-    background-color: #fff;
-    /* !important — перебить inline style из CKEditor */
-    table-layout: fixed !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0 !important;
-    box-sizing: border-box;
-}
-.task-body figure.table,
-.task-body figure.image:has(table) {
-    display: block;
-    width: 100% !important;
-    max-width: 100% !important;
-    min-width: 0;
-    box-sizing: border-box;
-}
-.task-body col,
-.task-body colgroup col {
+/* Изображения — на всю ширину колонки задания, высота по пропорциям */
+.task-body img {
     width: auto !important;
+    max-width: 60% !important;
+    height: auto !important;
+    max-height: 340pt !important;
+    object-fit: contain !important;
+    display: block;
+    margin: 6pt 0;
 }
-.task-body table:not(.array-table):not(.cases-table) th,
-.task-body table:not(.array-table):not(.cases-table) td {
-    border: 0.8pt solid #000;
-    padding: 3pt 4pt;
+
+/* Таблицы внутри заданий (CKEditor) — явные цвета для WeasyPrint */
+.task-body table {
+    border-collapse: collapse;
+    margin: 6pt 0;
     color: #000;
     background-color: #fff;
-    vertical-align: middle;
-    min-width: 0 !important;
+    width: 100%;
     max-width: 100%;
-    white-space: normal !important;
-    overflow-wrap: break-word !important;
-    word-break: normal !important;
-    box-sizing: border-box;
+    table-layout: fixed;
+    font-size: 6.5pt;
+    line-height: 1.15;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
-/* CKEditor часто кладёт текст в <p> — перенос как у ячейки */
-.task-body table:not(.array-table):not(.cases-table) th p,
-.task-body table:not(.array-table):not(.cases-table) td p {
-    margin: 0;
-    white-space: normal !important;
-    text-align: inherit;
+.task-body th,
+.task-body td {
+    border: 0.8pt solid #000;
+    padding: 2pt 3pt;
+    color: #000;
+    background-color: #fff;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
-.task-body table:not(.array-table):not(.cases-table) td .math-inline,
-.task-body table:not(.array-table):not(.cases-table) th .math-inline {
-    white-space: nowrap !important;
-    max-width: none !important;
-}
-.task-body table:not(.array-table):not(.cases-table) th {
+.task-body th {
     font-weight: bold;
     text-align: center;
 }
 /* Запросы — по левому краю, числа — по правому (WeasyPrint: используем first-of-type вместо :not) */
-.task-body table:not(.array-table):not(.cases-table) td {
+.task-body td {
     text-align: right;
 }
-.task-body table:not(.array-table):not(.cases-table) td:first-of-type {
+.task-body td:first-of-type {
     text-align: left;
 }
-
-/*
- * Таблица + следующий текст вопроса — одним блоком (WeasyPrint не рвёт между страницами).
- * Обёртка добавляется в pdf_utils.wrap_table_task_units_for_pdf.
- */
-.task-body .task-body-table-unit {
-    display: block;
-    break-inside: avoid;
-    page-break-inside: avoid;
-}
-
-/* Компактнее и auto-layout — чаще влезает на лист по ширине и высоте */
-.task-body .task-body-table-unit > table:not(.array-table):not(.cases-table),
-.task-body .task-body-table-unit figure.table > table:not(.array-table):not(.cases-table),
-.task-body .task-body-table-unit figure.image > table:not(.array-table):not(.cases-table) {
-    table-layout: auto !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    font-size: 9pt !important;
-}
-.task-body .task-body-table-unit table:not(.array-table):not(.cases-table) th,
-.task-body .task-body-table-unit table:not(.array-table):not(.cases-table) td {
-    padding: 2pt 3pt !important;
-}
-.task-body .task-body-table-unit table.array-table {
-    font-size: 9pt !important;
-    line-height: 1.3 !important;
-}
-.task-body .task-body-table-unit table.array-table td,
-.task-body .task-body-table-unit table.array-table th {
-    padding: 4pt 5pt !important;
-}
-
-/* LaTeX array/tabular: тот же вид, что и таблицы в условии (серая сетка, без засечек) */
-.task-body table.array-table,
-.task-body table.cases-table,
-.task-body .cases-table table {
-    border-collapse: collapse !important;
-    width: auto !important;
-    max-width: 100% !important;
-    table-layout: auto !important;
-    margin: 3pt auto !important;
-    font-family: "Calibri", "DejaVu Sans", Arial, sans-serif !important;
-    font-size: 10pt !important;
-    line-height: 1.35 !important;
-    color: #1e293b !important;
-    background: #fff !important;
-}
-.task-body table.array-table td,
-.task-body table.array-table th,
-.task-body table.cases-table td,
-.task-body table.cases-table th,
-.task-body .cases-table table td,
-.task-body .cases-table table th {
-    border: 0.6pt solid #d1d5db !important;
-    background: #fff !important;
-    padding: 5pt 7pt !important;
-    text-align: center !important;
-    vertical-align: middle !important;
-    white-space: normal !important;
-    line-height: 1.35 !important;
-    font-weight: normal !important;
-}
-.task-body table.array-table th {
-    font-weight: 600 !important;
-}
-.task-body table.cases-table td,
-.task-body table.cases-table th,
-.task-body .cases-table table td,
-.task-body .cases-table table th {
-    border: none !important;
-    background: transparent !important;
-    padding: 0 2pt !important;
-    white-space: nowrap !important;
-}
 /* Figure/изображения — без чёрного фона при ошибке загрузки */
+.task-body figure {
+    margin: 6pt 0;
+    max-width: 100%;
+}
 .task-body figure,
 .task-body figure img {
     background-color: transparent !important;
+}
+.task-body figure img {
+    width: auto !important;
+    max-width: 60% !important;
+    height: auto !important;
+    max-height: 340pt !important;
+    object-fit: contain !important;
+    display: block;
+    margin: 0 auto;
 }
 .task-body code,
 .task-body table code {
@@ -341,54 +162,33 @@ body.pdf-doc a.pdf-file-link {
 
 /* ===== Ответ ===== */
 .answer-line {
-    margin-top: 4pt;
-    font-size: 10pt;
-    line-height: 1.25;
-    break-before: avoid;
-    page-break-before: avoid;
-    break-inside: avoid;
+    margin-top: 6pt;
     page-break-inside: avoid;
+    break-inside: avoid;
 }
 
 .answer-field {
-    border-bottom: 0.35pt solid #000;
+    border-bottom: 0.8pt solid #000;
     display: inline-block;
-    /* Короче линия: раньше 50% колонки + 140pt min — слишком широко для коротких ответов */
-    min-width: 70pt;
-    width: 34%;
-    max-width: 115pt;
-    min-height: 10pt;
-    margin-left: 3pt;
+    width: 140pt;
+    height: 12pt;
     vertical-align: bottom;
 }
 
-/* ===== Математика (дублирует смысл MATH_CSS; для WeasyPrint надёжнее) ===== */
+/* ===== Математика ===== */
 .math-block {
     display: block;
     text-align: center;
     margin: 6pt 0;
-    page-break-inside: avoid;
+}
+
+.math-inline {
+    display: inline;
 }
 
 .latex-error {
     color: #000;
     font-size: 9pt;
-    font-family: "Times New Roman", Times, serif;
-}
-
-/* Fallback HTML-frac из latex_utils */
-.task-body sup,
-.task-body sub {
-    font-size: 0.72em;
-    line-height: 0;
-    position: relative;
-    vertical-align: baseline;
-}
-.task-body sub {
-    vertical-align: sub;
-}
-.task-body sup {
-    vertical-align: super;
 }
 
 /* ===== Таблица ответов ===== */
@@ -398,20 +198,15 @@ body.pdf-doc a.pdf-file-link {
 
 .answers-title {
     text-align: center;
-    font-size: 11pt;
+    font-size: 12pt;
     font-weight: bold;
-    margin-bottom: 8pt;
+    margin-bottom: 14pt;
 }
 
 .answers-table {
     width: 100%;
-    table-layout: fixed;
     border-collapse: collapse;
     border: 0.8pt solid #000;
-}
-
-.answers-col-label {
-    width: 9%;
 }
 
 .answers-table th,
@@ -419,11 +214,9 @@ body.pdf-doc a.pdf-file-link {
     border: 0.8pt solid #000;
     padding: 4pt 3pt;
     text-align: center;
-    font-size: 10pt;
+    font-size: 11pt;
     color: #000;
     background-color: #fff;
-    min-width: 0;
-    vertical-align: top;
 }
 
 .answers-table th {
@@ -436,54 +229,24 @@ body.pdf-doc a.pdf-file-link {
     overflow-wrap: break-word;
     white-space: normal;
     word-break: break-word;
-    text-align: center;
-    vertical-align: top;
-}
-
-.answer-cell-inner {
-    display: block;
-    width: 100%;
-    text-align: center;
-    line-height: 1.25;
-    min-width: 0;
-}
-
-.answer-cell-inner pre,
-.answer-cell-inner code,
-.answer-cell-inner .latex-verbatim {
     text-align: left;
-    font-family: "Courier New", Courier, monospace;
-    font-size: 8pt;
-    line-height: 1.3;
-    white-space: pre-wrap;
-    word-break: break-word;
-    display: block;
-    margin: 0;
-    padding: 2pt 0;
-    max-width: 100%;
-}
-
-.answer-cell-inner .math-inline,
-.answer-cell-inner .math-display {
-    display: block !important;
-    margin: 3pt auto;
-    text-align: center;
-    max-width: 100%;
-}
-
-.answer-cell-inner svg {
-    display: block !important;
-    margin: 0 auto;
-    max-width: 100%;
-    height: auto;
 }
 
 .answers-page .answers-table {
-    margin-bottom: 8pt;
+    margin-bottom: 12pt;
+    page-break-inside: avoid;
+    break-inside: avoid;
 }
 
 .answers-page .answers-table:last-child {
     margin-bottom: 0;
+}
+
+.answers-table thead,
+.answers-table tbody,
+.answers-table tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
 }
 /* ===== Страница с инструкцией: инструкция слева, заметки справа ===== */
 .pdf-instruction-page {
@@ -511,9 +274,9 @@ body.pdf-doc a.pdf-file-link {
 }
 .pdf-instruction .instruction-title {
     text-align: center;
-    font-size: 12pt;
+    font-size: 12.5pt;
     font-weight: bold;
-    margin-bottom: 12pt;
+    margin-bottom: 14pt;
 }
 .pdf-instruction .instruction-intro {
     text-align: justify;
@@ -522,8 +285,7 @@ body.pdf-doc a.pdf-file-link {
 }
 .pdf-instruction .instruction-body {
     text-align: justify;
-    font-size: 10pt;
-    line-height: 1.38;
+    line-height: 1.35;
 }
 .pdf-instruction .instruction-body p {
     text-indent: 1.5em;
@@ -547,45 +309,17 @@ body.pdf-doc a.pdf-file-link {
     column-span: all;
 }
 
-/* ===== Задачи в две колонки (как на бланке ОГЭ/ЕГЭ) ===== */
+/* ===== Задачи в две колонки ===== */
 .tasks-wrapper {
     column-count: 2;
-    column-gap: 14pt;
-    /* auto: сначала заполняется левая колонка — меньше «пустого поля» внизу страницы, чем при balance */
-    column-fill: auto;
-    column-rule: none;
-    width: 100%;
-}
-
-/*
- * Большая таблица: блок вне .tasks-wrapper — см. tasks_segments + .task-pdf-full-width-wrap.
- * (WeasyPrint нестабильно применяет column-span: all внутри column-count.)
- */
-.task-pdf-full-width-wrap {
-    width: 100%;
-    display: block;
-    clear: both;
-    page-break-before: always;
-    break-before: page;
-    page-break-after: always;
-    break-after: page;
-}
-.task-pdf-full-width-wrap .task.task-pdf-full-width {
-    width: 100%;
-    max-width: 100%;
-    break-inside: auto;
-    page-break-inside: auto;
-}
-.task-pdf-full-width-wrap .task.task-pdf-full-width .task-main,
-.task-pdf-full-width-wrap .task.task-pdf-full-width .task-with-answer {
-    break-inside: auto;
-    page-break-inside: auto;
+    column-gap: 20pt;
+    column-fill: balance;
 }
 
 /* ===== Напоминание в рамке (формат картинки 2) — с восклицательным знаком ===== */
 .pdf-preview.pdf-framed {
     page-break-inside: avoid;
-    margin-bottom: 10pt;
+    margin-bottom: 16pt;
     column-span: all;
 }
 .pdf-framed .preview-reminder-row {
@@ -605,9 +339,9 @@ body.pdf-doc a.pdf-file-link {
 }
 .pdf-framed .preview-part-title {
     text-align: center;
-    font-size: 10pt;
+    font-size: 11pt;
     font-weight: bold;
-    margin-bottom: 5pt;
+    margin-bottom: 6pt;
 }
 .pdf-framed .preview-box {
     border: 0.8pt solid #000;
@@ -617,9 +351,9 @@ body.pdf-doc a.pdf-file-link {
 .pdf-framed .preview-box-inner p {
     font-style: italic;
     text-align: justify;
-    font-size: 9pt;
-    line-height: 1.32;
-    margin-bottom: 3pt;
+    font-size: 9.5pt;
+    line-height: 1.3;
+    margin-bottom: 4pt;
 }
 .pdf-framed .preview-box-inner p:last-child {
     margin-bottom: 0;

@@ -4,6 +4,7 @@ from django.utils.html import strip_tags
 from django_ckeditor_5.widgets import CKEditor5Widget
 
 from .models import (
+    Announcement,
     Criteria,
     Level,
     LinkedTaskGroup,
@@ -111,11 +112,6 @@ class TaskAdmin(SearchByIdMixin, admin.ModelAdmin):
         return (plain[:50] + "…") if len(plain) > 50 else plain
 
     answer_preview.short_description = "Ответ"
-
-    def save_model(self, request, obj, form, change):
-        if not change:
-            obj.created_by = request.user.username
-        super().save_model(request, obj, form, change)
 
 
 @admin.register(SubTopic)
@@ -287,4 +283,24 @@ class UpdateAdmin(admin.ModelAdmin):
     date_hierarchy = "created"
     ordering = ["-created"]
     readonly_fields = ("created",)
-from .models import Mark, Tag, TagsList, Tags
+
+
+@admin.register(Announcement)
+class AnnouncementAdmin(admin.ModelAdmin):
+    list_display = ("id", "sort_order", "title", "background", "show", "created")
+    list_editable = ("sort_order", "show")
+    list_filter = ("show",)
+    search_fields = ("title", "body")
+    ordering = ["sort_order", "-created"]
+    readonly_fields = ("created",)
+    fieldsets = (
+        (None, {"fields": ("title", "body", "corner_image", "background")}),
+        ("Кнопка (необязательно)", {"fields": ("button_label", "button_url")}),
+        ("Тематическое оформление", {
+            "fields": ("theme_overlay", "theme_header_bg", "theme_logo", "theme_decor", "theme_worksheet_bg"),
+            "classes": ("collapse",),
+        }),
+        ("Публикация", {"fields": ("show", "sort_order", "created")}),
+    )
+
+

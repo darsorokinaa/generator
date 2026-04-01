@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import StudentNameModal from "./StudentNameModal";
-import { devApiBase } from "../utils/devApiBase";
 
 /**
  * Модальное окно с результатами выполнения варианта.
@@ -54,14 +53,15 @@ export default function ResultsModal({ open, onClose, results }) {
         markLevel: results.markLevel,
         tasks: results.tasks,
       };
-      const apiBase = devApiBase();
-      const reportUrl = `${apiBase}/api/${results.level}/${results.subject}/report-pdf/`;
-      const res = await fetch(reportUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: apiBase ? "omit" : "same-origin",
-        body: JSON.stringify(payload),
-      });
+      const res = await fetch(
+        `/api/${results.level}/${results.subject}/report-pdf/`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify(payload),
+        }
+      );
       if (!res.ok) throw new Error("Ошибка загрузки отчёта");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);

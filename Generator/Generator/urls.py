@@ -13,6 +13,7 @@ urlpatterns = [
 
     path("api/csrf/", views.api_csrf, name="api_csrf"),
     path("api/updates/", views.api_updates, name="api_updates"),
+    path("api/announcements/", views.api_announcements, name="api_announcements"),
     path("api/search_task/", views.search_task, name="search_task"),
     path("api/search_variant/", views.search_variant, name="search_variant"),
     path("favicon.svg", views.favicon),
@@ -27,10 +28,10 @@ urlpatterns = [
     path("api/<str:level>/<str:subject>/report-pdf/", views.report_pdf),
     path("api/<str:level>/<str:subject>/report-error/", views.report_error),
     path('api/<str:level>/<str:subject>/variant/<int:variant_id>/pdf/', views.variant_pdf),
-    # path('api/<str:level>/<str:subject>/variant/<int:variant_id>/pdf/spring', views.variant_pdfSpring),
+    # path('api/<str:level>/<str:subject>/variant/<int:variant_id>/pdf/cosmos', views.variant_pdfCosmos),
 
     path("", include("Board.urls")),
-    # path("cabinet/", include("Cabinet.urls")),
+    path("cabinet/", include("Cabinet.urls")),
 
 ]
 

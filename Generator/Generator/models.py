@@ -309,6 +309,72 @@ class Update(models.Model):
     def __str__(self):
         return f"{self.created.strftime('%Y-%m-%d %H:%M')}: {self.title}"
 
+
+class Announcement(models.Model):
+    """Объявление на главной странице (index)."""
+    title = models.CharField(verbose_name="Заголовок", max_length=255)
+    body = CKEditor5Field(verbose_name="Текст", blank=True, config_name="default")
+    corner_image = models.ImageField(
+        upload_to="announcements",
+        blank=True,
+        null=True,
+        verbose_name="Картинка в углу",
+        help_text="Необязательно. Нижний левый угол карточки на главной странице.",
+    )
+    button_label = models.CharField(verbose_name="Подпись кнопки", max_length=120, blank=True)
+    button_url = models.CharField(
+        verbose_name="Ссылка кнопки",
+        max_length=500,
+        blank=True,
+        help_text="Полный URL или путь на сайте, например /oge",
+    )
+    background = models.ImageField(
+        upload_to="announcements/bg",
+        blank=True,
+        null=True,
+        verbose_name="Фон слайда",
+        help_text="Фоновая картинка слайда на главной. Если не указана — синий градиент по умолчанию.",
+    )
+    theme_overlay = models.ImageField(
+        upload_to="announcements/theme", blank=True, null=True,
+        verbose_name="Тема: оверлей на фон",
+        help_text="Картинка поверх фона сайта (repeat). Пусто = без оверлея.",
+    )
+    theme_header_bg = models.ImageField(
+        upload_to="announcements/theme", blank=True, null=True,
+        verbose_name="Тема: фон шапки",
+    )
+    theme_logo = models.ImageField(
+        upload_to="announcements/theme", blank=True, null=True,
+        verbose_name="Тема: иконка у логотипа",
+    )
+    theme_decor = models.ImageField(
+        upload_to="announcements/theme", blank=True, null=True,
+        verbose_name="Тема: декоративные элементы",
+        help_text="Картинка-декор поверх контента (repeat, полупрозрачная).",
+    )
+    theme_worksheet_bg = models.ImageField(
+        upload_to="announcements/theme", blank=True, null=True,
+        verbose_name="Тема: фон рабочего листа",
+        help_text="Фоновая картинка для рабочего листа (основной контентной области).",
+    )
+    show = models.BooleanField(verbose_name="Показывать", default=True)
+    sort_order = models.PositiveSmallIntegerField(
+        verbose_name="Порядок",
+        default=0,
+        help_text="Чем меньше число, тем выше объявление в списке",
+    )
+    created = models.DateTimeField(verbose_name="Создано", auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Объявление"
+        verbose_name_plural = "Объявления"
+        ordering = ["sort_order", "-created"]
+
+    def __str__(self):
+        return self.title
+
+
 class Criteria(models.Model):
     task_number = models.ForeignKey(TaskList, on_delete=CASCADE)
     criteria_text = CKEditor5Field()
