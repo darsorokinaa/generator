@@ -8,8 +8,6 @@ import ReportErrorModal from "../components/ReportErrorModal";
 
 const COLORS = ["#000000", "#ffffff", "#ef4444", "#3b82f6", "#22c55e"];
 
-const EXAM_HUD_OFFSET_KEY = "exam_corner_offset_v1";
-
 const SUBJECT_NAMES = {
   math: "математике",
   inf: "информатике",
@@ -80,18 +78,6 @@ function ExamPage() {
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [timerStatus, setTimerStatus] = useState("idle"); // "idle" | "running" | "paused"
 
-  const examHudRef = useRef(null);
-  const [examHudOffset, setExamHudOffset] = useState(() => {
-    try {
-      const raw = sessionStorage.getItem(EXAM_HUD_OFFSET_KEY);
-      if (raw) {
-        const o = JSON.parse(raw);
-        if (typeof o?.dx === "number" && typeof o?.dy === "number") return o;
-      }
-    } catch { /* ignore */ }
-    return { dx: 0, dy: 0 };
-  });
-
   // Загрузка PDF
   const [pdfLoading, setPdfLoading] = useState(null); // null | "default" | "cosmos" | "easter"
 
@@ -121,12 +107,12 @@ function ExamPage() {
   const endTimeRef = useRef(null);
 
   const canvasRef = useRef(null);
-  const boardPanelRef = useRef(null);
   const socketRef = useRef(null);
   const objectsRef = useRef([]);
   const redoStackRef = useRef([]);
   const redrawRef = useRef(null);
-  const saveBoardRef = useRef(() => {});
+
+  const saveBoardRef = useRef(null);
   const currentLineRef = useRef(null);
   const currentShapeRef = useRef(null);
   const drawingRef = useRef(false);
@@ -140,73 +126,6 @@ function ExamPage() {
   useEffect(() => {
     colorRef.current = color;
   }, [color]);
-
-  const clampExamHudTranslate = useCallback((dx, dy) => {
-    const el = examHudRef.current;
-    if (!el) return { dx, dy };
-    const margin = 8;
-    const prev = el.style.transform;
-    el.style.transform = `translate(${dx}px, ${dy}px)`;
-    const r = el.getBoundingClientRect();
-    let ndx = dx;
-    let ndy = dy;
-    if (r.left < margin) ndx += margin - r.left;
-    if (r.right > window.innerWidth - margin) ndx -= r.right - (window.innerWidth - margin);
-    if (r.top < margin) ndy += margin - r.top;
-    if (r.bottom > window.innerHeight - margin) ndy -= r.bottom - (window.innerHeight - margin);
-    el.style.transform = prev;
-    return { dx: ndx, dy: ndy };
-  }, []);
-
-  const onExamHudDragPointerDown = useCallback(
-    (e) => {
-      if (e.button !== 0) return;
-      e.preventDefault();
-      e.stopPropagation();
-      const startX = e.clientX;
-      const startY = e.clientY;
-      const dx0 = examHudOffset.dx;
-      const dy0 = examHudOffset.dy;
-      const pid = e.pointerId;
-      const target = e.currentTarget;
-
-      function move(ev) {
-        if (ev.pointerId !== pid) return;
-        const rawDx = dx0 + (ev.clientX - startX);
-        const rawDy = dy0 + (ev.clientY - startY);
-        setExamHudOffset(clampExamHudTranslate(rawDx, rawDy));
-      }
-      function up(ev) {
-        if (ev.pointerId !== pid) return;
-        window.removeEventListener("pointermove", move);
-        window.removeEventListener("pointerup", up);
-        window.removeEventListener("pointercancel", up);
-        try {
-          target.releasePointerCapture(pid);
-        } catch {
-          /* ignore */
-        }
-        setExamHudOffset((prev) => {
-          const c = clampExamHudTranslate(prev.dx, prev.dy);
-          try {
-            sessionStorage.setItem(EXAM_HUD_OFFSET_KEY, JSON.stringify(c));
-          } catch {
-            /* ignore */
-          }
-          return c;
-        });
-      }
-      try {
-        target.setPointerCapture(pid);
-      } catch {
-        /* ignore */
-      }
-      window.addEventListener("pointermove", move);
-      window.addEventListener("pointerup", up);
-      window.addEventListener("pointercancel", up);
-    },
-    [examHudOffset.dx, examHudOffset.dy, clampExamHudTranslate]
-  );
 
   /* =========================
      Загрузка варианта
@@ -372,31 +291,25 @@ function ExamPage() {
     const PEN_WIDTH = 3;
     const POINT_STEP = 2;
 
+    let rafId2 = null;
+
+    function scheduleRedraw() {
+      if (rafId2 != null) return;
+      rafId2 = requestAnimationFrame(() => { rafId2 = null; redraw(); });
+    }
+
     function resizeCanvas() {
-      const panel = boardPanelRef.current;
+      const root = mainRef.current;
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      let viewportW = window.innerWidth || document.documentElement.clientWidth;
-      let viewportH = window.innerHeight || document.documentElement.clientHeight;
-      const cr = canvas.getBoundingClientRect();
-      if (cr.width >= 1 && cr.height >= 1) {
-        viewportW = Math.max(1, Math.round(cr.width));
-        viewportH = Math.max(1, Math.round(cr.height));
-      } else if (panel) {
-        const r = panel.getBoundingClientRect();
-        viewportW = Math.max(1, Math.round(r.width));
-        viewportH = Math.max(1, Math.round(r.height));
-      }
+      const w = root ? root.scrollWidth : (window.innerWidth || document.documentElement.clientWidth);
+      const h = root ? root.scrollHeight : (window.innerHeight || document.documentElement.clientHeight);
 
-      canvas.width = Math.round(viewportW * dpr);
-      canvas.height = Math.max(1, Math.round(viewportH * dpr));
-      canvas.style.width = "100%";
-      canvas.style.height = "100%";
-      canvas.style.display = "block";
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.max(1, Math.round(h * dpr));
+      canvas.style.width = w + "px";
+      canvas.style.height = h + "px";
 
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.scale(dpr, dpr);
-
-      geomRef.current = { w: viewportW, h: viewportH, dpr };
+      geomRef.current = { w, h, dpr };
       redraw();
     }
 
@@ -405,94 +318,87 @@ function ExamPage() {
       const { w, h } = geomRef.current;
       const sx = rect.width > 0 ? w / rect.width : 1;
       const sy = rect.height > 0 ? h / rect.height : 1;
-      const rawX = ((e.clientX ?? e.touches?.[0]?.clientX ?? 0) - rect.left) * sx;
-      const rawY = ((e.clientY ?? e.touches?.[0]?.clientY ?? 0) - rect.top) * sy;
-      return { x: rawX, y: rawY };
+      return {
+        x: ((e.clientX ?? e.touches?.[0]?.clientX ?? 0) - rect.left) * sx,
+        y: ((e.clientY ?? e.touches?.[0]?.clientY ?? 0) - rect.top) * sy,
+      };
     }
 
-    function drawPath(points, color, width) {
+    function drawPath(tc, points, color, width) {
       if (points.length < 1) return;
-      ctx.strokeStyle = color;
-      ctx.lineWidth = width;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
+      tc.strokeStyle = color;
+      tc.lineWidth = width;
+      tc.lineCap = "round";
+      tc.lineJoin = "round";
       if (points.length === 1) {
-        ctx.beginPath();
-        ctx.arc(points[0].x, points[0].y, width / 2, 0, Math.PI * 2);
-        ctx.fillStyle = color;
-        ctx.fill();
+        tc.beginPath();
+        tc.arc(points[0].x, points[0].y, width / 2, 0, Math.PI * 2);
+        tc.fillStyle = color;
+        tc.fill();
         return;
       }
-      ctx.beginPath();
-      ctx.moveTo(points[0].x, points[0].y);
+      tc.beginPath();
+      tc.moveTo(points[0].x, points[0].y);
       if (points.length === 2) {
-        ctx.lineTo(points[1].x, points[1].y);
+        tc.lineTo(points[1].x, points[1].y);
       } else {
         for (let i = 1; i < points.length - 1; i++) {
           const p1 = points[i];
           const p2 = points[i + 1];
-          const endX = (p1.x + p2.x) / 2;
-          const endY = (p1.y + p2.y) / 2;
-          ctx.quadraticCurveTo(p1.x, p1.y, endX, endY);
+          tc.quadraticCurveTo(p1.x, p1.y, (p1.x + p2.x) / 2, (p1.y + p2.y) / 2);
         }
-        ctx.quadraticCurveTo(
-          points[points.length - 2].x,
-          points[points.length - 2].y,
-          points[points.length - 1].x,
-          points[points.length - 1].y
+        tc.quadraticCurveTo(
+          points[points.length - 2].x, points[points.length - 2].y,
+          points[points.length - 1].x, points[points.length - 1].y
         );
       }
-      ctx.stroke();
+      tc.stroke();
     }
 
-    function drawShape(obj) {
-      const w = obj.width || PEN_WIDTH;
-      ctx.strokeStyle = obj.color;
-      ctx.lineWidth = w;
-      ctx.lineCap = "butt";
-      ctx.lineJoin = "miter";
-
+    function drawShape(tc, obj) {
+      const lw = obj.width || PEN_WIDTH;
+      tc.strokeStyle = obj.color;
+      tc.lineWidth = lw;
+      tc.lineCap = "butt";
+      tc.lineJoin = "miter";
       if (obj.type === "segment" && obj.points?.length >= 2) {
-        ctx.beginPath();
-        ctx.moveTo(obj.points[0].x, obj.points[0].y);
-        ctx.lineTo(obj.points[1].x, obj.points[1].y);
-        ctx.stroke();
+        tc.beginPath();
+        tc.moveTo(obj.points[0].x, obj.points[0].y);
+        tc.lineTo(obj.points[1].x, obj.points[1].y);
+        tc.stroke();
       } else if (obj.type === "triangle" && obj.points?.length === 3) {
-        ctx.beginPath();
-        ctx.moveTo(obj.points[0].x, obj.points[0].y);
-        ctx.lineTo(obj.points[1].x, obj.points[1].y);
-        ctx.lineTo(obj.points[2].x, obj.points[2].y);
-        ctx.closePath();
-        ctx.stroke();
+        tc.beginPath();
+        tc.moveTo(obj.points[0].x, obj.points[0].y);
+        tc.lineTo(obj.points[1].x, obj.points[1].y);
+        tc.lineTo(obj.points[2].x, obj.points[2].y);
+        tc.closePath();
+        tc.stroke();
       } else if (obj.type === "circle") {
-        ctx.beginPath();
-        ctx.arc(obj.center.x, obj.center.y, obj.radius, 0, Math.PI * 2);
-        ctx.stroke();
+        tc.beginPath();
+        tc.arc(obj.center.x, obj.center.y, obj.radius, 0, Math.PI * 2);
+        tc.stroke();
       } else if (obj.type === "rect" && obj.points?.length === 2) {
         const [a, b] = obj.points;
-        ctx.strokeRect(
-          Math.round(Math.min(a.x, b.x)),
-          Math.round(Math.min(a.y, b.y)),
-          Math.round(Math.abs(b.x - a.x)),
-          Math.round(Math.abs(b.y - a.y))
+        tc.strokeRect(
+          Math.round(Math.min(a.x, b.x)), Math.round(Math.min(a.y, b.y)),
+          Math.round(Math.abs(b.x - a.x)), Math.round(Math.abs(b.y - a.y))
         );
       }
     }
 
     function redraw() {
-      const { w, h, dpr } = geomRef.current;
+      const { dpr } = geomRef.current;
+      const pw = canvas.width, ph = canvas.height;
+      if (pw < 1 || ph < 1) return;
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, pw, ph);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, w, h);
-      ctx.save();
-
       objectsRef.current.forEach((obj) => {
-        if (obj.type === "line") drawPath(obj.points, obj.color, obj.width);
-        else drawShape(obj);
+        if (obj.type === "line") drawPath(ctx, obj.points, obj.color, obj.width);
+        else drawShape(ctx, obj);
       });
-      if (currentLineRef.current) drawPath(currentLineRef.current.points, currentLineRef.current.color, currentLineRef.current.width);
-      if (currentShapeRef.current) drawShape(currentShapeRef.current);
-
-      ctx.restore();
+      if (currentLineRef.current) drawPath(ctx, currentLineRef.current.points, currentLineRef.current.color, currentLineRef.current.width);
+      if (currentShapeRef.current) drawShape(ctx, currentShapeRef.current);
     }
     redrawRef.current = redraw;
     saveBoardRef.current = saveBoard;
@@ -597,7 +503,7 @@ function ExamPage() {
           const dx = p2.x - p1.x, dy = p2.y - p1.y;
           shape.points = [p1, p2, { x: (p1.x + p2.x) / 2 - dy, y: (p1.y + p2.y) / 2 + dx }];
         }
-        redraw();
+        scheduleRedraw();
         return;
       }
 
@@ -618,7 +524,7 @@ function ExamPage() {
         }
       }
       line.points.push({ x: pos.x, y: pos.y });
-      redraw();
+      scheduleRedraw();
     }
 
     function onPointerUp(e) {
@@ -645,18 +551,20 @@ function ExamPage() {
         }
         currentShapeRef.current = null;
       } else if (drawingRef.current && currentLineRef.current) {
+        const line = currentLineRef.current;
         redoStackRef.current = [];
         setCanRedo(false);
-        objectsRef.current.push(currentLineRef.current);
+        objectsRef.current.push(line);
         setCanUndo(true);
         if (socket.readyState === WebSocket.OPEN) {
-          socket.send(JSON.stringify({ action: "add_object", object: currentLineRef.current }));
+          socket.send(JSON.stringify({ action: "add_object", object: line }));
         }
         currentLineRef.current = null;
       }
 
       drawingRef.current = false;
       erasingRef.current = false;
+      if (rafId2 != null) { cancelAnimationFrame(rafId2); rafId2 = null; }
       redraw();
       saveBoard();
     }
@@ -710,22 +618,14 @@ function ExamPage() {
     canvas.addEventListener("pointermove", onPointerMove, { passive: false });
     canvas.addEventListener("pointerup", onPointerUp, { passive: false });
     canvas.addEventListener("pointercancel", onPointerUp, { passive: false });
-    canvas.addEventListener("pointerleave", onPointerUp, { passive: false });
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("resize", resizeCanvas);
 
     let ro;
-    const panelEl = boardPanelRef.current;
-    if (panelEl && typeof ResizeObserver !== "undefined") {
+    const root = mainRef.current;
+    if (root && typeof ResizeObserver !== "undefined") {
       ro = new ResizeObserver(() => resizeCanvas());
-      ro.observe(panelEl);
-    }
-
-    let roMain;
-    const mainEl = mainRef.current;
-    if (mainEl && typeof ResizeObserver !== "undefined") {
-      roMain = new ResizeObserver(() => resizeCanvas());
-      roMain.observe(mainEl);
+      ro.observe(root);
     }
 
     resizeCanvas();
@@ -735,10 +635,10 @@ function ExamPage() {
 
     return () => {
       cancelAnimationFrame(rafId);
+      if (rafId2 != null) cancelAnimationFrame(rafId2);
       if (ro) ro.disconnect();
-      if (roMain) roMain.disconnect();
       redrawRef.current = null;
-      saveBoardRef.current = () => {};
+      saveBoardRef.current = null;
       try {
         if (socket && socket.readyState !== 2 && socket.readyState !== 3) socket.close();
       } catch (_) {}
@@ -746,7 +646,6 @@ function ExamPage() {
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerup", onPointerUp);
       canvas.removeEventListener("pointercancel", onPointerUp);
-      canvas.removeEventListener("pointerleave", onPointerUp);
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("resize", resizeCanvas);
     };
@@ -780,11 +679,8 @@ function ExamPage() {
   // Для математики: ответы вида "x или y" считаем как несколько допустимых вариантов
   function isUserAnswerCorrect(rawUserValue, correctAnswerHtml) {
     const userNorm = normalize(rawUserValue);
-    if (!userNorm) return false;
-
     const correctText = getTextFromHtml(correctAnswerHtml || "");
     const correctNorm = normalize(correctText);
-    if (!correctNorm) return false;
 
     if (subject === "math" && /\sили\s/i.test(correctText)) {
       const alternatives = correctText
@@ -958,7 +854,7 @@ function ExamPage() {
     const obj = objectsRef.current.pop();
     redoStackRef.current.push(obj);
     redrawRef.current?.();
-    saveBoardRef.current();
+    saveBoardRef.current?.();
     setCanUndo(objectsRef.current.length > 0);
     setCanRedo(redoStackRef.current.length > 0);
   }
@@ -968,7 +864,7 @@ function ExamPage() {
     const obj = redoStackRef.current.pop();
     objectsRef.current.push(obj);
     redrawRef.current?.();
-    saveBoardRef.current();
+    saveBoardRef.current?.();
     setCanUndo(true);
     setCanRedo(redoStackRef.current.length > 0);
   }
@@ -980,7 +876,7 @@ function ExamPage() {
     setCanUndo(false);
     setCanRedo(false);
     redrawRef.current?.();
-    saveBoardRef.current();
+    saveBoardRef.current?.();
     if (socketRef.current?.readyState === WebSocket.OPEN) {
       socketRef.current.send(JSON.stringify({ action: "clear_all" }));
     }
@@ -1174,7 +1070,9 @@ function ExamPage() {
 
   const openThemedPdf = async (variantId, themeName) => {
     setPdfLoading(themeName);
+    const bgUrl = getThemeWorksheetBg();
     const params = new URLSearchParams({ theme: themeName });
+    if (bgUrl) params.set("bg_url", bgUrl);
     const url = `/api/${level}/${subject}/variant/${variantId}/pdf/?${params}`;
     try {
       const res = await fetch(url, { credentials: "same-origin" });
@@ -1232,22 +1130,7 @@ function ExamPage() {
   return (
     <div ref={mainRef} className="main-wrapper exam-page" id="main-wrapper" data-level={level} data-subject={subject}>
       {/* Фиксированный блок: таймер и баллы — остаётся в углу при прокрутке */}
-      <div
-        ref={examHudRef}
-        className="exam-fixed-corner"
-        style={{
-          transform: `translate(${examHudOffset.dx}px, ${examHudOffset.dy}px)`,
-        }}
-      >
-        <button
-          type="button"
-          className="exam-fixed-corner__drag"
-          onPointerDown={onExamHudDragPointerDown}
-          aria-label="Переместить блок таймера"
-          title="Перетащите — положение сохранится до закрытия вкладки"
-        >
-          <span className="exam-fixed-corner__drag-grip" aria-hidden="true" />
-        </button>
+      <div className="exam-fixed-corner">
         <div className="variant-timer exam-fixed-timer">
           <div className="variant-timer-display">{formatTimer(timerSeconds)}</div>
           <div className="variant-timer-actions">
@@ -1292,13 +1175,10 @@ function ExamPage() {
         <div className="variant-score-block">
           <div className="variant-score-row">
             <span className="variant-score-label">
-              {mode !== "test" && part2Tasks.length > 0 ? "Баллов" : "Правильных"}
+              {part2Tasks.length > 0 ? "Баллов" : "Правильных"}
             </span>
             <span className="variant-score-val">
-              {mode === "test"
-                ? <>{correctCount} <span className="variant-score-total">/ {part1Tasks.length}</span></>
-                : <>{totalScore} <span className="variant-score-total">/ {maxScore}</span></>
-              }
+              {totalScore} <span className="variant-score-total">/ {maxScore}</span>
             </span>
           </div>
         </div>
@@ -1895,12 +1775,10 @@ function ExamPage() {
           <span>Открыть доску</span>
         </button>
 
-      {/* ===== ДОСКА: слой на всю высоту варианта (.main-wrapper), тулбар — fixed у низа окна ===== */}
+      {/* ===== ДОСКА (внутри main-wrapper, прокручивается вместе со страницей) ===== */}
       {boardOpen && (
         <div id="board-container" className="active">
-          <div id="board-panel" ref={boardPanelRef}>
-            <canvas ref={canvasRef} id="board" style={{ cursor: tool === "eraser" ? "pointer" : "crosshair" }} />
-          </div>
+          <canvas ref={canvasRef} id="board" style={{ cursor: tool === "eraser" ? "pointer" : "crosshair" }} />
           <div id="board-toolbar">
             <button
               id="penBtn"
