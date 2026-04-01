@@ -34,9 +34,10 @@
       },
       /* CHTML: глифы формул — шрифт MathJax; Calibri только через CSS для mjx-mtext (\text{}) */
       chtml: {
-        scale: 1.12,
+        scale: 1.22,
         mtextInheritFont: true,
-        matchFontHeight: true
+        /* true сжимает формулы под x-height окружающего текста — на экране кажутся мелкими */
+        matchFontHeight: false
       },
       startup: { typeset: false }
     };
