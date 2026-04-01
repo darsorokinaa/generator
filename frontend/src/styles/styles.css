@@ -4440,6 +4440,26 @@ body.index .exam-grid .exam-card {
     cursor: pointer;
 }
 
+/* Алгебра: ещё компактнее иллюстрации и MathJax (раньше казались слишком крупными) */
+.exam-page .task-alg .task-text img,
+.exam-page .task-alg .task-text figure img,
+.exam-page .task-alg .task-text figure.image img,
+.exam-page .task-alg .correct-answer-content img,
+.exam-page .task-alg .part2-answer-content img {
+    width: calc(100% / 2.25) !important;
+    max-width: calc(100% / 2.25) !important;
+}
+
+.exam-page .task-alg .task-text mjx-container,
+.exam-page .task-alg .task-text mjx-container[display="true"],
+.exam-page .task-alg .correct-answer-content mjx-container,
+.exam-page .task-alg .correct-answer-content mjx-container[display="true"],
+.exam-page .task-alg .part2-answer-content mjx-container,
+.exam-page .task-alg .part2-answer-content mjx-container[display="true"],
+.exam-page .task-alg .criteria-text mjx-container {
+    font-size: 0.88em !important;
+}
+
 /* Убираем встроенные белые подложки у текста в задачах */
 .exam-page .task-text [style*="background"],
 .exam-page .task-text [style*="background-color"],
