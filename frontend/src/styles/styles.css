@@ -4368,10 +4368,10 @@ body.index .exam-grid .exam-card {
 .exam-page .task-geom .part2-answer-content img {
     display: block !important;
     margin: 0.06rem auto !important;
-    width: min(320px, 90vw) !important;
+    width: min(calc(320px / 1.5), calc(90vw / 1.5)) !important;
     max-width: 100% !important;
-    height: min(320px, 90vw) !important;
-    max-height: min(320px, 90vw) !important;
+    height: min(calc(320px / 1.5), calc(90vw / 1.5)) !important;
+    max-height: min(calc(320px / 1.5), calc(90vw / 1.5)) !important;
     object-fit: contain !important;
     object-position: center !important;
     cursor: pointer;
@@ -4419,17 +4419,23 @@ body.index .exam-grid .exam-card {
 .exam-page .task:not(.task-geom) .task-text img,
 .exam-page .task:not(.task-geom) .task-text figure img,
 .exam-page .task:not(.task-geom) .task-text figure.image img {
-    width: 100% !important;
-    max-width: 100% !important;
+    display: block !important;
+    width: calc(100% / 1.5) !important;
+    max-width: calc(100% / 1.5) !important;
     height: auto !important;
     max-height: none !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
     object-fit: contain !important;
 }
 .exam-page .task:not(.task-geom) .correct-answer-content img,
 .exam-page .task:not(.task-geom) .part2-answer-content img {
-    width: 100% !important;
-    max-width: 100% !important;
+    display: block !important;
+    width: calc(100% / 1.5) !important;
+    max-width: calc(100% / 1.5) !important;
     height: auto !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
     object-fit: contain !important;
     cursor: pointer;
 }
