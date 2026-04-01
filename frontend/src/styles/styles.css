@@ -4999,18 +4999,64 @@ body.index .exam-grid .exam-card {
     top: 6.5rem;
     right: 0.75rem;
     bottom: auto !important;
-    gap: 0.4rem;
-    padding: 0.4rem;
+    gap: 0.3rem;
+    padding: 0.3rem;
     max-width: calc(100vw - 1rem);
     z-index: 900;
   }
 
+  .exam-fixed-corner .exam-fixed-timer {
+    padding: 0.35rem 0.5rem !important;
+    gap: 0.45rem !important;
+    border-radius: 14px;
+  }
+
   .exam-fixed-timer .variant-timer-display {
-    font-size: 1.1rem;
+    font-size: 0.95rem;
+    min-width: 3.2ch;
+  }
+
+  .exam-fixed-timer .variant-timer-btn {
+    width: 28px;
+    height: 28px;
+    border-radius: 9px;
+  }
+
+  .exam-fixed-timer .variant-timer-btn svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .exam-fixed-corner .variant-score-block {
+    padding: 0.35rem 0.55rem;
+    gap: 0.35rem;
+    border-radius: 12px;
+  }
+
+  .exam-fixed-corner .variant-score-label {
+    font-size: 0.58rem;
+    letter-spacing: 0.06em;
   }
 
   .exam-fixed-corner .variant-score-val {
-    font-size: 1.1rem;
+    font-size: 0.95rem;
+  }
+
+  .exam-fixed-corner .variant-score-total {
+    font-size: 0.78rem;
+  }
+
+  .exam-fixed-corner .exam-fixed-support-btn {
+    padding: 0.4rem 0.55rem;
+    font-size: 0.72rem;
+    font-weight: 600;
+    border-radius: 10px;
+    gap: 4px;
+  }
+
+  .exam-fixed-corner .exam-fixed-support-btn svg {
+    width: 15px;
+    height: 15px;
   }
 
   /* На мобилке показываем текст «Справочная информация», чтобы было понятно. */
