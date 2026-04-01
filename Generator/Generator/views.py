@@ -1326,14 +1326,11 @@ def _get_announcement_worksheet_bg(request, theme=None):
 
 def variant_pdf(request, level, subject, variant_id):
     theme = request.GET.get("theme", "").lower()
-    bg_url = (request.GET.get("bg_url") or "").strip()
     background_url = ""
-    if bg_url:
-        background_url = bg_url
-    elif theme in ("cosmos", "easter"):
-        background_url = _get_announcement_worksheet_bg(request, theme=theme)
-        if not background_url and theme == "cosmos":
-            background_url = pdf_utils.resolve_background_image("img/cosmos.png", request=request)
+    if theme == "cosmos":
+        background_url = pdf_utils.resolve_background_image("img/cosmos.png", request=request)
+    elif theme == "easter":
+        background_url = pdf_utils.resolve_background_image("img/easter.png", request=request)
     return _render_variant_pdf(
         request,
         level,

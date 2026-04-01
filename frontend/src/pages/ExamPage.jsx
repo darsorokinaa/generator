@@ -1070,9 +1070,7 @@ function ExamPage() {
 
   const openThemedPdf = async (variantId, themeName) => {
     setPdfLoading(themeName);
-    const bgUrl = getThemeWorksheetBg();
     const params = new URLSearchParams({ theme: themeName });
-    if (bgUrl) params.set("bg_url", bgUrl);
     const url = `/api/${level}/${subject}/variant/${variantId}/pdf/?${params}`;
     try {
       const res = await fetch(url, { credentials: "same-origin" });
