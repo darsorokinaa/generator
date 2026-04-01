@@ -2407,7 +2407,7 @@ header {
 }
 
 mjx-container {
-    font-size: 169% !important;
+    font-size: 150% !important;
 }
 
 
@@ -4525,7 +4525,7 @@ body.index .exam-grid .exam-card {
     overflow-wrap: anywhere;
     word-break: break-word;
     white-space: normal;
-    font-size: 1.34rem;
+    font-size: 1.14rem;
     line-height: 1.7;
 }
 /* Прокрутка широких таблиц/формул — на колонке условия, не на всей странице */
@@ -4584,7 +4584,7 @@ body.index .exam-grid .exam-card {
 
 @media (max-width: 900px) {
     .exam-page .task-text {
-        font-size: 1.31rem !important;
+        font-size: 1.17rem !important;
         line-height: 1.65 !important;
     }
 }

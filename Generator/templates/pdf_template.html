@@ -192,7 +192,7 @@
             text-decoration: none !important;
         }
 
-        /* ─── Геометрические задания (чертежи 150pt вместо 195pt) ─── */
+        /* ─── Геометрические задания: чертежи до calc(100pt/3) по стороне ─── */
         .task-geom .task-body {
             line-height: 1.45;
         }
@@ -295,9 +295,9 @@
         .pdf-subject-inf .task-geom .task-body img,
         .pdf-subject-inf .task-geom .task-body figure img {
             width: auto !important;
-            max-width: 100pt !important;
+            max-width: calc(100pt / 2) !important;
             height: auto !important;
-            max-height: 100pt !important;
+            max-height: calc(100pt / 2) !important;
             object-fit: contain !important;
             display: block !important;
             margin: 3pt auto !important;
