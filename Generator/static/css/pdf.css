@@ -30,26 +30,25 @@ body {
 /* ===== Задание ===== */
 /* flex: номер слева от текста; align-items: flex-start — рамка номера не растягивается на высоту задания (в отличие от table-cell) */
 .task {
-    display: table;
-    table-layout: fixed;
     width: 100%;
-    max-width: 100%;
     margin-bottom: 14pt;
     page-break-inside: avoid;
     break-inside: avoid;
     -webkit-column-break-inside: avoid;
+    overflow: hidden;
 }
 
 .task-main {
-    display: table-row;
+    overflow: hidden;
 }
 
 .task-number,
 .ta {
-    display: table-cell;
-    width: 28pt;
-    min-width: 28pt;
-    max-width: 28pt;
+    float: left;
+    clear: left;
+    width: 26pt;
+    min-width: 26pt;
+    max-width: 26pt;
     padding: 3pt 2pt;
     box-sizing: border-box;
     background-color: #fff;
@@ -58,14 +57,10 @@ body {
     font-weight: bold;
     font-size: 11pt;
     line-height: 1.15;
-    vertical-align: top;
 }
 
 .task-body {
-    display: table-cell;
-    width: auto;
-    padding-left: 6pt;
-    vertical-align: top;
+    margin-left: 34pt;
     overflow: hidden;
 }
 

@@ -1303,15 +1303,19 @@ def _render_variant_pdf(request, level, subject, variant_id, background_url="", 
     return response
 
 
-def _get_announcement_worksheet_bg(request):
-    """Ищет первое активное объявление с заполненным theme_worksheet_bg."""
-    obj = (
+def _get_announcement_worksheet_bg(request, theme=None):
+    """Ищет активное объявление с заполненным theme_worksheet_bg, фильтруя по теме."""
+    qs = (
         Announcement.objects
         .filter(show=True, theme_worksheet_bg__isnull=False)
         .exclude(theme_worksheet_bg="")
         .order_by("sort_order", "-created")
-        .first()
     )
+    if theme == "easter":
+        qs = qs.filter(title__iregex=r'пасх|easter')
+    elif theme == "cosmos":
+        qs = qs.filter(title__iregex=r'косм|cosmos|space')
+    obj = qs.first()
     if obj and obj.theme_worksheet_bg:
         try:
             return request.build_absolute_uri(obj.theme_worksheet_bg.url)
@@ -1327,7 +1331,7 @@ def variant_pdf(request, level, subject, variant_id):
     if bg_url:
         background_url = bg_url
     elif theme in ("cosmos", "easter"):
-        background_url = _get_announcement_worksheet_bg(request)
+        background_url = _get_announcement_worksheet_bg(request, theme=theme)
         if not background_url and theme == "cosmos":
             background_url = pdf_utils.resolve_background_image("img/cosmos.png", request=request)
     return _render_variant_pdf(
