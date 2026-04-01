@@ -146,10 +146,12 @@ function IndexPage() {
   }, []);
 
   useEffect(() => {
-    const onThemeChange = () => {
+    const onThemeChange = (e) => {
       const id = sessionStorage.getItem("active_theme_id") || null;
       setPinnedThemeId(id);
-      if (id) {
+      if (e.resetToDefault || !id) {
+        setWelcomeSlideIndex(0);
+      } else {
         const idx = welcomeSlides.findIndex((s) => String(s.id) === String(id));
         if (idx >= 0) setWelcomeSlideIndex(idx);
       }
@@ -257,24 +259,6 @@ function IndexPage() {
                 className="welcome-banner-cta"
                 tabIndex={i === welcomeSlideIndex ? 0 : -1}
                 onClick={() => {
-                  if (slide.hasTheme) {
-                    const currentId = sessionStorage.getItem("active_theme_id");
-                    if (String(currentId) === String(slide.id)) {
-                      sessionStorage.removeItem("theme_data");
-                      sessionStorage.removeItem("active_theme_id");
-                    } else {
-                      sessionStorage.setItem("theme_data", JSON.stringify({
-                        overlay: slide.themeOverlay,
-                        headerBg: slide.themeHeaderBg,
-                        logo: slide.themeLogo,
-                        decor: slide.themeDecor,
-                        worksheetBg: slide.themeWorksheetBg,
-                      }));
-                      sessionStorage.setItem("active_theme_id", String(slide.id));
-                    }
-                    window.dispatchEvent(new Event("theme-change"));
-                    return;
-                  }
                   const href = (slide.buttonUrl || "").trim();
                   if (!href) {
                     document.getElementById("exam-choice")?.scrollIntoView({ behavior: "smooth" });
