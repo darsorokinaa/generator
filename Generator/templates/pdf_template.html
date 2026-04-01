@@ -492,6 +492,8 @@
             max-width: 100% !important;
             min-width: 0 !important;
             box-sizing: border-box;
+            font-size: 5pt !important;
+            line-height: 1.12 !important;
         }
         .pdf-doc .task-body figure.table,
         .pdf-doc .task-body figure.image:has(table) {
@@ -508,12 +510,14 @@
         .pdf-doc .task-body table:not(.array-table):not(.cases-table) th,
         .pdf-doc .task-body table:not(.array-table):not(.cases-table) td {
             white-space: normal !important;
-            word-break: normal !important;
+            word-break: break-word !important;
             overflow-wrap: break-word !important;
             min-width: 0 !important;
             max-width: 100%;
-            padding: 3pt 4pt;
+            padding: 1.5pt 2pt !important;
             box-sizing: border-box;
+            font-size: 5pt !important;
+            line-height: 1.12 !important;
         }
         .pdf-doc .task-body table:not(.array-table):not(.cases-table) th p,
         .pdf-doc .task-body table:not(.array-table):not(.cases-table) td p {

@@ -4535,16 +4535,54 @@ body.index .exam-grid .exam-card {
 .exam-page .task-text figure.image {
     margin: 0.06rem auto !important;
 }
-/* Таблицы в условии: на всю ширину, компактные отступы */
+/* Таблицы в условии: на всю ширину, компактный шрифт (как PDF) */
 .exam-page .task-text table {
     width: 100% !important;
     max-width: 100% !important;
     margin: 0.3rem auto !important;
+    table-layout: fixed !important;
+    font-size: 0.78rem !important;
+    line-height: 1.25 !important;
 }
 .exam-page .task-text th,
 .exam-page .task-text td {
-    padding: 0.5rem 0.75rem !important;
+    padding: 0.35rem 0.45rem !important;
+    font-size: inherit !important;
+    min-width: 0 !important;
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
 }
+/* Много колонок — ещё мельче */
+.exam-page .task-text table:has(tr > th:nth-child(5)),
+.exam-page .task-text table:has(tr > td:nth-child(5)) {
+    font-size: 0.68rem !important;
+}
+.exam-page .task-text table:has(tr > th:nth-child(6)),
+.exam-page .task-text table:has(tr > td:nth-child(6)) {
+    font-size: 0.6rem !important;
+}
+.exam-page .task-text table:has(tr > th:nth-child(7)),
+.exam-page .task-text table:has(tr > td:nth-child(7)) {
+    font-size: 0.52rem !important;
+}
+
+.exam-page .correct-answer-content table,
+.exam-page .part2-answer-content table {
+    width: 100% !important;
+    max-width: 100% !important;
+    table-layout: fixed !important;
+    font-size: 0.72rem !important;
+    line-height: 1.25 !important;
+}
+.exam-page .correct-answer-content th,
+.exam-page .correct-answer-content td,
+.exam-page .part2-answer-content th,
+.exam-page .part2-answer-content td {
+    padding: 0.3rem 0.4rem !important;
+    font-size: inherit !important;
+    word-break: break-word !important;
+}
+
 .exam-page .answer-section {
     margin-top: 0.2rem !important;
     gap: 0rem !important;
