@@ -159,7 +159,9 @@ function Layout() {
               sessionStorage.removeItem("active_theme_id");
               setActiveThemeId(null);
               setThemeData(null);
-              window.dispatchEvent(new Event("theme-change"));
+              const e = new Event("theme-change");
+              e.resetToDefault = true;
+              window.dispatchEvent(e);
             }}
             aria-label="Обычный стиль"
             title="Обычный стиль"
