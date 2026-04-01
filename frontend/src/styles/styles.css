@@ -4174,8 +4174,8 @@ body.index .exam-grid .exam-card {
     .variant-hero-actions > button {
         width: 100%;
         min-width: 0;
-        padding: 0.6rem 0.6rem;
-        font-size: 0.78rem;
+        padding: 0.7rem 1rem;
+        font-size: 0.88rem;
         justify-content: center;
         text-align: center;
         white-space: normal;

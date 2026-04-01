@@ -35,11 +35,21 @@ body {
     break-inside: avoid;
     -webkit-column-break-inside: avoid;
     overflow: hidden;
+    border: none;
 }
 
 .task-main {
     display: block;
     overflow: hidden;
+    border: none;
+    page-break-inside: avoid;
+    break-inside: avoid;
+}
+
+.task-with-answer {
+    border: none;
+    page-break-inside: avoid;
+    break-inside: avoid;
 }
 
 .task-number,
@@ -56,6 +66,12 @@ body {
     font-size: 11pt;
     line-height: 14pt;
     margin: 0 8pt 4pt 0;
+}
+
+.ta-inner {
+    border: none;
+    outline: none;
+    display: inline;
 }
 
 .task-body {
@@ -156,6 +172,8 @@ body {
     margin-top: 6pt;
     page-break-inside: avoid;
     break-inside: avoid;
+    page-break-before: avoid;
+    break-before: avoid;
 }
 
 .answer-field {
