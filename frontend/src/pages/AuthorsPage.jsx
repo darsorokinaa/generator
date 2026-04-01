@@ -76,11 +76,11 @@ function AuthorsPage() {
       <div className="about-page-footer subject-sidebar-card subject-sidebar-support">
         <h3 className="subject-sidebar-title">Связаться с нами</h3>
         <p className="subject-sidebar-text">
-          Связаться с нами или предложить идеи можно через раздел «Сообщить об ошибке» в варианте или у администратора платформы.
+          Связаться с нами или предложить идеи можно по электронной почте — ответим как можно скорее.
         </p>
-        <Link to="/" className="subject-sidebar-btn">
-          На главную
-        </Link>
+        <a href="mailto:genurok@yandex.ru" className="subject-sidebar-btn">
+          ✉ genurok@yandex.ru
+        </a>
       </div>
     </div>
   );

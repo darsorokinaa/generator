@@ -678,8 +678,11 @@ function ExamPage() {
   // Для математики: ответы вида "x или y" считаем как несколько допустимых вариантов
   function isUserAnswerCorrect(rawUserValue, correctAnswerHtml) {
     const userNorm = normalize(rawUserValue);
+    if (!userNorm) return false;
+
     const correctText = getTextFromHtml(correctAnswerHtml || "");
     const correctNorm = normalize(correctText);
+    if (!correctNorm) return false;
 
     if (subject === "math" && /\sили\s/i.test(correctText)) {
       const alternatives = correctText
@@ -1172,10 +1175,13 @@ function ExamPage() {
         <div className="variant-score-block">
           <div className="variant-score-row">
             <span className="variant-score-label">
-              {part2Tasks.length > 0 ? "Баллов" : "Правильных"}
+              {mode !== "test" && part2Tasks.length > 0 ? "Баллов" : "Правильных"}
             </span>
             <span className="variant-score-val">
-              {totalScore} <span className="variant-score-total">/ {maxScore}</span>
+              {mode === "test"
+                ? <>{correctCount} <span className="variant-score-total">/ {part1Tasks.length}</span></>
+                : <>{totalScore} <span className="variant-score-total">/ {maxScore}</span></>
+              }
             </span>
           </div>
         </div>

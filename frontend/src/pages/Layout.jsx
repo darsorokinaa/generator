@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
 
+const COOKIE_CONSENT_KEY = "cookie_consent_accepted";
+
 function readThemeData() {
   try {
     const raw = sessionStorage.getItem("theme_data");
@@ -12,6 +14,14 @@ function readThemeData() {
 function Layout() {
   const { pathname } = useLocation();
   const [themeData, setThemeData] = useState(readThemeData);
+  const [cookieAccepted, setCookieAccepted] = useState(() => {
+    try { return !!localStorage.getItem(COOKIE_CONSENT_KEY); } catch { return false; }
+  });
+
+  function acceptCookies() {
+    try { localStorage.setItem(COOKIE_CONSENT_KEY, "1"); } catch { /* ignore */ }
+    setCookieAccepted(true);
+  }
   const [themeSlides, setThemeSlides] = useState([]);
   const [activeThemeId, setActiveThemeId] = useState(() => {
     try { return sessionStorage.getItem("active_theme_id") || null; } catch { return null; }
@@ -219,9 +229,30 @@ function Layout() {
         <Outlet />
       </main>
 
-      <footer className="text-center py-3">
-        © 2026
+      <footer className="site-footer">
+        <div className="site-footer-inner">
+          <span className="site-footer-copy">© 2026 ГенУрок</span>
+          <div className="site-footer-links">
+            <Link to="/privacy" className="site-footer-link">Политика конфиденциальности</Link>
+            <span className="site-footer-sep" aria-hidden="true">·</span>
+            <Link to="/privacy#pd" className="site-footer-link">Согласие на обработку ПД</Link>
+          </div>
+        </div>
       </footer>
+
+      {!cookieAccepted && (
+        <div className="cookie-banner" role="alertdialog" aria-label="Уведомление об использовании файлов cookie">
+          <div className="cookie-banner-inner">
+            <p className="cookie-banner-text">
+              Мы используем файлы cookie для корректной работы сайта. Продолжая использование сайта, вы соглашаетесь с{" "}
+              <Link to="/privacy" className="cookie-banner-link">политикой конфиденциальности</Link> и обработкой персональных данных.
+            </p>
+            <button type="button" className="cookie-banner-btn" onClick={acceptCookies}>
+              Принять
+            </button>
+          </div>
+        </div>
+      )}
 
       <script
         src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js"

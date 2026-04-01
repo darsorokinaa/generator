@@ -169,7 +169,7 @@ function IndexPage() {
     if (welcomeSlides.length < 2) return undefined;
     const sliderTimer = window.setInterval(() => {
       setWelcomeSlideIndex((prev) => (prev + 1) % welcomeSlides.length);
-    }, 21000);
+    }, 300000);
     return () => window.clearInterval(sliderTimer);
   }, [welcomeSlides.length, pinnedThemeId, welcomeSlides]);
 
