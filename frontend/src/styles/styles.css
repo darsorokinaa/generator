@@ -2407,7 +2407,7 @@ header {
 }
 
 mjx-container {
-    font-size: 135% !important;
+    font-size: 169% !important;
 }
 
 
@@ -4309,7 +4309,7 @@ body.index .exam-grid .exam-card {
     }
 
     .exam-page .task-text {
-        font-size: 1rem !important;
+        font-size: 1.25rem !important;
     }
 
     .exam-page .task {
@@ -4457,7 +4457,7 @@ body.index .exam-grid .exam-card {
 .exam-page .task-alg .part2-answer-content mjx-container,
 .exam-page .task-alg .part2-answer-content mjx-container[display="true"],
 .exam-page .task-alg .criteria-text mjx-container {
-    font-size: 1.06em !important;
+    font-size: 1.325em !important;
 }
 
 /* Убираем встроенные белые подложки у текста в задачах */
@@ -4525,7 +4525,7 @@ body.index .exam-grid .exam-card {
     overflow-wrap: anywhere;
     word-break: break-word;
     white-space: normal;
-    font-size: 1.07rem;
+    font-size: 1.34rem;
     line-height: 1.7;
 }
 /* Прокрутка широких таблиц/формул — на колонке условия, не на всей странице */
@@ -4571,7 +4571,7 @@ body.index .exam-grid .exam-card {
     max-width: 100% !important;
     overflow-x: auto;
     overflow-y: hidden;
-    font-size: 1.18em !important;
+    font-size: 1.475em !important;
 }
 
 .exam-page .correct-answer-content mjx-container,
@@ -4579,19 +4579,19 @@ body.index .exam-grid .exam-card {
 .exam-page .part2-answer-content mjx-container,
 .exam-page .part2-answer-content mjx-container[display="true"],
 .exam-page .criteria-text mjx-container {
-    font-size: 1.18em !important;
+    font-size: 1.475em !important;
 }
 
 @media (max-width: 900px) {
     .exam-page .task-text {
-        font-size: 1.05rem !important;
+        font-size: 1.31rem !important;
         line-height: 1.65 !important;
     }
 }
 
 @media (max-width: 600px) {
     .exam-page .task-text {
-        font-size: 0.98rem !important;
+        font-size: 1.23rem !important;
         line-height: 1.55 !important;
     }
 }
