@@ -1554,6 +1554,44 @@ header {
     color: var(--text-secondary);
 }
 
+/* ОГЭ инф. №13 под кнопками: один вариант, визуал как галочки в тренажёре (не кружки) */
+.tasks-page-oge-inf13-radios {
+    margin-top: 1rem;
+}
+
+.tasks-page-oge-inf13-radios-title {
+    display: block;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.55rem;
+}
+
+.tasks-page-oge-inf13-radios-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem 1.25rem;
+    align-items: flex-start;
+}
+
+.tasks-page-oge-inf13-row-item.tasks-page-subtopic-label {
+    position: relative;
+    flex: 0 1 auto;
+    max-width: 100%;
+}
+
+.tasks-page-oge-inf13-row-item:hover .tasks-page-subtopic-checkbox-visual:not(.selected) {
+    background: #eff6ff;
+    border-color: var(--primary-purple);
+}
+
+.tasks-page-oge-inf13-option-text {
+    font-size: 0.88rem;
+    color: var(--text-secondary);
+    line-height: 1.35;
+    max-width: 280px;
+}
+
 .tasks-page-card-desc {
     font-size: 0.95rem;
     color: var(--text-secondary);

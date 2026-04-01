@@ -281,6 +281,21 @@ def _create_variant(subject_short, level_str, body_bytes, create=True):
                         if cfg["subtopic_ids"] or cfg["subtopic_counts"]:
                             group_subtopic_config[nums] = cfg
     tasklist_ids = [int(k) for k in content.keys()]
+    # ОГЭ инф. №13: какие подтемы включать (текст / презентация); иначе — по одной задаче из каждой подтемы
+    oge_inf_13_subtopics = None
+    if isinstance(data, dict) and data.get("oge_inf_13_subtopics"):
+        raw = data["oge_inf_13_subtopics"]
+        if isinstance(raw, list):
+            tmp = []
+            for x in raw:
+                if x is None or str(x).strip() == "":
+                    continue
+                try:
+                    tmp.append(int(x))
+                except (TypeError, ValueError):
+                    continue
+            oge_inf_13_subtopics = tmp or None
+
     subtopic_ids = None
     subtopic_counts = None
     if isinstance(data, dict) and data.get("subtopic_ids"):
@@ -535,6 +550,25 @@ def _create_variant(subject_short, level_str, body_bytes, create=True):
         qs = Task.objects.filter(task_id=tasklist_id)
         if only_fipi and fipi_q:
             qs = qs.filter(fipi_q)
+
+        is_oge_inf_13 = (
+            subject_instance.subject_short == "inf"
+            and level_instance.level == "oge"
+            and tasklist.task_number == 13
+        )
+        # Радио «текст / презентация»: только задачи выбранной подтемы (важнее глобальных subtopic_ids тренажёра)
+        oge13_subtopic_locked = False
+        if is_oge_inf_13 and oge_inf_13_subtopics:
+            valid_oge13_ids = list(
+                SubTopic.objects.filter(
+                    task_list_id=tasklist_id,
+                    id__in=oge_inf_13_subtopics,
+                ).values_list("id", flat=True)
+            )
+            if valid_oge13_ids:
+                qs = qs.filter(subtopic_id__in=valid_oge13_ids)
+                oge13_subtopic_locked = True
+
         # Только подтемы, принадлежащие этому слоту (TaskList)
         slot_subtopic_ids = None
         if subtopic_ids:
@@ -543,7 +577,10 @@ def _create_variant(subject_short, level_str, body_bytes, create=True):
                     id__in=subtopic_ids, task_list_id=tasklist_id
                 ).values_list("id", flat=True)
             )
-        if slot_subtopic_ids:
+
+        if oge13_subtopic_locked:
+            tasks_for_slot = list(qs.order_by("?")[: int(count)])
+        elif slot_subtopic_ids:
             qs = qs.filter(subtopic_id__in=slot_subtopic_ids)
             tasks_for_slot = list(qs.order_by("?")[: int(count)])
         elif subtopic_counts:
@@ -577,12 +614,9 @@ def _create_variant(subject_short, level_str, body_bytes, create=True):
             shuffle(pooled)
             tasks_for_slot = list(Task.objects.filter(id__in=pooled[: int(count)]))
         else:
-            # OGE информатика, задание 13: при полном варианте — по одной задаче из каждой подтемы
-            if (
-                subject_instance.subject_short == "inf"
-                and level_instance.level == "oge"
-                and tasklist.task_number == 13
-            ):
+            # OGE инф. №13 без выбора радио: по одной задаче из каждой подтемы.
+            # С радио подтема уже зафиксирована выше (oge13_subtopic_locked).
+            if is_oge_inf_13 and not oge_inf_13_subtopics:
                 st_ids_with_tasks = list(
                     qs.exclude(subtopic_id__isnull=True)
                     .values_list("subtopic_id", flat=True)
@@ -970,8 +1004,8 @@ def api_variant_detail(request, level, subject, variant_id):
     contents = (
         VariantContent.objects
         .filter(variant=variant)
-        .select_related('task', 'task__task')
-        .order_by('order')
+        .select_related("task", "task__task", "task__subtopic")
+        .order_by("order")
     )
 
     tasks_data = []
@@ -1000,6 +1034,7 @@ def api_variant_detail(request, level, subject, variant_id):
             if max_score is None:
                 max_score = 1
 
+        st = getattr(item.task, "subtopic", None)
         tasks_data.append({
             "id": item.task.id,
             "task_list_id": task_list.id if task_list else None,
@@ -1009,6 +1044,8 @@ def api_variant_detail(request, level, subject, variant_id):
             "answer": process_latex(str(item.task.answer or ""), for_browser=True),
             "part": task_list.part_id if task_list else None,
             "subdivision": (task_list.subdivision or "").strip() or None,
+            "subtopic_id": st.id if st else None,
+            "subtopic_title": (st.title or "").strip() if st else "",
             "file": file_url,
             "author": (item.task.author or "").strip() or None,
             "max_score": max_score,

@@ -3,6 +3,16 @@ import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 
 const SUBJECT_NAMES = { math: "Математика", inf: "Информатика" };
 
+function itemsIncludeTaskNumber(items, n) {
+  for (const item of items) {
+    if (item.type === "group" || item.type === "linked_group") {
+      const nums = item.task_numbers || item.tasks?.map((t) => t.task_number) || [];
+      if (nums.includes(n)) return true;
+    } else if (item.task_number === n) return true;
+  }
+  return false;
+}
+
 function TasksPage() {
   const { level, subject } = useParams();
   const navigate = useNavigate();
@@ -34,6 +44,8 @@ function TasksPage() {
   /** Фильтры «Только задачи ФИПИ» */
   const [onlyFipiVariant, setOnlyFipiVariant] = useState(false);
   const [onlyFipiTrainer, setOnlyFipiTrainer] = useState(false);
+  /** ОГЭ инф. №13: одна подтема (радио) — id выбранной SubTopic */
+  const [ogeInf13SubtopicId, setOgeInf13SubtopicId] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -51,6 +63,21 @@ function TasksPage() {
       });
     return () => { cancelled = true; };
   }, [level, subject]);
+
+  useEffect(() => {
+    if (level !== "oge" || subject !== "inf") {
+      setOgeInf13SubtopicId(null);
+      return;
+    }
+    const b = subtopicsByTask.find((row) => row.task_number === 13);
+    const subs = b?.subtopics;
+    if (!subs?.length) {
+      setOgeInf13SubtopicId(null);
+      return;
+    }
+    const ids = new Set(subs.map((st) => st.id));
+    setOgeInf13SubtopicId((prev) => (prev != null && ids.has(prev) ? prev : subs[0].id));
+  }, [level, subject, subtopicsByTask]);
 
   useEffect(() => {
     let cancelled = false;
@@ -136,6 +163,22 @@ function TasksPage() {
     (item) => getItemPart(item) === 2 && matchesSearch(item)
   );
 
+  const ogeInf13Block =
+    level === "oge" && subject === "inf"
+      ? subtopicsByTask.find((row) => row.task_number === 13)
+      : null;
+
+  const ogeInf13SelectionError = (items) => {
+    if (level !== "oge" || subject !== "inf") return null;
+    const subs = ogeInf13Block?.subtopics;
+    if (!subs || subs.length < 2) return null;
+    if (!itemsIncludeTaskNumber(items, 13)) return null;
+    if (ogeInf13SubtopicId == null || !subs.some((st) => st.id === ogeInf13SubtopicId)) {
+      return "Выберите тип задания 13: текст или презентация.";
+    }
+    return null;
+  };
+
   const postVariant = (payload, mode = "variant", extra = {}) => {
     const body = JSON.stringify(payload);
     return fetch(`/api/${level}/${subject}/variant/`, {
@@ -177,28 +220,42 @@ function TasksPage() {
   const buildVariantPayload = (items) => {
     const content = payloadFromTasks(items);
     const payload = { content, ...(onlyFipiVariant ? { only_fipi: true } : {}) };
-    if (selectedSubtopicIds.length === 0) return payload;
 
-    payload.subtopic_ids = selectedSubtopicIds;
-    const tasksList = [];
-    items.forEach((item) => {
-      if ((item.type === "group" || item.type === "linked_group") && item.tasks?.length) {
-        const nums = item.task_numbers || item.tasks.map((t) => t.task_number);
-        const identifier = item.type === "linked_group" ? `linked_${item.linked_key}` : `group_${item.group_id}`;
-        const bySt = groupSubtopicCounts[identifier];
-        const entry = { task_numbers: nums, count: 1 };
-        if (bySt && Object.keys(bySt).length > 0) {
-          entry.subtopic_ids = Object.keys(bySt).filter((k) => k !== "all").map(Number).filter((n) => !Number.isNaN(n));
-          entry.subtopic_counts = { ...bySt };
-        } else {
-          // Только подтемы, относящиеся к этой группе
-          const groupSubtopicIds = (item.subtopics || []).map((st) => st.id).filter(Boolean);
-          entry.subtopic_ids = selectedSubtopicIds.filter((id) => groupSubtopicIds.includes(id));
+    if (selectedSubtopicIds.length > 0) {
+      payload.subtopic_ids = selectedSubtopicIds;
+      const tasksList = [];
+      items.forEach((item) => {
+        if ((item.type === "group" || item.type === "linked_group") && item.tasks?.length) {
+          const nums = item.task_numbers || item.tasks.map((t) => t.task_number);
+          const identifier = item.type === "linked_group" ? `linked_${item.linked_key}` : `group_${item.group_id}`;
+          const bySt = groupSubtopicCounts[identifier];
+          const entry = { task_numbers: nums, count: 1 };
+          if (bySt && Object.keys(bySt).length > 0) {
+            entry.subtopic_ids = Object.keys(bySt).filter((k) => k !== "all").map(Number).filter((n) => !Number.isNaN(n));
+            entry.subtopic_counts = { ...bySt };
+          } else {
+            const groupSubtopicIds = (item.subtopics || []).map((st) => st.id).filter(Boolean);
+            entry.subtopic_ids = selectedSubtopicIds.filter((id) => groupSubtopicIds.includes(id));
+          }
+          tasksList.push(entry);
         }
-        tasksList.push(entry);
+      });
+      if (tasksList.length > 0) payload.tasks = tasksList;
+    }
+
+    if (
+      level === "oge" &&
+      subject === "inf" &&
+      itemsIncludeTaskNumber(items, 13) &&
+      ogeInf13SubtopicId != null
+    ) {
+      const b = subtopicsByTask.find((row) => row.task_number === 13);
+      const subs = b?.subtopics;
+      if (subs && subs.length >= 2) {
+        payload.oge_inf_13_subtopics = [ogeInf13SubtopicId];
       }
-    });
-    if (tasksList.length > 0) payload.tasks = tasksList;
+    }
+
     return payload;
   };
 
@@ -209,6 +266,11 @@ function TasksPage() {
     const items = onlyFipiVariant
       ? tasks.filter((item) => getItemPart(item) === 1)
       : part1Tasks;
+    const err13 = ogeInf13SelectionError(items);
+    if (err13) {
+      setError(err13);
+      return;
+    }
     const payload = buildVariantPayload(items);
     if (Object.keys(payload.content).length === 0) return;
     setSubmitBlock1(true);
@@ -218,12 +280,22 @@ function TasksPage() {
     const items = onlyFipiVariant
       ? tasks.filter((item) => getItemPart(item) === 2)
       : part2Tasks;
+    const err13 = ogeInf13SelectionError(items);
+    if (err13) {
+      setError(err13);
+      return;
+    }
     const payload = buildVariantPayload(items);
     if (Object.keys(payload.content).length === 0) return;
     setSubmitBlock1(true);
     postVariant(payload, "part2").catch((err) => setError(err.message)).finally(() => setSubmitBlock1(false));
   };
   const onChooseAll = () => {
+    const err13 = ogeInf13SelectionError(tasks);
+    if (err13) {
+      setError(err13);
+      return;
+    }
     const payload = buildVariantPayload(tasks);
     if (Object.keys(payload.content).length === 0) return;
     setSubmitBlock1(true);
@@ -546,6 +618,39 @@ function TasksPage() {
             </button>
           </div>
         </div>
+        {ogeInf13Block?.subtopics?.length >= 2 ? (
+          <div
+            className="tasks-page-oge-inf13-radios"
+            role="radiogroup"
+            aria-label="Задание 13: один вариант — текст или презентация"
+          >
+            <span className="tasks-page-oge-inf13-radios-title">Задание 13</span>
+            <div className="tasks-page-oge-inf13-radios-row">
+              {ogeInf13Block.subtopics.map((st) => {
+                const selected = ogeInf13SubtopicId === st.id;
+                return (
+                  <label
+                    key={st.id}
+                    className="tasks-page-oge-inf13-row-item tasks-page-subtopic-label"
+                  >
+                    <input
+                      type="radio"
+                      name="oge-inf13-subtopic"
+                      className="tasks-page-subtopic-checkbox-input"
+                      checked={selected}
+                      onChange={() => setOgeInf13SubtopicId(st.id)}
+                    />
+                    <span
+                      className={`tasks-page-subtopic-checkbox-visual ${selected ? "selected" : ""}`}
+                      aria-hidden
+                    />
+                    <span className="tasks-page-oge-inf13-option-text">{st.title}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <div className="tasks-page-card">
