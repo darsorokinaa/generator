@@ -28,44 +28,45 @@ body {
 }
 
 /* ===== Задание ===== */
-/* flex: номер слева от текста; align-items: flex-start — рамка номера не растягивается на высоту задания (в отличие от table-cell) */
+/* flex + align-items: flex-start — рамка номера не растягивается на всю высоту задания (в отличие от table-cell) */
 .task {
+    display: block;
+    width: 100%;
     margin-bottom: 14pt;
     page-break-inside: avoid;
     break-inside: avoid;
     -webkit-column-break-inside: avoid;
-    overflow: hidden;
     border: none;
 }
 
 .task-main {
-    display: block;
-    overflow: hidden;
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 6pt;
+    width: 100%;
     border: none;
-    page-break-inside: avoid;
-    break-inside: avoid;
 }
 
 .task-with-answer {
     border: none;
-    page-break-inside: avoid;
-    break-inside: avoid;
 }
 
 .task-number,
 .ta {
-    float: left;
-    width: 28pt;
-    height: 20pt;
-    padding: 3pt 2pt;
+    flex: 0 0 auto;
+    width: 30pt;
+    min-width: 30pt;
+    max-width: 30pt;
+    padding: 2pt 3pt;
     box-sizing: border-box;
     background-color: #fff;
-    border: 0.5pt solid #000;
+    border: 0.8pt solid #000;
     text-align: center;
     font-weight: bold;
     font-size: 11pt;
-    line-height: 14pt;
-    margin: 0 8pt 4pt 0;
+    line-height: 1.1;
+    align-self: flex-start;
 }
 
 .ta-inner {
@@ -75,7 +76,10 @@ body {
 }
 
 .task-body {
-    overflow: hidden;
+    flex: 1 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    padding-left: 0;
 }
 
 .task-body p {
@@ -95,15 +99,22 @@ body {
     
 }
 
-/* Изображения — на всю ширину колонки задания, высота по пропорциям */
+/* Изображения — не шире колонки задания (как текст) */
 .task-body img {
     width: auto !important;
-    max-width: 60% !important;
+    max-width: 100% !important;
     height: auto !important;
-    max-height: 340pt !important;
+    max-height: 200pt !important;
     object-fit: contain !important;
     display: block;
-    margin: 6pt 0;
+    margin: 4pt auto;
+}
+
+.task-body figure,
+.task-body figure.image {
+    max-width: 100% !important;
+    margin-left: auto;
+    margin-right: auto;
 }
 
 /* Таблицы внутри заданий (CKEditor) — явные цвета для WeasyPrint */
@@ -151,9 +162,9 @@ body {
 }
 .task-body figure img {
     width: auto !important;
-    max-width: 60% !important;
+    max-width: 100% !important;
     height: auto !important;
-    max-height: 340pt !important;
+    max-height: 200pt !important;
     object-fit: contain !important;
     display: block;
     margin: 0 auto;
