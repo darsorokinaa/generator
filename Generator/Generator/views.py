@@ -494,9 +494,21 @@ def _create_variant(subject_short, level_str, body_bytes, create=True):
                 group_tasks, group_ids = take_linked_groups(linked)
                 break
         if linked_for_slot and group_tasks is None and group_ids is None:
-            ids_for_linked = [id_by_number.get(n) for n in (linked_for_slot.task_numbers or [])]
-            if all(i is not None for i in ids_for_linked):
-                handled_tasklist_ids.update(ids_for_linked)
+            linked_nums = linked_for_slot.task_numbers or []
+            ids_for_linked = [id_by_number.get(n) for n in linked_nums]
+            for num in linked_nums:
+                tl_id = id_by_number.get(num)
+                if tl_id is None:
+                    continue
+                cnt = content.get(str(tl_id), 0)
+                if cnt <= 0:
+                    cnt = 1
+                fallback_qs = Task.objects.filter(task_id=tl_id)
+                if only_fipi and fipi_q:
+                    fallback_qs = fallback_qs.filter(fipi_q)
+                fallback_for_num = list(fallback_qs.order_by("?")[:int(cnt)])
+                selected_tasks.extend(fallback_for_num)
+                handled_tasklist_ids.add(tl_id)
             continue
         if group_tasks is not None and group_ids is not None:
             # Для связанных групп: подтемы не используются, показываем все задачи по группам
