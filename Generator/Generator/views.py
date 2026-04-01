@@ -578,13 +578,14 @@ def _create_variant(subject_short, level_str, body_bytes, create=True):
                 ).values_list("id", flat=True)
             )
 
+        # Важно: при одновременной передаче subtopic_ids и subtopic_counts сначала
+        # собираем задачи по счётчикам (точное кол-во на подтему). Иначе ветка
+        # slot_subtopic_ids брала count случайных задач из объединения подтем и игнорировала counts.
+        tasks_for_slot = None
+
         if oge13_subtopic_locked:
             tasks_for_slot = list(qs.order_by("?")[: int(count)])
-        elif slot_subtopic_ids:
-            qs = qs.filter(subtopic_id__in=slot_subtopic_ids)
-            tasks_for_slot = list(qs.order_by("?")[: int(count)])
         elif subtopic_counts:
-            # Берём задачи по подтемам с учётом счётчиков (только подтемы этого слота)
             from random import shuffle
             count_ids = []
             for k in subtopic_counts:
@@ -612,11 +613,14 @@ def _create_variant(subject_short, level_str, body_bytes, create=True):
                 shuffle(subset)
                 pooled.extend(subset[:cnt])
             shuffle(pooled)
-            tasks_for_slot = list(Task.objects.filter(id__in=pooled[: int(count)]))
-        else:
-            # OGE инф. №13 без выбора радио: по одной задаче из каждой подтемы.
-            # С радио подтема уже зафиксирована выше (oge13_subtopic_locked).
-            if is_oge_inf_13 and not oge_inf_13_subtopics:
+            if pooled:
+                tasks_for_slot = list(Task.objects.filter(id__in=pooled[: int(count)]))
+
+        if tasks_for_slot is None:
+            if slot_subtopic_ids:
+                qf = qs.filter(subtopic_id__in=slot_subtopic_ids)
+                tasks_for_slot = list(qf.order_by("?")[: int(count)])
+            elif is_oge_inf_13 and not oge_inf_13_subtopics:
                 st_ids_with_tasks = list(
                     qs.exclude(subtopic_id__isnull=True)
                     .values_list("subtopic_id", flat=True)

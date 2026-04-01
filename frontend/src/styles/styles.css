@@ -4167,11 +4167,16 @@ body.index .exam-grid .exam-card {
         overflow-wrap: break-word;
     }
 
-    .exam-page .task-text table {
-        display: block;
+    .exam-page .task-content {
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
-        table-layout: fixed;
+    }
+
+    .exam-page .task-text table {
+        width: 100%;
+        min-width: 100%;
+        max-width: none;
+        table-layout: auto;
     }
 
     .exam-page .task-text th,
@@ -4495,10 +4500,13 @@ body.index .exam-grid .exam-card {
     word-break: break-word;
     white-space: normal;
 }
+/* Прокрутка широких таблиц/формул — на колонке условия, не на всей странице */
 .exam-page .task-content {
     min-width: 0;
     max-width: 100%;
-    overflow-x: visible;
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
 }
 .exam-page .task-text > * {
     max-width: 100%;
@@ -4508,10 +4516,24 @@ body.index .exam-grid .exam-card {
     overflow-wrap: anywhere;
     word-break: break-word;
 }
+.exam-page .task-text > table {
+    max-width: none !important;
+}
 .exam-page .task-text * {
     white-space: normal !important;
     overflow-wrap: anywhere !important;
     word-break: break-word !important;
+}
+/* MathJax: глобальные word-break/white-space выше ломают внутреннюю вёрстку → цифры/буквы наезжают */
+.exam-page .task-text mjx-container,
+.exam-page .task-text mjx-container *,
+.exam-page .correct-answer-content mjx-container,
+.exam-page .correct-answer-content mjx-container *,
+.exam-page .part2-answer-content mjx-container,
+.exam-page .part2-answer-content mjx-container * {
+    white-space: revert !important;
+    overflow-wrap: normal !important;
+    word-break: normal !important;
 }
 .exam-page .task-text nobr {
     white-space: normal !important;
@@ -4573,44 +4595,40 @@ body.index .exam-grid .exam-card {
 .exam-page .task-text figure.image {
     margin: 0.06rem auto !important;
 }
-/* Таблицы в условии: на всю ширину; шрифт читаемый на экране */
+/* Таблицы в условии: минимум на всю ширину блока; если шире — прокрутка у .task-content */
 .exam-page .task-text table {
     width: 100% !important;
-    max-width: 100% !important;
-    margin: 0.3rem auto !important;
-    table-layout: fixed !important;
+    min-width: 100% !important;
+    max-width: none !important;
+    margin: 0.35rem 0 !important;
+    table-layout: auto !important;
     font-size: 0.95rem !important;
     line-height: 1.3 !important;
+    border-collapse: collapse !important;
 }
 .exam-page .task-text th,
 .exam-page .task-text td {
     padding: 0.42rem 0.55rem !important;
     font-size: inherit !important;
-    min-width: 0 !important;
     word-break: break-word !important;
     overflow-wrap: break-word !important;
 }
-/* Много колонок — чуть меньше базового, но крупнее прежнего компакта */
-.exam-page .task-text table:has(tr > th:nth-child(5)),
-.exam-page .task-text table:has(tr > td:nth-child(5)) {
-    font-size: 0.84rem !important;
-}
-.exam-page .task-text table:has(tr > th:nth-child(6)),
-.exam-page .task-text table:has(tr > td:nth-child(6)) {
-    font-size: 0.76rem !important;
-}
-.exam-page .task-text table:has(tr > th:nth-child(7)),
-.exam-page .task-text table:has(tr > td:nth-child(7)) {
-    font-size: 0.68rem !important;
-}
 
+.exam-page .correct-answer-content,
+.exam-page .part2-answer-content {
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
 .exam-page .correct-answer-content table,
 .exam-page .part2-answer-content table {
     width: 100% !important;
-    max-width: 100% !important;
-    table-layout: fixed !important;
+    min-width: 100% !important;
+    max-width: none !important;
+    table-layout: auto !important;
     font-size: 0.9rem !important;
     line-height: 1.3 !important;
+    border-collapse: collapse !important;
 }
 .exam-page .correct-answer-content th,
 .exam-page .correct-answer-content td,
@@ -5502,6 +5520,11 @@ body.index .exam-grid .exam-card {
     transition: background 0.2s ease, transform 0.15s ease;
 }
 
+.theme-toggle > span {
+    font-size: 18px;
+    line-height: 1;
+}
+
 .theme-toggle:hover {
     background: rgba(255, 255, 255, 0.22);
 }
@@ -5940,6 +5963,34 @@ header.header--themed {
     width: 100%;
 }
 
+/* Пасхальная / космическая тема: крупнее логотип платформы и эмодзи переключателей;
+   min-height шапки не меняем — компенсируем чуть меньшим вертикальным padding */
+header.header--themed .header-wrapper {
+    padding-top: 0.55rem;
+    padding-bottom: 0.55rem;
+}
+
+header.header--themed .logo-theme-icon {
+    height: 46px;
+    border-radius: 9px;
+}
+
+header.header--themed .theme-toggle {
+    width: 42px;
+    height: 42px;
+    border-radius: 11px;
+}
+
+header.header--themed .theme-toggle-reset {
+    min-height: 42px;
+    padding: 0 11px;
+}
+
+header.header--themed .theme-toggle > span {
+    font-size: 23px !important;
+    line-height: 1 !important;
+}
+
 @media (max-width: 640px) {
     header {
         box-shadow: 0 2px 16px rgba(0, 0, 0, 0.18);
@@ -5994,6 +6045,30 @@ header.header--themed {
 
     header.header--themed {
         overflow: hidden;
+    }
+
+    header.header--themed .header-wrapper {
+        padding-top: 0.45rem;
+        padding-bottom: 0.45rem;
+    }
+
+    header.header--themed .logo-theme-icon {
+        height: 36px;
+    }
+
+    header.header--themed .theme-toggle {
+        width: 38px;
+        height: 38px;
+        border-radius: 10px;
+    }
+
+    header.header--themed .theme-toggle-reset {
+        min-height: 38px;
+        padding: 0 9px;
+    }
+
+    header.header--themed .theme-toggle > span {
+        font-size: 20px !important;
     }
 }
 

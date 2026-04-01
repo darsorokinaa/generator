@@ -176,7 +176,7 @@ function Layout() {
             aria-label="Обычный стиль"
             title="Обычный стиль"
           >
-            <span style={{ fontSize: "18px", lineHeight: 1 }}>🏠</span>
+            <span aria-hidden="true">🏠</span>
           </button>
         )}
         {easterSlide && (
@@ -188,7 +188,7 @@ function Layout() {
             aria-label="Пасхальная тема"
             title="Пасхальная тема"
           >
-            <span style={{ fontSize: "18px", lineHeight: 1 }}>🐣</span>
+            <span aria-hidden="true">🐣</span>
           </button>
         )}
         {cosmosSlide && (
@@ -200,7 +200,7 @@ function Layout() {
             aria-label="Космическая тема"
             title="Космическая тема"
           >
-            <span style={{ fontSize: "18px", lineHeight: 1 }}>🪐</span>
+            <span aria-hidden="true">🪐</span>
           </button>
         )}
         <Link to="/about" className="header-nav-link">От авторов</Link>

@@ -231,7 +231,10 @@ function TasksPage() {
           const bySt = groupSubtopicCounts[identifier];
           const entry = { task_numbers: nums, count: 1 };
           if (bySt && Object.keys(bySt).length > 0) {
-            entry.subtopic_ids = Object.keys(bySt).filter((k) => k !== "all").map(Number).filter((n) => !Number.isNaN(n));
+            entry.subtopic_ids = Object.keys(bySt)
+              .filter((k) => k !== "all")
+              .map(Number)
+              .filter((n) => !Number.isNaN(n));
             entry.subtopic_counts = { ...bySt };
           } else {
             const groupSubtopicIds = (item.subtopics || []).map((st) => st.id).filter(Boolean);
@@ -342,7 +345,10 @@ function TasksPage() {
         });
         const entry = { task_numbers: nums, count: groupCount };
         if (bySt && Object.keys(bySt).length > 0) {
-          entry.subtopic_ids = Object.keys(bySt).filter((k) => k !== "all");
+          entry.subtopic_ids = Object.keys(bySt)
+            .filter((k) => k !== "all")
+            .map(Number)
+            .filter((n) => !Number.isNaN(n));
           entry.subtopic_counts = { ...bySt };
         }
         tasksList.push(entry);
@@ -356,7 +362,10 @@ function TasksPage() {
         });
         const entry = { task_numbers: nums, count: groupCount };
         if (bySt && Object.keys(bySt).length > 0) {
-          entry.subtopic_ids = Object.keys(bySt).filter((k) => k !== "all");
+          entry.subtopic_ids = Object.keys(bySt)
+            .filter((k) => k !== "all")
+            .map(Number)
+            .filter((n) => !Number.isNaN(n));
           entry.subtopic_counts = { ...bySt };
         }
         tasksList.push(entry);
@@ -395,15 +404,15 @@ function TasksPage() {
       const nextState = { ...prev };
       if (next > 0) nextState[subtopicId] = next;
       else delete nextState[subtopicId];
+
+      setSelectedSubtopicIds((selPrev) => {
+        const currentSelected = selPrev.includes(subtopicId);
+        if (next > 0 && !currentSelected) return [...selPrev, subtopicId];
+        if (next === 0 && currentSelected) return selPrev.filter((id) => id !== subtopicId);
+        return selPrev;
+      });
+
       return nextState;
-    });
-    setSelectedSubtopicIds((prev) => {
-      const currentSelected = prev.includes(subtopicId);
-      const currentCount = subtopicCounts[subtopicId] ?? 0;
-      const nextCount = Math.max(0, Math.min(maxCount, currentCount + delta));
-      if (nextCount > 0 && !currentSelected) return [...prev, subtopicId];
-      if (nextCount === 0 && currentSelected) return prev.filter((id) => id !== subtopicId);
-      return prev;
     });
   };
 
@@ -515,8 +524,9 @@ function TasksPage() {
   const getEffectiveTaskCount = (identifier) => {
     const item = tasks.find((t) => getIdentifier(t) === identifier);
     if (!item) return 0;
-    const useSubtopicCounts = selectedSubtopicIds.length > 0 && subtopicsByTask.length > 0;
-    if (identifier.startsWith("task_") && useSubtopicCounts) {
+    const useSubtopicBreakdown =
+      selectedSubtopicIds.length > 0 && subtopicsByTask.length > 0;
+    if (identifier.startsWith("task_") && useSubtopicBreakdown) {
       const block = subtopicsByTask.find((b) => b.task_list_id === item.id);
       if (block?.subtopics) {
         return block.subtopics
@@ -848,6 +858,13 @@ function TasksPage() {
                     });
                   } else {
                     setSelectedSubtopicIds((prev) => [...new Set([...prev, ...ids])]);
+                    setSubtopicCounts((prev) => {
+                      const next = { ...prev };
+                      ids.forEach((id) => {
+                        if ((next[id] ?? 0) < 1) next[id] = 1;
+                      });
+                      return next;
+                    });
                   }
                 };
                 const changeGroupCount = (ids, delta, maxCount) => {
