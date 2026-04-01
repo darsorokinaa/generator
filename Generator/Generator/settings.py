@@ -44,7 +44,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'Generator.apps.GeneratorConfig',
     'Board',
-    'Cabinet',
+    # 'Cabinet.apps.CabinetConfig',
     'corsheaders',
      "django_ckeditor_5",
     

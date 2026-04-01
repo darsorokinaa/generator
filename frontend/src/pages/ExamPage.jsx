@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { useParams, useLocation } from "react-router-dom";
 import MathContent from "../components/MathContent";
 import ImageLightbox from "../components/ImageLightbox";
@@ -8,6 +7,8 @@ import ResultsModal from "../components/ResultsModal";
 import ReportErrorModal from "../components/ReportErrorModal";
 
 const COLORS = ["#000000", "#ffffff", "#ef4444", "#3b82f6", "#22c55e"];
+
+const EXAM_HUD_OFFSET_KEY = "exam_corner_offset_v1";
 
 const SUBJECT_NAMES = {
   math: "математике",
@@ -79,6 +80,18 @@ function ExamPage() {
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [timerStatus, setTimerStatus] = useState("idle"); // "idle" | "running" | "paused"
 
+  const examHudRef = useRef(null);
+  const [examHudOffset, setExamHudOffset] = useState(() => {
+    try {
+      const raw = sessionStorage.getItem(EXAM_HUD_OFFSET_KEY);
+      if (raw) {
+        const o = JSON.parse(raw);
+        if (typeof o?.dx === "number" && typeof o?.dy === "number") return o;
+      }
+    } catch { /* ignore */ }
+    return { dx: 0, dy: 0 };
+  });
+
   // Загрузка PDF
   const [pdfLoading, setPdfLoading] = useState(null); // null | "default" | "cosmos" | "easter"
 
@@ -108,10 +121,12 @@ function ExamPage() {
   const endTimeRef = useRef(null);
 
   const canvasRef = useRef(null);
+  const boardPanelRef = useRef(null);
   const socketRef = useRef(null);
   const objectsRef = useRef([]);
   const redoStackRef = useRef([]);
   const redrawRef = useRef(null);
+  const saveBoardRef = useRef(() => {});
   const currentLineRef = useRef(null);
   const currentShapeRef = useRef(null);
   const drawingRef = useRef(false);
@@ -125,6 +140,73 @@ function ExamPage() {
   useEffect(() => {
     colorRef.current = color;
   }, [color]);
+
+  const clampExamHudTranslate = useCallback((dx, dy) => {
+    const el = examHudRef.current;
+    if (!el) return { dx, dy };
+    const margin = 8;
+    const prev = el.style.transform;
+    el.style.transform = `translate(${dx}px, ${dy}px)`;
+    const r = el.getBoundingClientRect();
+    let ndx = dx;
+    let ndy = dy;
+    if (r.left < margin) ndx += margin - r.left;
+    if (r.right > window.innerWidth - margin) ndx -= r.right - (window.innerWidth - margin);
+    if (r.top < margin) ndy += margin - r.top;
+    if (r.bottom > window.innerHeight - margin) ndy -= r.bottom - (window.innerHeight - margin);
+    el.style.transform = prev;
+    return { dx: ndx, dy: ndy };
+  }, []);
+
+  const onExamHudDragPointerDown = useCallback(
+    (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const dx0 = examHudOffset.dx;
+      const dy0 = examHudOffset.dy;
+      const pid = e.pointerId;
+      const target = e.currentTarget;
+
+      function move(ev) {
+        if (ev.pointerId !== pid) return;
+        const rawDx = dx0 + (ev.clientX - startX);
+        const rawDy = dy0 + (ev.clientY - startY);
+        setExamHudOffset(clampExamHudTranslate(rawDx, rawDy));
+      }
+      function up(ev) {
+        if (ev.pointerId !== pid) return;
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", up);
+        window.removeEventListener("pointercancel", up);
+        try {
+          target.releasePointerCapture(pid);
+        } catch {
+          /* ignore */
+        }
+        setExamHudOffset((prev) => {
+          const c = clampExamHudTranslate(prev.dx, prev.dy);
+          try {
+            sessionStorage.setItem(EXAM_HUD_OFFSET_KEY, JSON.stringify(c));
+          } catch {
+            /* ignore */
+          }
+          return c;
+        });
+      }
+      try {
+        target.setPointerCapture(pid);
+      } catch {
+        /* ignore */
+      }
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", up);
+      window.addEventListener("pointercancel", up);
+    },
+    [examHudOffset.dx, examHudOffset.dy, clampExamHudTranslate]
+  );
 
   /* =========================
      Загрузка варианта
@@ -286,15 +368,24 @@ function ExamPage() {
     socket.onerror = () => {}; // Тихо игнорируем (prod на Gunicorn не поддерживает WS)
     socket.onclose = () => {};
 
-    const rectRef = { current: null };
     const geomRef = { current: { w: 1, h: 1, dpr: 1 } };
     const PEN_WIDTH = 3;
     const POINT_STEP = 2;
 
     function resizeCanvas() {
+      const panel = boardPanelRef.current;
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const viewportW = window.innerWidth || document.documentElement.clientWidth;
-      const viewportH = window.innerHeight || document.documentElement.clientHeight;
+      let viewportW = window.innerWidth || document.documentElement.clientWidth;
+      let viewportH = window.innerHeight || document.documentElement.clientHeight;
+      const cr = canvas.getBoundingClientRect();
+      if (cr.width >= 1 && cr.height >= 1) {
+        viewportW = Math.max(1, Math.round(cr.width));
+        viewportH = Math.max(1, Math.round(cr.height));
+      } else if (panel) {
+        const r = panel.getBoundingClientRect();
+        viewportW = Math.max(1, Math.round(r.width));
+        viewportH = Math.max(1, Math.round(r.height));
+      }
 
       canvas.width = Math.round(viewportW * dpr);
       canvas.height = Math.max(1, Math.round(viewportH * dpr));
@@ -306,24 +397,17 @@ function ExamPage() {
       ctx.scale(dpr, dpr);
 
       geomRef.current = { w: viewportW, h: viewportH, dpr };
-      rectRef.current = null;
       redraw();
     }
 
     function getPos(e) {
-      let rect = rectRef.current;
-      if (!rect) {
-        rect = canvas.getBoundingClientRect();
-        rectRef.current = rect;
-      }
+      const rect = canvas.getBoundingClientRect();
       const { w, h } = geomRef.current;
       const sx = rect.width > 0 ? w / rect.width : 1;
       const sy = rect.height > 0 ? h / rect.height : 1;
       const rawX = ((e.clientX ?? e.touches?.[0]?.clientX ?? 0) - rect.left) * sx;
       const rawY = ((e.clientY ?? e.touches?.[0]?.clientY ?? 0) - rect.top) * sy;
-      const scrollX = window.scrollX ?? document.documentElement.scrollLeft ?? 0;
-      const scrollY = window.scrollY ?? document.documentElement.scrollTop ?? 0;
-      return { x: rawX + scrollX, y: rawY + scrollY };
+      return { x: rawX, y: rawY };
     }
 
     function drawPath(points, color, width) {
@@ -397,12 +481,9 @@ function ExamPage() {
 
     function redraw() {
       const { w, h, dpr } = geomRef.current;
-      const scrollX = window.scrollX ?? document.documentElement.scrollLeft ?? 0;
-      const scrollY = window.scrollY ?? document.documentElement.scrollTop ?? 0;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, w, h);
       ctx.save();
-      ctx.translate(-scrollX, -scrollY);
 
       objectsRef.current.forEach((obj) => {
         if (obj.type === "line") drawPath(obj.points, obj.color, obj.width);
@@ -412,9 +493,9 @@ function ExamPage() {
       if (currentShapeRef.current) drawShape(currentShapeRef.current);
 
       ctx.restore();
-      saveBoard();
     }
     redrawRef.current = redraw;
+    saveBoardRef.current = saveBoard;
 
     function hitTest(obj, x, y, r) {
       if (obj.type === "line") {
@@ -451,6 +532,7 @@ function ExamPage() {
           socket.send(JSON.stringify({ action: "remove_object", index: i }));
           setCanUndo(objectsRef.current.length > 0);
           redraw();
+          saveBoard();
           return;
         }
       }
@@ -460,7 +542,6 @@ function ExamPage() {
       e.preventDefault();
       canvas.setPointerCapture(e.pointerId);
 
-      rectRef.current = canvas.getBoundingClientRect();
       const pos = getPos(e);
       const t = toolRef.current;
 
@@ -577,6 +658,7 @@ function ExamPage() {
       drawingRef.current = false;
       erasingRef.current = false;
       redraw();
+      saveBoard();
     }
 
     function onKeyDown(e) {
@@ -588,6 +670,7 @@ function ExamPage() {
             const obj = redoStackRef.current.pop();
             objectsRef.current.push(obj);
             redraw();
+            saveBoard();
             setCanUndo(true);
             setCanRedo(redoStackRef.current.length > 0);
           }
@@ -596,6 +679,7 @@ function ExamPage() {
             const obj = objectsRef.current.pop();
             redoStackRef.current.push(obj);
             redraw();
+            saveBoard();
             setCanUndo(objectsRef.current.length > 0);
             setCanRedo(true);
           }
@@ -608,14 +692,17 @@ function ExamPage() {
       if (data.action === "add_object") {
         objectsRef.current.push(data.object);
         redraw();
+        saveBoard();
       }
       if (data.action === "remove_object") {
         objectsRef.current.splice(data.index, 1);
         redraw();
+        saveBoard();
       }
       if (data.action === "clear_all") {
         objectsRef.current = [];
         redraw();
+        saveBoard();
       }
     };
 
@@ -626,7 +713,20 @@ function ExamPage() {
     canvas.addEventListener("pointerleave", onPointerUp, { passive: false });
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("resize", resizeCanvas);
-    window.addEventListener("scroll", redraw, { passive: true });
+
+    let ro;
+    const panelEl = boardPanelRef.current;
+    if (panelEl && typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver(() => resizeCanvas());
+      ro.observe(panelEl);
+    }
+
+    let roMain;
+    const mainEl = mainRef.current;
+    if (mainEl && typeof ResizeObserver !== "undefined") {
+      roMain = new ResizeObserver(() => resizeCanvas());
+      roMain.observe(mainEl);
+    }
 
     resizeCanvas();
     const rafId = requestAnimationFrame(() => {
@@ -635,8 +735,10 @@ function ExamPage() {
 
     return () => {
       cancelAnimationFrame(rafId);
-      window.removeEventListener("scroll", redraw);
+      if (ro) ro.disconnect();
+      if (roMain) roMain.disconnect();
       redrawRef.current = null;
+      saveBoardRef.current = () => {};
       try {
         if (socket && socket.readyState !== 2 && socket.readyState !== 3) socket.close();
       } catch (_) {}
@@ -856,6 +958,7 @@ function ExamPage() {
     const obj = objectsRef.current.pop();
     redoStackRef.current.push(obj);
     redrawRef.current?.();
+    saveBoardRef.current();
     setCanUndo(objectsRef.current.length > 0);
     setCanRedo(redoStackRef.current.length > 0);
   }
@@ -865,6 +968,7 @@ function ExamPage() {
     const obj = redoStackRef.current.pop();
     objectsRef.current.push(obj);
     redrawRef.current?.();
+    saveBoardRef.current();
     setCanUndo(true);
     setCanRedo(redoStackRef.current.length > 0);
   }
@@ -875,8 +979,8 @@ function ExamPage() {
     redoStackRef.current = [];
     setCanUndo(false);
     setCanRedo(false);
-    const canvas = canvasRef.current;
-    if (canvas) canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+    redrawRef.current?.();
+    saveBoardRef.current();
     if (socketRef.current?.readyState === WebSocket.OPEN) {
       socketRef.current.send(JSON.stringify({ action: "clear_all" }));
     }
@@ -1128,7 +1232,22 @@ function ExamPage() {
   return (
     <div ref={mainRef} className="main-wrapper exam-page" id="main-wrapper" data-level={level} data-subject={subject}>
       {/* Фиксированный блок: таймер и баллы — остаётся в углу при прокрутке */}
-      <div className="exam-fixed-corner">
+      <div
+        ref={examHudRef}
+        className="exam-fixed-corner"
+        style={{
+          transform: `translate(${examHudOffset.dx}px, ${examHudOffset.dy}px)`,
+        }}
+      >
+        <button
+          type="button"
+          className="exam-fixed-corner__drag"
+          onPointerDown={onExamHudDragPointerDown}
+          aria-label="Переместить блок таймера"
+          title="Перетащите — положение сохранится до закрытия вкладки"
+        >
+          <span className="exam-fixed-corner__drag-grip" aria-hidden="true" />
+        </button>
         <div className="variant-timer exam-fixed-timer">
           <div className="variant-timer-display">{formatTimer(timerSeconds)}</div>
           <div className="variant-timer-actions">
@@ -1776,10 +1895,12 @@ function ExamPage() {
           <span>Открыть доску</span>
         </button>
 
-      {/* ===== ДОСКА (portal в body для полного экрана) ===== */}
-      {boardOpen &&
-        createPortal(
-          <div id="board-container" className="active">
+      {/* ===== ДОСКА: слой на всю высоту варианта (.main-wrapper), тулбар — fixed у низа окна ===== */}
+      {boardOpen && (
+        <div id="board-container" className="active">
+          <div id="board-panel" ref={boardPanelRef}>
+            <canvas ref={canvasRef} id="board" style={{ cursor: tool === "eraser" ? "pointer" : "crosshair" }} />
+          </div>
           <div id="board-toolbar">
             <button
               id="penBtn"
@@ -1942,11 +2063,8 @@ function ExamPage() {
               </svg>
             </button>
           </div>
-
-          <canvas ref={canvasRef} id="board" style={{ cursor: tool === "eraser" ? "pointer" : "crosshair" }} />
-        </div>,
-          document.body
-        )}
+        </div>
+      )}
 
       <ImageLightbox
         src={lightbox.src}

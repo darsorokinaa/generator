@@ -2062,7 +2062,7 @@ header {
 
 .main-wrapper.exam-page {
     position: relative;
-    /* контейнер доски (position: absolute) привязан к документу */
+    /* #board-container: position absolute; inset 0 — высота слоя = высота варианта */
 }
 
 .exam-page {
@@ -3595,20 +3595,35 @@ mjx-container {
     flex-shrink: 0;
 }
 
-/* Контейнер доски — фиксирован на весь экран, рисунки в координатах документа */
+/* Контейнер доски: на всю высоту .main-wrapper.exam-page (не только viewport) */
 #board-container {
     display: none;
-    flex-direction: column;
-    position: fixed;
+    position: absolute;
     inset: 0;
     width: 100%;
-    height: 100%;
+    min-height: 100%;
     z-index: 10001;
     pointer-events: none;
 }
 
 #board-container.active {
+    display: block;
+}
+
+/* Область холста: на всю ширину и высоту слоя варианта */
+#board-panel {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10001;
     display: flex;
+    flex-direction: column;
+    pointer-events: auto;
+    box-sizing: border-box;
+    min-height: 0;
+    overflow: hidden;
 }
 
 #board-toolbar {
@@ -3722,13 +3737,14 @@ mjx-container {
 }
 
 #board {
-    position: absolute;
-    top: 0;
-    left: 0;
+    flex: 1 1 0;
+    min-height: 0;
     width: 100%;
-    height: 100%;
+    height: auto;
+    align-self: stretch;
+    display: block;
     pointer-events: auto;
-    z-index: 1050;
+    z-index: 1;
     background: transparent;
     touch-action: none;
     user-select: none;
@@ -4896,6 +4912,40 @@ body.index .exam-grid .exam-card {
   border-radius: 20px;
   box-shadow: 0 4px 24px rgba(30, 64, 175, 0.15);
   border: 1px solid rgba(96, 165, 250, 0.2);
+}
+
+.exam-fixed-corner__drag {
+  width: 100%;
+  margin: -0.15rem 0 0.1rem 0;
+  padding: 6px 8px;
+  border: none;
+  border-radius: 12px;
+  background: transparent;
+  cursor: grab;
+  touch-action: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-shrink: 0;
+  color: inherit;
+  font: inherit;
+}
+
+.exam-fixed-corner__drag:hover {
+  background: rgba(59, 130, 246, 0.07);
+}
+
+.exam-fixed-corner__drag:active {
+  cursor: grabbing;
+}
+
+.exam-fixed-corner__drag-grip {
+  display: block;
+  width: 34px;
+  height: 4px;
+  border-radius: 999px;
+  background: #94a3b8;
+  box-shadow: 0 7px 0 #94a3b8, 0 -7px 0 #94a3b8;
 }
 
 .exam-fixed-corner .variant-timer,
