@@ -150,6 +150,23 @@ function Layout() {
         </Link>
       </div>
       <nav className="header-nav">
+        {activeThemeId && (
+          <button
+            type="button"
+            className="theme-toggle theme-toggle-reset"
+            onClick={() => {
+              sessionStorage.removeItem("theme_data");
+              sessionStorage.removeItem("active_theme_id");
+              setActiveThemeId(null);
+              setThemeData(null);
+              window.dispatchEvent(new Event("theme-change"));
+            }}
+            aria-label="Обычный стиль"
+            title="Обычный стиль"
+          >
+            <span style={{ fontSize: "18px", lineHeight: 1 }}>🏠</span>
+          </button>
+        )}
         {easterSlide && (
           <button
             type="button"
