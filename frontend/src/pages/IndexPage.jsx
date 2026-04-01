@@ -75,6 +75,9 @@ function IndexPage() {
   const [announcements, setAnnouncements] = useState([]);
   const [welcomeSlideIndex, setWelcomeSlideIndex] = useState(0);
   const [slideBgLight, setSlideBgLight] = useState({});
+  const [pinnedThemeId, setPinnedThemeId] = useState(() => {
+    try { return sessionStorage.getItem("active_theme_id") || null; } catch { return null; }
+  });
 
   const welcomeSlides = useMemo(() => {
     const firstSlide = {
@@ -118,9 +121,11 @@ function IndexPage() {
   }, [announcements]);
 
   const goToNextWelcomeSlide = useCallback(() => {
+    setPinnedThemeId(null);
     setWelcomeSlideIndex((prev) => (prev + 1) % welcomeSlides.length);
   }, [welcomeSlides.length]);
   const goToPrevWelcomeSlide = useCallback(() => {
+    setPinnedThemeId(null);
     setWelcomeSlideIndex((prev) => (prev - 1 + welcomeSlides.length) % welcomeSlides.length);
   }, [welcomeSlides.length]);
 
@@ -141,12 +146,30 @@ function IndexPage() {
   }, []);
 
   useEffect(() => {
+    const onThemeChange = () => {
+      const id = sessionStorage.getItem("active_theme_id") || null;
+      setPinnedThemeId(id);
+      if (id) {
+        const idx = welcomeSlides.findIndex((s) => String(s.id) === String(id));
+        if (idx >= 0) setWelcomeSlideIndex(idx);
+      }
+    };
+    window.addEventListener("theme-change", onThemeChange);
+    return () => window.removeEventListener("theme-change", onThemeChange);
+  }, [welcomeSlides]);
+
+  useEffect(() => {
+    if (pinnedThemeId) {
+      const idx = welcomeSlides.findIndex((s) => String(s.id) === String(pinnedThemeId));
+      if (idx >= 0) setWelcomeSlideIndex(idx);
+      return undefined;
+    }
     if (welcomeSlides.length < 2) return undefined;
     const sliderTimer = window.setInterval(() => {
       setWelcomeSlideIndex((prev) => (prev + 1) % welcomeSlides.length);
     }, 7000);
     return () => window.clearInterval(sliderTimer);
-  }, [welcomeSlides.length]);
+  }, [welcomeSlides.length, pinnedThemeId, welcomeSlides]);
 
   useEffect(() => {
     setWelcomeSlideIndex((prev) => (prev >= welcomeSlides.length ? 0 : prev));
@@ -217,7 +240,7 @@ function IndexPage() {
                     : `${import.meta.env.BASE_URL}${slide.image.replace(/^\//, "")}`
                 }
                 alt=""
-                className="welcome-banner-owl"
+                className={`welcome-banner-owl${slide.id === "default-welcome-slide" ? "" : " welcome-banner-owl--db"}`}
                 aria-hidden="true"
               />
               <h2 className="welcome-banner-title">{slide.title}</h2>
@@ -235,18 +258,19 @@ function IndexPage() {
                 tabIndex={i === welcomeSlideIndex ? 0 : -1}
                 onClick={() => {
                   if (slide.hasTheme) {
-                    const existing = sessionStorage.getItem("theme_data");
-                    const newTheme = JSON.stringify({
-                      overlay: slide.themeOverlay,
-                      headerBg: slide.themeHeaderBg,
-                      logo: slide.themeLogo,
-                      decor: slide.themeDecor,
-                      worksheetBg: slide.themeWorksheetBg,
-                    });
-                    if (existing === newTheme) {
+                    const currentId = sessionStorage.getItem("active_theme_id");
+                    if (String(currentId) === String(slide.id)) {
                       sessionStorage.removeItem("theme_data");
+                      sessionStorage.removeItem("active_theme_id");
                     } else {
-                      sessionStorage.setItem("theme_data", newTheme);
+                      sessionStorage.setItem("theme_data", JSON.stringify({
+                        overlay: slide.themeOverlay,
+                        headerBg: slide.themeHeaderBg,
+                        logo: slide.themeLogo,
+                        decor: slide.themeDecor,
+                        worksheetBg: slide.themeWorksheetBg,
+                      }));
+                      sessionStorage.setItem("active_theme_id", String(slide.id));
                     }
                     window.dispatchEvent(new Event("theme-change"));
                     return;

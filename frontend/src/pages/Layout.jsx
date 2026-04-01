@@ -11,15 +11,16 @@ function readThemeData() {
 
 function Layout() {
   const { pathname } = useLocation();
-  const [theme, setTheme] = useState(() =>
-    typeof document !== "undefined" &&
-    document.documentElement.getAttribute("data-theme") === "dark"
-      ? "dark"
-      : "light"
-  );
   const [themeData, setThemeData] = useState(readThemeData);
+  const [themeSlides, setThemeSlides] = useState([]);
+  const [activeThemeId, setActiveThemeId] = useState(() => {
+    try { return sessionStorage.getItem("active_theme_id") || null; } catch { return null; }
+  });
 
-  const syncTheme = useCallback(() => setThemeData(readThemeData()), []);
+  const syncTheme = useCallback(() => {
+    setThemeData(readThemeData());
+    try { setActiveThemeId(sessionStorage.getItem("active_theme_id") || null); } catch { /* ignore */ }
+  }, []);
 
   useEffect(() => {
     window.addEventListener("theme-change", syncTheme);
@@ -27,13 +28,82 @@ function Layout() {
   }, [syncTheme]);
 
   useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-    try {
-      localStorage.setItem("theme", theme);
-    } catch {
-      /* ignore */
+    const root = document.documentElement;
+    if (themeData?.decor) {
+      root.style.setProperty("--theme-decor-url", `url(${themeData.decor})`);
+      root.classList.add("theme-decor-active");
+    } else {
+      root.style.removeProperty("--theme-decor-url");
+      root.classList.remove("theme-decor-active");
     }
-  }, [theme]);
+    return () => {
+      root.style.removeProperty("--theme-decor-url");
+      root.classList.remove("theme-decor-active");
+    };
+  }, [themeData?.decor]);
+
+  useEffect(() => {
+    fetch("/api/announcements/", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : { announcements: [] }))
+      .then((data) => {
+        const items = Array.isArray(data.announcements) ? data.announcements : [];
+        const themed = items
+          .filter((a) => {
+            const has = [
+              a.theme_overlay_url,
+              a.theme_header_bg_url,
+              a.theme_logo_url,
+              a.theme_decor_url,
+              a.theme_worksheet_bg_url,
+            ].some((u) => (u || "").trim());
+            return has;
+          })
+          .map((a) => {
+            const title = (a.title || "").toLowerCase();
+            let kind = "theme";
+            if (/пасх|easter/i.test(title)) kind = "easter";
+            else if (/косм|cosmos|space/i.test(title)) kind = "cosmos";
+            return {
+              id: a.id,
+              kind,
+              title: a.title,
+              overlay: (a.theme_overlay_url || "").trim(),
+              headerBg: (a.theme_header_bg_url || "").trim(),
+              logo: (a.theme_logo_url || "").trim(),
+              decor: (a.theme_decor_url || "").trim(),
+              worksheetBg: (a.theme_worksheet_bg_url || "").trim(),
+            };
+          });
+        setThemeSlides(themed);
+      })
+      .catch(() => {});
+  }, []);
+
+  const easterSlide = themeSlides.find((s) => s.kind === "easter");
+  const cosmosSlide = themeSlides.find((s) => s.kind === "cosmos");
+
+  function toggleTheme(slide) {
+    if (!slide) return;
+    if (String(activeThemeId) === String(slide.id)) {
+      sessionStorage.removeItem("theme_data");
+      sessionStorage.removeItem("active_theme_id");
+      setActiveThemeId(null);
+      setThemeData(null);
+    } else {
+      const data = {
+        overlay: slide.overlay,
+        headerBg: slide.headerBg,
+        logo: slide.logo,
+        decor: slide.decor,
+        worksheetBg: slide.worksheetBg,
+      };
+      sessionStorage.setItem("theme_data", JSON.stringify(data));
+      sessionStorage.setItem("active_theme_id", String(slide.id));
+      setActiveThemeId(String(slide.id));
+      setThemeData(data);
+    }
+    window.dispatchEvent(new Event("theme-change"));
+  }
 
   useEffect(() => {
     const run = () => {
@@ -46,6 +116,7 @@ function Layout() {
     const id = setTimeout(run, 100);
     return () => clearTimeout(id);
   }, [pathname]);
+
   return (
     <div className="app-shell">
       <div
@@ -62,19 +133,11 @@ function Layout() {
           style={{ backgroundImage: `url(${themeData.overlay})` }}
         />
       )}
-      {themeData?.decor && (
-        <div
-          className="app-shell-theme-decor"
-          aria-hidden="true"
-          style={{ backgroundImage: `url(${themeData.decor})` }}
-        />
-      )}
       <div className="app-shell-content">
       <header
         className={themeData?.headerBg ? "header--themed" : undefined}
         style={themeData?.headerBg ? { backgroundImage: `url(${themeData.headerBg})` } : undefined}
       >
-      <div className="container">
     <div className="header-wrapper">
       <div className="logo-block">
         <Link to="/" className="logo-link">
@@ -87,31 +150,30 @@ function Layout() {
         </Link>
       </div>
       <nav className="header-nav">
-        <button
-          type="button"
-          className="theme-toggle"
-          onClick={() => setTheme((t) => (t === "dark" ? "light" : "dark"))}
-          aria-pressed={theme === "dark"}
-          aria-label={
-            theme === "dark"
-              ? "Переключить на светлую тему"
-              : "Переключить на тёмную тему"
-          }
-          title={
-            theme === "dark" ? "Светлая тема" : "Тёмная тема"
-          }
-        >
-          {theme === "dark" ? (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <circle cx="12" cy="12" r="4" />
-              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
-            </svg>
-          ) : (
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
-            </svg>
-          )}
-        </button>
+        {easterSlide && (
+          <button
+            type="button"
+            className={`theme-toggle${activeThemeId === String(easterSlide.id) ? " theme-toggle--active" : ""}`}
+            onClick={() => toggleTheme(easterSlide)}
+            aria-pressed={activeThemeId === String(easterSlide.id)}
+            aria-label="Пасхальная тема"
+            title="Пасхальная тема"
+          >
+            <span style={{ fontSize: "18px", lineHeight: 1 }}>🐣</span>
+          </button>
+        )}
+        {cosmosSlide && (
+          <button
+            type="button"
+            className={`theme-toggle${activeThemeId === String(cosmosSlide.id) ? " theme-toggle--active" : ""}`}
+            onClick={() => toggleTheme(cosmosSlide)}
+            aria-pressed={activeThemeId === String(cosmosSlide.id)}
+            aria-label="Космическая тема"
+            title="Космическая тема"
+          >
+            <span style={{ fontSize: "18px", lineHeight: 1 }}>🪐</span>
+          </button>
+        )}
         <Link to="/about" className="header-nav-link">От авторов</Link>
         <a
           href={import.meta.env.VITE_CABINET_URL || "/cabinet/"}
@@ -127,7 +189,6 @@ function Layout() {
         </a>
       </nav>
     </div>
-  </div>
 </header>
 
 

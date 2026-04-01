@@ -100,6 +100,10 @@ export default function ReportErrorModal({ open, onClose, onSubmit, taskNumber }
             />
           </div>
 
+          <p className="report-error-hint">
+            Разработчики увидят ваше сообщение и обязательно исправят ошибку. Прежде чем отправить, убедитесь, что ваше решение верно.
+          </p>
+
           <div className="report-error-actions">
             <button type="button" className="student-name-btn-cancel" onClick={onClose}>
               Отмена
