@@ -167,7 +167,7 @@ function IndexPage() {
     if (welcomeSlides.length < 2) return undefined;
     const sliderTimer = window.setInterval(() => {
       setWelcomeSlideIndex((prev) => (prev + 1) % welcomeSlides.length);
-    }, 7000);
+    }, 21000);
     return () => window.clearInterval(sliderTimer);
   }, [welcomeSlides.length, pinnedThemeId, welcomeSlides]);
 
@@ -275,11 +275,11 @@ function IndexPage() {
                     window.dispatchEvent(new Event("theme-change"));
                     return;
                   }
-                  if (!slide.hasButton || !slide.buttonUrl) {
+                  const href = (slide.buttonUrl || "").trim();
+                  if (!href) {
                     document.getElementById("exam-choice")?.scrollIntoView({ behavior: "smooth" });
                     return;
                   }
-                  const href = slide.buttonUrl;
                   if (href.startsWith("#")) {
                     document.getElementById(href.slice(1))?.scrollIntoView({ behavior: "smooth" });
                     return;
