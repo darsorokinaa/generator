@@ -2407,7 +2407,7 @@ header {
 }
 
 mjx-container {
-    font-size: 110% !important;
+    font-size: 122% !important;
 }
 
 
@@ -4360,7 +4360,7 @@ body.index .exam-grid .exam-card {
 .exam-page .task-text figure.image {
     text-align: center;
 }
-/* Геометрия: компактный размер (320px) */
+/* Геометрия: до min(320px, 90vw) — в 1.5× к предыдущему уменьшенному виду */
 .exam-page .task-geom .task-text img,
 .exam-page .task-geom .task-text figure img,
 .exam-page .task-geom .task-text figure.image img,
@@ -4368,10 +4368,10 @@ body.index .exam-grid .exam-card {
 .exam-page .task-geom .part2-answer-content img {
     display: block !important;
     margin: 0.06rem auto !important;
-    width: min(calc(320px / 1.5), calc(90vw / 1.5)) !important;
+    width: min(320px, 90vw) !important;
     max-width: 100% !important;
-    height: min(calc(320px / 1.5), calc(90vw / 1.5)) !important;
-    max-height: min(calc(320px / 1.5), calc(90vw / 1.5)) !important;
+    height: min(320px, 90vw) !important;
+    max-height: min(320px, 90vw) !important;
     object-fit: contain !important;
     object-position: center !important;
     cursor: pointer;
