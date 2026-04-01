@@ -280,6 +280,10 @@ function IndexPage() {
                     return;
                   }
                   const href = slide.buttonUrl;
+                  if (href.startsWith("#")) {
+                    document.getElementById(href.slice(1))?.scrollIntoView({ behavior: "smooth" });
+                    return;
+                  }
                   const isExternal = /^https?:\/\//i.test(href);
                   if (isExternal) {
                     window.open(href, "_blank", "noopener,noreferrer");
