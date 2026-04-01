@@ -5430,6 +5430,24 @@ body.index .exam-grid .exam-card {
     box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.5);
 }
 
+.theme-toggle-reset {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1.5px solid rgba(255, 255, 255, 0.3);
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.78rem;
+    font-weight: 600;
+    width: auto;
+    padding: 0 10px;
+    gap: 5px;
+    letter-spacing: 0.2px;
+}
+
+.theme-toggle-reset:hover {
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.6);
+}
+
 .header-nav-link {
     font-size: 0.95rem;
     font-weight: 500;
@@ -5826,9 +5844,9 @@ body.index .exam-grid .exam-card {
 
 header.header--themed {
     background-color: transparent;
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
+    background-size: auto 100%;
+    background-position: left center;
+    background-repeat: repeat-x;
     width: 100%;
 }
 
