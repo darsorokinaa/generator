@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { readPersistedTheme } from "../utils/themeStorage";
 
 function AnnouncementCta({ url, label }) {
   const href = (url || "").trim();
@@ -75,9 +76,9 @@ function IndexPage() {
   const [announcements, setAnnouncements] = useState([]);
   const [welcomeSlideIndex, setWelcomeSlideIndex] = useState(0);
   const [slideBgLight, setSlideBgLight] = useState({});
-  const [pinnedThemeId, setPinnedThemeId] = useState(() => {
-    try { return sessionStorage.getItem("active_theme_id") || null; } catch { return null; }
-  });
+  const [pinnedThemeId, setPinnedThemeId] = useState(
+    () => readPersistedTheme().activeThemeId
+  );
 
   const welcomeSlides = useMemo(() => {
     const firstSlide = {
@@ -147,7 +148,7 @@ function IndexPage() {
 
   useEffect(() => {
     const onThemeChange = (e) => {
-      const id = sessionStorage.getItem("active_theme_id") || null;
+      const id = readPersistedTheme().activeThemeId;
       setPinnedThemeId(id);
       if (e.resetToDefault || !id) {
         setWelcomeSlideIndex(0);

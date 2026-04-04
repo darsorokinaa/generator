@@ -1,19 +1,16 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
+import {
+  readPersistedTheme,
+  writePersistedTheme,
+  clearPersistedTheme,
+} from "../utils/themeStorage";
 
 const COOKIE_CONSENT_KEY = "cookie_consent_accepted";
 
-function readThemeData() {
-  try {
-    const raw = sessionStorage.getItem("theme_data");
-    if (raw) return JSON.parse(raw);
-  } catch { /* ignore */ }
-  return null;
-}
-
 function Layout() {
   const { pathname } = useLocation();
-  const [themeData, setThemeData] = useState(readThemeData);
+  const [themeData, setThemeData] = useState(() => readPersistedTheme().themeData);
   const [cookieAccepted, setCookieAccepted] = useState(() => {
     try { return !!localStorage.getItem(COOKIE_CONSENT_KEY); } catch { return false; }
   });
@@ -23,13 +20,39 @@ function Layout() {
     setCookieAccepted(true);
   }
   const [themeSlides, setThemeSlides] = useState([]);
-  const [activeThemeId, setActiveThemeId] = useState(() => {
-    try { return sessionStorage.getItem("active_theme_id") || null; } catch { return null; }
-  });
+  const [activeThemeId, setActiveThemeId] = useState(() => readPersistedTheme().activeThemeId);
+
+  const themeDataRef = useRef(themeData);
+  const activeThemeIdRef = useRef(activeThemeId);
+  useEffect(() => {
+    themeDataRef.current = themeData;
+  }, [themeData]);
+  useEffect(() => {
+    activeThemeIdRef.current = activeThemeId;
+  }, [activeThemeId]);
 
   const syncTheme = useCallback(() => {
-    setThemeData(readThemeData());
-    try { setActiveThemeId(sessionStorage.getItem("active_theme_id") || null); } catch { /* ignore */ }
+    const next = readPersistedTheme();
+    setThemeData(next.themeData);
+    setActiveThemeId(next.activeThemeId);
+  }, []);
+
+  /** После смены календарного дня (вкладка была в фоне) подтянуть актуальное хранилище. */
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState !== "visible") return;
+      const next = readPersistedTheme();
+      if (
+        JSON.stringify(themeDataRef.current) !== JSON.stringify(next.themeData) ||
+        activeThemeIdRef.current !== next.activeThemeId
+      ) {
+        setThemeData(next.themeData);
+        setActiveThemeId(next.activeThemeId);
+        window.dispatchEvent(new Event("theme-change"));
+      }
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
   }, []);
 
   useEffect(() => {
@@ -95,8 +118,7 @@ function Layout() {
   function toggleTheme(slide) {
     if (!slide) return;
     if (String(activeThemeId) === String(slide.id)) {
-      sessionStorage.removeItem("theme_data");
-      sessionStorage.removeItem("active_theme_id");
+      clearPersistedTheme();
       setActiveThemeId(null);
       setThemeData(null);
     } else {
@@ -107,8 +129,7 @@ function Layout() {
         decor: slide.decor,
         worksheetBg: slide.worksheetBg,
       };
-      sessionStorage.setItem("theme_data", JSON.stringify(data));
-      sessionStorage.setItem("active_theme_id", String(slide.id));
+      writePersistedTheme(data, String(slide.id));
       setActiveThemeId(String(slide.id));
       setThemeData(data);
     }
@@ -173,8 +194,7 @@ function Layout() {
             type="button"
             className="theme-toggle theme-toggle-reset"
             onClick={() => {
-              sessionStorage.removeItem("theme_data");
-              sessionStorage.removeItem("active_theme_id");
+              clearPersistedTheme();
               setActiveThemeId(null);
               setThemeData(null);
               const e = new Event("theme-change");

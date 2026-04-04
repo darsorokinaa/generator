@@ -5,6 +5,7 @@ import ImageLightbox from "../components/ImageLightbox";
 import SupportInfoModal from "../components/SupportInfoModal";
 import ResultsModal from "../components/ResultsModal";
 import ReportErrorModal from "../components/ReportErrorModal";
+import { readPersistedTheme } from "../utils/themeStorage";
 
 const COLORS = ["#000000", "#ffffff", "#ef4444", "#3b82f6", "#22c55e"];
 
@@ -1301,14 +1302,8 @@ function ExamPage() {
   };
 
   const getThemeWorksheetBg = () => {
-    try {
-      const raw = sessionStorage.getItem("theme_data");
-      if (raw) {
-        const data = JSON.parse(raw);
-        return (data.worksheetBg || "").trim();
-      }
-    } catch { /* ignore */ }
-    return "";
+    const { themeData } = readPersistedTheme();
+    return (themeData?.worksheetBg || "").trim();
   };
 
   const openThemedPdf = async (variantId, themeName) => {

@@ -1636,6 +1636,42 @@ header .container {
     text-align: center;
 }
 
+input.tasks-page-subtopic-num-input {
+    width: 3rem;
+    max-width: 100%;
+    padding: 0.2rem 0.35rem;
+    margin: 0;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    font: inherit;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--primary-purple);
+    text-align: center;
+    line-height: 1.2;
+    background: #fff;
+    box-sizing: border-box;
+    -moz-appearance: textfield;
+}
+
+input.tasks-page-subtopic-num-input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: #f8fafc;
+}
+
+input.tasks-page-subtopic-num-input:focus {
+    outline: none;
+    border-color: var(--primary-purple);
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+}
+
+input.tasks-page-subtopic-num-input::-webkit-outer-spin-button,
+input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
 .tasks-page-subtopic-of {
     font-size: 0.75rem;
     color: #64748b;
@@ -1761,6 +1797,13 @@ header .container {
     .tasks-page-subtopic-num {
         font-size: 0.9rem;
         min-width: 1.5em;
+    }
+
+    input.tasks-page-subtopic-num-input {
+        width: 3.25rem;
+        min-height: 36px;
+        font-size: 0.95rem;
+        padding: 0.25rem 0.4rem;
     }
 
     .tasks-page-subtopic-of {
@@ -1964,6 +2007,164 @@ header .container {
     gap: 1.5rem;
 }
 
+.subject-page .exam-grid {
+    margin-top: 1.25rem;
+}
+
+.subject-exam-countdowns {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+@media (min-width: 640px) {
+    .subject-exam-countdowns {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1.25rem;
+    }
+}
+
+/* Таймеры: белая карточка; плашки (бейдж + ячейки) в цветах exam-card-math / exam-card-inf */
+.subject-exam-countdown-card {
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    border-radius: 18px;
+    padding: 1.1rem 1.15rem 1.15rem;
+    background: #fff;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+.subject-exam-countdown-card__head {
+    position: relative;
+    z-index: 1;
+    margin-bottom: 0.85rem;
+    text-align: center;
+}
+
+.subject-exam-countdown-card__badge {
+    display: inline-block;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    padding: 0.3rem 0.65rem;
+    border-radius: 999px;
+    margin-bottom: 0.4rem;
+    max-width: 100%;
+    line-height: 1.25;
+}
+
+.subject-exam-countdown-card--math .subject-exam-countdown-card__badge {
+    background: rgba(208, 214, 78, 0.55);
+    color: #5a6b1a;
+    box-shadow: 0 1px 2px rgba(90, 107, 26, 0.12);
+}
+
+.subject-exam-countdown-card--inf .subject-exam-countdown-card__badge {
+    background: rgba(169, 154, 247, 0.5);
+    color: #5b21b6;
+    box-shadow: 0 1px 2px rgba(91, 33, 182, 0.12);
+}
+
+.subject-exam-countdown-card__title {
+    margin: 0.55rem 0 0;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text-primary, #0f172a);
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+}
+
+.subject-exam-countdown-card__date {
+    margin: 0.45rem 0 0;
+    font-size: clamp(1.05rem, 3.2vw, 1.35rem);
+    font-weight: 600;
+    letter-spacing: -0.015em;
+    line-height: 1.25;
+    color: var(--text-primary, #0f172a);
+}
+
+.subject-exam-countdown-card__grid {
+    position: relative;
+    z-index: 1;
+    flex: 1 1 auto;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.4rem;
+}
+
+.subject-exam-countdown-card__cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.15rem;
+    padding: 0.45rem 0.2rem;
+    border-radius: 12px;
+    background: #fff;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.subject-exam-countdown-card--math .subject-exam-countdown-card__cell {
+    background: rgba(208, 214, 78, 0.14);
+    border-color: rgba(90, 107, 26, 0.22);
+}
+
+.subject-exam-countdown-card--inf .subject-exam-countdown-card__cell {
+    background: rgba(169, 154, 247, 0.16);
+    border-color: rgba(91, 33, 182, 0.22);
+}
+
+.subject-exam-countdown-card--math .subject-exam-countdown-card__value {
+    color: #5a6b1a;
+}
+
+.subject-exam-countdown-card--inf .subject-exam-countdown-card__value {
+    color: #5b21b6;
+}
+
+.subject-exam-countdown-card__value {
+    font-size: clamp(1rem, 2.8vw, 1.25rem);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    line-height: 1.1;
+}
+
+.subject-exam-countdown-card__unit {
+    font-size: 0.62rem;
+    font-weight: 600;
+    text-transform: lowercase;
+    color: #94a3b8;
+    letter-spacing: 0.02em;
+}
+
+.subject-exam-countdown-card__footnote {
+    position: relative;
+    z-index: 1;
+    margin: 0.85rem 0 0 auto;
+    padding: 0;
+    max-width: 95%;
+    text-align: right;
+    font-size: 0.65rem;
+    line-height: 1.4;
+    font-style: italic;
+    color: #64748b;
+}
+
+.subject-exam-countdown-card__footnote-mark {
+    font-style: normal;
+    font-weight: 600;
+    margin-right: 0.2em;
+    color: #94a3b8;
+}
+
+.subject-exam-countdown-card__footnote-text {
+    font-style: italic;
+}
+
 @media (min-width: 1024px) {
     .subject-page-layout {
         flex-direction: row;
@@ -1978,10 +2179,14 @@ header .container {
         min-width: 0;
     }
 
+    .subject-page .subject-exam-countdowns {
+        margin-top: 2rem;
+    }
+
     .subject-page .subject-page-main .exam-grid {
         grid-template-columns: repeat(2, 1fr);
         gap: 1.25rem;
-        margin-top: 4.3rem;
+        margin-top: 1.5rem;
         align-items: stretch;
     }
 

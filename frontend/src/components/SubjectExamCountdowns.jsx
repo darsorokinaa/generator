@@ -44,23 +44,40 @@ function fmtInt(n) {
 const FOOTNOTE_PHRASE_STORAGE_KEY_V1 = "genurok_exam_footnote_comparison_v1";
 const FOOTNOTE_SEED_STORAGE_KEY = "genurok_exam_footnote_hourly_v1";
 
+/**
+ * Сравнения по оставшимся секундам (числа пересчитываются от таймера).
+ * У каждого браузера свой seed в localStorage; тип фразы — от seed + локального часа.
+ */
 const COMPARISON_FACTORIES = [
-  (sec) => `это как ${fmtInt(sec * (17 / 60))} раз моргнуть`,
-  (sec) => `это как посмотреть ${fmtInt(Math.floor(sec / 34))} тиктоков или рилс подряд`,
+  (sec) =>
+    `это как ${fmtInt(sec * (17 / 60))} раз моргнуть`,
+  (sec) =>
+    `это как посмотреть ${fmtInt(Math.floor(sec / 34))} тиктоков или рилс подряд`,
   (sec) =>
     `это как ${(sec / 3600).toLocaleString("ru-RU", { maximumFractionDigits: 1 })} часов непрерывно болтать с друзьями`,
-  (sec) => `это как прослушать ${fmtInt(Math.floor(sec / 210))} песен Вани Дмитриенко подряд`,
-  (sec) => `это как непрерывно варить макароны ${fmtInt(Math.floor(sec / 600))} раз по 10 мин`,
-  (sec) => `это как пройти ${fmtInt((sec / 3600) * 5)} км пешком`,
-  (sec) => `это как прочитать примерно ${fmtInt(Math.floor(sec / 150))} страниц книги`,
-  (sec) => `это как вскипятить чайник ${fmtInt(Math.floor(sec / 420))} раз подряд`,
-  (sec) => `это как ${fmtInt(Math.floor(sec / 120))} двухминутных чисток зубов подряд`,
-  (sec) => `это как сделать ${fmtInt(Math.floor(sec / 45))} подходов планки по 45 секунд`,
-  (sec) => `это как написать «ну как ты?» ${fmtInt(Math.floor(sec / 5))} раз`,
-  (sec) => `это как сыграть ${fmtInt(Math.floor(sec / (2 * 3600)))} сессий в Симс`,
-  (sec) => `это как посмотреть ${fmtInt(Math.floor(sec / (22 * 60)))} серий Рика и Морти`,
+  (sec) =>
+    `это как прослушать ${fmtInt(Math.floor(sec / 210))} песен Вани Дмитриенко подряд`,
+  (sec) =>
+    `это как непрерывно варить макароны ${fmtInt(Math.floor(sec / 600))} раз по 10 мин`,
+  (sec) =>
+    `это как пройти ${fmtInt((sec / 3600) * 5)} км пешком`,
+  (sec) =>
+    `это как прочитать примерно ${fmtInt(Math.floor(sec / 150))} страниц книги`,
+  (sec) =>
+    `это как вскипятить чайник ${fmtInt(Math.floor(sec / 420))} раз подряд`,
+  (sec) =>
+    `это как ${fmtInt(Math.floor(sec / 120))} двухминутных чисток зубов подряд`,
+  (sec) =>
+    `это как сделать ${fmtInt(Math.floor(sec / 45))} подходов планки по 45 секунд`,
+  (sec) =>
+    `это как написать «ну как ты?» ${fmtInt(Math.floor(sec / 5))} раз`,
+  (sec) =>
+    `это как сыграть ${fmtInt(Math.floor(sec / ( 3600)))} раз (по 2 часа) в Симс`,
+  (sec) =>
+    `это как посмотреть ${fmtInt(Math.floor(sec / (22 * 60)))} серий Рика и Морти`,
 ];
 
+/** Уникальное целое на каждый локальный календарный час устройства. */
 function localHourBucketFromMs(ms) {
   const t = new Date(ms);
   return (
@@ -94,7 +111,7 @@ function loadOrCreateUserFootnoteSeed() {
     localStorage.setItem(FOOTNOTE_SEED_STORAGE_KEY, JSON.stringify({ seed }));
     localStorage.removeItem(FOOTNOTE_PHRASE_STORAGE_KEY_V1);
   } catch {
-    /* ignore */
+    /* приватный режим и т.п. */
   }
   return seed;
 }
@@ -103,8 +120,7 @@ function footnoteTextFor(secTotal, phraseIndex) {
   if (secTotal <= 0) {
     return "Экзамен уже идёт или прошёл — удачи на полях сражения с билетом.";
   }
-  const idx =
-    ((phraseIndex % COMPARISON_FACTORIES.length) + COMPARISON_FACTORIES.length) %
+  const idx = ((phraseIndex % COMPARISON_FACTORIES.length) + COMPARISON_FACTORIES.length) %
     COMPARISON_FACTORIES.length;
   return COMPARISON_FACTORIES[idx](secTotal);
 }
