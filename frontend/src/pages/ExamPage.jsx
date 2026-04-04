@@ -39,6 +39,20 @@ const LEVEL_NAMES = {
   oge: "ОГЭ",
 };
 
+const EXAM_CORNER_POS_KEY = "exam_fixed_corner_pos";
+
+function clampExamCornerToViewport(el, left, top) {
+  const margin = 8;
+  const w = el.offsetWidth || 1;
+  const h = el.offsetHeight || 1;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  return {
+    left: Math.min(Math.max(margin, left), Math.max(margin, vw - w - margin)),
+    top: Math.min(Math.max(margin, top), Math.max(margin, vh - h - margin)),
+  };
+}
+
 function ExamPage() {
   const { level, subject, variant_id } = useParams();
   const location = useLocation();
@@ -88,6 +102,23 @@ function ExamPage() {
   const [lightbox, setLightbox] = useState({ open: false, src: "" });
   const handleImageClick = useCallback((src) => setLightbox({ open: true, src }), []);
   const mainRef = useRef(null);
+  const fixedCornerRef = useRef(null);
+  const cornerDragRef = useRef({
+    active: false,
+    pointerId: null,
+    startClientX: 0,
+    startClientY: 0,
+    startLeft: 0,
+    startTop: 0,
+  });
+  const pendingCornerPosRef = useRef(null);
+
+  /** Пользовательская позиция блока таймера (fixed px), null — как в CSS (правый верх) */
+  const [fixedCornerPos, setFixedCornerPos] = useState(null);
+  const fixedCornerPosRef = useRef(null);
+  useEffect(() => {
+    fixedCornerPosRef.current = fixedCornerPos;
+  }, [fixedCornerPos]);
 
   // Справочная информация (items = массив {html})
   const [supportInfo, setSupportInfo] = useState({ items: [], open: false });
@@ -152,6 +183,100 @@ function ExamPage() {
   /* =========================
      Таймер
   ========================== */
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(EXAM_CORNER_POS_KEY);
+      if (!raw) return;
+      const p = JSON.parse(raw);
+      if (typeof p.left === "number" && typeof p.top === "number") {
+        setFixedCornerPos({ left: p.left, top: p.top });
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const cornerPlaced = fixedCornerPos != null;
+  useEffect(() => {
+    if (!cornerPlaced) return;
+    const onResize = () => {
+      const el = fixedCornerRef.current;
+      if (!el) return;
+      setFixedCornerPos((prev) => {
+        if (!prev) return prev;
+        const c = clampExamCornerToViewport(el, prev.left, prev.top);
+        try {
+          sessionStorage.setItem(EXAM_CORNER_POS_KEY, JSON.stringify(c));
+        } catch {
+          /* ignore */
+        }
+        return c;
+      });
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [cornerPlaced]);
+
+  const onFixedCornerDragStart = useCallback((e) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    const el = fixedCornerRef.current;
+    if (!el) return;
+    e.preventDefault();
+    const rect = el.getBoundingClientRect();
+    const pos = fixedCornerPosRef.current;
+    const startLeft = pos?.left ?? rect.left;
+    const startTop = pos?.top ?? rect.top;
+    if (pos == null) {
+      setFixedCornerPos({ left: startLeft, top: startTop });
+    }
+    cornerDragRef.current = {
+      active: true,
+      pointerId: e.pointerId,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      startLeft,
+      startTop,
+    };
+    pendingCornerPosRef.current = { left: startLeft, top: startTop };
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const onFixedCornerDragMove = useCallback((e) => {
+    const d = cornerDragRef.current;
+    if (!d.active) return;
+    e.preventDefault();
+    const el = fixedCornerRef.current;
+    if (!el) return;
+    let left = d.startLeft + (e.clientX - d.startClientX);
+    let top = d.startTop + (e.clientY - d.startClientY);
+    const c = clampExamCornerToViewport(el, left, top);
+    pendingCornerPosRef.current = c;
+    setFixedCornerPos(c);
+  }, []);
+
+  const onFixedCornerDragEnd = useCallback((e) => {
+    const d = cornerDragRef.current;
+    if (!d.active) return;
+    d.active = false;
+    try {
+      if (d.pointerId != null) e.currentTarget.releasePointerCapture(d.pointerId);
+    } catch {
+      /* ignore */
+    }
+    const p = pendingCornerPosRef.current;
+    if (p) {
+      try {
+        sessionStorage.setItem(EXAM_CORNER_POS_KEY, JSON.stringify(p));
+      } catch {
+        /* ignore */
+      }
+    }
+  }, []);
+
   useEffect(() => {
     if (timerStatus !== "running") return;
     const id = setInterval(() => setTimerSeconds((s) => s + 1), 1000);
@@ -256,7 +381,17 @@ function ExamPage() {
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d", { willReadFrequently: false });
-    canvas.style.touchAction = "none";
+    /** Пока не рисуем — разрешаем прокрутку страницы пальцем по холсту (иначе fixed-слой «липнет» к экрану). */
+    canvas.style.touchAction = "manipulation";
+
+    /** Для touch: ждём сдвиг, иначе жест = прокрутка, не штрих. */
+    let touchScrollGuard = null;
+    const TOUCH_DRAG_THRESHOLD = 10;
+
+    function setCanvasTouchAction() {
+      canvas.style.touchAction =
+        drawingRef.current || erasingRef.current ? "none" : "manipulation";
+    }
 
     const protocol = window.location.protocol === "https:" ? "wss://" : "ws://";
     const wsHost = import.meta.env.DEV ? "localhost:8000" : window.location.host;
@@ -304,6 +439,7 @@ function ExamPage() {
       canvas.style.zIndex = "10001";
 
       geomRef.current = { vw, vh, dpr };
+      setCanvasTouchAction();
       redraw();
     }
 
@@ -476,19 +612,13 @@ function ExamPage() {
       }
     }
 
-    function onPointerDown(e) {
-      e.preventDefault();
-      canvas.setPointerCapture(e.pointerId);
-
-      const pos = getPos(e);
+    function startStrokeFromPos(pos) {
       const t = toolRef.current;
-
       if (t === "eraser") {
         erasingRef.current = true;
         eraseAt(pos.x, pos.y);
         return;
       }
-
       if (t === "line" || t === "triangle" || t === "circle" || t === "square") {
         drawingRef.current = true;
         currentShapeRef.current = {
@@ -501,7 +631,6 @@ function ExamPage() {
         redraw();
         return;
       }
-
       drawingRef.current = true;
       currentLineRef.current = {
         type: "line",
@@ -512,8 +641,43 @@ function ExamPage() {
       redraw();
     }
 
-    function onPointerMove(e) {
+    function onPointerDown(e) {
+      if (e.pointerType === "touch") {
+        touchScrollGuard = {
+          pointerId: e.pointerId,
+          startX: e.clientX,
+          startY: e.clientY,
+          initialBoard: getPos(e),
+        };
+        return;
+      }
+
       e.preventDefault();
+      canvas.setPointerCapture(e.pointerId);
+      startStrokeFromPos(getPos(e));
+      setCanvasTouchAction();
+    }
+
+    function onPointerMove(e) {
+      if (touchScrollGuard && e.pointerId === touchScrollGuard.pointerId) {
+        const d = Math.hypot(
+          e.clientX - touchScrollGuard.startX,
+          e.clientY - touchScrollGuard.startY
+        );
+        if (d < TOUCH_DRAG_THRESHOLD) return;
+        const pos0 = touchScrollGuard.initialBoard;
+        const pid = touchScrollGuard.pointerId;
+        touchScrollGuard = null;
+        e.preventDefault();
+        try {
+          canvas.setPointerCapture(pid);
+        } catch (_) {}
+        startStrokeFromPos(pos0);
+        setCanvasTouchAction();
+      }
+
+      const blocking = erasingRef.current || drawingRef.current;
+      if (blocking) e.preventDefault();
 
       if (toolRef.current === "eraser" && erasingRef.current) {
         for (const ev of pointerSamples(e)) {
@@ -551,7 +715,15 @@ function ExamPage() {
       redraw();
     }
 
+    function endTouchGuardIfAny(e) {
+      if (touchScrollGuard && e.pointerId === touchScrollGuard.pointerId) {
+        touchScrollGuard = null;
+        setCanvasTouchAction();
+      }
+    }
+
     function onPointerUp(e) {
+      endTouchGuardIfAny(e);
       if (e && e.preventDefault) e.preventDefault();
       try {
         canvas.releasePointerCapture(e.pointerId);
@@ -588,6 +760,7 @@ function ExamPage() {
 
       drawingRef.current = false;
       erasingRef.current = false;
+      setCanvasTouchAction();
       if (rafId2 != null) { cancelAnimationFrame(rafId2); rafId2 = null; }
       redraw();
     }
@@ -640,6 +813,23 @@ function ExamPage() {
     window.addEventListener("resize", resizeCanvas);
     window.addEventListener("scroll", scheduleScrollRedraw, { passive: true, capture: true });
 
+    const scrollRoots = new Set();
+    const se = document.scrollingElement;
+    if (se) scrollRoots.add(se);
+    scrollRoots.add(document.documentElement);
+    scrollRoots.add(document.body);
+    const appShellContent = document.querySelector(".app-shell-content");
+    if (appShellContent) scrollRoots.add(appShellContent);
+    scrollRoots.forEach((el) => {
+      el.addEventListener("scroll", scheduleScrollRedraw, { passive: true });
+    });
+
+    const vv = window.visualViewport;
+    if (vv) {
+      vv.addEventListener("scroll", scheduleScrollRedraw, { passive: true });
+      vv.addEventListener("resize", scheduleScrollRedraw, { passive: true });
+    }
+
     let ro;
     const root = mainRef.current;
     const contentArea = root?.querySelector?.(".content-area") ?? null;
@@ -672,6 +862,13 @@ function ExamPage() {
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("resize", resizeCanvas);
       window.removeEventListener("scroll", scheduleScrollRedraw, { capture: true });
+      scrollRoots.forEach((el) => {
+        el.removeEventListener("scroll", scheduleScrollRedraw);
+      });
+      if (vv) {
+        vv.removeEventListener("scroll", scheduleScrollRedraw);
+        vv.removeEventListener("resize", scheduleScrollRedraw);
+      }
       if (root) root.removeEventListener("scroll", scheduleScrollRedraw);
       if (contentArea) contentArea.removeEventListener("scroll", scheduleScrollRedraw);
     };
@@ -968,10 +1165,29 @@ function ExamPage() {
       Array.isArray(variant.tasks)
         ? variant.tasks.filter((t) => t.subdivision === "geom" && (effectiveScores[t.id] || 0) > 0).length
         : 0;
-    return { effectiveCheckedTasks, effectiveScores, correctCount, totalScore, geoCorrectCount };
+    /** Полностью верные задания: ч.1 — верный ответ; ч.2 — набран максимум баллов по заданию */
+    const fullyCorrectTaskCount = variant.tasks.filter((task) => {
+      if (inferPart(task) === 1) {
+        const ok =
+          checkedTasks[task.id] !== undefined
+            ? checkedTasks[task.id]
+            : computeTaskCorrectness(task);
+        return !!ok;
+      }
+      return (scores[task.id] ?? 0) >= getTaskMaxScore(task);
+    }).length;
+    return {
+      effectiveCheckedTasks,
+      effectiveScores,
+      correctCount,
+      totalScore,
+      geoCorrectCount,
+      fullyCorrectTaskCount,
+    };
   }
 
-  const { correctCount, totalScore } = getEffectiveResults();
+  const { correctCount, totalScore, fullyCorrectTaskCount } = getEffectiveResults();
+  const taskCountTotal = variant.tasks.length;
 
   const handleTaskFocus = (taskId) => {
     currentTaskIdRef.current = taskId;
@@ -1013,6 +1229,7 @@ function ExamPage() {
       correctCount: effCorrectCount,
       totalScore: effTotalScore,
       geoCorrectCount,
+      fullyCorrectTaskCount: effFullyCorrect,
     } = getEffectiveResults();
     const isOgeMath = String(level).toLowerCase() === "oge" && String(subject).toLowerCase() === "math";
     const geoParam = isOgeMath ? `&geo_correct=${geoCorrectCount}` : "";
@@ -1048,6 +1265,9 @@ function ExamPage() {
       variantId: variant.id,
       level,
       subject,
+      examMode: mode,
+      fullyCorrectTaskCount: effFullyCorrect,
+      taskCountTotal: variant.tasks.length,
     });
     setResultsOpen(true);
   };
@@ -1152,8 +1372,28 @@ function ExamPage() {
 
   return (
     <div ref={mainRef} className="main-wrapper exam-page" id="main-wrapper" data-level={level} data-subject={subject}>
-      {/* Фиксированный блок: таймер и баллы — остаётся в углу при прокрутке */}
-      <div className="exam-fixed-corner">
+      {/* Фиксированный блок: таймер и баллы — перетаскивание за ручку; позиция в sessionStorage */}
+      <div
+        ref={fixedCornerRef}
+        className="exam-fixed-corner"
+        style={
+          fixedCornerPos
+            ? { left: fixedCornerPos.left, top: fixedCornerPos.top, right: "auto" }
+            : undefined
+        }
+      >
+        <button
+          type="button"
+          className="exam-fixed-corner__drag"
+          aria-label="Переместить блок с таймером"
+          title="Перетащить"
+          onPointerDown={onFixedCornerDragStart}
+          onPointerMove={onFixedCornerDragMove}
+          onPointerUp={onFixedCornerDragEnd}
+          onPointerCancel={onFixedCornerDragEnd}
+        >
+          <span className="exam-fixed-corner__drag-grip" aria-hidden />
+        </button>
         <div className="variant-timer exam-fixed-timer">
           <div className="variant-timer-display">{formatTimer(timerSeconds)}</div>
           <div className="variant-timer-actions">
@@ -1198,10 +1438,23 @@ function ExamPage() {
         <div className="variant-score-block">
           <div className="variant-score-row">
             <span className="variant-score-label">
-              {part2Tasks.length > 0 ? "Баллов" : "Правильных"}
+              {mode === "test"
+                ? "Верно"
+                : part2Tasks.length > 0
+                  ? "Баллов"
+                  : "Правильных"}
             </span>
             <span className="variant-score-val">
-              {totalScore} <span className="variant-score-total">/ {maxScore}</span>
+              {mode === "test" ? (
+                <>
+                  {fullyCorrectTaskCount}{" "}
+                  <span className="variant-score-total">/ {taskCountTotal}</span>
+                </>
+              ) : (
+                <>
+                  {totalScore} <span className="variant-score-total">/ {maxScore}</span>
+                </>
+              )}
             </span>
           </div>
         </div>

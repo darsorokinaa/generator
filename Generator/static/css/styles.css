@@ -3587,7 +3587,7 @@ mjx-container {
     pointer-events: auto;
     z-index: 1;
     background: transparent;
-    touch-action: none;
+    touch-action: manipulation;
     user-select: none;
     -webkit-user-select: none;
 }
@@ -4173,6 +4173,8 @@ body.index .exam-grid .exam-card {
 .exam-page[data-subject="inf"] .task:not(.task-geom) .task-text figure.image {
     width: auto !important;
     max-width: 100% !important;
+    margin-top: 0.85rem !important;
+    margin-bottom: 0.55rem !important;
     margin-left: auto !important;
     margin-right: auto !important;
 }
@@ -4181,9 +4183,20 @@ body.index .exam-grid .exam-card {
     margin-left: auto !important;
     margin-right: auto !important;
 }
-.exam-page[data-subject="inf"] .task:not(.task-geom) .task-text img,
+.exam-page[data-subject="inf"] .task:not(.task-geom) .task-text img {
+    display: block !important;
+    width: auto !important;
+    max-width: min(420px, 95vw) !important;
+    height: auto !important;
+    max-height: min(420px, 85vh) !important;
+    margin: 0.85rem auto 0.55rem !important;
+    object-fit: contain !important;
+    cursor: pointer;
+}
 .exam-page[data-subject="inf"] .task:not(.task-geom) .task-text figure img,
-.exam-page[data-subject="inf"] .task:not(.task-geom) .task-text figure.image img,
+.exam-page[data-subject="inf"] .task:not(.task-geom) .task-text figure.image img {
+    margin: 0 auto !important;
+}
 .exam-page[data-subject="inf"] .task:not(.task-geom) .correct-answer-content img,
 .exam-page[data-subject="inf"] .task:not(.task-geom) .part2-answer-content img,
 .exam-page[data-subject="inf"] .task:not(.task-geom) .criteria-text img {
@@ -4192,7 +4205,7 @@ body.index .exam-grid .exam-card {
     max-width: min(420px, 95vw) !important;
     height: auto !important;
     max-height: min(420px, 85vh) !important;
-    margin: 0 auto !important;
+    margin: 0.85rem auto 0.55rem !important;
     object-fit: contain !important;
     cursor: pointer;
 }
@@ -4208,20 +4221,26 @@ body.index .exam-grid .exam-card {
     max-width: 100% !important;
     display: block !important;
 }
-.exam-page .task:not(.task-geom) .task-text img,
-.exam-page .task:not(.task-geom) .task-text figure img,
-.exam-page .task:not(.task-geom) .task-text figure.image img {
-    width: 100% !important;
-    max-width: 100% !important;
+.exam-page .task:not(.task-geom) .task-text img {
+    display: block !important;
+    width: calc(100% / 1.5) !important;
+    max-width: calc(100% / 1.5) !important;
     height: auto !important;
     max-height: none !important;
+    margin: 0.85rem auto 0.55rem !important;
     object-fit: contain !important;
+}
+.exam-page .task:not(.task-geom) .task-text figure img,
+.exam-page .task:not(.task-geom) .task-text figure.image img {
+    margin: 0 auto !important;
 }
 .exam-page .task:not(.task-geom) .correct-answer-content img,
 .exam-page .task:not(.task-geom) .part2-answer-content img {
-    width: 100% !important;
-    max-width: 100% !important;
+    display: block !important;
+    width: calc(100% / 1.5) !important;
+    max-width: calc(100% / 1.5) !important;
     height: auto !important;
+    margin: 0.75rem auto 0.5rem !important;
     object-fit: contain !important;
     cursor: pointer;
 }
@@ -4528,10 +4547,10 @@ body.index .exam-grid .exam-card {
 
 .exam-fixed-corner__drag {
   width: 100%;
-  margin: -0.15rem 0 0.1rem 0;
-  padding: 6px 8px;
+  margin: -0.05rem 0 0.05rem 0;
+  padding: 4px 8px;
   border: none;
-  border-radius: 12px;
+  border-radius: 10px;
   background: transparent;
   cursor: grab;
   touch-action: none;
@@ -4544,20 +4563,26 @@ body.index .exam-grid .exam-card {
 }
 
 .exam-fixed-corner__drag:hover {
-  background: rgba(59, 130, 246, 0.07);
+  background: rgba(59, 130, 246, 0.04);
 }
 
 .exam-fixed-corner__drag:active {
   cursor: grabbing;
 }
 
+/* Минималистичная ручка: две тонкие линии вместо трёх толстых */
 .exam-fixed-corner__drag-grip {
   display: block;
-  width: 34px;
-  height: 4px;
+  width: 18px;
+  height: 1.5px;
   border-radius: 999px;
-  background: #94a3b8;
-  box-shadow: 0 7px 0 #94a3b8, 0 -7px 0 #94a3b8;
+  background: rgba(100, 116, 139, 0.38);
+  box-shadow: 0 4px 0 rgba(100, 116, 139, 0.32);
+}
+
+.exam-fixed-corner__drag:hover .exam-fixed-corner__drag-grip {
+  background: rgba(100, 116, 139, 0.5);
+  box-shadow: 0 4px 0 rgba(100, 116, 139, 0.42);
 }
 
 .exam-fixed-corner .variant-timer,

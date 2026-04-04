@@ -85,6 +85,10 @@
             margin-top: 1.5pt;
             line-height: 1.2;
         }
+        .report-task-subtopic-label {
+            font-weight: 600;
+            color: #444;
+        }
         .report-table tr.row-score-zero {
             background: rgba(220, 38, 38, 0.08);
         }
@@ -170,7 +174,7 @@
                         <td>{{ row.number }}</td>
                         <td>
                             <div>{{ row.title|default:"—" }}</div>
-                            {% if row.subtopic_title %}<div class="report-task-subtopic">{{ row.subtopic_title }}</div>{% endif %}
+                            {% if row.subtopic_title %}<div class="report-task-subtopic"><span class="report-task-subtopic-label">Подтема:</span> {{ row.subtopic_title }}</div>{% endif %}
                         </td>
                         <td class="numeric">{{ row.score }}/{{ row.max_score }}</td>
                         <td>{{ row.time|default:"—" }}</td>
@@ -195,7 +199,7 @@
                         <td>{{ row.number }}</td>
                         <td>
                             <div>{{ row.title|default:"—" }}</div>
-                            {% if row.subtopic_title %}<div class="report-task-subtopic">{{ row.subtopic_title }}</div>{% endif %}
+                            {% if row.subtopic_title %}<div class="report-task-subtopic"><span class="report-task-subtopic-label">Подтема:</span> {{ row.subtopic_title }}</div>{% endif %}
                         </td>
                         <td class="numeric">{{ row.score }}/{{ row.max_score }}</td>
                         <td>{{ row.time|default:"—" }}</td>
@@ -210,7 +214,7 @@
         <p>Тестовые баллы: {{ total_score }} из {{ max_score }}</p>
         {% if score_exam is not None %}
             {% if is_oge %}
-                <p>Оценка: {{ score_exam }}</p>
+                <p>Оценка: {{ score_exam }} из 5</p>
             {% else %}
                 <p>Вторичные баллы: {{ score_exam }} из 100</p>
             {% endif %}

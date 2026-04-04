@@ -1233,11 +1233,25 @@ def report_pdf(request, level, subject):
     if level_val.isdigit():
         level_label = f"{level_val} класс"
 
+    subtopic_by_task_id = {}
+    try:
+        for vc in VariantContent.objects.filter(variant=variant).select_related("task__subtopic"):
+            st = getattr(vc.task, "subtopic", None)
+            if st and (st.title or "").strip():
+                subtopic_by_task_id[vc.task_id] = (st.title or "").strip()
+    except Exception:
+        pass
+
     report_rows = []
     for t in tasks:
         tid = str(t.get("id", ""))
+        tid_int = int(tid) if tid.isdigit() else None
         num = t.get("number", tid)
         title = t.get("task_title", "")
+        st_raw = t.get("subtopic_title")
+        subtopic_title = (st_raw or "").strip() if isinstance(st_raw, str) else ""
+        if not subtopic_title and tid_int is not None:
+            subtopic_title = subtopic_by_task_id.get(tid_int, "")
         max_s = t.get("max_score", 1)
         sc = scores.get(tid, scores.get(int(tid) if tid.isdigit() else tid, 0))
         sec = task_times.get(tid, task_times.get(int(tid) if tid.isdigit() else tid, 0))
@@ -1245,6 +1259,7 @@ def report_pdf(request, level, subject):
         report_rows.append({
             "number": num,
             "title": title,
+            "subtopic_title": subtopic_title,
             "score": sc,
             "max_score": max_s,
             "time": time_str,
@@ -1279,6 +1294,7 @@ def report_pdf(request, level, subject):
         "score_comment": score_comment,
         "score_comment_class": score_comment_class,
         "pdf_css": pdf_utils.get_pdf_css(),
+        "is_oge": level_val == "oge",
     }
 
     html_string = render_to_string("report_template.html", context)

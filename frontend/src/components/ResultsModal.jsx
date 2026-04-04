@@ -82,7 +82,20 @@ export default function ResultsModal({ open, onClose, results }) {
 
   if (!open || !results) return null;
 
-  const { totalTimeFormatted, taskTimes, totalScore, maxScore, scoreExam, scoreComment, markLevel, tasks, level } = results;
+  const {
+    totalTimeFormatted,
+    taskTimes,
+    totalScore,
+    maxScore,
+    scoreExam,
+    scoreComment,
+    markLevel,
+    tasks,
+    level,
+    examMode,
+    fullyCorrectTaskCount,
+    taskCountTotal,
+  } = results;
   const levelToClass = { 1: "insufficient", 2: "threshold", 3: "average", 4: "high" };
   const scoreLevelClass = markLevel && levelToClass[markLevel] ? `results-score-${levelToClass[markLevel]}` : "";
   const taskIdToNumber = tasks?.reduce((acc, t) => ({ ...acc, [t.id]: t.number }), {}) ?? {};
@@ -197,7 +210,7 @@ export default function ResultsModal({ open, onClose, results }) {
                 </span>
                 <span className="results-value">
                   {String(level).toLowerCase() === "oge"
-                    ? Number(scoreExam)
+                    ? `${Number(scoreExam)} из 5`
                     : `${Number(scoreExam)} из 100`}
                 </span>
               </div>

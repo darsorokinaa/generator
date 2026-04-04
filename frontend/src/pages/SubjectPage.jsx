@@ -67,7 +67,7 @@ function SubjectPage() {
               </div>
             </div>
             <div className="exam-card-footer">
-              <span className="exam-badge">Все разделы</span>
+              <span className="exam-badge">Перейти</span>
               <div className="exam-card-arrow-wrap">
                 <span className="exam-arrow" aria-hidden="true">→</span>
               </div>
@@ -97,7 +97,7 @@ function SubjectPage() {
               </div>
             </div>
             <div className="exam-card-footer">
-              <span className="exam-badge">Все темы</span>
+              <span className="exam-badge">Перейти</span>
               <div className="exam-card-arrow-wrap">
                 <span className="exam-arrow" aria-hidden="true">→</span>
               </div>

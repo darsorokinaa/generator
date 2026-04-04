@@ -2482,7 +2482,8 @@ mjx-container {
 }
 
 .task-text th {
-    background-color: #e9e9e9;
+    background-color: #7084e0;
+    color: white;
     font-weight: 600;
 }
 
@@ -3726,7 +3727,8 @@ mjx-container {
     pointer-events: auto;
     z-index: 1;
     background: transparent;
-    touch-action: none;
+    /* touch-action переключает ExamPage (manipulation = скролл, none = рисование) */
+    touch-action: manipulation;
     user-select: none;
     -webkit-user-select: none;
 }
@@ -4340,7 +4342,7 @@ body.index .exam-grid .exam-card {
 
 .task-text figure.image {
     text-align: center;
-    margin: 0.25rem auto;
+    margin: 0.75rem auto 0.5rem;
 }
 
 .task-text figure.image img {
@@ -4357,13 +4359,20 @@ body.index .exam-grid .exam-card {
     text-align: center;
 }
 /* Геометрия: до min(320px, 90vw) — в 1.5× к предыдущему уменьшенному виду */
+.exam-page .task-geom .task-text figure,
+.exam-page .task-geom .task-text figure.image {
+    margin-top: 0.85rem !important;
+    margin-bottom: 0.55rem !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
 .exam-page .task-geom .task-text img,
 .exam-page .task-geom .task-text figure img,
 .exam-page .task-geom .task-text figure.image img,
 .exam-page .task-geom .correct-answer-content img,
 .exam-page .task-geom .part2-answer-content img {
     display: block !important;
-    margin: 0.06rem auto !important;
+    margin: 0 auto !important;
     width: min(320px, 90vw) !important;
     max-width: 100% !important;
     height: min(320px, 90vw) !important;
@@ -4377,6 +4386,8 @@ body.index .exam-grid .exam-card {
 .exam-page[data-subject="inf"] .task:not(.task-geom) .task-text figure.image {
     width: auto !important;
     max-width: 100% !important;
+    margin-top: 0.85rem !important;
+    margin-bottom: 0.55rem !important;
     margin-left: auto !important;
     margin-right: auto !important;
 }
@@ -4385,9 +4396,20 @@ body.index .exam-grid .exam-card {
     margin-left: auto !important;
     margin-right: auto !important;
 }
-.exam-page[data-subject="inf"] .task:not(.task-geom) .task-text img,
+.exam-page[data-subject="inf"] .task:not(.task-geom) .task-text img {
+    display: block !important;
+    width: auto !important;
+    max-width: min(420px, 95vw) !important;
+    height: auto !important;
+    max-height: min(420px, 85vh) !important;
+    margin: 0.85rem auto 0.55rem !important;
+    object-fit: contain !important;
+    cursor: pointer;
+}
 .exam-page[data-subject="inf"] .task:not(.task-geom) .task-text figure img,
-.exam-page[data-subject="inf"] .task:not(.task-geom) .task-text figure.image img,
+.exam-page[data-subject="inf"] .task:not(.task-geom) .task-text figure.image img {
+    margin: 0 auto !important;
+}
 .exam-page[data-subject="inf"] .task:not(.task-geom) .correct-answer-content img,
 .exam-page[data-subject="inf"] .task:not(.task-geom) .part2-answer-content img,
 .exam-page[data-subject="inf"] .task:not(.task-geom) .criteria-text img {
@@ -4396,7 +4418,7 @@ body.index .exam-grid .exam-card {
     max-width: min(420px, 95vw) !important;
     height: auto !important;
     max-height: min(420px, 85vh) !important;
-    margin: 0 auto !important;
+    margin: 0.85rem auto 0.55rem !important;
     object-fit: contain !important;
     cursor: pointer;
 }
@@ -4412,17 +4434,18 @@ body.index .exam-grid .exam-card {
     max-width: 100% !important;
     display: block !important;
 }
-.exam-page .task:not(.task-geom) .task-text img,
-.exam-page .task:not(.task-geom) .task-text figure img,
-.exam-page .task:not(.task-geom) .task-text figure.image img {
+.exam-page .task:not(.task-geom) .task-text img {
     display: block !important;
     width: calc(100% / 1.5) !important;
     max-width: calc(100% / 1.5) !important;
     height: auto !important;
     max-height: none !important;
-    margin-left: auto !important;
-    margin-right: auto !important;
+    margin: 0.85rem auto 0.55rem !important;
     object-fit: contain !important;
+}
+.exam-page .task:not(.task-geom) .task-text figure img,
+.exam-page .task:not(.task-geom) .task-text figure.image img {
+    margin: 0 auto !important;
 }
 .exam-page .task:not(.task-geom) .correct-answer-content img,
 .exam-page .task:not(.task-geom) .part2-answer-content img {
@@ -4430,8 +4453,7 @@ body.index .exam-grid .exam-card {
     width: calc(100% / 1.5) !important;
     max-width: calc(100% / 1.5) !important;
     height: auto !important;
-    margin-left: auto !important;
-    margin-right: auto !important;
+    margin: 0.75rem auto 0.5rem !important;
     object-fit: contain !important;
     cursor: pointer;
 }
@@ -4619,6 +4641,7 @@ body.index .exam-grid .exam-card {
     0%, 100% { opacity: 0.62; transform: translateX(0); }
     50% { opacity: 1; transform: translateX(2px); }
 }
+/* Отступы сверху/снизу у контейнера; у img внутри — без двойного зазора */
 .exam-page .task-text figure.image img,
 .exam-page .task-text figure img {
     margin-top: 0 !important;
@@ -4626,7 +4649,10 @@ body.index .exam-grid .exam-card {
 }
 .exam-page .task-text figure,
 .exam-page .task-text figure.image {
-    margin: 0.06rem auto !important;
+    margin-top: 0.85rem !important;
+    margin-bottom: 0.55rem !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
 }
 /* Таблицы в условии: минимум на всю ширину блока; если шире — прокрутка у .task-content */
 .exam-page .task-text table {
@@ -4896,10 +4922,10 @@ body.index .exam-grid .exam-card {
 
 .exam-fixed-corner__drag {
   width: 100%;
-  margin: -0.15rem 0 0.1rem 0;
-  padding: 6px 8px;
+  margin: -0.05rem 0 0.05rem 0;
+  padding: 4px 8px;
   border: none;
-  border-radius: 12px;
+  border-radius: 10px;
   background: transparent;
   cursor: grab;
   touch-action: none;
@@ -4912,20 +4938,26 @@ body.index .exam-grid .exam-card {
 }
 
 .exam-fixed-corner__drag:hover {
-  background: rgba(59, 130, 246, 0.07);
+  background: rgba(59, 130, 246, 0.04);
 }
 
 .exam-fixed-corner__drag:active {
   cursor: grabbing;
 }
 
+/* Минималистичная ручка: две тонкие линии вместо трёх толстых */
 .exam-fixed-corner__drag-grip {
   display: block;
-  width: 34px;
-  height: 4px;
+  width: 18px;
+  height: 1.5px;
   border-radius: 999px;
-  background: #94a3b8;
-  box-shadow: 0 7px 0 #94a3b8, 0 -7px 0 #94a3b8;
+  background: rgba(100, 116, 139, 0.38);
+  box-shadow: 0 4px 0 rgba(100, 116, 139, 0.32);
+}
+
+.exam-fixed-corner__drag:hover .exam-fixed-corner__drag-grip {
+  background: rgba(100, 116, 139, 0.5);
+  box-shadow: 0 4px 0 rgba(100, 116, 139, 0.42);
 }
 
 .exam-fixed-corner .variant-timer,
