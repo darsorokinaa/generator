@@ -62,7 +62,7 @@ const COMPARISON_FACTORIES = [
   (sec) =>
     `это как пройти ${fmtInt((sec / 3600) * 5)} км пешком`,
   (sec) =>
-    `это как прочитать примерно ${fmtInt(Math.floor(sec / 150))} страниц книгиа`,
+    `это как прочитать примерно ${fmtInt(Math.floor(sec / 150))} страниц книги`,
   (sec) =>
     `это как вскипятить чайник ${fmtInt(Math.floor(sec / 420))} раз подряд`,
   (sec) =>
