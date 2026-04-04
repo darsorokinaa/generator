@@ -2148,6 +2148,7 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
     }
 }
 
+/* Таймеры: белая карточка; плашки (бейдж + ячейки) в цветах exam-card-math / exam-card-inf */
 .subject-exam-countdown-card {
     position: relative;
     overflow: hidden;
@@ -2155,45 +2156,9 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
     flex-direction: column;
     border-radius: 18px;
     padding: 1.1rem 1.15rem 1.15rem;
-    border: 1px solid rgba(14, 165, 233, 0.22);
     background: #fff;
-    box-shadow: 0 4px 20px rgba(14, 116, 144, 0.1);
-}
-
-/* Лёгкий линейный градиент в правом верхнем углу */
-.subject-exam-countdown-card::before {
-    content: "";
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: min(72%, 11.5rem);
-    height: min(52%, 9.5rem);
-    pointer-events: none;
-    z-index: 0;
-    background: linear-gradient(
-        225deg,
-        rgba(14, 165, 233, 0.22) 0%,
-        rgba(125, 211, 252, 0.1) 38%,
-        transparent 72%
-    );
-}
-
-.subject-exam-countdown-card--math::before {
-    background: linear-gradient(
-        220deg,
-        rgba(6, 182, 212, 0.2) 0%,
-        rgba(165, 243, 252, 0.09) 40%,
-        transparent 72%
-    );
-}
-
-.subject-exam-countdown-card--inf::before {
-    background: linear-gradient(
-        230deg,
-        rgba(14, 165, 233, 0.22) 0%,
-        rgba(186, 230, 253, 0.11) 38%,
-        transparent 72%
-    );
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04);
 }
 
 .subject-exam-countdown-card__head {
@@ -2208,21 +2173,23 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
     font-size: 0.8125rem;
     font-weight: 700;
     letter-spacing: -0.01em;
-    padding: 0.25rem 0.55rem;
-    border-radius: 8px;
+    padding: 0.3rem 0.65rem;
+    border-radius: 999px;
     margin-bottom: 0.4rem;
     max-width: 100%;
     line-height: 1.25;
 }
 
 .subject-exam-countdown-card--math .subject-exam-countdown-card__badge {
-    color: #0f766e;
-    background: rgba(6, 182, 212, 0.16);
+    background: rgba(208, 214, 78, 0.55);
+    color: #5a6b1a;
+    box-shadow: 0 1px 2px rgba(90, 107, 26, 0.12);
 }
 
 .subject-exam-countdown-card--inf .subject-exam-countdown-card__badge {
-    color: #0369a1;
-    background: rgba(14, 165, 233, 0.14);
+    background: rgba(169, 154, 247, 0.5);
+    color: #5b21b6;
+    box-shadow: 0 1px 2px rgba(91, 33, 182, 0.12);
 }
 
 .subject-exam-countdown-card__title {
@@ -2240,7 +2207,7 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
     font-weight: 600;
     letter-spacing: -0.015em;
     line-height: 1.25;
-    color: #0369a1;
+    color: var(--text-primary, #0f172a);
 }
 
 .subject-exam-countdown-card__grid {
@@ -2260,15 +2227,32 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
     gap: 0.15rem;
     padding: 0.45rem 0.2rem;
     border-radius: 12px;
-    background: rgba(255, 255, 255, 0.75);
-    border: 1px solid rgba(226, 232, 240, 0.9);
+    background: #fff;
+    border: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.subject-exam-countdown-card--math .subject-exam-countdown-card__cell {
+    background: rgba(208, 214, 78, 0.14);
+    border-color: rgba(90, 107, 26, 0.22);
+}
+
+.subject-exam-countdown-card--inf .subject-exam-countdown-card__cell {
+    background: rgba(169, 154, 247, 0.16);
+    border-color: rgba(91, 33, 182, 0.22);
+}
+
+.subject-exam-countdown-card--math .subject-exam-countdown-card__value {
+    color: #5a6b1a;
+}
+
+.subject-exam-countdown-card--inf .subject-exam-countdown-card__value {
+    color: #5b21b6;
 }
 
 .subject-exam-countdown-card__value {
     font-size: clamp(1rem, 2.8vw, 1.25rem);
     font-weight: 700;
     font-variant-numeric: tabular-nums;
-    color: #0369a1;
     line-height: 1.1;
 }
 
