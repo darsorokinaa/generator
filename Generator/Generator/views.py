@@ -178,6 +178,15 @@ def favicon(request):
     return HttpResponse(FAVICON_SVG, content_type='image/svg+xml')
 
 
+def yandex_webmaster_verification(request):
+    """Файл подтверждения из корня репозитория или папки Django-проекта."""
+    for base in (django_settings.BASE_DIR.parent, django_settings.BASE_DIR):
+        p = os.path.join(base, "yandex_ef13ec5e267d285b.html")
+        if os.path.isfile(p):
+            return FileResponse(open(p, "rb"), content_type="text/html; charset=UTF-8")
+    return HttpResponse("Verification file not found", status=404, content_type="text/plain; charset=UTF-8")
+
+
 def react_app(request):
     frontend_dir = getattr(django_settings, 'FRONTEND_DIR', django_settings.BASE_DIR.parent / 'frontend' / 'dist')
     index_path = frontend_dir / 'index.html'
@@ -596,11 +605,15 @@ def _create_variant(subject_short, level_str, body_bytes, create=True, request=N
                     count_ids.append(int(k))
                 except (TypeError, ValueError):
                     continue
+            # Порядок подтем фиксирован (order в справочнике); внутри каждой подтемы — случайный выбор задач.
+            # Между подтемами не перемешиваем: сначала все выбранные по первой подтеме, затем по второй и т.д.
             slot_subtopic_ids_for_counts = list(
                 SubTopic.objects.filter(
                     id__in=count_ids,
                     task_list_id=tasklist_id,
-                ).values_list("id", flat=True)
+                )
+                .order_by("order", "title", "id")
+                .values_list("id", flat=True)
             )
             pooled = []
             for sid in slot_subtopic_ids_for_counts:
@@ -613,9 +626,15 @@ def _create_variant(subject_short, level_str, body_bytes, create=True, request=N
                 )
                 shuffle(subset)
                 pooled.extend(subset[:cnt])
-            shuffle(pooled)
             if pooled:
-                tasks_for_slot = list(Task.objects.filter(id__in=pooled[: int(count)]))
+                capped_ids = pooled[: int(count)]
+                id_to_task = {
+                    t.id: t
+                    for t in Task.objects.filter(id__in=capped_ids)
+                }
+                tasks_for_slot = [
+                    id_to_task[i] for i in capped_ids if i in id_to_task
+                ]
 
         if tasks_for_slot is None:
             if slot_subtopic_ids:

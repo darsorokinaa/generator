@@ -431,6 +431,74 @@ function TasksPage() {
     });
   };
 
+  /** Ввод количества в поле: пусто → 0; нечисло — игнор; clamp 0..max; 0000002 → 2 */
+  const parseTrainerCountInput = (raw, maxCount) => {
+    const max = Math.max(0, Math.floor(Number(maxCount)) || 0);
+    const t = String(raw ?? "").trim();
+    if (t === "") return 0;
+    if (/^\d+$/.test(t)) {
+      if (/^0+$/.test(t)) return 0;
+      const normalized = t.replace(/^0+/, "") || "0";
+      const n = parseInt(normalized, 10);
+      if (Number.isNaN(n)) return null;
+      return Math.max(0, Math.min(max, n));
+    }
+    const n = parseInt(t, 10);
+    if (Number.isNaN(n)) return null;
+    return Math.max(0, Math.min(max, n));
+  };
+
+  const applyGroupSubtopicCountInput = (identifier, subtopicId, raw, maxCount) => {
+    const next = parseTrainerCountInput(raw, maxCount);
+    if (next === null) return;
+    setGroupSubtopicCounts((prev) => {
+      const byId = { ...(prev[identifier] ?? {}) };
+      if (next <= 0) delete byId[subtopicId];
+      else byId[subtopicId] = next;
+      const nextState = { ...prev };
+      if (Object.keys(byId).length > 0) nextState[identifier] = byId;
+      else delete nextState[identifier];
+      return nextState;
+    });
+  };
+
+  const applySubtopicCountInput = (subtopicId, raw, maxCount) => {
+    const next = parseTrainerCountInput(raw, maxCount);
+    if (next === null) return;
+    setSubtopicCounts((prev) => {
+      const nextState = { ...prev };
+      if (next <= 0) delete nextState[subtopicId];
+      else nextState[subtopicId] = next;
+      return nextState;
+    });
+    setSelectedSubtopicIds((selPrev) => {
+      const has = selPrev.includes(subtopicId);
+      if (next > 0 && !has) return [...selPrev, subtopicId];
+      if (next === 0 && has) return selPrev.filter((id) => id !== subtopicId);
+      return selPrev;
+    });
+  };
+
+  const applyGroupedSubtopicTotalInput = (ids, raw, maxCount) => {
+    const nextTotal = parseTrainerCountInput(raw, maxCount);
+    if (nextTotal === null || !ids.length) return;
+    const perId = Math.floor(nextTotal / ids.length);
+    const remainder = nextTotal % ids.length;
+    setSubtopicCounts((prev) => {
+      const next = { ...prev };
+      ids.forEach((id, i) => {
+        const v = perId + (i < remainder ? 1 : 0);
+        if (v > 0) next[id] = v;
+        else delete next[id];
+      });
+      return next;
+    });
+    setSelectedSubtopicIds((prev) => {
+      if (nextTotal > 0) return [...new Set([...prev, ...ids])];
+      return prev.filter((id) => !ids.includes(id));
+    });
+  };
+
   const onStartTest = () => {
     const payload = buildPayloadFromTestCounts();
     if (!payload.tasks?.length) return;
@@ -721,6 +789,10 @@ function TasksPage() {
                       if (count === 0 && !isActive) {
                         setActiveForSubtopics(identifier);
                         setSubtopicsPanelOpen(true);
+                      } else if (count > 0 && !isActive) {
+                        // Уже есть задачи по этому номеру, но панель на другом — только переключить подтемы, не снимать выбор
+                        setActiveForSubtopics(identifier);
+                        setSubtopicsPanelOpen(true);
                       } else if (count > 0 || isActive) {
                         setActiveForSubtopics((prev) => (prev === identifier ? testSelectedIds.find((id) => id !== identifier) ?? null : prev));
                         if (count > 0) changeTestCount(item, -1);
@@ -737,7 +809,15 @@ function TasksPage() {
                     }
                   }}
                   disabled={getMaxCount(item) <= 0}
-                  title={count > 0 || (isActive && hasSubtopics) ? "Убрать из выбора" : hasSubtopics ? "Показать панель" : undefined}
+                  title={
+                    !hasSubtopics
+                      ? undefined
+                      : count > 0 && !isActive
+                        ? "Показать подтемы этого номера"
+                        : count > 0 || (isActive && hasSubtopics)
+                          ? "Убрать из выбора"
+                          : "Показать панель"
+                  }
                 >
                   {label}
                 </button>
@@ -794,12 +874,25 @@ function TasksPage() {
                               <span className="tasks-page-subtopic-title">{st.title}</span>
                             </label>
                             <div className="tasks-page-subtopic-counter-wrap">
-                              <span
-                                className="tasks-page-subtopic-num"
-                                title={`Подгрупп в выборе: ${stCount} из ${stMax}`}
-                              >
-                                {stCount}
-                              </span>
+                              <input
+                                type="number"
+                                inputMode="numeric"
+                                min={0}
+                                max={stMax}
+                                className="tasks-page-subtopic-num tasks-page-subtopic-num-input"
+                                title={`Сколько задач (не больше ${stMax} в базе)`}
+                                aria-label={`Количество для ${st.title}`}
+                                value={stCount}
+                                disabled={stMax <= 0}
+                                onChange={(e) =>
+                                  applyGroupSubtopicCountInput(
+                                    activeForSubtopics,
+                                    stId,
+                                    e.target.value,
+                                    stMax
+                                  )
+                                }
+                              />
                               <span className="tasks-page-subtopic-of">{`задач из ${stMax}`}</span>
                               <div className="tasks-page-subtopic-stepper">
                                 <button
@@ -892,7 +985,6 @@ function TasksPage() {
                 };
                 return allSubtopics.map(({ title, ids, stById, taskCount, fipiCount }) => {
                   const maxCount = onlyFipiTrainer && typeof fipiCount === "number" ? fipiCount : taskCount;
-                  const count = ids.reduce((s, id) => s + getCappedSubtopicCount(stById[id] || { id }), 0);
                   const rawCount = ids.reduce((s, id) => s + (subtopicCounts[id] ?? 0), 0);
                   const isChecked = ids.every((id) => selectedSubtopicIds.includes(id));
                   return (
@@ -911,12 +1003,20 @@ function TasksPage() {
                         <span className="tasks-page-subtopic-title">{title}</span>
                       </label>
                       <div className="tasks-page-subtopic-counter-wrap">
-                        <span
-                          className="tasks-page-subtopic-num"
-                          title={`Подгрупп в выборе: ${count} из ${maxCount}`}
-                        >
-                          {count}
-                        </span>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min={0}
+                          max={maxCount}
+                          className="tasks-page-subtopic-num tasks-page-subtopic-num-input"
+                          title={`Сколько задач (не больше ${maxCount} в базе)`}
+                          aria-label={`Количество для ${title}`}
+                          value={rawCount}
+                          disabled={maxCount <= 0}
+                          onChange={(e) =>
+                            applyGroupedSubtopicTotalInput(ids, e.target.value, maxCount)
+                          }
+                        />
                         <span className="tasks-page-subtopic-of">
                           {`задач из ${maxCount}`}
                         </span>
