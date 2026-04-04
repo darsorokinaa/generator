@@ -4882,26 +4882,35 @@ body.index .exam-grid .exam-card {
     cursor: zoom-out;
 }
 .image-lightbox-content {
+    --lightbox-pad: 1.25rem;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     box-sizing: border-box;
-    max-width: 76vw;
-    max-height: 76vh;
+    max-width: min(76vw, calc(100vw - 4rem));
+    max-height: min(76vh, calc(100vh - 4rem));
     cursor: default;
     background: #fff;
-    padding: 0.5rem;
+    padding: var(--lightbox-pad);
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
-    border-radius: 4px;
+    border-radius: 8px;
 }
 .image-lightbox-img {
-    /* Подложка оборачивает картинку; лимиты с учётом padding контейнера (0.5rem × 2) */
-    max-width: calc(76vw - 1rem);
-    max-height: calc(76vh - 1rem);
+    box-sizing: border-box;
+    /* Равные поля внутри белой подложки + не вылезать за экран с учётом overlay (2rem) и padding */
+    max-width: min(
+        calc(76vw - 2 * var(--lightbox-pad)),
+        calc(100vw - 4rem - 2 * var(--lightbox-pad))
+    );
+    max-height: min(
+        calc(76vh - 2 * var(--lightbox-pad)),
+        calc(100vh - 4rem - 2 * var(--lightbox-pad))
+    );
     width: auto;
     height: auto;
     object-fit: contain;
     display: block;
+    margin: 0;
 }
 
 /* ========================================
