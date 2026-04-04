@@ -383,3 +383,15 @@ class Criteria(models.Model):
     class Meta:
         verbose_name = "Критерий"
         verbose_name_plural = "Критерии"
+
+
+def username_for_created_by(request):
+    """Строка для поля created_by: логин авторизованного пользователя или ADMIN."""
+    if request is None:
+        return "ADMIN"
+    user = getattr(request, "user", None)
+    if user is not None and getattr(user, "is_authenticated", False):
+        name = (getattr(user, "username", None) or "").strip()
+        if name:
+            return name[:100]
+    return "ADMIN"

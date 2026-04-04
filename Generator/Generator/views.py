@@ -31,6 +31,7 @@ from .models import (
     Update,
     Variant,
     VariantContent,
+    username_for_created_by,
 )
 from .latex_utils import process_latex
 from . import pdf_utils
@@ -217,7 +218,7 @@ def _get_fipi_q():
     )
 
 
-def _create_variant(subject_short, level_str, body_bytes, create=True):
+def _create_variant(subject_short, level_str, body_bytes, create=True, request=None):
     subject_instance = get_object_or_404(Subject, subject_short=subject_short)
     level_instance = get_object_or_404(Level, level=level_str)
     data = json.loads(body_bytes)
@@ -641,7 +642,7 @@ def _create_variant(subject_short, level_str, body_bytes, create=True):
         new_variant = Variant.objects.create(
             var_subject=subject_instance,
             level=level_instance,
-            created_by="ADMIN",
+            created_by=username_for_created_by(request),
             share_token=secrets.token_urlsafe(12),
             content=content or {},
         )
@@ -942,7 +943,7 @@ def api_subtopics(request, level, subject):
 @require_http_methods(["POST"])
 def api_generate_variant(request, level, subject):
     try:
-        new_variant = _create_variant(subject, level, request.body)
+        new_variant = _create_variant(subject, level, request.body, request=request)
         return JsonResponse({'variant_id': new_variant.id})
     except Exception as e:
         return JsonResponse({'error': str(e)}, status=400)

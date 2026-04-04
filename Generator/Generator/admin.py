@@ -24,6 +24,7 @@ from .models import (
     Update,
     Variant,
     VariantContent,
+    username_for_created_by,
 )
 
 
@@ -113,6 +114,11 @@ class TaskAdmin(SearchByIdMixin, admin.ModelAdmin):
 
     answer_preview.short_description = "Ответ"
 
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.created_by = username_for_created_by(request)
+        super().save_model(request, obj, form, change)
+
 
 @admin.register(SubTopic)
 class SubTopicAdmin(admin.ModelAdmin):
@@ -131,6 +137,11 @@ class VariantAdmin(SearchByIdMixin, admin.ModelAdmin):
     list_select_related = ("var_subject", "level")
     list_per_page = 25
     show_full_result_count = False
+
+    def save_model(self, request, obj, form, change):
+        if not change:
+            obj.created_by = username_for_created_by(request)
+        super().save_model(request, obj, form, change)
 
 
 @admin.register(VariantContent)
