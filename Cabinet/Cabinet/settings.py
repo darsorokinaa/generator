@@ -12,21 +12,20 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 from django.contrib import admin
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
-
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-0!^zwlov_t=@x1w^im@mgral)1s*+6xw*wy_e^lxa_i-if##y%'
+SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-0!^zwlov_t=@x1w^im@mgral)1s*+6xw*wy_e^lxa_i-if##y%')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
 
 
 # Application definition
@@ -118,31 +117,28 @@ USE_TZ = True
 
 
 # Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.2/howto/static-files/
-
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# React build — Django отдаёт его в проде
+REACT_BUILD_DIR = BASE_DIR.parent / 'frontend' / 'build'
+STATICFILES_DIRS = [REACT_BUILD_DIR / 'static'] if (REACT_BUILD_DIR / 'static').exists() else []
 
 # Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
-
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # Фильтры в боковой панели (Django ≥ 3.2)
 admin.AdminSite.enable_nav_sidebar = True
 
 LOGIN_URL           = '/login/'
-LOGIN_REDIRECT_URL  = 'http://localhost:3000'
+LOGIN_REDIRECT_URL  = FRONTEND_URL
 LOGOUT_REDIRECT_URL = '/login/'
 
-FRONTEND_URL = 'http://localhost:3000'
-
-CORS_ALLOWED_ORIGINS = [
-    'http://localhost:3000',
-]
-
+# CORS — в проде список задаётся через env
+_cors_origins = os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:3000')
+CORS_ALLOWED_ORIGINS = [o.strip() for o in _cors_origins.split(',') if o.strip()]
 CORS_ALLOW_CREDENTIALS = True
 
-CSRF_TRUSTED_ORIGINS = [
-    'http://localhost:3000',
-]
+_csrf_origins = os.environ.get('CSRF_TRUSTED_ORIGINS', 'http://localhost:3000')
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_origins.split(',') if o.strip()]
 
