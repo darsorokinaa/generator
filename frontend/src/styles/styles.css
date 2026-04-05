@@ -4317,6 +4317,8 @@ body.index .exam-grid .exam-card {
         word-wrap: break-word;
         word-break: break-word;
         max-width: 100%;
+        font-size: 1.05rem;
+        line-height: 1.6;
     }
 
     /* Защита от переполнения длинным текстом/ссылками/инлайн-формулами */
@@ -4509,21 +4511,49 @@ body.index .exam-grid .exam-card {
     }
 
     .exam-page .task-text {
-        font-size: 1.25rem !important;
+        font-size: 0.96rem !important;
+        line-height: 1.55 !important;
     }
 
     .exam-page .task {
-        padding: 1rem;
+        padding: 0.9rem;
     }
 
     .exam-page .task-left {
-        min-width: 50px;
+        min-width: 44px;
     }
 
     .exam-page .task-number {
-        width: 48px;
-        height: 48px;
-        font-size: 1.2rem;
+        width: 44px;
+        height: 44px;
+        font-size: 1.05rem;
+    }
+}
+
+@media (max-width: 400px) {
+    .exam-page .task-text {
+        font-size: 0.92rem !important;
+        line-height: 1.52 !important;
+    }
+
+    .exam-page .task {
+        padding: 0.75rem !important;
+        gap: 0.75rem !important;
+    }
+
+    .exam-page .container {
+        padding-left: 0.6rem;
+        padding-right: 0.6rem;
+    }
+
+    .exam-page .task-left {
+        min-width: 38px;
+    }
+
+    .exam-page .task-number {
+        width: 38px;
+        height: 38px;
+        font-size: 0.95rem;
     }
 }
 
@@ -4804,15 +4834,15 @@ body.index .exam-grid .exam-card {
 
 @media (max-width: 900px) {
     .exam-page .task-text {
-        font-size: 1.17rem !important;
-        line-height: 1.65 !important;
+        font-size: 1.05rem !important;
+        line-height: 1.62 !important;
     }
 }
 
 @media (max-width: 600px) {
     .exam-page .task-text {
-        font-size: 1.23rem !important;
-        line-height: 1.55 !important;
+        font-size: 1rem !important;
+        line-height: 1.58 !important;
     }
 }
 
@@ -4912,8 +4942,8 @@ body.index .exam-grid .exam-card {
 
 /* Компактные отступы в карточке задания */
 .exam-page .task {
-    padding: 1.25rem !important;
-    gap: 1.25rem !important;
+    padding: 1.1rem !important;
+    gap: 1rem !important;
     margin-bottom: 1rem !important;
 }
 .exam-page .task-author {
