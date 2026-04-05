@@ -52,7 +52,7 @@ const COMPARISON_FACTORIES = [
   (sec) =>
     `это как ${fmtInt(sec * (17 / 60))} раз моргнуть`,
   (sec) =>
-    `это как посмотреть ${fmtInt(Math.floor(sec / 34))} тиктоков или рилс подряд`,
+    `это как посмотреть ${fmtInt(Math.floor(sec / 34))} коротких роликов подряд`,
   (sec) =>
     `это как ${(sec / 3600).toLocaleString("ru-RU", { maximumFractionDigits: 1 })} часов непрерывно болтать с друзьями`,
   (sec) =>
