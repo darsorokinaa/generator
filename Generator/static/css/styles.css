@@ -5437,36 +5437,6 @@ body.index .exam-grid .exam-card {
     color: #fff;
 }
 
-.header-nav-cabinet {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 38px;
-    height: 38px;
-    margin-left: auto;
-    padding: 0 !important;
-    border-radius: 50%;
-    background: #fff;
-    border: 1.5px solid #3b82f6;
-    color: #3b82f6;
-    flex-shrink: 0;
-    transition: background 0.2s ease, border-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
-}
-.header-nav-cabinet:hover {
-    background: #eff6ff;
-    border-color: #2563eb;
-    color: #2563eb;
-    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
-    transform: translateY(-1px);
-}
-.header-nav-cabinet:active {
-    transform: translateY(0);
-    box-shadow: 0 1px 4px rgba(37, 99, 235, 0.15);
-}
-.header-nav-cabinet svg {
-    flex-shrink: 0;
-}
-
 [data-theme="dark"] header {
     box-shadow: 0 2px 14px rgba(0, 0, 0, 0.45);
 }

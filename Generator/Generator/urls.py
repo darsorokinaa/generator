@@ -32,7 +32,6 @@ urlpatterns = [
     # path('api/<str:level>/<str:subject>/variant/<int:variant_id>/pdf/cosmos', views.variant_pdfCosmos),
 
     path("", include("Board.urls")),
-    path("cabinet/", include("Cabinet.urls")),
 
 ]
 

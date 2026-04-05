@@ -44,7 +44,6 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'Generator.apps.GeneratorConfig',
     'Board',
-    # 'Cabinet.apps.CabinetConfig',
     'corsheaders',
      "django_ckeditor_5",
     
@@ -206,10 +205,9 @@ STATICFILES_DIRS = [BASE_DIR / "static"] + ([FRONTEND_DIR] if FRONTEND_DIR.exist
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Аутентификация Cabinet
-LOGIN_URL = '/cabinet/login/'
-LOGIN_REDIRECT_URL = '/cabinet/'
-LOGOUT_REDIRECT_URL = '/cabinet/login/'
+LOGIN_URL = '/admin/login/'
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/'
 
 # Telegram bot для отправки сообщений об ошибках
 # Для группового чата: добавьте бота в группу, затем получите ID через

@@ -29,9 +29,6 @@ urlpatterns = [
 
     # Board
     path("board/", include("Board.urls")),
-    # Cabinet (личный кабинет)
-#     path("cabinet/", include("Cabinet.urls")),
-#     re_path(r"^(?!api/|ckeditor5/|admin/|board/|cabinet/|media/|static/).*$", views.react_app),
 ]
 
 if settings.DEBUG:
