@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Регистрация — Кабинет учителя</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background: #F5F6FB;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 20px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: 0 4px 32px rgba(75,101,245,.10);
+      padding: 44px 40px 40px;
+      width: 100%;
+      max-width: 460px;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 32px;
+    }
+    .logo-icon {
+      width: 38px; height: 38px;
+      background: #4B65F5;
+      border-radius: 11px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .logo-text { font-size: 16px; font-weight: 700; color: #0F1733; }
+    h1 { font-size: 22px; font-weight: 700; color: #0F1733; margin-bottom: 6px; }
+    .subtitle { font-size: 13px; color: #9CA3AF; font-weight: 500; margin-bottom: 28px; }
+
+    .messages { margin-bottom: 18px; }
+    .msg-error {
+      background: #FEF2F2; border: 1px solid #FECACA;
+      border-radius: 10px; padding: 10px 14px;
+      font-size: 12.5px; font-weight: 500; color: #DC2626;
+    }
+
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .field { margin-bottom: 16px; }
+    label { display: block; font-size: 12px; font-weight: 600; color: #4B5563; margin-bottom: 6px; }
+    input, select {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1.5px solid #E8EBF5;
+      border-radius: 10px;
+      font-size: 13px;
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 500;
+      color: #0F1733;
+      outline: none;
+      transition: border-color .15s;
+      background: #fff;
+      appearance: none;
+    }
+    input:focus, select:focus { border-color: #4B65F5; }
+    input::placeholder { color: #9CA3AF; }
+
+    input.input--error  { border-color: #EF4444 !important; }
+    input.input--ok     { border-color: #10B981 !important; }
+
+    .pw-wrap { position: relative; }
+    .pw-toggle {
+      position: absolute; right: 12px; top: 50%;
+      transform: translateY(-50%);
+      background: none; border: none; cursor: pointer;
+      color: #9CA3AF; padding: 0; display: flex; align-items: center;
+    }
+    .pw-toggle:hover { color: #4B5563; }
+
+    .pw-strength {
+      display: flex; gap: 4px; margin-top: 6px;
+    }
+    .pw-strength-bar {
+      flex: 1; height: 3px; border-radius: 2px;
+      background: #E8EBF5;
+      transition: background .2s;
+    }
+    .pw-strength-bar.active-weak   { background: #EF4444; }
+    .pw-strength-bar.active-medium { background: #F59E0B; }
+    .pw-strength-bar.active-strong { background: #10B981; }
+
+    .pw-strength-label {
+      font-size: 11px; font-weight: 600; margin-top: 4px;
+      min-height: 14px;
+    }
+    .pw-strength-label.weak   { color: #EF4444; }
+    .pw-strength-label.medium { color: #F59E0B; }
+    .pw-strength-label.strong { color: #10B981; }
+
+    .field-error {
+      font-size: 11px; font-weight: 600; color: #EF4444;
+      margin-top: 4px; min-height: 14px;
+    }
+
+    .subjects-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 2px;
+    }
+    .subject-chip {
+      display: none;
+    }
+    .subject-chip + label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border: 1.5px solid #E8EBF5;
+      border-radius: 20px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: #4B5563;
+      cursor: pointer;
+      transition: border-color .15s, background .15s, color .15s;
+      user-select: none;
+    }
+    .subject-chip + label:hover {
+      border-color: #C3CDFB;
+      background: #F5F6FB;
+    }
+    .subject-chip:checked + label {
+      border-color: #4B65F5;
+      background: #EEF1FE;
+      color: #4B65F5;
+    }
+    .no-subjects {
+      font-size: 12.5px; color: #9CA3AF;
+      padding: 10px 0;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 13px;
+      background: #4B65F5;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      font-family: 'Montserrat', sans-serif;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: background .15s;
+    }
+    .btn:hover { background: #3550E0; }
+
+    .footer-link {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 12.5px;
+      color: #9CA3AF;
+      font-weight: 500;
+    }
+    .footer-link a { color: #4B65F5; font-weight: 600; text-decoration: none; }
+    .footer-link a:hover { text-decoration: underline; }
+
+    @media (max-width: 480px) {
+      .card { padding: 32px 20px 28px; }
+      .row { grid-template-columns: 1fr; gap: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <div class="logo-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>
+        </svg>
+      </div>
+      <span class="logo-text">Кабинет учителя</span>
+    </div>
+
+    <h1>Создать аккаунт</h1>
+    <p class="subtitle">Заполните данные для регистрации</p>
+
+    {% if messages %}
+    <div class="messages">
+      {% for msg in messages %}
+      <div class="msg-error">{{ msg }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <form method="post">
+      {% csrf_token %}
+
+      <div class="row">
+        <div class="field">
+          <label for="name">Имя <span style="color:#EF4444">*</span></label>
+          <input id="name" name="name" type="text" placeholder="Иван" value="{{ request.POST.name }}" required />
+        </div>
+        <div class="field">
+          <label for="surname">Фамилия <span style="color:#EF4444">*</span></label>
+          <input id="surname" name="surname" type="text" placeholder="Петров" value="{{ request.POST.surname }}" required />
+        </div>
+      </div>
+
+      <div class="field">
+        <label for="email">Email <span style="color:#EF4444">*</span></label>
+        <input id="email" name="email" type="email" placeholder="ivan@example.com" value="{{ request.POST.email }}" autocomplete="email" required />
+      </div>
+
+      <input type="hidden" name="role" value="teacher" />
+
+      <div class="field">
+        <label>Предметы <span style="color:#EF4444">*</span></label>
+        <div class="subjects-grid">
+          {% if subjects %}
+            {% for subject in subjects %}
+              <input
+                class="subject-chip"
+                type="checkbox"
+                name="subjects"
+                id="subj_{{ subject.id }}"
+                value="{{ subject.id }}"
+                {% if subject.id|stringformat:"s" in request.POST.getlist.subjects %}checked{% endif %}
+              />
+              <label for="subj_{{ subject.id }}">{{ subject.subject_name }}</label>
+            {% endfor %}
+          {% else %}
+            <p class="no-subjects">Предметы ещё не добавлены в базу данных</p>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label for="password1">Пароль <span style="color:#EF4444">*</span></label>
+          <div class="pw-wrap">
+            <input id="password1" name="password1" type="password" placeholder="Минимум 6 символов" autocomplete="new-password" required />
+            <button type="button" class="pw-toggle" onclick="togglePw('password1', this)" tabindex="-1" aria-label="Показать пароль">
+              <svg id="eye1" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+          <div class="pw-strength">
+            <div class="pw-strength-bar" id="bar1"></div>
+            <div class="pw-strength-bar" id="bar2"></div>
+            <div class="pw-strength-bar" id="bar3"></div>
+          </div>
+          <div class="pw-strength-label" id="strength-label"></div>
+        </div>
+        <div class="field">
+          <label for="password2">Повторите пароль <span style="color:#EF4444">*</span></label>
+          <div class="pw-wrap">
+            <input id="password2" name="password2" type="password" placeholder="Повторите пароль" autocomplete="new-password" required />
+            <button type="button" class="pw-toggle" onclick="togglePw('password2', this)" tabindex="-1" aria-label="Показать пароль">
+              <svg id="eye2" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+          <div class="field-error" id="match-error"></div>
+        </div>
+      </div>
+
+      <button class="btn" id="submit-btn" type="submit">Зарегистрироваться</button>
+    </form>
+
+    <div class="footer-link">
+      Уже есть аккаунт? <a href="{% url 'login' %}">Войти</a>
+    </div>
+  </div>
+
+  <script>
+    const p1 = document.getElementById('password1');
+    const p2 = document.getElementById('password2');
+    const bars = [document.getElementById('bar1'), document.getElementById('bar2'), document.getElementById('bar3')];
+    const strengthLabel = document.getElementById('strength-label');
+    const matchError = document.getElementById('match-error');
+
+    function getStrength(pw) {
+      let score = 0;
+      if (pw.length >= 6)  score++;
+      if (pw.length >= 10) score++;
+      if (/[A-Z]/.test(pw) || /[0-9]/.test(pw)) score++;
+      if (/[^A-Za-z0-9]/.test(pw)) score++;
+      if (score <= 1) return 'weak';
+      if (score <= 2) return 'medium';
+      return 'strong';
+    }
+
+    const LABELS = { weak: 'Слабый', medium: 'Средний', strong: 'Надёжный' };
+    const COUNTS = { weak: 1, medium: 2, strong: 3 };
+
+    p1.addEventListener('input', () => {
+      const pw = p1.value;
+      if (!pw) {
+        bars.forEach(b => { b.className = 'pw-strength-bar'; });
+        strengthLabel.textContent = '';
+        strengthLabel.className = 'pw-strength-label';
+        p1.classList.remove('input--error', 'input--ok');
+        return;
+      }
+      const level = getStrength(pw);
+      const count = COUNTS[level];
+      bars.forEach((b, i) => {
+        b.className = 'pw-strength-bar' + (i < count ? ` active-${level}` : '');
+      });
+      strengthLabel.textContent = LABELS[level];
+      strengthLabel.className = `pw-strength-label ${level}`;
+      p1.classList.toggle('input--error', pw.length < 6);
+      p1.classList.toggle('input--ok', pw.length >= 6);
+      checkMatch();
+    });
+
+    p2.addEventListener('input', checkMatch);
+
+    function checkMatch() {
+      if (!p2.value) {
+        matchError.textContent = '';
+        p2.classList.remove('input--error', 'input--ok');
+        return;
+      }
+      const ok = p1.value === p2.value;
+      matchError.textContent = ok ? '' : 'Пароли не совпадают';
+      p2.classList.toggle('input--error', !ok);
+      p2.classList.toggle('input--ok', ok);
+    }
+
+    function togglePw(id, btn) {
+      const inp = document.getElementById(id);
+      const isText = inp.type === 'text';
+      inp.type = isText ? 'password' : 'text';
+      btn.innerHTML = isText
+        ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`
+        : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
+    }
+
+    document.querySelector('form').addEventListener('submit', function(e) {
+      if (p1.value !== p2.value) {
+        e.preventDefault();
+        matchError.textContent = 'Пароли не совпадают';
+        p2.classList.add('input--error');
+        p2.focus();
+      } else if (p1.value.length < 6) {
+        e.preventDefault();
+        p1.classList.add('input--error');
+        p1.focus();
+      }
+    });
+  </script>
+</body>
+</html>

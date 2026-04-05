@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Готово! — Кабинет учителя</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background: #F5F6FB;
+      min-height: 100vh;
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: 0 4px 32px rgba(75,101,245,.10);
+      padding: 48px 40px 44px;
+      width: 100%; max-width: 420px;
+      text-align: center;
+    }
+    .icon {
+      width: 60px; height: 60px;
+      background: #EEF1FE;
+      border-radius: 18px;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 24px;
+    }
+    h1 { font-size: 22px; font-weight: 700; color: #0F1733; margin-bottom: 8px; }
+    .sub { font-size: 13px; color: #9CA3AF; font-weight: 500; margin-bottom: 28px; }
+
+    .login-box {
+      background: #F5F6FB;
+      border: 1.5px dashed #C3CDFB;
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 10px;
+    }
+    .login-label {
+      font-size: 11px; font-weight: 600; color: #9CA3AF;
+      text-transform: uppercase; letter-spacing: 0.5px;
+      margin-bottom: 6px;
+    }
+    .login-value {
+      font-size: 20px; font-weight: 700; color: #4B65F5;
+      letter-spacing: 0.5px;
+    }
+    .hint {
+      font-size: 12px; color: #9CA3AF; font-weight: 500;
+      margin-bottom: 28px;
+    }
+
+    .btn {
+      display: inline-block; width: 100%;
+      padding: 13px;
+      background: #4B65F5; color: #fff;
+      border-radius: 10px;
+      font-size: 14px; font-weight: 700;
+      font-family: 'Montserrat', sans-serif;
+      text-decoration: none;
+      transition: background .15s;
+    }
+    .btn:hover { background: #3550E0; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#4B65F5" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"/>
+      </svg>
+    </div>
+
+    <h1>Аккаунт создан!</h1>
+    <p class="sub">Запомните ваш логин — он понадобится для входа</p>
+
+    <div class="login-box">
+      <div class="login-label">Ваш логин</div>
+      <div class="login-value">{{ username }}</div>
+    </div>
+    <p class="hint">Сохраните его — восстановить логин нельзя</p>
+
+    <a class="btn" href="http://localhost:3000">Перейти в кабинет →</a>
+  </div>
+</body>
+</html>

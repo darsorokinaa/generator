@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Настройки — Кабинет учителя</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue:      #4B65F5;
+      --blue-dk:   #3550E0;
+      --blue-lt:   #EEF1FE;
+      --blue-mid:  #C3CDFB;
+      --bg:        #F5F6FB;
+      --surface:   #ffffff;
+      --border:    #E8EBF5;
+      --text-1:    #0F1733;
+      --text-2:    #4B5563;
+      --text-3:    #9CA3AF;
+      --red:       #EF4444;
+      --red-lt:    #FEF2F2;
+      --green:     #10B981;
+      --radius:    16px;
+      --shadow:    0 4px 24px rgba(75,101,245,.08);
+    }
+
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background: var(--bg);
+      color: var(--text-1);
+      min-height: 100vh;
+    }
+
+    a { text-decoration: none; color: inherit; }
+    button { font-family: 'Montserrat', sans-serif; cursor: pointer; border: none; background: none; }
+
+    /* ════════════════════════════
+       LAYOUT
+    ════════════════════════════ */
+    .shell {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      min-height: 100vh;
+    }
+
+    /* ════════════════════════════
+       LEFT SIDEBAR
+    ════════════════════════════ */
+    .l-sidebar {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 32px 14px 28px;
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      overflow-y: auto;
+    }
+
+    .sidebar-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 0 6px 28px;
+    }
+    .logo-icon {
+      width: 34px; height: 34px;
+      background: var(--blue);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .logo-text { font-size: 14px; font-weight: 700; color: var(--text-1); }
+
+    .nav-section-label {
+      font-size: 10px; font-weight: 700;
+      color: var(--text-3);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      padding: 14px 8px 6px;
+    }
+
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 10px;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-2);
+      transition: background .13s, color .13s;
+    }
+    .nav-link:hover  { background: var(--bg); color: var(--text-1); }
+    .nav-link.active { background: var(--blue-lt); color: var(--blue); }
+    .nav-link svg    { flex-shrink: 0; }
+
+    .nav-divider { height: 1px; background: var(--border); margin: 8px 0; }
+
+    .nav-link.danger       { color: var(--text-3); }
+    .nav-link.danger:hover { background: var(--red-lt); color: var(--red); }
+
+    .nav-spacer { flex: 1; }
+
+    .nav-action {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 10px;
+      border-radius: 10px;
+      font-size: 12.5px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background .13s, color .13s;
+      text-decoration: none;
+      border: none;
+      background: none;
+      font-family: 'Montserrat', sans-serif;
+      width: 100%;
+    }
+    .nav-action.logout {
+      color: var(--text-2);
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+    }
+    .nav-action.logout:hover { background: var(--blue-lt); color: var(--blue); border-color: var(--blue-mid); }
+
+    .nav-action.delete {
+      color: var(--red);
+      background: var(--red-lt);
+      border: 1.5px solid #FECACA;
+    }
+    .nav-action.delete:hover { background: var(--red); color: #fff; border-color: var(--red); }
+
+    /* ════════════════════════════
+       MAIN CONTENT
+    ════════════════════════════ */
+    .main {
+      padding: 36px 32px 60px;
+      overflow-y: auto;
+      min-width: 0;
+    }
+
+    .main-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+    .back-btn {
+      width: 34px; height: 34px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      color: var(--text-3);
+      transition: border-color .15s, color .15s;
+      flex-shrink: 0;
+    }
+    .back-btn:hover { border-color: var(--blue); color: var(--blue); }
+    .main-title    { font-size: 20px; font-weight: 800; color: var(--text-1); }
+    .main-subtitle { font-size: 12.5px; font-weight: 500; color: var(--text-3); margin-top: 2px; }
+
+    /* ── Cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 26px;
+      margin-bottom: 16px;
+      box-shadow: var(--shadow);
+    }
+    .card:last-child { margin-bottom: 0; }
+
+    .card-head {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 20px;
+    }
+    .card-title    { font-size: 14px; font-weight: 700; color: var(--text-1); }
+    .card-subtitle { font-size: 12px; font-weight: 500; color: var(--text-3); margin-top: 2px; }
+    .card-divider  { height: 1px; background: var(--border); margin: 18px 0; }
+
+    /* ── Avatar ── */
+    .avatar-row { display: flex; align-items: center; gap: 18px; margin-bottom: 22px; }
+    .avatar {
+      width: 64px; height: 64px;
+      background: var(--blue-lt);
+      border-radius: 16px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; font-weight: 800; color: var(--blue);
+      flex-shrink: 0;
+    }
+    .avatar-btns { display: flex; flex-direction: column; gap: 6px; }
+    .btn-sm {
+      padding: 7px 14px;
+      border-radius: 8px;
+      font-size: 12px; font-weight: 700;
+      transition: background .15s, color .15s, border-color .15s;
+    }
+    .btn-sm.primary { background: var(--blue); color: #fff; }
+    .btn-sm.primary:hover { background: var(--blue-dk); }
+    .btn-sm.ghost {
+      background: none; color: var(--text-3);
+      border: 1.5px solid var(--border);
+    }
+    .btn-sm.ghost:hover { border-color: var(--red); color: var(--red); }
+
+    /* ── Fields ── */
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .field { margin-bottom: 14px; }
+    .field:last-child { margin-bottom: 0; }
+
+    label {
+      display: block;
+      font-size: 11.5px; font-weight: 700;
+      color: var(--text-2);
+      margin-bottom: 6px;
+      letter-spacing: 0.1px;
+    }
+    .field-hint { font-size: 11px; font-weight: 500; color: var(--text-3); margin-top: 4px; }
+
+    input[type="text"],
+    input[type="email"],
+    input[type="tel"],
+    input[type="password"],
+    select, textarea {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-size: 13px;
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 500;
+      color: var(--text-1);
+      outline: none;
+      background: var(--surface);
+      transition: border-color .15s;
+      resize: vertical;
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--blue); }
+    input::placeholder, textarea::placeholder { color: var(--text-3); }
+    input[readonly] { background: var(--bg); color: var(--text-3); cursor: default; }
+
+    .pw-wrap { position: relative; }
+    .pw-toggle {
+      position: absolute; right: 12px; top: 50%; transform: translateY(-50%);
+      background: none; border: none; color: var(--text-3); cursor: pointer;
+      display: flex; align-items: center; padding: 0;
+    }
+    .pw-toggle:hover { color: var(--text-2); }
+
+    /* ── Subject chips ── */
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 2px; }
+    .chip-cb { display: none; }
+    .chip-cb + label {
+      padding: 7px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 20px;
+      font-size: 12.5px; font-weight: 600; color: var(--text-2);
+      cursor: pointer;
+      transition: border-color .13s, background .13s, color .13s;
+      user-select: none;
+    }
+    .chip-cb + label:hover { border-color: var(--blue-mid); background: var(--bg); }
+    .chip-cb:checked + label { border-color: var(--blue); background: var(--blue-lt); color: var(--blue); }
+
+    /* ── Toggle ── */
+    .toggle-row {
+      display: flex; align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 13px 0;
+    }
+    .toggle-label { font-size: 13px; font-weight: 600; }
+    .toggle-desc  { font-size: 11.5px; font-weight: 500; color: var(--text-3); margin-top: 2px; }
+    .switch { position: relative; width: 38px; height: 22px; flex-shrink: 0; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .slider {
+      position: absolute; inset: 0;
+      background: var(--border);
+      border-radius: 22px;
+      cursor: pointer;
+      transition: background .2s;
+    }
+    .slider::before {
+      content: '';
+      position: absolute;
+      width: 16px; height: 16px;
+      left: 3px; top: 3px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform .2s;
+      box-shadow: 0 1px 4px rgba(0,0,0,.15);
+    }
+    .switch input:checked + .slider { background: var(--blue); }
+    .switch input:checked + .slider::before { transform: translateX(16px); }
+
+    /* ── Save row ── */
+    .save-row { display: flex; justify-content: flex-end; margin-top: 20px; }
+    .btn-save {
+      padding: 11px 26px;
+      background: var(--blue); color: #fff;
+      border-radius: 10px;
+      font-size: 13px; font-weight: 700;
+      transition: background .15s;
+    }
+    .btn-save:hover { background: var(--blue-dk); }
+
+    /* ── Danger ── */
+    .danger-card { border-color: #FECACA; }
+    .danger-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .danger-title { font-size: 13px; font-weight: 700; color: var(--red); }
+    .danger-desc  { font-size: 12px; font-weight: 500; color: var(--text-3); margin-top: 2px; }
+    .btn-danger {
+      padding: 9px 18px;
+      background: var(--red-lt); color: var(--red);
+      border: 1.5px solid #FECACA;
+      border-radius: 8px;
+      font-size: 12.5px; font-weight: 700;
+      white-space: nowrap;
+      transition: background .15s, color .15s;
+    }
+    .btn-danger:hover { background: var(--red); color: #fff; }
+
+    /* ════════════════════════════
+       RESPONSIVE
+    ════════════════════════════ */
+    @media (max-width: 1024px) {
+      .shell { grid-template-columns: 60px 1fr; }
+      .logo-text, .nav-link span, .nav-section-label, .nav-action span { display: none; }
+      .nav-link { justify-content: center; padding: 10px; }
+      .nav-action { justify-content: center; padding: 10px; border-radius: 10px; }
+      .sidebar-logo { justify-content: center; padding-bottom: 24px; }
+    }
+    @media (max-width: 640px) {
+      .shell { grid-template-columns: 1fr; }
+      .l-sidebar { display: none; }
+      .main { padding: 24px 16px 60px; }
+      .form-row { grid-template-columns: 1fr; }
+      .danger-row { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+<div class="shell">
+
+  <!-- ══ LEFT SIDEBAR ══ -->
+  <aside class="l-sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-icon">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>
+        </svg>
+      </div>
+      <span class="logo-text">Кабинет учителя</span>
+    </div>
+
+    <span class="nav-section-label">Настройки</span>
+
+    <a class="nav-link active" href="#profile">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+      </svg>
+      <span>Профиль</span>
+    </a>
+    <a class="nav-link" href="#subjects">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+      </svg>
+      <span>Предметы</span>
+    </a>
+    <a class="nav-link" href="#security">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+      <span>Безопасность</span>
+    </a>
+    <a class="nav-link" href="#notifications">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+      </svg>
+      <span>Уведомления</span>
+    </a>
+
+    <div class="nav-divider"></div>
+    <span class="nav-section-label">Кабинет</span>
+
+    <a class="nav-link" href="http://localhost:3000">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+      </svg>
+      <span>Дашборд</span>
+    </a>
+    <a class="nav-link" href="http://localhost:3000">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+      </svg>
+      <span>Мои ученики</span>
+    </a>
+
+    <div class="nav-spacer"></div>
+    <div class="nav-divider"></div>
+
+    <a class="nav-action logout" href="http://localhost:8000/logout/">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+      </svg>
+      <span>Выйти из аккаунта</span>
+    </a>
+
+    <a class="nav-action delete" href="#danger" style="margin-top:6px">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+      </svg>
+      <span>Удалить аккаунт</span>
+    </a>
+  </aside>
+
+  <!-- ══ MAIN ══ -->
+  <main class="main">
+
+    <!-- Профиль -->
+    <div class="card" id="profile">
+      <div class="card-head">
+        <div>
+          <div class="card-title">Личные данные</div>
+          <div class="card-subtitle">Имя, контакты и фото профиля</div>
+        </div>
+      </div>
+
+      <div class="avatar-row">
+        <div class="avatar">ДС</div>
+        <div class="avatar-btns">
+          <button class="btn-sm primary">Загрузить фото</button>
+          <button class="btn-sm ghost">Удалить</button>
+        </div>
+      </div>
+
+      <form>
+        <div class="form-row">
+          <div class="field">
+            <label>Имя</label>
+            <input type="text" value="Дара" placeholder="Имя"/>
+          </div>
+          <div class="field">
+            <label>Фамилия</label>
+            <input type="text" value="Сорокина" placeholder="Фамилия"/>
+          </div>
+        </div>
+        <div class="field">
+          <label>Email</label>
+          <input type="email" value="dara@school.ru" readonly/>
+        </div>
+        <div class="field">
+          <label>Телефон</label>
+          <input type="tel" placeholder="+7 (___) ___-__-__"/>
+        </div>
+        <div class="field">
+          <label>О себе</label>
+          <textarea rows="3" placeholder="Несколько слов о себе…"></textarea>
+        </div>
+        <div class="card-divider"></div>
+        <div class="field">
+          <label>Логин</label>
+          <input type="text" value="пельмень_3847" readonly/>
+          <div class="field-hint">Логин нельзя изменить</div>
+        </div>
+        <div class="save-row">
+          <button class="btn-save" type="submit">Сохранить изменения</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Предметы -->
+    <div class="card" id="subjects">
+      <div class="card-head">
+        <div>
+          <div class="card-title">Предметы</div>
+          <div class="card-subtitle">Выберите предметы, которые вы преподаёте</div>
+        </div>
+      </div>
+      <div class="chips">
+        <input class="chip-cb" type="checkbox" id="s1" checked/><label for="s1">Математика</label>
+        <input class="chip-cb" type="checkbox" id="s2"/><label for="s2">Алгебра</label>
+        <input class="chip-cb" type="checkbox" id="s3" checked/><label for="s3">Геометрия</label>
+        <input class="chip-cb" type="checkbox" id="s4"/><label for="s4">Физика</label>
+        <input class="chip-cb" type="checkbox" id="s5"/><label for="s5">Химия</label>
+        <input class="chip-cb" type="checkbox" id="s6"/><label for="s6">Биология</label>
+        <input class="chip-cb" type="checkbox" id="s7"/><label for="s7">Информатика</label>
+        <input class="chip-cb" type="checkbox" id="s8"/><label for="s8">История</label>
+        <input class="chip-cb" type="checkbox" id="s9"/><label for="s9">Обществознание</label>
+        <input class="chip-cb" type="checkbox" id="s10"/><label for="s10">Русский язык</label>
+        <input class="chip-cb" type="checkbox" id="s11"/><label for="s11">Литература</label>
+        <input class="chip-cb" type="checkbox" id="s12"/><label for="s12">Английский язык</label>
+        <input class="chip-cb" type="checkbox" id="s13"/><label for="s13">География</label>
+        <input class="chip-cb" type="checkbox" id="s14"/><label for="s14">Экономика</label>
+      </div>
+      <div class="save-row">
+        <button class="btn-save" type="button">Сохранить</button>
+      </div>
+    </div>
+
+    <!-- Безопасность -->
+    <div class="card" id="security">
+      <div class="card-head">
+        <div>
+          <div class="card-title">Безопасность</div>
+          <div class="card-subtitle">Смена пароля</div>
+        </div>
+      </div>
+      <form>
+        <div class="field">
+          <label>Текущий пароль</label>
+          <div class="pw-wrap">
+            <input type="password" id="cur-pw" placeholder="Введите текущий пароль"/>
+            <button type="button" class="pw-toggle" onclick="togglePw('cur-pw',this)" tabindex="-1">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="field">
+            <label>Новый пароль</label>
+            <div class="pw-wrap">
+              <input type="password" id="new-pw" placeholder="Минимум 6 символов"/>
+              <button type="button" class="pw-toggle" onclick="togglePw('new-pw',this)" tabindex="-1">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="field">
+            <label>Повторите новый пароль</label>
+            <div class="pw-wrap">
+              <input type="password" id="new-pw2" placeholder="Повторите пароль"/>
+              <button type="button" class="pw-toggle" onclick="togglePw('new-pw2',this)" tabindex="-1">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+        <div class="save-row">
+          <button class="btn-save" type="submit">Изменить пароль</button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Уведомления -->
+    <div class="card" id="notifications">
+      <div class="card-head">
+        <div>
+          <div class="card-title">Уведомления</div>
+          <div class="card-subtitle">Настройте, о чём получать оповещения</div>
+        </div>
+      </div>
+
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Новые домашние задания</div>
+          <div class="toggle-desc">Когда ученик сдаёт задание на проверку</div>
+        </div>
+        <label class="switch"><input type="checkbox" checked/><span class="slider"></span></label>
+      </div>
+      <div class="card-divider"></div>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Просроченные задания</div>
+          <div class="toggle-desc">Когда ученик не сдал задание в срок</div>
+        </div>
+        <label class="switch"><input type="checkbox" checked/><span class="slider"></span></label>
+      </div>
+      <div class="card-divider"></div>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Новые ученики</div>
+          <div class="toggle-desc">Когда к вам добавляют ученика</div>
+        </div>
+        <label class="switch"><input type="checkbox" checked/><span class="slider"></span></label>
+      </div>
+      <div class="card-divider"></div>
+      <div class="toggle-row">
+        <div>
+          <div class="toggle-label">Email-дайджест</div>
+          <div class="toggle-desc">Еженедельная сводка активности на почту</div>
+        </div>
+        <label class="switch"><input type="checkbox"/><span class="slider"></span></label>
+      </div>
+    </div>
+
+    <!-- Удаление -->
+    <div class="card danger-card" id="danger">
+      <div class="card-head">
+        <div>
+          <div class="card-title" style="color:var(--red)">Удаление аккаунта</div>
+          <div class="card-subtitle">Необратимое действие — все данные будут удалены</div>
+        </div>
+      </div>
+      <div class="danger-row">
+        <div>
+          <div class="danger-title">Удалить аккаунт навсегда</div>
+          <div class="danger-desc">Ученики, задания и прогресс будут удалены без возможности восстановления</div>
+        </div>
+        <button class="btn-danger">Удалить аккаунт</button>
+      </div>
+    </div>
+  </main>
+
+
+</div>
+
+<script>
+  function togglePw(id, btn) {
+    const inp = document.getElementById(id);
+    const show = inp.type === 'password';
+    inp.type = show ? 'text' : 'password';
+    btn.innerHTML = show
+      ? `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`
+      : `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
+  }
+
+  /* Подсветка активного пункта при скролле */
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        document.querySelectorAll('.nav-link').forEach(n => n.classList.remove('active'));
+        const a = document.querySelector(`.nav-link[href="#${e.target.id}"]`);
+        if (a) a.classList.add('active');
+      }
+    });
+  }, { threshold: 0.5 });
+
+  document.querySelectorAll('.card[id]').forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

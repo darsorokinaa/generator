@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Вход — Кабинет учителя</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background: #F5F6FB;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: 0 4px 32px rgba(75,101,245,.10);
+      padding: 44px 40px 40px;
+      width: 100%;
+      max-width: 420px;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 32px;
+    }
+    .logo-icon {
+      width: 38px; height: 38px;
+      background: #4B65F5;
+      border-radius: 11px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .logo-text { font-size: 16px; font-weight: 700; color: #0F1733; }
+    h1 { font-size: 22px; font-weight: 700; color: #0F1733; margin-bottom: 6px; }
+    .subtitle { font-size: 13px; color: #9CA3AF; font-weight: 500; margin-bottom: 28px; }
+
+    .messages { margin-bottom: 18px; }
+    .msg-error {
+      background: #FEF2F2; border: 1px solid #FECACA;
+      border-radius: 10px; padding: 10px 14px;
+      font-size: 12.5px; font-weight: 500; color: #DC2626;
+    }
+
+    .field { margin-bottom: 16px; }
+    label { display: block; font-size: 12px; font-weight: 600; color: #4B5563; margin-bottom: 6px; }
+    input {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1.5px solid #E8EBF5;
+      border-radius: 10px;
+      font-size: 13px;
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 500;
+      color: #0F1733;
+      outline: none;
+      transition: border-color .15s;
+      background: #fff;
+    }
+    input:focus { border-color: #4B65F5; }
+    input::placeholder { color: #9CA3AF; }
+
+    .btn {
+      width: 100%;
+      padding: 13px;
+      background: #4B65F5;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      font-family: 'Montserrat', sans-serif;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: background .15s;
+    }
+    .btn:hover { background: #3550E0; }
+
+    .footer-link {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 12.5px;
+      color: #9CA3AF;
+      font-weight: 500;
+    }
+    .footer-link a { color: #4B65F5; font-weight: 600; text-decoration: none; }
+    .footer-link a:hover { text-decoration: underline; }
+
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">
+      <div class="logo-icon">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>
+        </svg>
+      </div>
+      <span class="logo-text">Кабинет учителя</span>
+    </div>
+
+    <h1>Добро пожаловать</h1>
+    <p class="subtitle">Войдите в свой аккаунт</p>
+
+    {% if messages %}
+    <div class="messages">
+      {% for msg in messages %}
+      <div class="msg-error">{{ msg }}</div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <form method="post">
+      {% csrf_token %}
+      <div class="field">
+        <label for="username">Логин или Email</label>
+        <input id="username" name="username" type="text" placeholder="Логин или email" autocomplete="username" required />
+      </div>
+      <div class="field">
+        <label for="password">Пароль</label>
+        <input id="password" name="password" type="password" placeholder="Введите пароль" autocomplete="current-password" required />
+      </div>
+      <button class="btn" type="submit">Войти</button>
+    </form>
+
+    <div class="footer-link">
+      Нет аккаунта? <a href="{% url 'register' %}">Зарегистрироваться</a>
+    </div>
+  </div>
+</body>
+</html>
