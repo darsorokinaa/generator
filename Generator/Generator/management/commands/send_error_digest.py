@@ -26,12 +26,6 @@ SUBJECT_LABELS = {
     "lit": "Литература",
 }
 LEVEL_LABELS = {"oge": "ОГЭ", "ege": "ЕГЭ"}
-ERROR_TYPE_LABELS = {
-    "typo": "Опечатка",
-    "wrong_condition": "Неверное условие",
-    "wrong_answer": "Не сходится ответ",
-    "other": "Другое",
-}
 
 MAX_MSG_LEN = 4000
 
@@ -76,22 +70,48 @@ class Command(BaseCommand):
             subject_label = SUBJECT_LABELS.get(subject, subject.capitalize())
             level_label = LEVEL_LABELS.get(str(level).lower(), str(level).upper())
 
+            # Группируем по номеру задания внутри предмета+уровня
+            by_task: dict[int | None, list[ErrorReport]] = {}
+            for r in items:
+                by_task.setdefault(r.task_number, []).append(r)
+
+            total_reports = len(items)
+            unique_tasks = len(by_task)
             header = (
                 f"🐛 <b>Ошибки: {subject_label} {level_label}</b>\n"
-                f"<i>Сообщений: {len(items)}</i>\n"
+                f"<i>Заданий: {unique_tasks}, жалоб: {total_reports}</i>\n"
             )
             lines = [header]
 
-            for r in items:
-                type_label = ERROR_TYPE_LABELS.get(r.error_type, r.error_type)
-                task_str = f"№{r.task_number}" if r.task_number else "№?"
-                variant_str = str(r.variant_id) if r.variant_id else "—"
-                entry_lines = [
-                    f"\n<b>Задание {task_str}</b>  |  Вариант: {variant_str}",
-                    f"Тип: {type_label}",
-                ]
-                if r.comment:
-                    entry_lines.append(f"Комментарий: {_esc(r.comment)}")
+            for task_number, task_reports in sorted(
+                by_task.items(), key=lambda x: (x[0] is None, x[0])
+            ):
+                count = len(task_reports)
+                task_str = f"№{task_number}" if task_number else "№?"
+                count_str = f" ({count} жалобы)" if count == 1 else f" ({count} жалоб)"
+
+                # Уникальные непустые комментарии
+                comments = [_esc(r.comment) for r in task_reports if r.comment.strip()]
+                unique_comments = list(dict.fromkeys(comments))  # убираем дубли, сохраняем порядок
+
+                entry_lines = [f"\n<b>Задание {task_str}</b>{count_str if count > 1 else ''}"]
+
+                # ID задачи (обычно одно, но может быть несколько)
+                task_ids = sorted({r.task_id for r in task_reports if r.task_id})
+                if task_ids:
+                    entry_lines.append(f"ID задачи: {', '.join(str(i) for i in task_ids)}")
+
+                # Варианты
+                variant_ids = sorted({r.variant_id for r in task_reports if r.variant_id})
+                if variant_ids:
+                    entry_lines.append(f"Варианты: {', '.join(str(v) for v in variant_ids)}")
+                if unique_comments:
+                    if len(unique_comments) == 1:
+                        entry_lines.append(f"Комментарий: {unique_comments[0]}")
+                    else:
+                        entry_lines.append("Комментарии:")
+                        for i, c in enumerate(unique_comments, 1):
+                            entry_lines.append(f"  {i}. {c}")
                 lines.append("\n".join(entry_lines))
 
             # Разбиваем на части, если текст слишком длинный для одного сообщения

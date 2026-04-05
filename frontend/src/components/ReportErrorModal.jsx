@@ -1,18 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-const ERROR_TYPES = [
-  { id: "typo", label: "Опечатка" },
-  { id: "wrong_condition", label: "Неверное условие" },
-  { id: "wrong_answer", label: "Не сходится ответ" },
-  { id: "other", label: "Другое" },
-];
-
 /**
  * Модальное окно для сообщения об ошибке в задании.
  */
 export default function ReportErrorModal({ open, onClose, onSubmit, taskNumber }) {
-  const [errorType, setErrorType] = useState("");
   const [comment, setComment] = useState("");
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
@@ -20,7 +12,6 @@ export default function ReportErrorModal({ open, onClose, onSubmit, taskNumber }
   // Сброс формы только при открытии (не при каждом ре-рендере родителя)
   useEffect(() => {
     if (open) {
-      setErrorType("");
       setComment("");
     }
   }, [open]);
@@ -37,10 +28,9 @@ export default function ReportErrorModal({ open, onClose, onSubmit, taskNumber }
   const [submitting, setSubmitting] = useState(false);
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!errorType) return;
     setSubmitting(true);
     try {
-      await onSubmit?.({ errorType, comment: comment.trim() });
+      await onSubmit?.({ errorType: "other", comment: comment.trim() });
       onClose();
     } catch (err) {
       alert(err.message || "Не удалось отправить. Попробуйте позже.");
@@ -68,23 +58,9 @@ export default function ReportErrorModal({ open, onClose, onSubmit, taskNumber }
           </button>
         </div>
         <form onSubmit={handleSubmit} className="report-error-form">
-          <div className="report-error-field">
-            <label className="report-error-label">Тип ошибки</label>
-            <div className="report-error-types">
-              {ERROR_TYPES.map((t) => (
-                <label key={t.id} className="report-error-type-option">
-                  <input
-                    type="radio"
-                    name="errorType"
-                    value={t.id}
-                    checked={errorType === t.id}
-                    onChange={() => setErrorType(t.id)}
-                  />
-                  <span>{t.label}</span>
-                </label>
-              ))}
-            </div>
-          </div>
+          <p className="report-error-hint">
+            Используйте эту кнопку только если нашли ошибку в самом задании: опечатку, неверное условие или неправильный ответ в базе. Если вы не уверены в своём решении — попробуйте разобрать задание ещё раз.
+          </p>
 
           <div className="report-error-field">
             <label htmlFor="report-error-comment" className="report-error-label">
@@ -100,10 +76,6 @@ export default function ReportErrorModal({ open, onClose, onSubmit, taskNumber }
             />
           </div>
 
-          <p className="report-error-hint">
-            Используйте эту кнопку только если нашли ошибку в самом задании: опечатку, неверное условие или неправильный ответ в базе. Если вы не уверены в своём решении — попробуйте разобрать задание ещё раз.
-          </p>
-
           <div className="report-error-actions">
             <button type="button" className="student-name-btn-cancel" onClick={onClose}>
               Отмена
@@ -111,7 +83,7 @@ export default function ReportErrorModal({ open, onClose, onSubmit, taskNumber }
             <button
               type="submit"
               className="student-name-btn-ok report-error-submit"
-              disabled={!errorType || submitting}
+              disabled={submitting}
             >
               {submitting ? "Отправка…" : "Отправить"}
             </button>
