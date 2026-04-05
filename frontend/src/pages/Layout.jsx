@@ -148,14 +148,6 @@ function Layout() {
     return () => clearTimeout(id);
   }, [pathname]);
 
-  const cabinetEnv = (import.meta.env.VITE_CABINET_URL || "").trim();
-  const cabinetHref = cabinetEnv
-    ? cabinetEnv.endsWith("/")
-      ? cabinetEnv
-      : `${cabinetEnv}/`
-    : "/cabinet/";
-  const cabinetOpenNewTab = /^https?:\/\//i.test(cabinetEnv);
-
   return (
     <div className="app-shell">
       <div
@@ -232,18 +224,6 @@ function Layout() {
           </button>
         )}
         <Link to="/about" className="header-nav-link">От авторов</Link>
-        <a
-          href={cabinetHref}
-          className="header-nav-link header-nav-cabinet"
-          title="Личный кабинет"
-          aria-label="Личный кабинет"
-          {...(cabinetOpenNewTab ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-            <circle cx="12" cy="7" r="4" />
-          </svg>
-        </a>
       </nav>
     </div>
 </header>
