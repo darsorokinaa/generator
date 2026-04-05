@@ -385,6 +385,34 @@ class Criteria(models.Model):
         verbose_name_plural = "Критерии"
 
 
+class ErrorReport(models.Model):
+    ERROR_TYPES = [
+        ("typo", "Опечатка"),
+        ("wrong_condition", "Неверное условие"),
+        ("wrong_answer", "Не сходится ответ"),
+        ("other", "Другое"),
+    ]
+
+    subject = models.CharField(max_length=50, verbose_name="Предмет")
+    level = models.CharField(max_length=10, verbose_name="Уровень")
+    task_number = models.IntegerField(null=True, blank=True, verbose_name="Номер задания")
+    task_id = models.IntegerField(null=True, blank=True, verbose_name="ID задачи")
+    variant_id = models.IntegerField(null=True, blank=True, verbose_name="ID варианта")
+    error_type = models.CharField(max_length=30, choices=ERROR_TYPES, verbose_name="Тип ошибки")
+    comment = models.TextField(blank=True, default="", verbose_name="Комментарий")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата отправки")
+    is_fixed = models.BooleanField(default=False, verbose_name="Исправлено")
+    digest_sent = models.BooleanField(default=False, verbose_name="Отправлено в дайджест")
+
+    class Meta:
+        verbose_name = "Сообщение об ошибке"
+        verbose_name_plural = "Сообщения об ошибках"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Ошибка №{self.task_number} ({self.subject} {self.level}) — {self.get_error_type_display()}"
+
+
 def username_for_created_by(request):
     """Строка для поля created_by: логин авторизованного пользователя или ADMIN."""
     if request is None:

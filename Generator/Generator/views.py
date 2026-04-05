@@ -18,6 +18,7 @@ from weasyprint import HTML as WeasyHTML
 from .models import (
     Announcement,
     Criteria,
+    ErrorReport,
     Level,
     LinkedTaskGroup,
     Mark,
@@ -38,13 +39,6 @@ from . import pdf_utils
 from . import telegram_utils
 
 logger = logging.getLogger(__name__)
-
-ERROR_TYPE_LABELS = {
-    "typo": "Опечатка",
-    "wrong_condition": "Неверное условие",
-    "wrong_answer": "Не сходится ответ",
-    "other": "Другое",
-}
 
 FAVICON_SVG = (
     b'<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">'
@@ -1638,7 +1632,7 @@ def search_variant(request):
 @csrf_exempt
 @require_http_methods(["POST"])
 def report_error(request, level, subject):
-    """Приём отчёта об ошибке и отправка в Telegram."""
+    """Приём отчёта об ошибке и сохранение в базу данных."""
     try:
         data = json.loads(request.body)
     except (json.JSONDecodeError, TypeError):
@@ -1653,28 +1647,18 @@ def report_error(request, level, subject):
     if not error_type:
         return JsonResponse({"error": "Не указан тип ошибки"}, status=400)
 
-    type_label = ERROR_TYPE_LABELS.get(error_type, error_type)
-    level_label = {"oge": "ОГЭ", "ege": "ЕГЭ"}.get(str(level).lower(), str(level).upper())
-    subject_label = {"inf": "Информатика", "math": "Математика"}.get(subject, subject)
+    try:
+        ErrorReport.objects.create(
+            subject=str(subject),
+            level=str(level),
+            task_number=int(task_number) if task_number is not None else None,
+            task_id=int(task_id) if task_id is not None else None,
+            variant_id=int(variant_id) if variant_id is not None else None,
+            error_type=str(error_type),
+            comment=comment,
+        )
+    except Exception:
+        logger.exception("Не удалось сохранить ErrorReport")
+        return JsonResponse({"error": "Не удалось сохранить сообщение"}, status=500)
 
-    def _esc(s):
-        return (s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
-
-    lines = [
-        "🐛 <b>Сообщение об ошибке</b>",
-        "",
-        f"<b>Предмет:</b> {subject_label}",
-        f"<b>Уровень:</b> {level_label}",
-        f"<b>Задание:</b> №{task_number or '?'} (ID: {task_id or '—'})",
-        f"<b>Вариант:</b> {variant_id or '—'}",
-        f"<b>Тип:</b> {type_label}",
-    ]
-    if comment:
-        lines.extend(["", "<b>Комментарий:</b>", _esc(comment)])
-
-    text = "\n".join(lines)
-    success = telegram_utils.send_telegram_message(text)
-
-    if success:
-        return JsonResponse({"ok": True})
-    return JsonResponse({"error": "Не удалось отправить в Telegram"}, status=500)
+    return JsonResponse({"ok": True})

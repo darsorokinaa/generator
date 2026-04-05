@@ -6,6 +6,7 @@ from django_ckeditor_5.widgets import CKEditor5Widget
 from .models import (
     Announcement,
     Criteria,
+    ErrorReport,
     Level,
     LinkedTaskGroup,
     Mark,
@@ -294,6 +295,23 @@ class UpdateAdmin(admin.ModelAdmin):
     date_hierarchy = "created"
     ordering = ["-created"]
     readonly_fields = ("created",)
+
+
+@admin.register(ErrorReport)
+class ErrorReportAdmin(admin.ModelAdmin):
+    list_display = ("id", "task_number", "subject", "level", "error_type", "variant_id", "comment_preview", "created_at", "is_fixed", "digest_sent")
+    list_filter = ("subject", "level", "error_type", "is_fixed", "digest_sent")
+    list_editable = ("is_fixed",)
+    search_fields = ("comment",)
+    date_hierarchy = "created_at"
+    ordering = ["-created_at"]
+    list_per_page = 50
+    readonly_fields = ("created_at", "digest_sent")
+
+    def comment_preview(self, obj):
+        text = obj.comment or ""
+        return (text[:60] + "…") if len(text) > 60 else text or "—"
+    comment_preview.short_description = "Комментарий"
 
 
 @admin.register(Announcement)
