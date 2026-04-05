@@ -195,13 +195,18 @@ export default function ResultsModal({ open, onClose, results }) {
           })()}
 
           <div className="results-row results-row-primary">
-            <span className="results-label">Первичные баллы:</span>
+            <span className="results-label">
+              {examMode === "test" ? "Правильных ответов:" : "Первичные баллы:"}
+            </span>
             <span className="results-value">
-              {totalScore} из {maxScore}
+              {examMode === "test"
+                ? <>{fullyCorrectTaskCount} из {taskCountTotal}</>
+                : <>{totalScore} из {maxScore}</>
+              }
             </span>
           </div>
 
-          {(scoreExam != null || (scoreComment != null && String(scoreComment).trim() !== "")) && (
+          {examMode !== "test" && (scoreExam != null || (scoreComment != null && String(scoreComment).trim() !== "")) && (
           <div className="results-score-exam-block">
             {scoreExam != null && (
               <div className="results-row results-row-primary">

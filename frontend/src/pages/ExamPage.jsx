@@ -1232,29 +1232,38 @@ function ExamPage() {
       geoCorrectCount,
       fullyCorrectTaskCount: effFullyCorrect,
     } = getEffectiveResults();
-    const isOgeMath = String(level).toLowerCase() === "oge" && String(subject).toLowerCase() === "math";
-    const geoParam = isOgeMath ? `&geo_correct=${geoCorrectCount}` : "";
-    const res = await fetch(
-      `/api/${level}/${subject}/score-conversion/?score=${effTotalScore}${geoParam}`,
-      { credentials: "same-origin" }
-    );
+
     let scoreExam = null;
     let scoreComment = null;
     let markLevel = null;
-    try {
-      if (res.ok) {
-        const data = await res.json();
-        scoreExam = data.score_exam !== undefined ? data.score_exam : null;
-        scoreComment = data.comment ?? null;
-        markLevel = data.mark_level ?? null;
-      }
-    } catch (_) {}
+
+    // В режиме тренировки по номерам конвертация в баллы/оценку не нужна
+    if (mode !== "test") {
+      const isOgeMath = String(level).toLowerCase() === "oge" && String(subject).toLowerCase() === "math";
+      const geoParam = isOgeMath ? `&geo_correct=${geoCorrectCount}` : "";
+      try {
+        const res = await fetch(
+          `/api/${level}/${subject}/score-conversion/?score=${effTotalScore}${geoParam}`,
+          { credentials: "same-origin" }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          scoreExam = data.score_exam !== undefined ? data.score_exam : null;
+          scoreComment = data.comment ?? null;
+          markLevel = data.mark_level ?? null;
+        }
+      } catch (_) {}
+    }
+
+    // Для тренировки maxScore = кол-во задач в тесте (1 балл за задачу), для варианта — как обычно
+    const effectiveMaxScore = mode === "test" ? variant.tasks.length : maxScore;
+
     setResultsData({
       totalTimeFormatted,
       taskTimes,
       correctCount: effCorrectCount,
       totalScore: effTotalScore,
-      maxScore,
+      maxScore: effectiveMaxScore,
       scoreExam,
       scoreComment,
       markLevel,
