@@ -198,6 +198,35 @@ def _group_members_match_group(members, required_nums, expected_len):
     return {m.task_number for m in members} == required_nums
 
 
+def _tasklist_id_for_number(id_by_number, n):
+    """Сопоставление номера задания с TaskList.id (в id_by_number ключи — int из БД, n может быть str из JSON)."""
+    if not id_by_number:
+        return None
+    if n in id_by_number:
+        return id_by_number[n]
+    try:
+        return id_by_number.get(int(n))
+    except (TypeError, ValueError):
+        return None
+
+
+def _parse_linked_task_numbers(raw):
+    """
+    LinkedTaskGroup.task_numbers в JSONField: числа или строки.
+    Без int()-нормализации id_by_number.get("3") не находит ключ 3 → падаем в fallback
+    и берём по одной случайной задаче на номер вместо целой TaskGroup.
+    """
+    if not raw:
+        return []
+    out = []
+    for n in raw:
+        try:
+            out.append(int(n))
+        except (TypeError, ValueError):
+            return None
+    return out
+
+
 def favicon(request):
     return HttpResponse(FAVICON_SVG, content_type='image/svg+xml')
 
@@ -280,10 +309,14 @@ def _create_variant(subject_short, level_str, body_bytes, create=True, request=N
                     cnt = 0
                 if nums and cnt > 0:
                     for n in nums:
+                        try:
+                            ni = int(n)
+                        except (TypeError, ValueError):
+                            continue
                         tl = TaskList.objects.filter(
                             subject=subject_instance,
                             level=level_instance,
-                            task_number=n,
+                            task_number=ni,
                         ).values_list("id", flat=True).first()
                         if tl:
                             key = str(tl)
@@ -384,10 +417,13 @@ def _create_variant(subject_short, level_str, body_bytes, create=True, request=N
         Если для этого набора в запросе заданы подтемы (subtopic_ids / subtopic_counts),
         отбор идёт с их учётом; иначе — по лимиту num_groups из content.
         """
-        task_numbers = linked.task_numbers or []
+        parsed = _parse_linked_task_numbers(linked.task_numbers)
+        if parsed is None:
+            return None, None
+        task_numbers = parsed
         if not task_numbers:
             return None, None
-        ids_for_group = [id_by_number.get(n) for n in task_numbers]
+        ids_for_group = [_tasklist_id_for_number(id_by_number, n) for n in task_numbers]
         if any(i is None for i in ids_for_group):
             return None, None
         cfg_key = _linked_group_subtopic_config_key(task_numbers)
@@ -399,10 +435,7 @@ def _create_variant(subject_short, level_str, body_bytes, create=True, request=N
             "taskgroupmember_set",
             queryset=TaskGroupMember.objects.select_related("task").order_by("task_number"),
         )
-        try:
-            required_nums = {int(n) for n in task_numbers}
-        except (TypeError, ValueError):
-            required_nums = set(task_numbers)
+        required_nums = set(task_numbers)
 
         if st_counts or st_ids:
             # Фильтр по подтемам: собираем группы по каждой подтеме
@@ -565,16 +598,20 @@ def _create_variant(subject_short, level_str, body_bytes, create=True, request=N
         group_tasks, group_ids = None, None
         linked_for_slot = None
         for linked in linked_defs:
-            nums = linked.task_numbers or []
-            if nums and nums[0] == tasklist.task_number:
+            nums = _parse_linked_task_numbers(linked.task_numbers)
+            if nums is None:
+                continue
+            if nums and nums[0] == int(tasklist.task_number):
                 linked_for_slot = linked
                 group_tasks, group_ids = take_linked_groups(linked)
                 break
         if linked_for_slot and group_tasks is None and group_ids is None:
-            linked_nums = linked_for_slot.task_numbers or []
-            ids_for_linked = [id_by_number.get(n) for n in linked_nums]
+            linked_nums = _parse_linked_task_numbers(linked_for_slot.task_numbers)
+            if linked_nums is None:
+                linked_nums = []
+            ids_for_linked = [_tasklist_id_for_number(id_by_number, n) for n in linked_nums]
             for num in linked_nums:
-                tl_id = id_by_number.get(num)
+                tl_id = _tasklist_id_for_number(id_by_number, num)
                 if tl_id is None:
                     continue
                 cnt = content.get(str(tl_id), 0)
@@ -592,8 +629,8 @@ def _create_variant(subject_short, level_str, body_bytes, create=True, request=N
             if only_fipi and fipi_q:
                 task_numbers = []
                 for linked in linked_defs:
-                    nums = linked.task_numbers or []
-                    if nums and nums[0] == tasklist.task_number:
+                    nums = _parse_linked_task_numbers(linked.task_numbers)
+                    if nums and nums[0] == int(tasklist.task_number):
                         task_numbers = nums
                         break
                 n_per_group = len(task_numbers) if task_numbers else len(group_ids)
@@ -773,10 +810,10 @@ def api_tasks(request, level, subject):
     # Collect all task_numbers from linked groups to batch-count in one query
     linked_number_sets = []
     for linked in linked_defs:
-        task_numbers = linked.task_numbers or []
-        if not task_numbers:
+        task_numbers = _parse_linked_task_numbers(linked.task_numbers)
+        if task_numbers is None or not task_numbers:
             continue
-        ids_for_group = [id_by_number.get(n) for n in task_numbers]
+        ids_for_group = [_tasklist_id_for_number(id_by_number, n) for n in task_numbers]
         if any(i is None for i in ids_for_group):
             continue
         linked_number_sets.append((linked, task_numbers, ids_for_group))
@@ -951,9 +988,18 @@ def api_tasks(request, level, subject):
             subject=subject_instance, level=level_instance
         ):
             tn = linked.task_numbers or []
-            ids_for = [id_by_number.get(n) for n in tn] if tn else []
-            missing = [n for n, i in zip(tn, ids_for) if i is None]
-            key = tuple(tn) if tn else ()
+            parsed = _parse_linked_task_numbers(tn)
+            ids_for = (
+                [_tasklist_id_for_number(id_by_number, n) for n in parsed]
+                if parsed is not None
+                else []
+            )
+            missing = (
+                [n for n, i in zip(parsed, ids_for) if i is None]
+                if parsed is not None
+                else list(tn)
+            )
+            key = tuple(parsed) if parsed is not None and parsed else ()
             cnt = linked_counts.get(key, 0)
             debug_linked.append({
                 "task_numbers_in_db": tn,
@@ -961,6 +1007,7 @@ def api_tasks(request, level, subject):
                 "groups_count": cnt,
                 "skipped_reason": (
                     "empty_task_numbers" if not tn else
+                    "invalid_task_numbers" if parsed is None else
                     "tasklist_missing" if missing else
                     "no_groups" if cnt == 0 else None
                 ),
