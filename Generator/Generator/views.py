@@ -413,10 +413,12 @@ def _create_variant(subject_short, level_str, body_bytes, create=True, request=N
 
     def take_linked_groups(linked):
         """
-        Берём из TaskGroup связанные наборы заданий (полные группы по множеству номеров).
-        Если для этого набора в запросе заданы подтемы (subtopic_ids / subtopic_counts),
-        отбор идёт с их учётом; иначе — по лимиту num_groups из content.
+        Только целые TaskGroup из БД: случайно выбираем нужное число групп, в вариант попадают
+        все задачи строго из выбранных групп (без сборки из разных групп по номерам).
+        С подтемами — то же правило; «склейка» из отдельных Task не используется.
         """
+        from random import shuffle
+
         parsed = _parse_linked_task_numbers(linked.task_numbers)
         if parsed is None:
             return None, None
@@ -436,9 +438,51 @@ def _create_variant(subject_short, level_str, body_bytes, create=True, request=N
             queryset=TaskGroupMember.objects.select_related("task").order_by("task_number"),
         )
         required_nums = set(task_numbers)
+        n_per = len(task_numbers)
+
+        def _pick_random_full_groups(filtered_qs, num_groups_needed):
+            """Случайные непересекающиеся TaskGroup; внутри группы задачи по возрастанию номера."""
+            if num_groups_needed <= 0:
+                return []
+            ids = list(filtered_qs.distinct().values_list("id", flat=True))
+            shuffle(ids)
+            picked_tasks = []
+            used_gids = set()
+            for gid in ids:
+                if len(picked_tasks) >= num_groups_needed * n_per:
+                    break
+                if gid in used_gids:
+                    continue
+                group = (
+                    TaskGroup.objects.filter(pk=gid)
+                    .prefetch_related(member_prefetch)
+                    .first()
+                )
+                if not group:
+                    continue
+                members = sorted(
+                    group.taskgroupmember_set.all(),
+                    key=lambda m: (m.task_number, m.id),
+                )
+                if not _group_members_match_group(members, required_nums, n_per):
+                    continue
+                tasks_row = [m.task for m in members]
+                if only_fipi and fipi_q:
+                    tids = [t.id for t in tasks_row]
+                    if (
+                        Task.objects.filter(id__in=tids)
+                        .filter(fipi_q)
+                        .count()
+                        != len(tids)
+                    ):
+                        continue
+                picked_tasks.extend(tasks_row)
+                used_gids.add(gid)
+            if len(picked_tasks) < num_groups_needed * n_per:
+                return None
+            return picked_tasks
 
         if st_counts or st_ids:
-            # Фильтр по подтемам: собираем группы по каждой подтеме
             base_qs = (
                 TaskGroup.objects.filter(
                     subject=subject_instance,
@@ -446,8 +490,7 @@ def _create_variant(subject_short, level_str, body_bytes, create=True, request=N
                     taskgroupmember__task_number__in=task_numbers,
                 )
                 .annotate(mcnt=Count("taskgroupmember"))
-                .filter(mcnt=len(task_numbers))
-                .prefetch_related(member_prefetch)
+                .filter(mcnt=n_per)
             )
             all_tasks = []
             if st_counts:
@@ -459,9 +502,9 @@ def _create_variant(subject_short, level_str, body_bytes, create=True, request=N
                     if cnt <= 0:
                         continue
                     if sid == "all":
-                        qs = base_qs  # Все типы — без фильтра
+                        qs = base_qs
                     elif sid is None or str(sid) == "null":
-                        qs = base_qs.filter(subtopic__isnull=True)  # Без подтемы
+                        qs = base_qs.filter(subtopic__isnull=True)
                     else:
                         try:
                             sid_q = int(sid)
@@ -471,16 +514,10 @@ def _create_variant(subject_short, level_str, body_bytes, create=True, request=N
                             Q(subtopic_id=sid_q)
                             | Q(taskgroupmember__task__subtopic_id=sid_q)
                         ).distinct()
-                    limit = max(cnt * 10, 50)
-                    added = 0
-                    for group in qs.order_by("?")[:limit]:
-                        if added >= cnt:
-                            break
-                        members = list(group.taskgroupmember_set.all())
-                        if not _group_members_match_group(members, required_nums, len(task_numbers)):
-                            continue
-                        all_tasks.extend(m.task for m in members)
-                        added += 1
+                    part = _pick_random_full_groups(qs, cnt)
+                    if part is None:
+                        return None, None
+                    all_tasks.extend(part)
             elif st_ids:
                 try:
                     num_groups = min(content.get(str(i), 0) for i in ids_for_group)
@@ -488,66 +525,17 @@ def _create_variant(subject_short, level_str, body_bytes, create=True, request=N
                 except (TypeError, ValueError):
                     num_groups = 0
                 if num_groups > 0:
-                    qs = (
-                        base_qs.filter(
-                            Q(subtopic_id__in=st_ids)
-                            | Q(taskgroupmember__task__subtopic_id__in=st_ids)
-                        )
-                        .distinct()
-                        .order_by("?")[: max(num_groups * 10, 50)]
-                    )
-                    for group in qs:
-                        if len(all_tasks) >= num_groups * len(task_numbers):
-                            break
-                        members = list(group.taskgroupmember_set.all())
-                        if not _group_members_match_group(members, required_nums, len(task_numbers)):
-                            continue
-                        all_tasks.extend(m.task for m in members)
+                    qs = base_qs.filter(
+                        Q(subtopic_id__in=st_ids)
+                        | Q(taskgroupmember__task__subtopic_id__in=st_ids)
+                    ).distinct()
+                    part = _pick_random_full_groups(qs, num_groups)
+                    if part is None:
+                        return None, None
+                    all_tasks.extend(part)
             if all_tasks:
                 return all_tasks, ids_for_group
-            # Fallback: нет целых TaskGroup — собираем из отдельных Task (без "all": нет однозначного subtopic_id)
-            if st_counts:
-                from random import shuffle
-
-                fallback_tasks = []
-                for sid, cnt in st_counts.items():
-                    try:
-                        cnt = int(cnt) if cnt is not None and cnt != "" else 0
-                    except (TypeError, ValueError):
-                        continue
-                    if cnt <= 0 or sid in ("all", None) or str(sid) == "null":
-                        continue
-                    try:
-                        sid_fb = int(sid)
-                    except (TypeError, ValueError):
-                        continue
-                    tasks_per_num = []
-                    for i, tn in enumerate(task_numbers):
-                        tl_id = ids_for_group[i] if i < len(ids_for_group) else None
-                        if not tl_id:
-                            tasks_per_num.append([])
-                            continue
-                        pool = list(
-                            Task.objects.filter(
-                                task_id=tl_id,
-                                subtopic_id=sid_fb,
-                            ).values_list("id", flat=True)
-                        )
-                        shuffle(pool)
-                        tasks_per_num.append(pool[:cnt])
-                    min_len = min(len(p) for p in tasks_per_num) if tasks_per_num else 0
-                    if min_len > 0:
-                        ordered_ids = []
-                        for j in range(min_len):
-                            for pool in tasks_per_num:
-                                if j < len(pool):
-                                    ordered_ids.append(pool[j])
-                        task_by_id = {t.id: t for t in Task.objects.filter(id__in=ordered_ids)}
-                        fallback_tasks.extend(task_by_id[i] for i in ordered_ids if i in task_by_id)
-                if fallback_tasks:
-                    return fallback_tasks, ids_for_group
             return None, None
-        # Без фильтра по подтемам
         try:
             num_groups = min(content.get(str(i), 0) for i in ids_for_group)
             num_groups = int(num_groups)
@@ -555,29 +543,17 @@ def _create_variant(subject_short, level_str, body_bytes, create=True, request=N
             return None, None
         if num_groups <= 0:
             return None, None
-        limit = max(num_groups * 10, 50)
-        groups_qs = (
+        candidates = (
             TaskGroup.objects.filter(
                 subject=subject_instance,
                 level=level_instance,
                 taskgroupmember__task_number__in=task_numbers,
             )
             .annotate(mcnt=Count("taskgroupmember"))
-            .filter(mcnt=len(task_numbers))
-            .prefetch_related(member_prefetch)
-            .order_by("?")[:limit]
+            .filter(mcnt=n_per)
         )
-        all_tasks = []
-        for group in groups_qs:
-            if len(all_tasks) >= num_groups * len(task_numbers):
-                break
-            members = list(group.taskgroupmember_set.all())
-            if not _group_members_match_group(members, required_nums, len(task_numbers)):
-                continue
-            all_tasks.extend(m.task for m in members)
-            if len(all_tasks) >= num_groups * len(task_numbers):
-                break
-        if len(all_tasks) < num_groups * len(task_numbers):
+        all_tasks = _pick_random_full_groups(candidates, num_groups)
+        if all_tasks is None:
             return None, None
         return all_tasks, ids_for_group
 
@@ -606,24 +582,11 @@ def _create_variant(subject_short, level_str, body_bytes, create=True, request=N
                 group_tasks, group_ids = take_linked_groups(linked)
                 break
         if linked_for_slot and group_tasks is None and group_ids is None:
-            linked_nums = _parse_linked_task_numbers(linked_for_slot.task_numbers)
-            if linked_nums is None:
-                linked_nums = []
-            ids_for_linked = [_tasklist_id_for_number(id_by_number, n) for n in linked_nums]
-            for num in linked_nums:
-                tl_id = _tasklist_id_for_number(id_by_number, num)
-                if tl_id is None:
-                    continue
-                cnt = content.get(str(tl_id), 0)
-                if cnt <= 0:
-                    cnt = 1
-                fallback_qs = Task.objects.filter(task_id=tl_id)
-                if only_fipi and fipi_q:
-                    fallback_qs = fallback_qs.filter(fipi_q)
-                fallback_for_num = list(fallback_qs.order_by("?")[:int(cnt)])
-                selected_tasks.extend(fallback_for_num)
-                handled_tasklist_ids.add(tl_id)
-            continue
+            raise ValueError(
+                "Для связанных заданий не удалось подобрать нужное число целых групп в базе "
+                "(или при включённом «только ФИПИ» ни одна группа целиком не проходит фильтр). "
+                "Добавьте группы в админке или ослабьте ограничения."
+            )
         if group_tasks is not None and group_ids is not None:
             # Связанные группы уже отобраны (в т.ч. с учётом subtopic из group_subtopic_config)
             if only_fipi and fipi_q:
