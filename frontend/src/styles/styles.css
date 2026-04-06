@@ -2198,7 +2198,7 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
 
 @media (min-width: 640px) {
     .subject-page-pick-block {
-        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        grid-template-columns: repeat(2, 1fr);
         gap: 1.25rem;
         align-items: stretch;
     }
@@ -2206,6 +2206,12 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
     .subject-page-subject-pair {
         align-self: stretch;
         height: 100%;
+    }
+}
+
+@media (min-width: 1280px) {
+    .subject-page-pick-block {
+        grid-template-columns: repeat(3, 1fr);
     }
 }
 
@@ -2405,6 +2411,7 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
         gap: 1.35rem;
         align-items: stretch;
         justify-items: stretch;
+        grid-template-columns: repeat(2, 1fr);
     }
 
     .subject-page .subject-page-main .subject-page-pick-block .subject-page-subject-pair .exam-card {
