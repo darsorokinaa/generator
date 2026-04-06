@@ -1,22 +1,22 @@
 #!/bin/bash
 # Запускать после копирования файлов проекта на сервер
-# bash /opt/generator/deploy/post_deploy.sh
+# bash /opt/generator_test/deploy/post_deploy.sh
 set -e
 
-APP_DIR="/opt/generator"
-DB_NAME="generatordb"
-DB_USER="generatoruser"
+APP_DIR="/opt/generator_test"
+DB_NAME="generatordb_test"
+DB_USER="generatoruser_test"
 DOMAIN="ВАШ_ДОМЕН.ru"
 
 echo "=== Создание папки для логов ==="
-mkdir -p /var/log/generator
-chown generator:generator /var/log/generator
+mkdir -p /var/log/generator_test
+chown generator_test:generator_test /var/log/generator_test
 
 echo "=== Права на папку приложения ==="
-chown -R generator:generator $APP_DIR
+chown -R generator_test:generator_test $APP_DIR
 
 echo "=== Установка Python зависимостей ==="
-sudo -u generator $APP_DIR/venv/bin/pip install \
+sudo -u generator_test $APP_DIR/venv/bin/pip install \
     django django-cors-headers django-ckeditor-5 django-ckeditor \
     weasyprint psycopg2-binary channels gunicorn whitenoise
 
@@ -50,16 +50,15 @@ else:
 "
 
 echo "=== Установка конфига Nginx ==="
-cp $APP_DIR/deploy/nginx.conf /etc/nginx/sites-available/generator
-ln -sf /etc/nginx/sites-available/generator /etc/nginx/sites-enabled/generator
-rm -f /etc/nginx/sites-enabled/default
+cp $APP_DIR/deploy/nginx.conf /etc/nginx/sites-available/generator_test
+ln -sf /etc/nginx/sites-available/generator_test /etc/nginx/sites-enabled/generator_test
 nginx -t && systemctl reload nginx
 
 echo "=== Установка systemd сервиса ==="
-cp $APP_DIR/deploy/gunicorn.service /etc/systemd/system/generator.service
+cp $APP_DIR/deploy/gunicorn.service /etc/systemd/system/generator_test.service
 systemctl daemon-reload
-systemctl enable generator
-systemctl restart generator
+systemctl enable generator_test
+systemctl restart generator_test
 
 echo ""
 echo "=== Готово! ==="

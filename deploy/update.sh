@@ -1,11 +1,11 @@
 #!/bin/bash
 # Обновление приложения на сервере (после изменений в коде)
-# bash /opt/generator/deploy/update.sh
+# bash /opt/generator_test/deploy/update.sh
 set -e
 
-APP_DIR="/opt/generator"
+APP_DIR="/opt/generator_test"
 
-echo "=== Получение последнего кода ==="
+echo "=== Обновление кода из git ==="
 cd $APP_DIR
 git pull origin generator_test
 
@@ -21,6 +21,6 @@ python manage.py migrate --noinput
 python manage.py collectstatic --noinput
 
 echo "=== Перезапуск Gunicorn ==="
-systemctl restart generator
+systemctl restart generator_test
 
 echo "Готово! Приложение обновлено."
