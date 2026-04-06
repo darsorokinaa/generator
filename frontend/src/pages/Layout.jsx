@@ -226,11 +226,17 @@ function Layout() {
         <Link to="/about" className="header-nav-link">От авторов</Link>
         <a
           href="http://lk.genurok.tw1.ru"
-          className="header-nav-cabinet"
           target="_blank"
           rel="noopener noreferrer"
+          style={{
+            display:"inline-flex", alignItems:"center", gap:"6px",
+            fontSize:"0.88rem", fontWeight:600, color:"#fff",
+            textDecoration:"none", padding:"0.32rem 0.8rem",
+            borderRadius:"20px", background:"rgba(255,255,255,0.18)",
+            border:"1.5px solid rgba(255,255,255,0.45)", whiteSpace:"nowrap",
+          }}
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{display:"inline-block",verticalAlign:"middle",marginRight:"5px",marginTop:"-2px"}}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <circle cx="12" cy="8" r="4"/>
             <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
           </svg>
