@@ -1181,6 +1181,36 @@ header {
     border-top-color: rgba(0, 0, 0, 0.12);
 }
 
+/* История */
+.exam-card.exam-card-history {
+    background: #c9a227;
+    border: none;
+}
+
+.exam-card.exam-card-history .exam-title,
+.exam-card.exam-card-history .exam-description {
+    color: #fff;
+}
+
+.exam-card.exam-card-history .exam-icon {
+    background: rgba(255, 255, 255, 0.88);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.exam-card.exam-card-history .exam-badge {
+    background: rgba(255, 255, 255, 0.92);
+    color: #6b4f0a;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.exam-card.exam-card-history .exam-card-footer {
+    border-top-color: rgba(0, 0, 0, 0.1);
+}
+
+.exam-card.exam-card-history .exam-card-arrow-wrap .exam-arrow {
+    color: #fff;
+}
+
 /* ========================================
    СТРАНИЦА ЗАДАНИЙ (TasksPage)
 ======================================== */
@@ -2143,7 +2173,7 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
 
 @media (min-width: 640px) {
     .subject-exam-countdowns {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
         gap: 1.25rem;
     }
 }
@@ -2190,6 +2220,12 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
     background: rgba(169, 154, 247, 0.5);
     color: #5b21b6;
     box-shadow: 0 1px 2px rgba(91, 33, 182, 0.12);
+}
+
+.subject-exam-countdown-card--history .subject-exam-countdown-card__badge {
+    background: rgba(201, 162, 39, 0.45);
+    color: #5c4308;
+    box-shadow: 0 1px 2px rgba(92, 67, 8, 0.12);
 }
 
 .subject-exam-countdown-card__title {
@@ -2241,12 +2277,21 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
     border-color: rgba(91, 33, 182, 0.22);
 }
 
+.subject-exam-countdown-card--history .subject-exam-countdown-card__cell {
+    background: rgba(201, 162, 39, 0.14);
+    border-color: rgba(92, 67, 8, 0.22);
+}
+
 .subject-exam-countdown-card--math .subject-exam-countdown-card__value {
     color: #5a6b1a;
 }
 
 .subject-exam-countdown-card--inf .subject-exam-countdown-card__value {
     color: #5b21b6;
+}
+
+.subject-exam-countdown-card--history .subject-exam-countdown-card__value {
+    color: #5c4308;
 }
 
 .subject-exam-countdown-card__value {
@@ -2307,7 +2352,7 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
     }
 
     .subject-page .subject-page-main .exam-grid {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
         gap: 1.25rem;
         margin-top: 1.5rem;
         align-items: stretch;
