@@ -19,8 +19,8 @@ ExecStart=/opt/generator_test/venv/bin/python3 -m gunicorn \
     Generator.wsgi:application
 
 Environment="PATH=/usr/local/bin:/usr/bin:/bin"
-Environment="PGDATABASE=generatordb_test"
-Environment="PGUSER=generatoruser_test"
+Environment="PGDATABASE=generator_test"
+Environment="PGUSER=generator_test_user"
 Environment="PGPASSWORD=ЗАМЕНИТЕ_НА_НАДЁЖНЫЙ_ПАРОЛЬ"
 Environment="PGHOST=localhost"
 Environment="PGPORT=5432"
