@@ -224,6 +224,14 @@ function Layout() {
           </button>
         )}
         <Link to="/about" className="header-nav-link">От авторов</Link>
+        <a
+          href="https://cabinet.генурок.рф"
+          className="header-nav-cabinet"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Личный кабинет
+        </a>
       </nav>
     </div>
 </header>

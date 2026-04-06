@@ -5969,6 +5969,26 @@ body.index .exam-grid .exam-card {
     color: #fff;
 }
 
+.header-nav-cabinet {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #fff;
+    text-decoration: none;
+    padding: 0.35rem 0.85rem;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.18);
+    border: 1.5px solid rgba(255, 255, 255, 0.45);
+    transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
+    white-space: nowrap;
+}
+
+.header-nav-cabinet:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.75);
+    color: #fff;
+    transform: translateY(-1px);
+}
+
 .about-page {
     padding: 2rem 0 3rem;
     max-width: 1000px;
@@ -6413,6 +6433,11 @@ header.header--themed .theme-toggle > span {
         font-size: 0.82rem;
         padding: 0.3rem 0.45rem;
         border-radius: 7px;
+    }
+
+    .header-nav-cabinet {
+        font-size: 0.78rem;
+        padding: 0.28rem 0.65rem;
     }
 
     header.header--themed {
