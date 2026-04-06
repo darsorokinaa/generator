@@ -11,6 +11,7 @@ import SearchVariantPage from "./pages/SearchVariantPage";
 import AuthorsPage from "./pages/AuthorsPage";
 import PrivacyPage from "./pages/PrivacyPage";
 import NotFoundPage from "./pages/NotFoundPage";
+import LessonJoinBridge from "./pages/LessonJoinBridge";
 
 function scrollDocumentToTop() {
   window.scrollTo(0, 0);
@@ -71,6 +72,10 @@ function App() {
 
           <Route path="/search/tasks" element={<SearchTaskWithKey />} />
           <Route path="/search-variant" element={<SearchVariantWithKey />} />
+
+          {/* Иначе /lesson/join матчится как /:level/:subject → «join» и ложная «Ошибка загрузки» */}
+          <Route path="/lesson/join" element={<LessonJoinBridge />} />
+          <Route path="/lesson/join/" element={<LessonJoinBridge />} />
 
           <Route path="/:level" element={<SubjectPage />} />
 

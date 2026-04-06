@@ -121,50 +121,34 @@ TEMPLATES = [
 WSGI_APPLICATION = 'Generator.wsgi.application'
 ASGI_APPLICATION = "Generator.asgi.application"
 
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {"hosts": [("127.0.0.1", 6379)]},
+# WebSocket уроков: redis — для нескольких воркеров; inmemory — один процесс Daphne, Redis не нужен.
+_channel_backend = (os.environ.get("CHANNEL_LAYER_BACKEND") or "redis").strip().lower()
+if _channel_backend in ("inmemory", "memory", "local"):
+    CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
+else:
+    _redis_host = os.environ.get("REDIS_HOST", "127.0.0.1")
+    _redis_port = int(os.environ.get("REDIS_PORT", "6379"))
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {"hosts": [(_redis_host, _redis_port)]},
+        }
     }
-}
 
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
+# В systemd задают PGDATABASE/PGUSER/... — обязательно читаем их (раньше были захардкожены generatordb).
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'generatordb',
-        'USER': 'generator_user',
-        'PASSWORD': 'StrongPass123',
-        'HOST': 'localhost',
-        'PORT': '5432',
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.environ.get("PGDATABASE", "generatordb"),
+        "USER": os.environ.get("PGUSER", "generator_user"),
+        "PASSWORD": os.environ.get("PGPASSWORD", "StrongPass123"),
+        "HOST": os.environ.get("PGHOST", "localhost"),
+        "PORT": os.environ.get("PGPORT", "5432"),
     }
 }
-
-# Используем env vars из gunicorn.service при наличии (prod), иначе — локальные значения
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': os.environ.get('PGDATABASE', 'generatordb'),
-#         'USER': os.environ.get('PGUSER', 'generator_user'),
-#         'PASSWORD': os.environ.get('PGPASSWORD', 'StrongPass123'),
-#         'HOST': os.environ.get('PGHOST', 'localhost'),
-#         'PORT': os.environ.get('PGPORT', '5432'),
-#     }
-# }
-
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': 'generatordb_test',
-#         'USER': 'postgres',
-#         'PASSWORD': 'postgres',
-#         'HOST': 'localhost',
-#         'PORT': '',
-#     }
-# }
 
 
 
