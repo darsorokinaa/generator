@@ -42,6 +42,13 @@ from . import telegram_utils
 
 logger = logging.getLogger(__name__)
 
+
+def get_subject_for_api(subject_param):
+    """Subject по short name из URL; регистр не важен (history == History)."""
+    s = (subject_param or "").strip()
+    return get_object_or_404(Subject, subject_short__iexact=s)
+
+
 FAVICON_SVG = (
     b'<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">'
     b'<defs><filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">'
@@ -241,7 +248,11 @@ def react_app(request):
     index_path = frontend_dir / 'index.html'
     if index_path.exists():
         with open(index_path, 'r', encoding='utf-8') as f:
-            return HttpResponse(f.read(), content_type='text/html')
+            resp = HttpResponse(f.read(), content_type='text/html; charset=utf-8')
+        # Иначе браузер/CDN держит старый index.html и подгружает старый бандл без новых экранов/карточек.
+        resp["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+        resp["Pragma"] = "no-cache"
+        return resp
     return HttpResponse(
         "<div><h1>Frontend не собран</h1><p>Запусти <code>npm run build</code> в frontend/</p></div>",
         status=500,
@@ -277,7 +288,7 @@ def _get_fipi_q():
 
 
 def _create_variant(subject_short, level_str, body_bytes, create=True, request=None):
-    subject_instance = get_object_or_404(Subject, subject_short=subject_short)
+    subject_instance = get_subject_for_api(subject_short)
     level_instance = get_object_or_404(Level, level=level_str)
     data = json.loads(body_bytes)
 
@@ -820,7 +831,7 @@ def api_csrf(request):
 
 
 def api_tasks(request, level, subject):
-    subject_instance = get_object_or_404(Subject, subject_short=subject)
+    subject_instance = get_subject_for_api(subject)
     level_instance = get_object_or_404(Level, level=level)
 
     subtopic_ids = None
@@ -1070,7 +1081,7 @@ def api_tasks(request, level, subject):
 
 def api_subtopics(request, level, subject):
     """GET: список подтем по номерам заданий и связанным группам для тренажёра."""
-    subject_instance = get_object_or_404(Subject, subject_short=subject)
+    subject_instance = get_subject_for_api(subject)
     level_instance = get_object_or_404(Level, level=level)
  
     # --- Одиночные задания (старая логика) ---
@@ -1130,7 +1141,7 @@ def api_variant_lookup(request, variant_id):
 @require_http_methods(["GET"])
 def api_criteria(request, level, subject):
     """Критерии по task_list_id или по (subject, level, task_number). Criteria привязаны к TaskList (номер задания)."""
-    subject_instance = get_object_or_404(Subject, subject_short=subject)
+    subject_instance = get_subject_for_api(subject)
     level_instance = get_object_or_404(Level, level=level)
 
     tl_ids = []
@@ -1276,7 +1287,7 @@ def api_support_info(request, level, subject):
 
     items = list(
         SupportInfo.objects
-        .filter(subject__subject_short=subject)
+        .filter(subject__subject_short__iexact=(subject or "").strip())
         .filter(Q(level__level=level) | Q(level__isnull=True))
         .select_related("subject", "level")
         .order_by("-level_id")
@@ -1361,7 +1372,10 @@ def report_pdf(request, level, subject):
         Variant.objects.select_related("var_subject", "level"),
         id=variant_id,
     )
-    if str(variant.var_subject.subject_short) != str(subject) or str(variant.level.level) != str(level):
+    if (
+        str(variant.var_subject.subject_short).lower() != str(subject).lower()
+        or str(variant.level.level).lower() != str(level).lower()
+    ):
         return JsonResponse({"error": "Вариант не соответствует уровню/предмету"}, status=400)
 
     student_name = (data.get("studentName") or "Ученик").strip() or "Ученик"

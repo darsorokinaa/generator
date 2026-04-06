@@ -44,6 +44,7 @@ function SubjectPage() {
               </p>
             </div>
 
+            <div className="subject-page-pick-block">
             <SubjectExamCountdowns level={level} />
 
             <div className="exam-grid">
@@ -137,6 +138,7 @@ function SubjectPage() {
             </div>
           </div>
         </Link>
+            </div>
             </div>
           </div>
 
