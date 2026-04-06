@@ -1,4 +1,10 @@
-import { useEffect, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 const JUNE = 5; // месяц 0-based
 
@@ -143,6 +149,42 @@ const CONFIG = {
 
 const COUNTDOWN_HEADLINE = "До экзамена осталось";
 
+const PHRASE_SLOT = { math: 0, inf: 1, history: 2 };
+
+const ExamCountdownContext = createContext(null);
+
+/** Один интервал на все карточки; оборачивает колонки «таймер + предмет». */
+export function SubjectExamCountdownProvider({ level, children }) {
+  const valid = level === "ege" || level === "oge";
+  const [now, setNow] = useState(() => Date.now());
+  const [footnoteSeed] = useState(loadOrCreateUserFootnoteSeed);
+
+  useEffect(() => {
+    if (!valid) return undefined;
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [valid]);
+
+  const value = useMemo(() => {
+    if (!valid) return { valid: false };
+    return {
+      valid: true,
+      level,
+      now,
+      footnoteSeed,
+      hourBucket: localHourBucketFromMs(now),
+      levelLabel: level === "ege" ? "ЕГЭ" : "ОГЭ",
+      cfg: CONFIG[level],
+    };
+  }, [valid, level, now, footnoteSeed]);
+
+  return (
+    <ExamCountdownContext.Provider value={value}>
+      {children}
+    </ExamCountdownContext.Provider>
+  );
+}
+
 function CountdownCard({ subject, dateLine, targetTs, accent, now, levelLabel, footnotePhraseIndex }) {
   const remainMs = targetTs - now;
   const { days, hours, minutes, seconds } = splitRemain(remainMs);
@@ -185,56 +227,26 @@ function CountdownCard({ subject, dateLine, targetTs, accent, now, levelLabel, f
   );
 }
 
-export default function SubjectExamCountdowns({ level }) {
-  const [now, setNow] = useState(() => Date.now());
-  const [footnoteSeed] = useState(loadOrCreateUserFootnoteSeed);
-
-  useEffect(() => {
-    const id = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(id);
-  }, []);
-
-  if (level !== "ege" && level !== "oge") return null;
-
-  const cfg = CONFIG[level];
-  const levelLabel = level === "ege" ? "ЕГЭ" : "ОГЭ";
-  const mathTarget = getNextExamTimestamp(level, "math");
-  const infTarget = getNextExamTimestamp(level, "inf");
-  const historyTarget = getNextExamTimestamp(level, "history");
-  const hourBucket = localHourBucketFromMs(now);
-  const mathPhraseIndex = phraseIndexFromSeed(footnoteSeed, hourBucket, 0);
-  const infPhraseIndex = phraseIndexFromSeed(footnoteSeed, hourBucket, 1);
-  const historyPhraseIndex = phraseIndexFromSeed(footnoteSeed, hourBucket, 2);
+/** Таймер для одного предмета (math / inf / history). */
+export function SubjectExamCountdownCard({ subjectKey }) {
+  const ctx = useContext(ExamCountdownContext);
+  if (!ctx?.valid) return null;
+  const { cfg, now, levelLabel, footnoteSeed, hourBucket, level } = ctx;
+  const c = cfg[subjectKey];
+  if (!c) return null;
+  const targetTs = getNextExamTimestamp(level, subjectKey);
+  const slot = PHRASE_SLOT[subjectKey] ?? 0;
+  const footnotePhraseIndex = phraseIndexFromSeed(footnoteSeed, hourBucket, slot);
 
   return (
-    <div className="subject-exam-countdowns">
-      <CountdownCard
-        subject={cfg.math.subject}
-        dateLine={cfg.math.dateLine}
-        targetTs={mathTarget}
-        accent="math"
-        now={now}
-        levelLabel={levelLabel}
-        footnotePhraseIndex={mathPhraseIndex}
-      />
-      <CountdownCard
-        subject={cfg.inf.subject}
-        dateLine={cfg.inf.dateLine}
-        targetTs={infTarget}
-        accent="inf"
-        now={now}
-        levelLabel={levelLabel}
-        footnotePhraseIndex={infPhraseIndex}
-      />
-      <CountdownCard
-        subject={cfg.history.subject}
-        dateLine={cfg.history.dateLine}
-        targetTs={historyTarget}
-        accent="history"
-        now={now}
-        levelLabel={levelLabel}
-        footnotePhraseIndex={historyPhraseIndex}
-      />
-    </div>
+    <CountdownCard
+      subject={c.subject}
+      dateLine={c.dateLine}
+      targetTs={targetTs}
+      accent={subjectKey}
+      now={now}
+      levelLabel={levelLabel}
+      footnotePhraseIndex={footnotePhraseIndex}
+    />
   );
 }

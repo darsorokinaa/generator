@@ -2170,24 +2170,43 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
     gap: 1.5rem;
 }
 
-.subject-page .exam-grid {
-    margin-top: 1.25rem;
-}
-
-/* Таймеры сразу над карточками предметов (на мобильных — минимальный зазор) */
-.subject-page-pick-block {
+/* Колонка: таймер экзамена сразу над карточкой предмета */
+.subject-page-subject-pair {
     display: flex;
     flex-direction: column;
-    gap: 0.55rem;
+    justify-content: flex-start;
+    align-items: stretch;
+    gap: 0.5rem;
+    min-width: 0;
+    align-self: start;
+}
+
+.subject-page-subject-pair .exam-card {
+    flex: 1 1 auto;
+    min-height: 0;
+}
+
+/* Сетка колонок «таймер + предмет»: верх колонок на одной линии */
+.subject-page-pick-block {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.15rem;
     margin-top: 1rem;
+    align-items: start;
+    justify-items: stretch;
 }
 
-.subject-page-pick-block .subject-exam-countdowns {
-    margin-top: 0;
-}
+@media (min-width: 640px) {
+    .subject-page-pick-block {
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 1.25rem;
+        align-items: stretch;
+    }
 
-.subject-page-pick-block .exam-grid {
-    margin-top: 0;
+    .subject-page-subject-pair {
+        align-self: stretch;
+        height: 100%;
+    }
 }
 
 @media (max-width: 1023px) {
@@ -2196,27 +2215,12 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
     }
 
     .subject-page-pick-block {
-        gap: 0.5rem;
         margin-top: 0.85rem;
+        gap: 1rem;
     }
 
-    .subject-page-pick-block .subject-exam-countdowns {
-        gap: 0.75rem;
-    }
-}
-
-/* Обратный отсчёт до экзамена (локальное время устройства) */
-.subject-exam-countdowns {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: 1rem;
-    margin-top: 1.5rem;
-}
-
-@media (min-width: 640px) {
-    .subject-exam-countdowns {
-        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-        gap: 1.25rem;
+    .subject-page-subject-pair {
+        gap: 0.45rem;
     }
 }
 
@@ -2226,6 +2230,7 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
     overflow: hidden;
     display: flex;
     flex-direction: column;
+    align-items: stretch;
     border-radius: 18px;
     padding: 1.1rem 1.15rem 1.15rem;
     background: #fff;
@@ -2236,6 +2241,7 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
 .subject-exam-countdown-card__head {
     position: relative;
     z-index: 1;
+    flex-shrink: 0;
     margin-bottom: 0.85rem;
     text-align: center;
 }
@@ -2291,7 +2297,7 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
 .subject-exam-countdown-card__grid {
     position: relative;
     z-index: 1;
-    flex: 1 1 auto;
+    flex: 0 0 auto;
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0.4rem;
@@ -2354,9 +2360,14 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
 .subject-exam-countdown-card__footnote {
     position: relative;
     z-index: 1;
-    margin: 0.85rem 0 0 auto;
-    padding: 0;
+    flex-shrink: 0;
+    margin-top: auto;
+    margin-bottom: 0;
+    margin-left: auto;
+    margin-right: 0;
+    padding-top: 1rem;
     max-width: 95%;
+    min-height: 3.2em;
     text-align: right;
     font-size: 0.65rem;
     line-height: 1.4;
@@ -2392,16 +2403,11 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
     .subject-page-pick-block {
         margin-top: 2rem;
         gap: 1.35rem;
-    }
-
-    .subject-page .subject-page-main .subject-page-pick-block .exam-grid {
-        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-        gap: 1.25rem;
-        margin-top: 0;
         align-items: stretch;
+        justify-items: stretch;
     }
 
-    .subject-page .subject-page-main .exam-grid .exam-card {
+    .subject-page .subject-page-main .subject-page-pick-block .subject-page-subject-pair .exam-card {
         height: 100%;
         min-height: 0;
     }
