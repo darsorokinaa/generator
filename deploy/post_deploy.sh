@@ -18,7 +18,7 @@ chown -R generator_test:generator_test $APP_DIR
 echo "=== Установка Python зависимостей ==="
 sudo -u generator_test $APP_DIR/venv/bin/pip install \
     django django-cors-headers django-ckeditor-5 django-ckeditor \
-    weasyprint psycopg2-binary channels gunicorn whitenoise
+    weasyprint psycopg2-binary channels gunicorn whitenoise PyJWT
 
 echo "=== Сборка фронтенда ==="
 cd $APP_DIR/frontend
