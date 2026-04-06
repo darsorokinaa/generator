@@ -1,6 +1,8 @@
 [Unit]
-Description=Генератор ЕГЭ/ОГЭ — Gunicorn (тестовый сервер)
+Description=Генератор ЕГЭ/ОГЭ — Daphne ASGI (HTTP + WebSocket уроков)
 After=network.target postgresql.service
+# Каналы урока (channels_redis) — Redis должен быть запущен
+Wants=redis.service
 
 [Service]
 User=root
@@ -10,13 +12,14 @@ WorkingDirectory=/opt/generator_test/Generator
 RuntimeDirectory=generator_test
 LogsDirectory=generator_test
 
-ExecStart=/opt/generator_test/venv/bin/python3 -m gunicorn \
-    --workers=3 \
-    --timeout=120 \
-    --bind=127.0.0.1:8001 \
-    --access-logfile=/var/log/generator_test/access.log \
-    --error-logfile=/var/log/generator_test/error.log \
-    Generator.wsgi:application
+# WSGI (Gunicorn) не обрабатывает WebSocket: комната урока (/ws/lesson/…) не работает.
+# Нужен ASGI — Daphne, иначе ученик не получает вариант и fetch к API не вызывается / падает по таймауту.
+ExecStart=/opt/generator_test/venv/bin/python3 -m daphne \
+    -b 127.0.0.1 \
+    -p 8001 \
+    --access-log - \
+    --proxy-headers \
+    Generator.asgi:application
 
 Environment="PATH=/usr/local/bin:/usr/bin:/bin"
 Environment="PGDATABASE=generatordb_test"
