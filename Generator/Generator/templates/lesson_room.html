@@ -385,10 +385,10 @@
 <div id="status-toast"></div>
 
 <script>
-const ROOM_ID    = "{{ room_id }}";
-const ROLE       = "{{ lesson_type }}";
-const MY_NAME    = "{{ target_name }}";
-const TEACHER    = "{{ teacher_name }}";
+const ROOM_ID    = "{{ room_id|escapejs }}";
+const ROLE       = "{{ lesson_type|escapejs }}";
+const MY_NAME    = "{{ participant_name|escapejs }}";
+const TEACHER    = "{{ teacher_name|escapejs }}";
 
 // ── STATE ──
 let ws = null;
@@ -441,20 +441,24 @@ function handleMessage(msg) {
       if (ROLE === "teacher") showToast(`${msg.name} подключился`);
       break;
 
-    case "variant":
-      currentVariant = {variant_id: msg.variant_id, level: msg.level, subject: msg.subject};
+    case "variant": {
+      const vid = msg.variant_id ?? msg.variantId;
+      const lvl = msg.level;
+      const sub = msg.subject;
+      if (vid == null || !lvl || !sub) break;
+      currentVariant = {variant_id: vid, level: lvl, subject: sub};
       if (ROLE === "student") {
-        loadVariantForStudent(msg.variant_id, msg.level, msg.subject);
+        loadVariantForStudent(vid, lvl, sub);
       } else {
-        // teacher: update label
         const badge = document.getElementById("current-variant-badge");
         const text  = document.getElementById("current-variant-text");
         if (badge && text) {
-          text.textContent = `Вариант ${msg.variant_id} · ${msg.level.toUpperCase()} · ${msg.subject}`;
+          text.textContent = `Вариант ${vid} · ${String(lvl).toUpperCase()} · ${sub}`;
           badge.style.display = "";
         }
       }
       break;
+    }
 
     case "answer":
       if (ROLE === "teacher") {
@@ -527,12 +531,24 @@ async function loadVariantForStudent(variantId, level, subject) {
 
   try {
     const resp = await fetch(`/api/${level}/${subject}/variant/${variantId}/`, {credentials: "include"});
-    if (!resp.ok) throw new Error("Ошибка загрузки");
+    if (!resp.ok) {
+      let detail = "";
+      try {
+        const ct = resp.headers.get("content-type") || "";
+        if (ct.includes("application/json")) {
+          const j = await resp.json();
+          detail = (j.detail || j.error || JSON.stringify(j)).slice(0, 200);
+        } else {
+          detail = (await resp.text()).slice(0, 200);
+        }
+      } catch (_) {}
+      throw new Error(detail ? `HTTP ${resp.status}: ${detail}` : `HTTP ${resp.status}`);
+    }
     const data = await resp.json();
     const tasks = data.tasks || data.task_groups || [];
     renderTasks(tasks, variantId);
   } catch (err) {
-    container.innerHTML = `<div class="waiting-state"><p style="color:#ef4444">Не удалось загрузить задания: ${err.message}</p></div>`;
+    container.innerHTML = `<div class="waiting-state"><p style="color:#ef4444">Не удалось загрузить задания: ${escapeHtml(err.message)}</p></div>`;
   }
 }
 
@@ -545,8 +561,8 @@ function renderTasks(tasks, variantId) {
 
   const html = tasks.map((t, i) => {
     const num     = t.number ?? (i + 1);
-    const topic   = t.topic || t.subtopic || "";
-    const content = t.content || t.task_text || t.question || "";
+    const topic   = t.topic || t.subtopic || t.subtopic_title || t.task_title || "";
+    const content = t.content || t.task_text || t.question || t.text || "";
     const savedVal = myAnswers[num] || "";
     return `
       <div class="task-card ${savedVal ? 'answered' : ''}" id="task-card-${num}">
