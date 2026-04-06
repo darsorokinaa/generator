@@ -3,8 +3,8 @@ Description=Генератор ЕГЭ/ОГЭ — Gunicorn (тестовый се
 After=network.target postgresql.service
 
 [Service]
-User=generator
-Group=generator
+User=root
+Group=root
 WorkingDirectory=/opt/generator_test/Generator
 
 RuntimeDirectory=generator_test
