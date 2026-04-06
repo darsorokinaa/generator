@@ -15,13 +15,12 @@ npm install
 npm run build
 
 echo "=== Обновление Python зависимостей ==="
-# Используем venv, который реально запускает сервис (шебанг gunicorn указывает на /opt/generator/venv)
-/opt/generator/venv/bin/pip install PyJWT --quiet
+/opt/generator_test/venv/bin/python3 -m pip install PyJWT channels_redis --quiet
 
 echo "=== Миграции и статика ==="
 cd $APP_DIR/Generator
-/opt/generator/venv/bin/python manage.py migrate --noinput
-/opt/generator/venv/bin/python manage.py collectstatic --noinput
+$APP_DIR/venv/bin/python3 manage.py migrate --noinput
+$APP_DIR/venv/bin/python3 manage.py collectstatic --noinput
 
 echo "=== Перезапуск Gunicorn ==="
 systemctl restart generator_test

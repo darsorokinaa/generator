@@ -36,18 +36,18 @@ ALLOWED_HOSTS = ["*"]
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'channels',
     'Generator.apps.GeneratorConfig',
     'Board',
     'corsheaders',
-     "django_ckeditor_5",
-    
-
+    "django_ckeditor_5",
 ]
 CKEDITOR_5_CONFIGS = {
     "default": {
@@ -119,8 +119,14 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'Generator.wsgi.application'
+ASGI_APPLICATION = "Generator.asgi.application"
 
-# ASGI_APPLICATION = "Generator.asgi.application"
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {"hosts": [("127.0.0.1", 6379)]},
+    }
+}
 
 
 # Database
