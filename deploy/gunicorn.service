@@ -13,7 +13,7 @@ LogsDirectory=generator_test
 ExecStart=/opt/generator_test/venv/bin/python3 -m gunicorn \
     --workers=3 \
     --timeout=120 \
-    --bind=127.0.0.1:8000 \
+    --bind=127.0.0.1:8001 \
     --access-logfile=/var/log/generator_test/access.log \
     --error-logfile=/var/log/generator_test/error.log \
     Generator.wsgi:application
