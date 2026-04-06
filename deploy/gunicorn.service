@@ -21,12 +21,12 @@ ExecStart=/opt/generator_test/venv/bin/python3 -m daphne \
     Generator.asgi:application
 
 Environment="PATH=/usr/local/bin:/usr/bin:/bin"
-Environment="PGDATABASE=generatordb_test"
-Environment="PGUSER=generator_test_user"
+Environment="PGDATABASE=generatordb"
+Environment="PGUSER=generator_user"
 Environment="PGPASSWORD=StrongPass123"
 Environment="PGHOST=localhost"
 Environment="PGPORT=5432"
-Environment="DJANGO_SETTINGS_MODULE=Generator.settings"
+Environment="DJANGO_SETTINGS_MODULE=Generator.Generator.settings"
 Environment="DEBUG=false"
 Environment="SECRET_KEY=WNbG1HzC4_lta5i_vvh6TPK3_G33Xlhzlr167fDXCFd_CVc0fS72WcaWvtLXwHreDpo"
 Environment="CSRF_TRUSTED_ORIGINS=http://genurok.tw1.ru,https://genurok.tw1.ru"
