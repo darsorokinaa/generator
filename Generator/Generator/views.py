@@ -6,10 +6,12 @@ import re
 import secrets
 from datetime import datetime
 
+import jwt as pyjwt
+
 from django.conf import settings as django_settings
 from django.db.models import Case, Count, IntegerField, Prefetch, Q, Value, When
-from django.http import FileResponse, HttpResponse, JsonResponse
-from django.shortcuts import get_object_or_404
+from django.http import FileResponse, HttpResponse, HttpResponseBadRequest, JsonResponse
+from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
@@ -1662,3 +1664,37 @@ def report_error(request, level, subject):
         return JsonResponse({"error": "Не удалось сохранить сообщение"}, status=500)
 
     return JsonResponse({"ok": True})
+
+
+# ---------------------------------------------------------------------------
+# Lesson join (receives JWT from cabinet, renders lesson room)
+# ---------------------------------------------------------------------------
+
+def verify_lesson_token(token: str) -> dict:
+    secret = os.environ.get("LESSON_SECRET", "")
+    try:
+        payload = pyjwt.decode(token, secret, algorithms=["HS256"])
+        if payload.get("iss") != "cabinet":
+            raise ValueError("Неверный издатель токена")
+        return payload
+    except pyjwt.ExpiredSignatureError:
+        raise ValueError("Токен истёк")
+    except Exception as e:
+        raise ValueError(f"Невалидный токен: {e}")
+
+
+def lesson_join(request):
+    token = request.GET.get("token", "")
+    if not token:
+        return HttpResponseBadRequest("Токен не передан")
+    try:
+        payload = verify_lesson_token(token)
+    except ValueError as e:
+        return HttpResponseBadRequest(str(e))
+
+    return render(request, "lesson_room.html", {
+        "room_id":      payload["room_id"],
+        "teacher_name": payload["teacher"],
+        "target_name":  payload["target_name"],
+        "lesson_type":  payload["type"],
+    })
