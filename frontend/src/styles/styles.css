@@ -1314,6 +1314,17 @@ header {
     margin-bottom: 1.5rem;
 }
 
+.tasks-page-empty-hint {
+    margin: 0 0 1.25rem;
+    padding: 0.85rem 1rem;
+    border-radius: 12px;
+    background: rgba(251, 191, 36, 0.14);
+    border: 1px solid rgba(180, 130, 20, 0.22);
+    color: #713f12;
+    font-size: 0.9375rem;
+    line-height: 1.45;
+}
+
 /* SearchTaskPage */
 .search-task-page {
     padding: 2rem 0;
@@ -2163,6 +2174,37 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
     margin-top: 1.25rem;
 }
 
+/* Таймеры сразу над карточками предметов (на мобильных — минимальный зазор) */
+.subject-page-pick-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    margin-top: 1rem;
+}
+
+.subject-page-pick-block .subject-exam-countdowns {
+    margin-top: 0;
+}
+
+.subject-page-pick-block .exam-grid {
+    margin-top: 0;
+}
+
+@media (max-width: 1023px) {
+    .subject-page .hero {
+        padding: 1.35rem 1.25rem;
+    }
+
+    .subject-page-pick-block {
+        gap: 0.5rem;
+        margin-top: 0.85rem;
+    }
+
+    .subject-page-pick-block .subject-exam-countdowns {
+        gap: 0.75rem;
+    }
+}
+
 /* Обратный отсчёт до экзамена (локальное время устройства) */
 .subject-exam-countdowns {
     display: grid;
@@ -2347,14 +2389,15 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
         min-width: 0;
     }
 
-    .subject-page .subject-exam-countdowns {
+    .subject-page-pick-block {
         margin-top: 2rem;
+        gap: 1.35rem;
     }
 
-    .subject-page .subject-page-main .exam-grid {
+    .subject-page .subject-page-main .subject-page-pick-block .exam-grid {
         grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
         gap: 1.25rem;
-        margin-top: 1.5rem;
+        margin-top: 0;
         align-items: stretch;
     }
 

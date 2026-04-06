@@ -85,6 +85,11 @@ function TasksPage() {
     setError(null);
     fetch(`/api/${level}/${subject}/tasks/`)
       .then((res) => {
+        if (res.status === 404) {
+          throw new Error(
+            "Предмет не найден в базе: нет записи Subject с таким subject_short (как в URL). Добавьте предмет в админке Django или выполните миграции (0035 создаёт history, если его ещё нет)."
+          );
+        }
         if (!res.ok) throw new Error(res.statusText);
         return res.json();
       })
@@ -656,6 +661,11 @@ function TasksPage() {
 
   return (
     <div className="container tasks-page">
+      {tasks.length === 0 ? (
+        <p className="tasks-page-empty-hint" role="status">
+          Для этого предмета и уровня в базе пока нет ни одного задания в списке номеров. Добавьте записи TaskList и задачи в админке — после этого здесь появятся кнопки и генерация вариантов.
+        </p>
+      ) : null}
       <div className="tasks-page-card">
         <h2 className="tasks-page-card-title">Сгенерировать вариант</h2>
         <label className="tasks-page-fipi-toggle">
