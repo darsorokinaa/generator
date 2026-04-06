@@ -32,6 +32,7 @@ urlpatterns = [
     # path('api/<str:level>/<str:subject>/variant/<int:variant_id>/pdf/cosmos', views.variant_pdfCosmos),
 
     path("", include("Board.urls")),
+    path("lesson/join", views.lesson_join_redirect),
     path("lesson/join/", views.lesson_join, name="lesson-join"),
 
 ]
