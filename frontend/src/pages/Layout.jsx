@@ -1,25 +1,58 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
+import {
+  readPersistedTheme,
+  writePersistedTheme,
+  clearPersistedTheme,
+} from "../utils/themeStorage";
 
-function readThemeData() {
-  try {
-    const raw = sessionStorage.getItem("theme_data");
-    if (raw) return JSON.parse(raw);
-  } catch { /* ignore */ }
-  return null;
-}
+const COOKIE_CONSENT_KEY = "cookie_consent_accepted";
 
 function Layout() {
   const { pathname } = useLocation();
-  const [themeData, setThemeData] = useState(readThemeData);
-  const [themeSlides, setThemeSlides] = useState([]);
-  const [activeThemeId, setActiveThemeId] = useState(() => {
-    try { return sessionStorage.getItem("active_theme_id") || null; } catch { return null; }
+  const [themeData, setThemeData] = useState(() => readPersistedTheme().themeData);
+  const [cookieAccepted, setCookieAccepted] = useState(() => {
+    try { return !!localStorage.getItem(COOKIE_CONSENT_KEY); } catch { return false; }
   });
 
+  function acceptCookies() {
+    try { localStorage.setItem(COOKIE_CONSENT_KEY, "1"); } catch { /* ignore */ }
+    setCookieAccepted(true);
+  }
+  const [themeSlides, setThemeSlides] = useState([]);
+  const [activeThemeId, setActiveThemeId] = useState(() => readPersistedTheme().activeThemeId);
+
+  const themeDataRef = useRef(themeData);
+  const activeThemeIdRef = useRef(activeThemeId);
+  useEffect(() => {
+    themeDataRef.current = themeData;
+  }, [themeData]);
+  useEffect(() => {
+    activeThemeIdRef.current = activeThemeId;
+  }, [activeThemeId]);
+
   const syncTheme = useCallback(() => {
-    setThemeData(readThemeData());
-    try { setActiveThemeId(sessionStorage.getItem("active_theme_id") || null); } catch { /* ignore */ }
+    const next = readPersistedTheme();
+    setThemeData(next.themeData);
+    setActiveThemeId(next.activeThemeId);
+  }, []);
+
+  /** После смены календарного дня (вкладка была в фоне) подтянуть актуальное хранилище. */
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState !== "visible") return;
+      const next = readPersistedTheme();
+      if (
+        JSON.stringify(themeDataRef.current) !== JSON.stringify(next.themeData) ||
+        activeThemeIdRef.current !== next.activeThemeId
+      ) {
+        setThemeData(next.themeData);
+        setActiveThemeId(next.activeThemeId);
+        window.dispatchEvent(new Event("theme-change"));
+      }
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
   }, []);
 
   useEffect(() => {
@@ -85,8 +118,7 @@ function Layout() {
   function toggleTheme(slide) {
     if (!slide) return;
     if (String(activeThemeId) === String(slide.id)) {
-      sessionStorage.removeItem("theme_data");
-      sessionStorage.removeItem("active_theme_id");
+      clearPersistedTheme();
       setActiveThemeId(null);
       setThemeData(null);
     } else {
@@ -97,8 +129,7 @@ function Layout() {
         decor: slide.decor,
         worksheetBg: slide.worksheetBg,
       };
-      sessionStorage.setItem("theme_data", JSON.stringify(data));
-      sessionStorage.setItem("active_theme_id", String(slide.id));
+      writePersistedTheme(data, String(slide.id));
       setActiveThemeId(String(slide.id));
       setThemeData(data);
     }
@@ -155,8 +186,7 @@ function Layout() {
             type="button"
             className="theme-toggle theme-toggle-reset"
             onClick={() => {
-              sessionStorage.removeItem("theme_data");
-              sessionStorage.removeItem("active_theme_id");
+              clearPersistedTheme();
               setActiveThemeId(null);
               setThemeData(null);
               const e = new Event("theme-change");
@@ -166,7 +196,7 @@ function Layout() {
             aria-label="Обычный стиль"
             title="Обычный стиль"
           >
-            <span style={{ fontSize: "18px", lineHeight: 1 }}>🏠</span>
+            <span aria-hidden="true">🏠</span>
           </button>
         )}
         {easterSlide && (
@@ -178,7 +208,7 @@ function Layout() {
             aria-label="Пасхальная тема"
             title="Пасхальная тема"
           >
-            <span style={{ fontSize: "18px", lineHeight: 1 }}>🐣</span>
+            <span aria-hidden="true">🐣</span>
           </button>
         )}
         {cosmosSlide && (
@@ -190,21 +220,17 @@ function Layout() {
             aria-label="Космическая тема"
             title="Космическая тема"
           >
-            <span style={{ fontSize: "18px", lineHeight: 1 }}>🪐</span>
+            <span aria-hidden="true">🪐</span>
           </button>
         )}
         <Link to="/about" className="header-nav-link">От авторов</Link>
         <a
-          href={import.meta.env.VITE_CABINET_URL || "/cabinet/"}
-          className="header-nav-link header-nav-cabinet"
-          title="Личный кабинет"
-          aria-label="Личный кабинет"
-          {...((import.meta.env.VITE_CABINET_URL || "").startsWith("http") ? { target: "_blank", rel: "noopener noreferrer" } : {})}
+          href="https://cabinet.генурок.рф"
+          className="header-nav-cabinet"
+          target="_blank"
+          rel="noopener noreferrer"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-            <circle cx="12" cy="7" r="4" />
-          </svg>
+          Личный кабинет
         </a>
       </nav>
     </div>
@@ -219,9 +245,30 @@ function Layout() {
         <Outlet />
       </main>
 
-      <footer className="text-center py-3">
-        © 2026
+      <footer className="site-footer">
+        <div className="site-footer-inner">
+          <span className="site-footer-copy">© 2026 ГенУрок</span>
+          <div className="site-footer-links">
+            <Link to="/privacy" className="site-footer-link">Политика конфиденциальности</Link>
+            <span className="site-footer-sep" aria-hidden="true">·</span>
+            <Link to="/privacy#pd" className="site-footer-link">Согласие на обработку ПД</Link>
+          </div>
+        </div>
       </footer>
+
+      {!cookieAccepted && (
+        <div className="cookie-banner" role="alertdialog" aria-label="Уведомление об использовании файлов cookie">
+          <div className="cookie-banner-inner">
+            <p className="cookie-banner-text">
+              Мы используем файлы cookie для корректной работы сайта. Продолжая использование сайта, вы соглашаетесь с{" "}
+              <Link to="/privacy" className="cookie-banner-link">политикой конфиденциальности</Link> и обработкой персональных данных.
+            </p>
+            <button type="button" className="cookie-banner-btn" onClick={acceptCookies}>
+              Принять
+            </button>
+          </div>
+        </div>
+      )}
 
       <script
         src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.min.js"

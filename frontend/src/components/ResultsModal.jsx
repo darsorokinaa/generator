@@ -82,7 +82,20 @@ export default function ResultsModal({ open, onClose, results }) {
 
   if (!open || !results) return null;
 
-  const { totalTimeFormatted, taskTimes, totalScore, maxScore, scoreExam, scoreComment, markLevel, tasks, level } = results;
+  const {
+    totalTimeFormatted,
+    taskTimes,
+    totalScore,
+    maxScore,
+    scoreExam,
+    scoreComment,
+    markLevel,
+    tasks,
+    level,
+    examMode,
+    fullyCorrectTaskCount,
+    taskCountTotal,
+  } = results;
   const levelToClass = { 1: "insufficient", 2: "threshold", 3: "average", 4: "high" };
   const scoreLevelClass = markLevel && levelToClass[markLevel] ? `results-score-${levelToClass[markLevel]}` : "";
   const taskIdToNumber = tasks?.reduce((acc, t) => ({ ...acc, [t.id]: t.number }), {}) ?? {};
@@ -182,13 +195,18 @@ export default function ResultsModal({ open, onClose, results }) {
           })()}
 
           <div className="results-row results-row-primary">
-            <span className="results-label">Первичные баллы:</span>
+            <span className="results-label">
+              {examMode === "test" ? "Правильных ответов:" : "Первичные баллы:"}
+            </span>
             <span className="results-value">
-              {totalScore} из {maxScore}
+              {examMode === "test"
+                ? <>{fullyCorrectTaskCount} из {taskCountTotal}</>
+                : <>{totalScore} из {maxScore}</>
+              }
             </span>
           </div>
 
-          {(scoreExam != null || (scoreComment != null && String(scoreComment).trim() !== "")) && (
+          {examMode !== "test" && (scoreExam != null || (scoreComment != null && String(scoreComment).trim() !== "")) && (
           <div className="results-score-exam-block">
             {scoreExam != null && (
               <div className="results-row results-row-primary">
@@ -197,7 +215,7 @@ export default function ResultsModal({ open, onClose, results }) {
                 </span>
                 <span className="results-value">
                   {String(level).toLowerCase() === "oge"
-                    ? Number(scoreExam)
+                    ? `${Number(scoreExam)} из 5`
                     : `${Number(scoreExam)} из 100`}
                 </span>
               </div>

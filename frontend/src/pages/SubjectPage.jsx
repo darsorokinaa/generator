@@ -1,4 +1,5 @@
 import { useParams, Link, useNavigate } from "react-router-dom";
+import SubjectExamCountdowns from "../components/SubjectExamCountdowns";
 import NotFoundPage from "./NotFoundPage";
 
 const KNOWN_LEVELS = ["oge", "ege"];
@@ -39,9 +40,11 @@ function SubjectPage() {
             <div className="hero">
               <h1>Выбор предмета</h1>
               <p>
-                Выберите предмет для работы с классом. Готовые задания и варианты для уроков, контрольных и домашней работы.
+                Выберите предмет для работы с учениками. Готовые задания и варианты для уроков, контрольных и домашней работы.
               </p>
             </div>
+
+            <SubjectExamCountdowns level={level} />
 
             <div className="exam-grid">
 
@@ -67,7 +70,7 @@ function SubjectPage() {
               </div>
             </div>
             <div className="exam-card-footer">
-              <span className="exam-badge">Все разделы</span>
+              <span className="exam-badge">Перейти</span>
               <div className="exam-card-arrow-wrap">
                 <span className="exam-arrow" aria-hidden="true">→</span>
               </div>
@@ -97,7 +100,7 @@ function SubjectPage() {
               </div>
             </div>
             <div className="exam-card-footer">
-              <span className="exam-badge">Все темы</span>
+              <span className="exam-badge">Перейти</span>
               <div className="exam-card-arrow-wrap">
                 <span className="exam-arrow" aria-hidden="true">→</span>
               </div>

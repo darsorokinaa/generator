@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 import { useParams, useLocation } from "react-router-dom";
 import MathContent from "../components/MathContent";
 import ImageLightbox from "../components/ImageLightbox";
 import SupportInfoModal from "../components/SupportInfoModal";
 import ResultsModal from "../components/ResultsModal";
 import ReportErrorModal from "../components/ReportErrorModal";
+import { readPersistedTheme } from "../utils/themeStorage";
 
 const COLORS = ["#000000", "#ffffff", "#ef4444", "#3b82f6", "#22c55e"];
 
@@ -39,6 +39,20 @@ const LEVEL_NAMES = {
   ege: "ЕГЭ",
   oge: "ОГЭ",
 };
+
+const EXAM_CORNER_POS_KEY = "exam_fixed_corner_pos";
+
+function clampExamCornerToViewport(el, left, top) {
+  const margin = 8;
+  const w = el.offsetWidth || 1;
+  const h = el.offsetHeight || 1;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  return {
+    left: Math.min(Math.max(margin, left), Math.max(margin, vw - w - margin)),
+    top: Math.min(Math.max(margin, top), Math.max(margin, vh - h - margin)),
+  };
+}
 
 function ExamPage() {
   const { level, subject, variant_id } = useParams();
@@ -89,6 +103,23 @@ function ExamPage() {
   const [lightbox, setLightbox] = useState({ open: false, src: "" });
   const handleImageClick = useCallback((src) => setLightbox({ open: true, src }), []);
   const mainRef = useRef(null);
+  const fixedCornerRef = useRef(null);
+  const cornerDragRef = useRef({
+    active: false,
+    pointerId: null,
+    startClientX: 0,
+    startClientY: 0,
+    startLeft: 0,
+    startTop: 0,
+  });
+  const pendingCornerPosRef = useRef(null);
+
+  /** Пользовательская позиция блока таймера (fixed px), null — как в CSS (правый верх) */
+  const [fixedCornerPos, setFixedCornerPos] = useState(null);
+  const fixedCornerPosRef = useRef(null);
+  useEffect(() => {
+    fixedCornerPosRef.current = fixedCornerPos;
+  }, [fixedCornerPos]);
 
   // Справочная информация (items = массив {html})
   const [supportInfo, setSupportInfo] = useState({ items: [], open: false });
@@ -112,6 +143,7 @@ function ExamPage() {
   const objectsRef = useRef([]);
   const redoStackRef = useRef([]);
   const redrawRef = useRef(null);
+
   const currentLineRef = useRef(null);
   const currentShapeRef = useRef(null);
   const drawingRef = useRef(false);
@@ -152,6 +184,100 @@ function ExamPage() {
   /* =========================
      Таймер
   ========================== */
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(EXAM_CORNER_POS_KEY);
+      if (!raw) return;
+      const p = JSON.parse(raw);
+      if (typeof p.left === "number" && typeof p.top === "number") {
+        setFixedCornerPos({ left: p.left, top: p.top });
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const cornerPlaced = fixedCornerPos != null;
+  useEffect(() => {
+    if (!cornerPlaced) return;
+    const onResize = () => {
+      const el = fixedCornerRef.current;
+      if (!el) return;
+      setFixedCornerPos((prev) => {
+        if (!prev) return prev;
+        const c = clampExamCornerToViewport(el, prev.left, prev.top);
+        try {
+          sessionStorage.setItem(EXAM_CORNER_POS_KEY, JSON.stringify(c));
+        } catch {
+          /* ignore */
+        }
+        return c;
+      });
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [cornerPlaced]);
+
+  const onFixedCornerDragStart = useCallback((e) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    const el = fixedCornerRef.current;
+    if (!el) return;
+    e.preventDefault();
+    const rect = el.getBoundingClientRect();
+    const pos = fixedCornerPosRef.current;
+    const startLeft = pos?.left ?? rect.left;
+    const startTop = pos?.top ?? rect.top;
+    if (pos == null) {
+      setFixedCornerPos({ left: startLeft, top: startTop });
+    }
+    cornerDragRef.current = {
+      active: true,
+      pointerId: e.pointerId,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
+      startLeft,
+      startTop,
+    };
+    pendingCornerPosRef.current = { left: startLeft, top: startTop };
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const onFixedCornerDragMove = useCallback((e) => {
+    const d = cornerDragRef.current;
+    if (!d.active) return;
+    e.preventDefault();
+    const el = fixedCornerRef.current;
+    if (!el) return;
+    let left = d.startLeft + (e.clientX - d.startClientX);
+    let top = d.startTop + (e.clientY - d.startClientY);
+    const c = clampExamCornerToViewport(el, left, top);
+    pendingCornerPosRef.current = c;
+    setFixedCornerPos(c);
+  }, []);
+
+  const onFixedCornerDragEnd = useCallback((e) => {
+    const d = cornerDragRef.current;
+    if (!d.active) return;
+    d.active = false;
+    try {
+      if (d.pointerId != null) e.currentTarget.releasePointerCapture(d.pointerId);
+    } catch {
+      /* ignore */
+    }
+    const p = pendingCornerPosRef.current;
+    if (p) {
+      try {
+        sessionStorage.setItem(EXAM_CORNER_POS_KEY, JSON.stringify(p));
+      } catch {
+        /* ignore */
+      }
+    }
+  }, []);
+
   useEffect(() => {
     if (timerStatus !== "running") return;
     const id = setInterval(() => setTimerSeconds((s) => s + 1), 1000);
@@ -256,21 +382,16 @@ function ExamPage() {
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d", { willReadFrequently: false });
-    canvas.style.touchAction = "none";
+    /** Пока не рисуем — разрешаем прокрутку страницы пальцем по холсту (иначе fixed-слой «липнет» к экрану). */
+    canvas.style.touchAction = "manipulation";
 
-    const storageKey = `board_${level}_${subject}_${variant_id}_doc`;
-    try {
-      const saved = localStorage.getItem(storageKey);
-      if (saved) {
-        const arr = JSON.parse(saved);
-        if (Array.isArray(arr)) objectsRef.current = arr;
-      }
-    } catch (_) {}
+    /** Для touch: ждём сдвиг, иначе жест = прокрутка, не штрих. */
+    let touchScrollGuard = null;
+    const TOUCH_DRAG_THRESHOLD = 10;
 
-    function saveBoard() {
-      try {
-        localStorage.setItem(storageKey, JSON.stringify(objectsRef.current));
-      } catch (_) {}
+    function setCanvasTouchAction() {
+      canvas.style.touchAction =
+        drawingRef.current || erasingRef.current ? "none" : "manipulation";
     }
 
     const protocol = window.location.protocol === "https:" ? "wss://" : "ws://";
@@ -286,133 +407,169 @@ function ExamPage() {
     socket.onerror = () => {}; // Тихо игнорируем (prod на Gunicorn не поддерживает WS)
     socket.onclose = () => {};
 
-    const rectRef = { current: null };
-    const geomRef = { current: { w: 1, h: 1, dpr: 1 } };
+    const geomRef = { current: { vw: 1, vh: 1, dpr: 1 } };
     const PEN_WIDTH = 3;
     const POINT_STEP = 2;
 
+    let rafId2 = null;
+    let scrollRaf = null;
+
+    function scheduleRedraw() {
+      if (rafId2 != null) return;
+      rafId2 = requestAnimationFrame(() => { rafId2 = null; redraw(); });
+    }
+
+    function scheduleScrollRedraw() {
+      if (scrollRaf != null) return;
+      scrollRaf = requestAnimationFrame(() => { scrollRaf = null; redraw(); });
+    }
+
+    /** Холст только под окно: иначе clearRect на scrollHeight даёт жёсткий лаг при движении пера. */
     function resizeCanvas() {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const viewportW = window.innerWidth || document.documentElement.clientWidth;
-      const viewportH = window.innerHeight || document.documentElement.clientHeight;
+      const vw = Math.max(1, Math.round(window.innerWidth || document.documentElement.clientWidth || 1));
+      const vh = Math.max(1, Math.round(window.innerHeight || document.documentElement.clientHeight || 1));
 
-      canvas.width = Math.round(viewportW * dpr);
-      canvas.height = Math.max(1, Math.round(viewportH * dpr));
-      canvas.style.width = "100%";
-      canvas.style.height = "100%";
-      canvas.style.display = "block";
+      canvas.width = Math.round(vw * dpr);
+      canvas.height = Math.round(vh * dpr);
+      canvas.style.position = "fixed";
+      canvas.style.left = "0";
+      canvas.style.top = "0";
+      canvas.style.width = `${vw}px`;
+      canvas.style.height = `${vh}px`;
+      canvas.style.zIndex = "10001";
 
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
-      ctx.scale(dpr, dpr);
-
-      geomRef.current = { w: viewportW, h: viewportH, dpr };
-      rectRef.current = null;
+      geomRef.current = { vw, vh, dpr };
+      setCanvasTouchAction();
       redraw();
     }
 
-    function getPos(e) {
-      let rect = rectRef.current;
-      if (!rect) {
-        rect = canvas.getBoundingClientRect();
-        rectRef.current = rect;
-      }
-      const { w, h } = geomRef.current;
-      const sx = rect.width > 0 ? w / rect.width : 1;
-      const sy = rect.height > 0 ? h / rect.height : 1;
-      const rawX = ((e.clientX ?? e.touches?.[0]?.clientX ?? 0) - rect.left) * sx;
-      const rawY = ((e.clientY ?? e.touches?.[0]?.clientY ?? 0) - rect.top) * sy;
-      const scrollX = window.scrollX ?? document.documentElement.scrollLeft ?? 0;
-      const scrollY = window.scrollY ?? document.documentElement.scrollTop ?? 0;
-      return { x: rawX + scrollX, y: rawY + scrollY };
+    /** Логические координаты доски = система .main-wrapper (как раньше при полноразмерном canvas). */
+    function boardCoordsFromClient(clientX, clientY) {
+      const root = mainRef.current;
+      if (!root) return { x: 0, y: 0 };
+      const mr = root.getBoundingClientRect();
+      const sw = root.scrollWidth;
+      const sh = root.scrollHeight;
+      const sx = mr.width > 0 ? sw / mr.width : 1;
+      const sy = mr.height > 0 ? sh / mr.height : 1;
+      return {
+        x: (clientX - mr.left) * sx,
+        y: (clientY - mr.top) * sy,
+      };
     }
 
-    function drawPath(points, color, width) {
+    function getPos(e) {
+      const cx = e.clientX ?? e.touches?.[0]?.clientX ?? 0;
+      const cy = e.clientY ?? e.touches?.[0]?.clientY ?? 0;
+      return boardCoordsFromClient(cx, cy);
+    }
+
+    /** Браузер сливает pointermove; coalesced — все промежуточные позиции за кадр (меньше «отставания»). */
+    function pointerSamples(e) {
+      if (typeof e.getCoalescedEvents === "function") {
+        const c = e.getCoalescedEvents();
+        if (c && c.length > 0) return c;
+      }
+      return [e];
+    }
+
+    function appendPenSamples(line, samples) {
+      for (let si = 0; si < samples.length; si++) {
+        const ev = samples[si];
+        const cx = ev.clientX ?? 0;
+        const cy = ev.clientY ?? 0;
+        const pos = boardCoordsFromClient(cx, cy);
+        const last = line.points[line.points.length - 1];
+        const dist = Math.hypot(pos.x - last.x, pos.y - last.y);
+        if (dist >= POINT_STEP) {
+          const n = Math.ceil(dist / POINT_STEP);
+          for (let i = 1; i < n; i++) {
+            const t = i / n;
+            line.points.push({
+              x: last.x + (pos.x - last.x) * t,
+              y: last.y + (pos.y - last.y) * t,
+            });
+          }
+        }
+        line.points.push({ x: pos.x, y: pos.y });
+      }
+    }
+
+    function drawPath(tc, points, color, width) {
       if (points.length < 1) return;
-      ctx.strokeStyle = color;
-      ctx.lineWidth = width;
-      ctx.lineCap = "round";
-      ctx.lineJoin = "round";
+      tc.strokeStyle = color;
+      tc.lineWidth = width;
+      tc.lineCap = "round";
+      tc.lineJoin = "round";
       if (points.length === 1) {
-        ctx.beginPath();
-        ctx.arc(points[0].x, points[0].y, width / 2, 0, Math.PI * 2);
-        ctx.fillStyle = color;
-        ctx.fill();
+        tc.beginPath();
+        tc.arc(points[0].x, points[0].y, width / 2, 0, Math.PI * 2);
+        tc.fillStyle = color;
+        tc.fill();
         return;
       }
-      ctx.beginPath();
-      ctx.moveTo(points[0].x, points[0].y);
-      if (points.length === 2) {
-        ctx.lineTo(points[1].x, points[1].y);
-      } else {
-        for (let i = 1; i < points.length - 1; i++) {
-          const p1 = points[i];
-          const p2 = points[i + 1];
-          const endX = (p1.x + p2.x) / 2;
-          const endY = (p1.y + p2.y) / 2;
-          ctx.quadraticCurveTo(p1.x, p1.y, endX, endY);
-        }
-        ctx.quadraticCurveTo(
-          points[points.length - 2].x,
-          points[points.length - 2].y,
-          points[points.length - 1].x,
-          points[points.length - 1].y
-        );
+      tc.beginPath();
+      tc.moveTo(points[0].x, points[0].y);
+      for (let i = 1; i < points.length; i++) {
+        tc.lineTo(points[i].x, points[i].y);
       }
-      ctx.stroke();
+      tc.stroke();
     }
 
-    function drawShape(obj) {
-      const w = obj.width || PEN_WIDTH;
-      ctx.strokeStyle = obj.color;
-      ctx.lineWidth = w;
-      ctx.lineCap = "butt";
-      ctx.lineJoin = "miter";
-
+    function drawShape(tc, obj) {
+      const lw = obj.width || PEN_WIDTH;
+      tc.strokeStyle = obj.color;
+      tc.lineWidth = lw;
+      tc.lineCap = "butt";
+      tc.lineJoin = "miter";
       if (obj.type === "segment" && obj.points?.length >= 2) {
-        ctx.beginPath();
-        ctx.moveTo(obj.points[0].x, obj.points[0].y);
-        ctx.lineTo(obj.points[1].x, obj.points[1].y);
-        ctx.stroke();
+        tc.beginPath();
+        tc.moveTo(obj.points[0].x, obj.points[0].y);
+        tc.lineTo(obj.points[1].x, obj.points[1].y);
+        tc.stroke();
       } else if (obj.type === "triangle" && obj.points?.length === 3) {
-        ctx.beginPath();
-        ctx.moveTo(obj.points[0].x, obj.points[0].y);
-        ctx.lineTo(obj.points[1].x, obj.points[1].y);
-        ctx.lineTo(obj.points[2].x, obj.points[2].y);
-        ctx.closePath();
-        ctx.stroke();
+        tc.beginPath();
+        tc.moveTo(obj.points[0].x, obj.points[0].y);
+        tc.lineTo(obj.points[1].x, obj.points[1].y);
+        tc.lineTo(obj.points[2].x, obj.points[2].y);
+        tc.closePath();
+        tc.stroke();
       } else if (obj.type === "circle") {
-        ctx.beginPath();
-        ctx.arc(obj.center.x, obj.center.y, obj.radius, 0, Math.PI * 2);
-        ctx.stroke();
+        tc.beginPath();
+        tc.arc(obj.center.x, obj.center.y, obj.radius, 0, Math.PI * 2);
+        tc.stroke();
       } else if (obj.type === "rect" && obj.points?.length === 2) {
         const [a, b] = obj.points;
-        ctx.strokeRect(
-          Math.round(Math.min(a.x, b.x)),
-          Math.round(Math.min(a.y, b.y)),
-          Math.round(Math.abs(b.x - a.x)),
-          Math.round(Math.abs(b.y - a.y))
+        tc.strokeRect(
+          Math.round(Math.min(a.x, b.x)), Math.round(Math.min(a.y, b.y)),
+          Math.round(Math.abs(b.x - a.x)), Math.round(Math.abs(b.y - a.y))
         );
       }
     }
 
     function redraw() {
-      const { w, h, dpr } = geomRef.current;
-      const scrollX = window.scrollX ?? document.documentElement.scrollLeft ?? 0;
-      const scrollY = window.scrollY ?? document.documentElement.scrollTop ?? 0;
+      const root = mainRef.current;
+      const { vw, vh, dpr } = geomRef.current;
+      const pw = canvas.width;
+      const ph = canvas.height;
+      if (!root || pw < 1 || ph < 1 || vw < 1 || vh < 1) return;
+      const mr = root.getBoundingClientRect();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.clearRect(0, 0, pw, ph);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      ctx.clearRect(0, 0, w, h);
       ctx.save();
-      ctx.translate(-scrollX, -scrollY);
-
+      ctx.translate(mr.left, mr.top);
+      ctx.beginPath();
+      ctx.rect(-mr.left, -mr.top, vw, vh);
+      ctx.clip();
       objectsRef.current.forEach((obj) => {
-        if (obj.type === "line") drawPath(obj.points, obj.color, obj.width);
-        else drawShape(obj);
+        if (obj.type === "line") drawPath(ctx, obj.points, obj.color, obj.width);
+        else drawShape(ctx, obj);
       });
-      if (currentLineRef.current) drawPath(currentLineRef.current.points, currentLineRef.current.color, currentLineRef.current.width);
-      if (currentShapeRef.current) drawShape(currentShapeRef.current);
-
+      if (currentLineRef.current) drawPath(ctx, currentLineRef.current.points, currentLineRef.current.color, currentLineRef.current.width);
+      if (currentShapeRef.current) drawShape(ctx, currentShapeRef.current);
       ctx.restore();
-      saveBoard();
     }
     redrawRef.current = redraw;
 
@@ -443,33 +600,26 @@ function ExamPage() {
       return false;
     }
 
-    function eraseAt(x, y) {
+    function eraseAt(x, y, skipRedraw = false) {
       const radius = 12;
       for (let i = objectsRef.current.length - 1; i >= 0; i--) {
         if (hitTest(objectsRef.current[i], x, y, radius)) {
           objectsRef.current.splice(i, 1);
           socket.send(JSON.stringify({ action: "remove_object", index: i }));
           setCanUndo(objectsRef.current.length > 0);
-          redraw();
+          if (!skipRedraw) redraw();
           return;
         }
       }
     }
 
-    function onPointerDown(e) {
-      e.preventDefault();
-      canvas.setPointerCapture(e.pointerId);
-
-      rectRef.current = canvas.getBoundingClientRect();
-      const pos = getPos(e);
+    function startStrokeFromPos(pos) {
       const t = toolRef.current;
-
       if (t === "eraser") {
         erasingRef.current = true;
         eraseAt(pos.x, pos.y);
         return;
       }
-
       if (t === "line" || t === "triangle" || t === "circle" || t === "square") {
         drawingRef.current = true;
         currentShapeRef.current = {
@@ -482,7 +632,6 @@ function ExamPage() {
         redraw();
         return;
       }
-
       drawingRef.current = true;
       currentLineRef.current = {
         type: "line",
@@ -493,17 +642,58 @@ function ExamPage() {
       redraw();
     }
 
-    function onPointerMove(e) {
+    function onPointerDown(e) {
+      if (e.pointerType === "touch") {
+        touchScrollGuard = {
+          pointerId: e.pointerId,
+          startX: e.clientX,
+          startY: e.clientY,
+          initialBoard: getPos(e),
+        };
+        return;
+      }
+
       e.preventDefault();
-      const pos = getPos(e);
+      canvas.setPointerCapture(e.pointerId);
+      startStrokeFromPos(getPos(e));
+      setCanvasTouchAction();
+    }
+
+    function onPointerMove(e) {
+      if (touchScrollGuard && e.pointerId === touchScrollGuard.pointerId) {
+        const d = Math.hypot(
+          e.clientX - touchScrollGuard.startX,
+          e.clientY - touchScrollGuard.startY
+        );
+        if (d < TOUCH_DRAG_THRESHOLD) return;
+        const pos0 = touchScrollGuard.initialBoard;
+        const pid = touchScrollGuard.pointerId;
+        touchScrollGuard = null;
+        e.preventDefault();
+        try {
+          canvas.setPointerCapture(pid);
+        } catch (_) {}
+        startStrokeFromPos(pos0);
+        setCanvasTouchAction();
+      }
+
+      const blocking = erasingRef.current || drawingRef.current;
+      if (blocking) e.preventDefault();
 
       if (toolRef.current === "eraser" && erasingRef.current) {
-        eraseAt(pos.x, pos.y);
+        for (const ev of pointerSamples(e)) {
+          const p = boardCoordsFromClient(ev.clientX ?? 0, ev.clientY ?? 0);
+          eraseAt(p.x, p.y, true);
+        }
+        redraw();
         return;
       }
 
       if (drawingRef.current && currentShapeRef.current) {
         const shape = currentShapeRef.current;
+        const samples = pointerSamples(e);
+        const ev = samples[samples.length - 1];
+        const pos = boardCoordsFromClient(ev.clientX ?? 0, ev.clientY ?? 0);
         if (shape.type === "segment" && shape.points.length >= 1) {
           shape.points[1] = { x: pos.x, y: pos.y };
         } else if (shape.type === "rect" && shape.points.length >= 1) {
@@ -516,31 +706,25 @@ function ExamPage() {
           const dx = p2.x - p1.x, dy = p2.y - p1.y;
           shape.points = [p1, p2, { x: (p1.x + p2.x) / 2 - dy, y: (p1.y + p2.y) / 2 + dx }];
         }
-        redraw();
+        scheduleRedraw();
         return;
       }
 
       if (!drawingRef.current || !currentLineRef.current) return;
 
-      const line = currentLineRef.current;
-      const last = line.points[line.points.length - 1];
-      const dist = Math.hypot(pos.x - last.x, pos.y - last.y);
-
-      if (dist >= POINT_STEP) {
-        const n = Math.ceil(dist / POINT_STEP);
-        for (let i = 1; i < n; i++) {
-          const t = i / n;
-          line.points.push({
-            x: last.x + (pos.x - last.x) * t,
-            y: last.y + (pos.y - last.y) * t,
-          });
-        }
-      }
-      line.points.push({ x: pos.x, y: pos.y });
+      appendPenSamples(currentLineRef.current, pointerSamples(e));
       redraw();
     }
 
+    function endTouchGuardIfAny(e) {
+      if (touchScrollGuard && e.pointerId === touchScrollGuard.pointerId) {
+        touchScrollGuard = null;
+        setCanvasTouchAction();
+      }
+    }
+
     function onPointerUp(e) {
+      endTouchGuardIfAny(e);
       if (e && e.preventDefault) e.preventDefault();
       try {
         canvas.releasePointerCapture(e.pointerId);
@@ -564,18 +748,21 @@ function ExamPage() {
         }
         currentShapeRef.current = null;
       } else if (drawingRef.current && currentLineRef.current) {
+        const line = currentLineRef.current;
         redoStackRef.current = [];
         setCanRedo(false);
-        objectsRef.current.push(currentLineRef.current);
+        objectsRef.current.push(line);
         setCanUndo(true);
         if (socket.readyState === WebSocket.OPEN) {
-          socket.send(JSON.stringify({ action: "add_object", object: currentLineRef.current }));
+          socket.send(JSON.stringify({ action: "add_object", object: line }));
         }
         currentLineRef.current = null;
       }
 
       drawingRef.current = false;
       erasingRef.current = false;
+      setCanvasTouchAction();
+      if (rafId2 != null) { cancelAnimationFrame(rafId2); rafId2 = null; }
       redraw();
     }
 
@@ -623,10 +810,37 @@ function ExamPage() {
     canvas.addEventListener("pointermove", onPointerMove, { passive: false });
     canvas.addEventListener("pointerup", onPointerUp, { passive: false });
     canvas.addEventListener("pointercancel", onPointerUp, { passive: false });
-    canvas.addEventListener("pointerleave", onPointerUp, { passive: false });
     window.addEventListener("keydown", onKeyDown);
     window.addEventListener("resize", resizeCanvas);
-    window.addEventListener("scroll", redraw, { passive: true });
+    window.addEventListener("scroll", scheduleScrollRedraw, { passive: true, capture: true });
+
+    const scrollRoots = new Set();
+    const se = document.scrollingElement;
+    if (se) scrollRoots.add(se);
+    scrollRoots.add(document.documentElement);
+    scrollRoots.add(document.body);
+    const appShellContent = document.querySelector(".app-shell-content");
+    if (appShellContent) scrollRoots.add(appShellContent);
+    scrollRoots.forEach((el) => {
+      el.addEventListener("scroll", scheduleScrollRedraw, { passive: true });
+    });
+
+    const vv = window.visualViewport;
+    if (vv) {
+      vv.addEventListener("scroll", scheduleScrollRedraw, { passive: true });
+      vv.addEventListener("resize", scheduleScrollRedraw, { passive: true });
+    }
+
+    let ro;
+    const root = mainRef.current;
+    const contentArea = root?.querySelector?.(".content-area") ?? null;
+    if (root) root.addEventListener("scroll", scheduleScrollRedraw, { passive: true });
+    if (contentArea) contentArea.addEventListener("scroll", scheduleScrollRedraw, { passive: true });
+
+    if (root && typeof ResizeObserver !== "undefined") {
+      ro = new ResizeObserver(() => resizeCanvas());
+      ro.observe(root);
+    }
 
     resizeCanvas();
     const rafId = requestAnimationFrame(() => {
@@ -635,7 +849,9 @@ function ExamPage() {
 
     return () => {
       cancelAnimationFrame(rafId);
-      window.removeEventListener("scroll", redraw);
+      if (rafId2 != null) cancelAnimationFrame(rafId2);
+      if (scrollRaf != null) cancelAnimationFrame(scrollRaf);
+      if (ro) ro.disconnect();
       redrawRef.current = null;
       try {
         if (socket && socket.readyState !== 2 && socket.readyState !== 3) socket.close();
@@ -644,9 +860,18 @@ function ExamPage() {
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerup", onPointerUp);
       canvas.removeEventListener("pointercancel", onPointerUp);
-      canvas.removeEventListener("pointerleave", onPointerUp);
       window.removeEventListener("keydown", onKeyDown);
       window.removeEventListener("resize", resizeCanvas);
+      window.removeEventListener("scroll", scheduleScrollRedraw, { capture: true });
+      scrollRoots.forEach((el) => {
+        el.removeEventListener("scroll", scheduleScrollRedraw);
+      });
+      if (vv) {
+        vv.removeEventListener("scroll", scheduleScrollRedraw);
+        vv.removeEventListener("resize", scheduleScrollRedraw);
+      }
+      if (root) root.removeEventListener("scroll", scheduleScrollRedraw);
+      if (contentArea) contentArea.removeEventListener("scroll", scheduleScrollRedraw);
     };
   }, [boardOpen, level, subject, variant_id]);
 
@@ -872,8 +1097,7 @@ function ExamPage() {
     redoStackRef.current = [];
     setCanUndo(false);
     setCanRedo(false);
-    const canvas = canvasRef.current;
-    if (canvas) canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+    redrawRef.current?.();
     if (socketRef.current?.readyState === WebSocket.OPEN) {
       socketRef.current.send(JSON.stringify({ action: "clear_all" }));
     }
@@ -942,10 +1166,29 @@ function ExamPage() {
       Array.isArray(variant.tasks)
         ? variant.tasks.filter((t) => t.subdivision === "geom" && (effectiveScores[t.id] || 0) > 0).length
         : 0;
-    return { effectiveCheckedTasks, effectiveScores, correctCount, totalScore, geoCorrectCount };
+    /** Полностью верные задания: ч.1 — верный ответ; ч.2 — набран максимум баллов по заданию */
+    const fullyCorrectTaskCount = variant.tasks.filter((task) => {
+      if (inferPart(task) === 1) {
+        const ok =
+          checkedTasks[task.id] !== undefined
+            ? checkedTasks[task.id]
+            : computeTaskCorrectness(task);
+        return !!ok;
+      }
+      return (scores[task.id] ?? 0) >= getTaskMaxScore(task);
+    }).length;
+    return {
+      effectiveCheckedTasks,
+      effectiveScores,
+      correctCount,
+      totalScore,
+      geoCorrectCount,
+      fullyCorrectTaskCount,
+    };
   }
 
-  const { correctCount, totalScore } = getEffectiveResults();
+  const { correctCount, totalScore, fullyCorrectTaskCount } = getEffectiveResults();
+  const taskCountTotal = variant.tasks.length;
 
   const handleTaskFocus = (taskId) => {
     currentTaskIdRef.current = taskId;
@@ -987,30 +1230,40 @@ function ExamPage() {
       correctCount: effCorrectCount,
       totalScore: effTotalScore,
       geoCorrectCount,
+      fullyCorrectTaskCount: effFullyCorrect,
     } = getEffectiveResults();
-    const isOgeMath = String(level).toLowerCase() === "oge" && String(subject).toLowerCase() === "math";
-    const geoParam = isOgeMath ? `&geo_correct=${geoCorrectCount}` : "";
-    const res = await fetch(
-      `/api/${level}/${subject}/score-conversion/?score=${effTotalScore}${geoParam}`,
-      { credentials: "same-origin" }
-    );
+
     let scoreExam = null;
     let scoreComment = null;
     let markLevel = null;
-    try {
-      if (res.ok) {
-        const data = await res.json();
-        scoreExam = data.score_exam !== undefined ? data.score_exam : null;
-        scoreComment = data.comment ?? null;
-        markLevel = data.mark_level ?? null;
-      }
-    } catch (_) {}
+
+    // В режиме тренировки по номерам конвертация в баллы/оценку не нужна
+    if (mode !== "test") {
+      const isOgeMath = String(level).toLowerCase() === "oge" && String(subject).toLowerCase() === "math";
+      const geoParam = isOgeMath ? `&geo_correct=${geoCorrectCount}` : "";
+      try {
+        const res = await fetch(
+          `/api/${level}/${subject}/score-conversion/?score=${effTotalScore}${geoParam}`,
+          { credentials: "same-origin" }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          scoreExam = data.score_exam !== undefined ? data.score_exam : null;
+          scoreComment = data.comment ?? null;
+          markLevel = data.mark_level ?? null;
+        }
+      } catch (_) {}
+    }
+
+    // Для тренировки maxScore = кол-во задач в тесте (1 балл за задачу), для варианта — как обычно
+    const effectiveMaxScore = mode === "test" ? variant.tasks.length : maxScore;
+
     setResultsData({
       totalTimeFormatted,
       taskTimes,
       correctCount: effCorrectCount,
       totalScore: effTotalScore,
-      maxScore,
+      maxScore: effectiveMaxScore,
       scoreExam,
       scoreComment,
       markLevel,
@@ -1022,6 +1275,9 @@ function ExamPage() {
       variantId: variant.id,
       level,
       subject,
+      examMode: mode,
+      fullyCorrectTaskCount: effFullyCorrect,
+      taskCountTotal: variant.tasks.length,
     });
     setResultsOpen(true);
   };
@@ -1055,14 +1311,8 @@ function ExamPage() {
   };
 
   const getThemeWorksheetBg = () => {
-    try {
-      const raw = sessionStorage.getItem("theme_data");
-      if (raw) {
-        const data = JSON.parse(raw);
-        return (data.worksheetBg || "").trim();
-      }
-    } catch { /* ignore */ }
-    return "";
+    const { themeData } = readPersistedTheme();
+    return (themeData?.worksheetBg || "").trim();
   };
 
   const openThemedPdf = async (variantId, themeName) => {
@@ -1126,8 +1376,28 @@ function ExamPage() {
 
   return (
     <div ref={mainRef} className="main-wrapper exam-page" id="main-wrapper" data-level={level} data-subject={subject}>
-      {/* Фиксированный блок: таймер и баллы — остаётся в углу при прокрутке */}
-      <div className="exam-fixed-corner">
+      {/* Фиксированный блок: таймер и баллы — перетаскивание за ручку; позиция в sessionStorage */}
+      <div
+        ref={fixedCornerRef}
+        className="exam-fixed-corner"
+        style={
+          fixedCornerPos
+            ? { left: fixedCornerPos.left, top: fixedCornerPos.top, right: "auto" }
+            : undefined
+        }
+      >
+        <button
+          type="button"
+          className="exam-fixed-corner__drag"
+          aria-label="Переместить блок с таймером"
+          title="Перетащить"
+          onPointerDown={onFixedCornerDragStart}
+          onPointerMove={onFixedCornerDragMove}
+          onPointerUp={onFixedCornerDragEnd}
+          onPointerCancel={onFixedCornerDragEnd}
+        >
+          <span className="exam-fixed-corner__drag-grip" aria-hidden />
+        </button>
         <div className="variant-timer exam-fixed-timer">
           <div className="variant-timer-display">{formatTimer(timerSeconds)}</div>
           <div className="variant-timer-actions">
@@ -1172,10 +1442,23 @@ function ExamPage() {
         <div className="variant-score-block">
           <div className="variant-score-row">
             <span className="variant-score-label">
-              {part2Tasks.length > 0 ? "Баллов" : "Правильных"}
+              {mode === "test"
+                ? "Верно"
+                : part2Tasks.length > 0
+                  ? "Баллов"
+                  : "Правильных"}
             </span>
             <span className="variant-score-val">
-              {totalScore} <span className="variant-score-total">/ {maxScore}</span>
+              {mode === "test" ? (
+                <>
+                  {fullyCorrectTaskCount}{" "}
+                  <span className="variant-score-total">/ {taskCountTotal}</span>
+                </>
+              ) : (
+                <>
+                  {totalScore} <span className="variant-score-total">/ {maxScore}</span>
+                </>
+              )}
             </span>
           </div>
         </div>
@@ -1772,10 +2055,10 @@ function ExamPage() {
           <span>Открыть доску</span>
         </button>
 
-      {/* ===== ДОСКА (portal в body для полного экрана) ===== */}
-      {boardOpen &&
-        createPortal(
-          <div id="board-container" className="active">
+      {/* ===== ДОСКА (внутри main-wrapper, прокручивается вместе со страницей) ===== */}
+      {boardOpen && (
+        <div id="board-container" className="active">
+          <canvas ref={canvasRef} id="board" style={{ cursor: tool === "eraser" ? "pointer" : "crosshair" }} />
           <div id="board-toolbar">
             <button
               id="penBtn"
@@ -1938,11 +2221,8 @@ function ExamPage() {
               </svg>
             </button>
           </div>
-
-          <canvas ref={canvasRef} id="board" style={{ cursor: tool === "eraser" ? "pointer" : "crosshair" }} />
-        </div>,
-          document.body
-        )}
+        </div>
+      )}
 
       <ImageLightbox
         src={lightbox.src}

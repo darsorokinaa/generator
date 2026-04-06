@@ -11,8 +11,8 @@
 
 body {
     font-family: "Times New Roman", Times, serif;
-    font-size: 9.5pt;
-    line-height: 1.25;
+    font-size: 11pt;
+    line-height: 1.3;
     color: #000;
 }
 
@@ -28,38 +28,51 @@ body {
 }
 
 /* ===== Задание ===== */
-/* flex: номер слева от текста; align-items: flex-start — рамка номера не растягивается на высоту задания (в отличие от table-cell) */
+/* flex + align-items: flex-start — рамка номера не растягивается на всю высоту задания (в отличие от table-cell) */
 .task {
-    display: flex;
-    flex-direction: row;
-    align-items: flex-start;
-    gap: 8pt;
+    display: block;
     width: 100%;
-    max-width: 100%;
-    margin-bottom: 16pt;
+    margin-bottom: 14pt;
     page-break-inside: avoid;
     break-inside: avoid;
     -webkit-column-break-inside: avoid;
-    overflow: hidden;
+    border: none;
+}
+
+.task-main {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 6pt;
+    width: 100%;
+    border: none;
+}
+
+.task-with-answer {
+    border: none;
 }
 
 .task-number,
 .ta {
-    flex: 0 0 32pt;
-    width: 32pt;
-    min-width: 32pt;
-    max-width: 32pt;
-    height: auto;
-    min-height: 18pt;
-    padding: 3pt 2pt;
+    flex: 0 0 auto;
+    width: 30pt;
+    min-width: 30pt;
+    max-width: 30pt;
+    padding: 2pt 3pt;
     box-sizing: border-box;
-    background-color: rgb(255, 255, 255);
-    border: 0.5pt solid #000;
+    background-color: #fff;
+    border: 0.8pt solid #000;
     text-align: center;
     font-weight: bold;
     font-size: 11pt;
-    line-height: 1.15;
-    margin: 0;
+    line-height: 1.1;
+    align-self: flex-start;
+}
+
+.ta-inner {
+    border: none;
+    outline: none;
+    display: inline;
 }
 
 .task-body {
@@ -67,8 +80,6 @@ body {
     min-width: 0;
     max-width: 100%;
     padding-left: 0;
-    margin-left: 0;
-    overflow: hidden;
 }
 
 .task-body p {
@@ -88,39 +99,47 @@ body {
     
 }
 
-/* Изображения — на всю ширину колонки задания, высота по пропорциям */
+/* Изображения — не шире колонки задания (как текст) */
 .task-body img {
     width: auto !important;
-    max-width: 60% !important;
+    max-width: 100% !important;
     height: auto !important;
-    max-height: 340pt !important;
+    max-height: 200pt !important;
     object-fit: contain !important;
     display: block;
-    margin: 6pt 0;
+    margin: 4pt auto;
 }
 
-/* Таблицы внутри заданий (CKEditor) — явные цвета для WeasyPrint */
+.task-body figure,
+.task-body figure.image {
+    max-width: 100% !important;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Таблицы внутри заданий (CKEditor) — компактно, чтобы влезали в колонку PDF */
 .task-body table {
     border-collapse: collapse;
-    margin: 6pt 0;
+    margin: 4pt 0;
     color: #000;
     background-color: #fff;
     width: 100%;
     max-width: 100%;
     table-layout: fixed;
-    font-size: 6.5pt;
-    line-height: 1.15;
+    font-size: 5pt;
+    line-height: 1.12;
     word-wrap: break-word;
     overflow-wrap: break-word;
 }
 .task-body th,
 .task-body td {
-    border: 0.8pt solid #000;
-    padding: 2pt 3pt;
+    border: 0.6pt solid #000;
+    padding: 1.5pt 2pt;
     color: #000;
     background-color: #fff;
     word-wrap: break-word;
     overflow-wrap: break-word;
+    font-size: 5pt;
 }
 .task-body th {
     font-weight: bold;
@@ -144,9 +163,9 @@ body {
 }
 .task-body figure img {
     width: auto !important;
-    max-width: 60% !important;
+    max-width: 100% !important;
     height: auto !important;
-    max-height: 340pt !important;
+    max-height: 200pt !important;
     object-fit: contain !important;
     display: block;
     margin: 0 auto;
@@ -165,6 +184,8 @@ body {
     margin-top: 6pt;
     page-break-inside: avoid;
     break-inside: avoid;
+    page-break-before: avoid;
+    break-before: avoid;
 }
 
 .answer-field {
@@ -207,20 +228,23 @@ body {
     width: 100%;
     border-collapse: collapse;
     border: 0.8pt solid #000;
+    table-layout: auto;
 }
 
 .answers-table th,
 .answers-table td {
     border: 0.8pt solid #000;
-    padding: 4pt 3pt;
+    padding: 5pt 4pt;
     text-align: center;
-    font-size: 11pt;
+    font-size: 10pt;
     color: #000;
     background-color: #fff;
+    vertical-align: top;
 }
 
 .answers-table th {
     font-weight: bold;
+    white-space: nowrap;
 }
 
 /* Перенос длинных ответов на несколько строк */
@@ -229,7 +253,8 @@ body {
     overflow-wrap: break-word;
     white-space: normal;
     word-break: break-word;
-    text-align: left;
+    text-align: center;
+    min-width: 28pt;
 }
 
 .answers-page .answers-table {

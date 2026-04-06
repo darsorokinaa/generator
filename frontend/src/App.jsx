@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 
 import Layout from "./pages/Layout";
@@ -9,13 +9,41 @@ import ExamPage from "./pages/ExamPage";
 import SearchTaskPage from "./pages/SearchTaskPage";
 import SearchVariantPage from "./pages/SearchVariantPage";
 import AuthorsPage from "./pages/AuthorsPage";
+import PrivacyPage from "./pages/PrivacyPage";
 import NotFoundPage from "./pages/NotFoundPage";
+
+function scrollDocumentToTop() {
+  window.scrollTo(0, 0);
+  const se = document.scrollingElement;
+  if (se) {
+    se.scrollTop = 0;
+    se.scrollLeft = 0;
+  }
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+  const shell = document.querySelector(".app-shell-content");
+  if (shell && shell.scrollTop > 0) {
+    shell.scrollTop = 0;
+  }
+}
 
 function ScrollToTop() {
   const { pathname } = useLocation();
+
   useEffect(() => {
-    window.scrollTo(0, 0);
+    if ("scrollRestoration" in history) {
+      history.scrollRestoration = "manual";
+    }
+  }, []);
+
+  useLayoutEffect(() => {
+    scrollDocumentToTop();
+    const id = requestAnimationFrame(() => {
+      scrollDocumentToTop();
+    });
+    return () => cancelAnimationFrame(id);
   }, [pathname]);
+
   return null;
 }
 
@@ -39,6 +67,7 @@ function App() {
 
           <Route path="/" element={<IndexPage />} />
           <Route path="/about" element={<AuthorsPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
 
           <Route path="/search/tasks" element={<SearchTaskWithKey />} />
           <Route path="/search-variant" element={<SearchVariantWithKey />} />

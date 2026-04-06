@@ -295,7 +295,7 @@ def build_pdf_context(request, variant, subject, author_filter=None):
     footer_left = mark_safe(f'© <a href="{base_url}" class="pdf-footer-link">Генератор</a>')
 
     # Разбиваем ответы на блоки по 10 для переноса таблицы на несколько строк
-    chunk_size = 10
+    chunk_size = 7
     answers_chunks = [
         processed_contents[i:i + chunk_size]
         for i in range(0, len(processed_contents), chunk_size)
@@ -305,10 +305,14 @@ def build_pdf_context(request, variant, subject, author_filter=None):
     instruction_blocks = [b for b in merged_contents if b.get("type") == "preview" and b.get("is_instruction")]
     tasks_content = [b for b in merged_contents if b.get("type") != "preview" or not b.get("is_instruction")]
 
+    # Строим tasks_segments для pdf_template.html — один сегмент с колонками
+    tasks_segments = [{"mode": "columns", "items": tasks_content}]
+
     return {
         "variant": variant,
         "instruction_blocks": instruction_blocks,
         "tasks_content": tasks_content,
+        "tasks_segments": tasks_segments,
         "contents": merged_contents,
         "answers_chunks": answers_chunks,
         "answers_parts": answers_parts,

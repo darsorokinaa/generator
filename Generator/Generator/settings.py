@@ -44,7 +44,6 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'Generator.apps.GeneratorConfig',
     'Board',
-    # 'Cabinet',
     'corsheaders',
      "django_ckeditor_5",
     
@@ -130,9 +129,9 @@ WSGI_APPLICATION = 'Generator.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'generatordb_test',
-        'USER': 'generator_test_user',
-        'PASSWORD': 'StrongPass123test',
+        'NAME': 'generatordb',
+        'USER': 'generator_user',
+        'PASSWORD': 'StrongPass123',
         'HOST': 'localhost',
         'PORT': '5432',
     }
@@ -184,9 +183,9 @@ AUTH_PASSWORD_VALIDATORS = [
 # Internationalization
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = 'en-us'
+LANGUAGE_CODE = 'ru'
 
-TIME_ZONE = 'UTC'
+TIME_ZONE = 'Europe/Moscow'
 
 USE_I18N = True
 
@@ -206,10 +205,9 @@ STATICFILES_DIRS = [BASE_DIR / "static"] + ([FRONTEND_DIR] if FRONTEND_DIR.exist
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-# Аутентификация Cabinet
-LOGIN_URL = '/cabinet/login/'
-LOGIN_REDIRECT_URL = '/cabinet/'
-LOGOUT_REDIRECT_URL = '/cabinet/login/'
+LOGIN_URL = '/admin/login/'
+LOGIN_REDIRECT_URL = '/'
+LOGOUT_REDIRECT_URL = '/'
 
 # Telegram bot для отправки сообщений об ошибках
 # Для группового чата: добавьте бота в группу, затем получите ID через

@@ -17,6 +17,7 @@ urlpatterns = [
     path("api/search_task/", views.search_task, name="search_task"),
     path("api/search_variant/", views.search_variant, name="search_variant"),
     path("favicon.svg", views.favicon),
+    path("yandex_ef13ec5e267d285b.html", views.yandex_webmaster_verification),
     path("api/<str:level>/<str:subject>/tasks/", views.api_tasks),
     path("api/<str:level>/<str:subject>/subtopics/", views.api_subtopics),
     path("api/variant-lookup/<int:variant_id>/", views.api_variant_lookup),
@@ -31,7 +32,7 @@ urlpatterns = [
     # path('api/<str:level>/<str:subject>/variant/<int:variant_id>/pdf/cosmos', views.variant_pdfCosmos),
 
     path("", include("Board.urls")),
-    # path("cabinet/", include("Cabinet.urls")),
+    path("lesson/join/", views.lesson_join, name="lesson-join"),
 
 ]
 

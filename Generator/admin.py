@@ -38,3 +38,9 @@ class TaskGroupAdmin(admin.ModelAdmin):
     list_display = ("id", "subject", "level")
     list_filter = ("subject", "level")
     inlines = (TaskGroupMemberInline,)
+from .models import Mark, Tag, TagsList, Tags
+
+admin.site.register(Mark)
+admin.site.register(Tag)
+admin.site.register(TagsList)
+admin.site.register(Tags)

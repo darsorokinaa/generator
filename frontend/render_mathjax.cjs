@@ -10,7 +10,8 @@ const adaptor = liteAdaptor();
 RegisterHTMLHandler(adaptor);
 
 const tex = new TeX({ packages: AllPackages });
-const svg = new SVG({ fontCache: 'none', scale: 0.9 }); // важно для WeasyPrint
+// scale ~1: читаемость; слишком мало — «ломается» выравнивание с текстом Times
+const svg = new SVG({ fontCache: 'none', scale: 1 });
 const doc = mathjax.document('', { InputJax: tex, OutputJax: svg });
 
 let input = '';

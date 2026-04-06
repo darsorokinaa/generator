@@ -3,6 +3,16 @@ import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 
 const SUBJECT_NAMES = { math: "Математика", inf: "Информатика" };
 
+function itemsIncludeTaskNumber(items, n) {
+  for (const item of items) {
+    if (item.type === "group" || item.type === "linked_group") {
+      const nums = item.task_numbers || item.tasks?.map((t) => t.task_number) || [];
+      if (nums.includes(n)) return true;
+    } else if (item.task_number === n) return true;
+  }
+  return false;
+}
+
 function TasksPage() {
   const { level, subject } = useParams();
   const navigate = useNavigate();
@@ -34,6 +44,8 @@ function TasksPage() {
   /** Фильтры «Только задачи ФИПИ» */
   const [onlyFipiVariant, setOnlyFipiVariant] = useState(false);
   const [onlyFipiTrainer, setOnlyFipiTrainer] = useState(false);
+  /** ОГЭ инф. №13: одна подтема (радио) — id выбранной SubTopic */
+  const [ogeInf13SubtopicId, setOgeInf13SubtopicId] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -51,6 +63,21 @@ function TasksPage() {
       });
     return () => { cancelled = true; };
   }, [level, subject]);
+
+  useEffect(() => {
+    if (level !== "oge" || subject !== "inf") {
+      setOgeInf13SubtopicId(null);
+      return;
+    }
+    const b = subtopicsByTask.find((row) => row.task_number === 13);
+    const subs = b?.subtopics;
+    if (!subs?.length) {
+      setOgeInf13SubtopicId(null);
+      return;
+    }
+    const ids = new Set(subs.map((st) => st.id));
+    setOgeInf13SubtopicId((prev) => (prev != null && ids.has(prev) ? prev : subs[0].id));
+  }, [level, subject, subtopicsByTask]);
 
   useEffect(() => {
     let cancelled = false;
@@ -136,6 +163,22 @@ function TasksPage() {
     (item) => getItemPart(item) === 2 && matchesSearch(item)
   );
 
+  const ogeInf13Block =
+    level === "oge" && subject === "inf"
+      ? subtopicsByTask.find((row) => row.task_number === 13)
+      : null;
+
+  const ogeInf13SelectionError = (items) => {
+    if (level !== "oge" || subject !== "inf") return null;
+    const subs = ogeInf13Block?.subtopics;
+    if (!subs || subs.length < 2) return null;
+    if (!itemsIncludeTaskNumber(items, 13)) return null;
+    if (ogeInf13SubtopicId == null || !subs.some((st) => st.id === ogeInf13SubtopicId)) {
+      return "Выберите тип задания 13: текст или презентация.";
+    }
+    return null;
+  };
+
   const postVariant = (payload, mode = "variant", extra = {}) => {
     const body = JSON.stringify(payload);
     return fetch(`/api/${level}/${subject}/variant/`, {
@@ -177,28 +220,45 @@ function TasksPage() {
   const buildVariantPayload = (items) => {
     const content = payloadFromTasks(items);
     const payload = { content, ...(onlyFipiVariant ? { only_fipi: true } : {}) };
-    if (selectedSubtopicIds.length === 0) return payload;
 
-    payload.subtopic_ids = selectedSubtopicIds;
-    const tasksList = [];
-    items.forEach((item) => {
-      if ((item.type === "group" || item.type === "linked_group") && item.tasks?.length) {
-        const nums = item.task_numbers || item.tasks.map((t) => t.task_number);
-        const identifier = item.type === "linked_group" ? `linked_${item.linked_key}` : `group_${item.group_id}`;
-        const bySt = groupSubtopicCounts[identifier];
-        const entry = { task_numbers: nums, count: 1 };
-        if (bySt && Object.keys(bySt).length > 0) {
-          entry.subtopic_ids = Object.keys(bySt).filter((k) => k !== "all").map(Number).filter((n) => !Number.isNaN(n));
-          entry.subtopic_counts = { ...bySt };
-        } else {
-          // Только подтемы, относящиеся к этой группе
-          const groupSubtopicIds = (item.subtopics || []).map((st) => st.id).filter(Boolean);
-          entry.subtopic_ids = selectedSubtopicIds.filter((id) => groupSubtopicIds.includes(id));
+    if (selectedSubtopicIds.length > 0) {
+      payload.subtopic_ids = selectedSubtopicIds;
+      const tasksList = [];
+      items.forEach((item) => {
+        if ((item.type === "group" || item.type === "linked_group") && item.tasks?.length) {
+          const nums = item.task_numbers || item.tasks.map((t) => t.task_number);
+          const identifier = item.type === "linked_group" ? `linked_${item.linked_key}` : `group_${item.group_id}`;
+          const bySt = groupSubtopicCounts[identifier];
+          const entry = { task_numbers: nums, count: 1 };
+          if (bySt && Object.keys(bySt).length > 0) {
+            entry.subtopic_ids = Object.keys(bySt)
+              .filter((k) => k !== "all")
+              .map(Number)
+              .filter((n) => !Number.isNaN(n));
+            entry.subtopic_counts = { ...bySt };
+          } else {
+            const groupSubtopicIds = (item.subtopics || []).map((st) => st.id).filter(Boolean);
+            entry.subtopic_ids = selectedSubtopicIds.filter((id) => groupSubtopicIds.includes(id));
+          }
+          tasksList.push(entry);
         }
-        tasksList.push(entry);
+      });
+      if (tasksList.length > 0) payload.tasks = tasksList;
+    }
+
+    if (
+      level === "oge" &&
+      subject === "inf" &&
+      itemsIncludeTaskNumber(items, 13) &&
+      ogeInf13SubtopicId != null
+    ) {
+      const b = subtopicsByTask.find((row) => row.task_number === 13);
+      const subs = b?.subtopics;
+      if (subs && subs.length >= 2) {
+        payload.oge_inf_13_subtopics = [ogeInf13SubtopicId];
       }
-    });
-    if (tasksList.length > 0) payload.tasks = tasksList;
+    }
+
     return payload;
   };
 
@@ -209,6 +269,11 @@ function TasksPage() {
     const items = onlyFipiVariant
       ? tasks.filter((item) => getItemPart(item) === 1)
       : part1Tasks;
+    const err13 = ogeInf13SelectionError(items);
+    if (err13) {
+      setError(err13);
+      return;
+    }
     const payload = buildVariantPayload(items);
     if (Object.keys(payload.content).length === 0) return;
     setSubmitBlock1(true);
@@ -218,12 +283,22 @@ function TasksPage() {
     const items = onlyFipiVariant
       ? tasks.filter((item) => getItemPart(item) === 2)
       : part2Tasks;
+    const err13 = ogeInf13SelectionError(items);
+    if (err13) {
+      setError(err13);
+      return;
+    }
     const payload = buildVariantPayload(items);
     if (Object.keys(payload.content).length === 0) return;
     setSubmitBlock1(true);
     postVariant(payload, "part2").catch((err) => setError(err.message)).finally(() => setSubmitBlock1(false));
   };
   const onChooseAll = () => {
+    const err13 = ogeInf13SelectionError(tasks);
+    if (err13) {
+      setError(err13);
+      return;
+    }
     const payload = buildVariantPayload(tasks);
     if (Object.keys(payload.content).length === 0) return;
     setSubmitBlock1(true);
@@ -270,7 +345,10 @@ function TasksPage() {
         });
         const entry = { task_numbers: nums, count: groupCount };
         if (bySt && Object.keys(bySt).length > 0) {
-          entry.subtopic_ids = Object.keys(bySt).filter((k) => k !== "all");
+          entry.subtopic_ids = Object.keys(bySt)
+            .filter((k) => k !== "all")
+            .map(Number)
+            .filter((n) => !Number.isNaN(n));
           entry.subtopic_counts = { ...bySt };
         }
         tasksList.push(entry);
@@ -284,7 +362,10 @@ function TasksPage() {
         });
         const entry = { task_numbers: nums, count: groupCount };
         if (bySt && Object.keys(bySt).length > 0) {
-          entry.subtopic_ids = Object.keys(bySt).filter((k) => k !== "all");
+          entry.subtopic_ids = Object.keys(bySt)
+            .filter((k) => k !== "all")
+            .map(Number)
+            .filter((n) => !Number.isNaN(n));
           entry.subtopic_counts = { ...bySt };
         }
         tasksList.push(entry);
@@ -323,15 +404,15 @@ function TasksPage() {
       const nextState = { ...prev };
       if (next > 0) nextState[subtopicId] = next;
       else delete nextState[subtopicId];
+
+      setSelectedSubtopicIds((selPrev) => {
+        const currentSelected = selPrev.includes(subtopicId);
+        if (next > 0 && !currentSelected) return [...selPrev, subtopicId];
+        if (next === 0 && currentSelected) return selPrev.filter((id) => id !== subtopicId);
+        return selPrev;
+      });
+
       return nextState;
-    });
-    setSelectedSubtopicIds((prev) => {
-      const currentSelected = prev.includes(subtopicId);
-      const currentCount = subtopicCounts[subtopicId] ?? 0;
-      const nextCount = Math.max(0, Math.min(maxCount, currentCount + delta));
-      if (nextCount > 0 && !currentSelected) return [...prev, subtopicId];
-      if (nextCount === 0 && currentSelected) return prev.filter((id) => id !== subtopicId);
-      return prev;
     });
   };
 
@@ -347,6 +428,74 @@ function TasksPage() {
       if (Object.keys(nextById).length > 0) nextState[identifier] = nextById;
       else delete nextState[identifier];
       return nextState;
+    });
+  };
+
+  /** Ввод количества в поле: пусто → 0; нечисло — игнор; clamp 0..max; 0000002 → 2 */
+  const parseTrainerCountInput = (raw, maxCount) => {
+    const max = Math.max(0, Math.floor(Number(maxCount)) || 0);
+    const t = String(raw ?? "").trim();
+    if (t === "") return 0;
+    if (/^\d+$/.test(t)) {
+      if (/^0+$/.test(t)) return 0;
+      const normalized = t.replace(/^0+/, "") || "0";
+      const n = parseInt(normalized, 10);
+      if (Number.isNaN(n)) return null;
+      return Math.max(0, Math.min(max, n));
+    }
+    const n = parseInt(t, 10);
+    if (Number.isNaN(n)) return null;
+    return Math.max(0, Math.min(max, n));
+  };
+
+  const applyGroupSubtopicCountInput = (identifier, subtopicId, raw, maxCount) => {
+    const next = parseTrainerCountInput(raw, maxCount);
+    if (next === null) return;
+    setGroupSubtopicCounts((prev) => {
+      const byId = { ...(prev[identifier] ?? {}) };
+      if (next <= 0) delete byId[subtopicId];
+      else byId[subtopicId] = next;
+      const nextState = { ...prev };
+      if (Object.keys(byId).length > 0) nextState[identifier] = byId;
+      else delete nextState[identifier];
+      return nextState;
+    });
+  };
+
+  const applySubtopicCountInput = (subtopicId, raw, maxCount) => {
+    const next = parseTrainerCountInput(raw, maxCount);
+    if (next === null) return;
+    setSubtopicCounts((prev) => {
+      const nextState = { ...prev };
+      if (next <= 0) delete nextState[subtopicId];
+      else nextState[subtopicId] = next;
+      return nextState;
+    });
+    setSelectedSubtopicIds((selPrev) => {
+      const has = selPrev.includes(subtopicId);
+      if (next > 0 && !has) return [...selPrev, subtopicId];
+      if (next === 0 && has) return selPrev.filter((id) => id !== subtopicId);
+      return selPrev;
+    });
+  };
+
+  const applyGroupedSubtopicTotalInput = (ids, raw, maxCount) => {
+    const nextTotal = parseTrainerCountInput(raw, maxCount);
+    if (nextTotal === null || !ids.length) return;
+    const perId = Math.floor(nextTotal / ids.length);
+    const remainder = nextTotal % ids.length;
+    setSubtopicCounts((prev) => {
+      const next = { ...prev };
+      ids.forEach((id, i) => {
+        const v = perId + (i < remainder ? 1 : 0);
+        if (v > 0) next[id] = v;
+        else delete next[id];
+      });
+      return next;
+    });
+    setSelectedSubtopicIds((prev) => {
+      if (nextTotal > 0) return [...new Set([...prev, ...ids])];
+      return prev.filter((id) => !ids.includes(id));
     });
   };
 
@@ -443,8 +592,9 @@ function TasksPage() {
   const getEffectiveTaskCount = (identifier) => {
     const item = tasks.find((t) => getIdentifier(t) === identifier);
     if (!item) return 0;
-    const useSubtopicCounts = selectedSubtopicIds.length > 0 && subtopicsByTask.length > 0;
-    if (identifier.startsWith("task_") && useSubtopicCounts) {
+    const useSubtopicBreakdown =
+      selectedSubtopicIds.length > 0 && subtopicsByTask.length > 0;
+    if (identifier.startsWith("task_") && useSubtopicBreakdown) {
       const block = subtopicsByTask.find((b) => b.task_list_id === item.id);
       if (block?.subtopics) {
         return block.subtopics
@@ -546,6 +696,39 @@ function TasksPage() {
             </button>
           </div>
         </div>
+        {ogeInf13Block?.subtopics?.length >= 2 ? (
+          <div
+            className="tasks-page-oge-inf13-radios"
+            role="radiogroup"
+            aria-label="Задание 13: один вариант — текст или презентация"
+          >
+            <span className="tasks-page-oge-inf13-radios-title">Задание 13</span>
+            <div className="tasks-page-oge-inf13-radios-row">
+              {ogeInf13Block.subtopics.map((st) => {
+                const selected = ogeInf13SubtopicId === st.id;
+                return (
+                  <label
+                    key={st.id}
+                    className="tasks-page-oge-inf13-row-item tasks-page-subtopic-label"
+                  >
+                    <input
+                      type="radio"
+                      name="oge-inf13-subtopic"
+                      className="tasks-page-subtopic-checkbox-input"
+                      checked={selected}
+                      onChange={() => setOgeInf13SubtopicId(st.id)}
+                    />
+                    <span
+                      className={`tasks-page-subtopic-checkbox-visual ${selected ? "selected" : ""}`}
+                      aria-hidden
+                    />
+                    <span className="tasks-page-oge-inf13-option-text">{st.title}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
       </div>
 
       <div className="tasks-page-card">
@@ -606,6 +789,10 @@ function TasksPage() {
                       if (count === 0 && !isActive) {
                         setActiveForSubtopics(identifier);
                         setSubtopicsPanelOpen(true);
+                      } else if (count > 0 && !isActive) {
+                        // Уже есть задачи по этому номеру, но панель на другом — только переключить подтемы, не снимать выбор
+                        setActiveForSubtopics(identifier);
+                        setSubtopicsPanelOpen(true);
                       } else if (count > 0 || isActive) {
                         setActiveForSubtopics((prev) => (prev === identifier ? testSelectedIds.find((id) => id !== identifier) ?? null : prev));
                         if (count > 0) changeTestCount(item, -1);
@@ -622,7 +809,15 @@ function TasksPage() {
                     }
                   }}
                   disabled={getMaxCount(item) <= 0}
-                  title={count > 0 || (isActive && hasSubtopics) ? "Убрать из выбора" : hasSubtopics ? "Показать панель" : undefined}
+                  title={
+                    !hasSubtopics
+                      ? undefined
+                      : count > 0 && !isActive
+                        ? "Показать подтемы этого номера"
+                        : count > 0 || (isActive && hasSubtopics)
+                          ? "Убрать из выбора"
+                          : "Показать панель"
+                  }
                 >
                   {label}
                 </button>
@@ -679,12 +874,25 @@ function TasksPage() {
                               <span className="tasks-page-subtopic-title">{st.title}</span>
                             </label>
                             <div className="tasks-page-subtopic-counter-wrap">
-                              <span
-                                className="tasks-page-subtopic-num"
-                                title={`Подгрупп в выборе: ${stCount} из ${stMax}`}
-                              >
-                                {stCount}
-                              </span>
+                              <input
+                                type="number"
+                                inputMode="numeric"
+                                min={0}
+                                max={stMax}
+                                className="tasks-page-subtopic-num tasks-page-subtopic-num-input"
+                                title={`Сколько задач (не больше ${stMax} в базе)`}
+                                aria-label={`Количество для ${st.title}`}
+                                value={stCount}
+                                disabled={stMax <= 0}
+                                onChange={(e) =>
+                                  applyGroupSubtopicCountInput(
+                                    activeForSubtopics,
+                                    stId,
+                                    e.target.value,
+                                    stMax
+                                  )
+                                }
+                              />
                               <span className="tasks-page-subtopic-of">{`задач из ${stMax}`}</span>
                               <div className="tasks-page-subtopic-stepper">
                                 <button
@@ -743,6 +951,13 @@ function TasksPage() {
                     });
                   } else {
                     setSelectedSubtopicIds((prev) => [...new Set([...prev, ...ids])]);
+                    setSubtopicCounts((prev) => {
+                      const next = { ...prev };
+                      ids.forEach((id) => {
+                        if ((next[id] ?? 0) < 1) next[id] = 1;
+                      });
+                      return next;
+                    });
                   }
                 };
                 const changeGroupCount = (ids, delta, maxCount) => {
@@ -770,7 +985,6 @@ function TasksPage() {
                 };
                 return allSubtopics.map(({ title, ids, stById, taskCount, fipiCount }) => {
                   const maxCount = onlyFipiTrainer && typeof fipiCount === "number" ? fipiCount : taskCount;
-                  const count = ids.reduce((s, id) => s + getCappedSubtopicCount(stById[id] || { id }), 0);
                   const rawCount = ids.reduce((s, id) => s + (subtopicCounts[id] ?? 0), 0);
                   const isChecked = ids.every((id) => selectedSubtopicIds.includes(id));
                   return (
@@ -789,12 +1003,20 @@ function TasksPage() {
                         <span className="tasks-page-subtopic-title">{title}</span>
                       </label>
                       <div className="tasks-page-subtopic-counter-wrap">
-                        <span
-                          className="tasks-page-subtopic-num"
-                          title={`Подгрупп в выборе: ${count} из ${maxCount}`}
-                        >
-                          {count}
-                        </span>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min={0}
+                          max={maxCount}
+                          className="tasks-page-subtopic-num tasks-page-subtopic-num-input"
+                          title={`Сколько задач (не больше ${maxCount} в базе)`}
+                          aria-label={`Количество для ${title}`}
+                          value={rawCount}
+                          disabled={maxCount <= 0}
+                          onChange={(e) =>
+                            applyGroupedSubtopicTotalInput(ids, e.target.value, maxCount)
+                          }
+                        />
                         <span className="tasks-page-subtopic-of">
                           {`задач из ${maxCount}`}
                         </span>
