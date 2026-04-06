@@ -2176,9 +2176,13 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
     flex-direction: column;
     justify-content: flex-start;
     align-items: stretch;
-    gap: 0.5rem;
+    gap: 0.75rem;
     min-width: 0;
     align-self: start;
+}
+
+.subject-page-subject-pair .subject-exam-countdown-card {
+    flex-shrink: 0;
 }
 
 .subject-page-subject-pair .exam-card {
@@ -2412,11 +2416,6 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
         align-items: stretch;
         justify-items: stretch;
         grid-template-columns: repeat(2, 1fr);
-    }
-
-    .subject-page .subject-page-main .subject-page-pick-block .subject-page-subject-pair .exam-card {
-        height: 100%;
-        min-height: 0;
     }
 
     .subject-page-sidebar {
