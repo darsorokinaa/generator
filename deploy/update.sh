@@ -22,7 +22,11 @@ cd $APP_DIR/Generator
 $APP_DIR/venv/bin/python3 manage.py migrate --noinput
 $APP_DIR/venv/bin/python3 manage.py collectstatic --noinput
 
-echo "=== Перезапуск Gunicorn ==="
+echo "=== Обновление конфига Nginx ==="
+cp $APP_DIR/deploy/nginx.conf /etc/nginx/sites-available/generator_test
+nginx -t && systemctl reload nginx
+
+echo "=== Перезапуск Daphne ==="
 systemctl restart generator_test
 
 echo "Готово! Приложение обновлено."
