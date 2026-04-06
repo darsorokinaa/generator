@@ -25,7 +25,10 @@ DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
-FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:3000')
+FRONTEND_URL  = os.environ.get('FRONTEND_URL',  'http://localhost:3000')
+GENURОК_URL   = os.environ.get('GENURОК_URL',   'https://genurok.tw1.ru')
+# Общий секрет с ГенУрок.рф для подписи JWT. В проде задайте через env-переменную.
+LESSON_SECRET = os.environ.get('LESSON_SECRET', SECRET_KEY)
 
 
 # Application definition
@@ -40,6 +43,8 @@ INSTALLED_APPS = [
     'Cabinet',
     'rest_framework',
     'corsheaders',
+    'channels',
+    'VideoCalling',
 ]
 
 MIDDLEWARE = [
@@ -72,7 +77,23 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'Cabinet.wsgi.application'
+ASGI_APPLICATION  = 'Cabinet.asgi.application'
 
+# Channel layers — Redis в проде, InMemory в разработке
+REDIS_URL = os.environ.get('REDIS_URL', '')
+if REDIS_URL:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {'hosts': [REDIS_URL]},
+        }
+    }
+else:
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels.layers.InMemoryChannelLayer',
+        }
+    }
 
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases

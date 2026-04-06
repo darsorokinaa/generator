@@ -6,6 +6,8 @@ from django.contrib import messages
 from django.conf import settings
 import random
 import string
+import time
+import jwt
 from .models import UserProfile, FunnyWord, Subject, Level, TeacherSubject, TeachersStudent, Group
 from rest_framework import viewsets, status
 from rest_framework.views import APIView
@@ -17,7 +19,10 @@ from .serializers import (
 )
 
 
-FRONTEND_URL = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
+FRONTEND_URL   = getattr(settings, 'FRONTEND_URL',   'http://localhost:3000')
+GENURОК_URL    = getattr(settings, 'GENURОК_URL',    'https://генурок.рф')
+LESSON_SECRET  = getattr(settings, 'LESSON_SECRET',  settings.SECRET_KEY)
+LESSON_TTL     = 60 * 60 * 2  # токен живёт 2 часа
 
 
 def generate_username():
@@ -347,3 +352,48 @@ class GroupView(APIView):
                 role='teacher',
             )
 
+
+class LessonTokenView(APIView):
+    """
+    POST /api/lesson/token/
+    Тело: { room_id, type: 'student'|'group', target_id, target_name }
+    Ответ: { url, token, expires_in }
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        data        = request.data
+        room_id     = data.get('room_id', '').strip()
+        lesson_type = data.get('type', 'student')
+        target_id   = data.get('target_id')
+        target_name = data.get('target_name', '').strip()
+
+        if not room_id or not target_name:
+            return Response(
+                {'error': 'room_id и target_name обязательны'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            profile      = request.user.profile
+            teacher_name = f'{profile.name} {profile.surname}'.strip()
+        except Exception:
+            teacher_name = request.user.get_full_name() or request.user.username
+
+        now = int(time.time())
+        payload = {
+            'iss':         'cabinet',
+            'iat':         now,
+            'exp':         now + LESSON_TTL,
+            'room_id':     room_id,
+            'teacher_id':  request.user.id,
+            'teacher':     teacher_name,
+            'type':        lesson_type,
+            'target_id':   target_id,
+            'target_name': target_name,
+        }
+
+        token = jwt.encode(payload, LESSON_SECRET, algorithm='HS256')
+        url   = f'{GENURОК_URL}/lesson/join/?token={token}'
+
+        return Response({'url': url, 'token': token, 'expires_in': LESSON_TTL})

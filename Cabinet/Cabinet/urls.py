@@ -6,7 +6,7 @@ from django.views.generic import TemplateView
 from django.contrib.staticfiles.views import serve as serve_static
 from . import views
 from rest_framework.routers import DefaultRouter
-from .views import UserProfileViewSet, SubjectListView, LevelListView, StudentsView, StudentDetailView, MeProfile, GroupView
+from .views import UserProfileViewSet, SubjectListView, LevelListView, StudentsView, StudentDetailView, MeProfile, GroupView, LessonTokenView
 
 router = DefaultRouter()
 router.register(r'users', UserProfileViewSet)
@@ -39,6 +39,7 @@ urlpatterns = [
     path('api/levels/',            LevelListView.as_view(),      name='api-levels'),
     path('api/me/',                MeProfile.as_view(),          name='api-me'),
     path('api/groups/',            GroupView.as_view(),          name='api-groups'),
+    path('api/lesson/token/',      LessonTokenView.as_view(),    name='api-lesson-token'),
 
     # React SPA (prod) — ловим все остальные пути
     path('app/', react_app, name='react-app'),
