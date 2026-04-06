@@ -21,7 +21,7 @@ ExecStart=/opt/generator_test/venv/bin/python3 -m gunicorn \
 Environment="PATH=/usr/local/bin:/usr/bin:/bin"
 Environment="PGDATABASE=generator_test"
 Environment="PGUSER=generator_test_user"
-Environment="PGPASSWORD=ЗАМЕНИТЕ_НА_НАДЁЖНЫЙ_ПАРОЛЬ"
+Environment="PGPASSWORD=StrongPass123"
 Environment="PGHOST=localhost"
 Environment="PGPORT=5432"
 Environment="DJANGO_SETTINGS_MODULE=Generator.settings"
