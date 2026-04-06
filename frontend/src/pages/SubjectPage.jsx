@@ -107,6 +107,36 @@ function SubjectPage() {
             </div>
           </div>
         </Link>
+
+        <Link
+          to={`/${level}/history`}
+          className="exam-card exam-card-history"
+        >
+          <div className="exam-card-bg" aria-hidden="true">
+            <span className="exam-card-decor exam-card-decor-calc">📜</span>
+            <span className="exam-card-decor exam-card-decor-ruler">📖</span>
+            <span className="exam-card-decor exam-card-decor-sparkle">✦</span>
+            <span className="exam-card-decor exam-card-decor-sparkle exam-card-decor-sparkle-2">✦</span>
+            <span className="exam-card-decor exam-card-decor-sparkle exam-card-decor-sparkle-3">✦</span>
+          </div>
+          <div className="exam-card-main">
+            <div className="exam-card-left">
+              <div className="exam-icon exam-icon-history">🏛️</div>
+              <div className="exam-card-text">
+                <h3 className="exam-title">История</h3>
+                <p className="exam-description">
+                  Россия и мир: периодизация, историческое мышление и работа с источниками
+                </p>
+              </div>
+            </div>
+            <div className="exam-card-footer">
+              <span className="exam-badge">Перейти</span>
+              <div className="exam-card-arrow-wrap">
+                <span className="exam-arrow" aria-hidden="true">→</span>
+              </div>
+            </div>
+          </div>
+        </Link>
             </div>
           </div>
 

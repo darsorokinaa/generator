@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 
-const SUBJECT_NAMES = { math: "Математика", inf: "Информатика" };
+const SUBJECT_NAMES = { math: "Математика", inf: "Информатика", history: "История" };
 
 function itemsIncludeTaskNumber(items, n) {
   for (const item of items) {

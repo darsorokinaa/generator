@@ -2,18 +2,21 @@ import { useEffect, useState } from "react";
 
 const JUNE = 5; // месяц 0-based
 
+function getExamDayOfMonth(level, subjectKey) {
+  if (subjectKey === "history") {
+    return level === "ege" ? 1 : 5;
+  }
+  if (level === "ege") {
+    return subjectKey === "math" ? 8 : 18;
+  }
+  return subjectKey === "math" ? 2 : 6;
+}
+
 /** Ближайшая дата экзамена в локальном времени устройства (июнь, 10:00). */
 function getNextExamTimestamp(level, subjectKey) {
   const now = Date.now();
   const y0 = new Date().getFullYear();
-  const day =
-    level === "ege"
-      ? subjectKey === "math"
-        ? 8
-        : 18
-      : subjectKey === "math"
-        ? 2
-        : 6;
+  const day = getExamDayOfMonth(level, subjectKey);
   for (let y = y0; y <= y0 + 2; y += 1) {
     const t = new Date(y, JUNE, day, 10, 0, 0, 0).getTime();
     if (t > now) return t;
@@ -129,10 +132,12 @@ const CONFIG = {
   ege: {
     math: { subject: "Математика", dateLine: "8 июня · 10:00" },
     inf: { subject: "Информатика", dateLine: "18 июня · 10:00" },
+    history: { subject: "История", dateLine: "1 июня · 10:00" },
   },
   oge: {
     math: { subject: "Математика", dateLine: "2 июня · 10:00" },
     inf: { subject: "Информатика", dateLine: "6 июня · 10:00" },
+    history: { subject: "История", dateLine: "5 июня · 10:00" },
   },
 };
 
@@ -195,9 +200,11 @@ export default function SubjectExamCountdowns({ level }) {
   const levelLabel = level === "ege" ? "ЕГЭ" : "ОГЭ";
   const mathTarget = getNextExamTimestamp(level, "math");
   const infTarget = getNextExamTimestamp(level, "inf");
+  const historyTarget = getNextExamTimestamp(level, "history");
   const hourBucket = localHourBucketFromMs(now);
   const mathPhraseIndex = phraseIndexFromSeed(footnoteSeed, hourBucket, 0);
   const infPhraseIndex = phraseIndexFromSeed(footnoteSeed, hourBucket, 1);
+  const historyPhraseIndex = phraseIndexFromSeed(footnoteSeed, hourBucket, 2);
 
   return (
     <div className="subject-exam-countdowns">
@@ -218,6 +225,15 @@ export default function SubjectExamCountdowns({ level }) {
         now={now}
         levelLabel={levelLabel}
         footnotePhraseIndex={infPhraseIndex}
+      />
+      <CountdownCard
+        subject={cfg.history.subject}
+        dateLine={cfg.history.dateLine}
+        targetTs={historyTarget}
+        accent="history"
+        now={now}
+        levelLabel={levelLabel}
+        footnotePhraseIndex={historyPhraseIndex}
       />
     </div>
   );

@@ -12,6 +12,7 @@ const COLORS = ["#000000", "#ffffff", "#ef4444", "#3b82f6", "#22c55e"];
 const SUBJECT_NAMES = {
   math: "математике",
   inf: "информатике",
+  history: "истории",
 };
 
 function TaskReportErrorButton({ taskId, taskNumber, onClick }) {
