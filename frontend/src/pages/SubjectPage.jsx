@@ -1,5 +1,8 @@
 import { useParams, Link, useNavigate } from "react-router-dom";
-import SubjectExamCountdowns from "../components/SubjectExamCountdowns";
+import {
+  SubjectExamCountdownProvider,
+  SubjectExamCountdownCard,
+} from "../components/SubjectExamCountdowns";
 import NotFoundPage from "./NotFoundPage";
 
 const KNOWN_LEVELS = ["oge", "ege"];
@@ -44,11 +47,10 @@ function SubjectPage() {
               </p>
             </div>
 
+            <SubjectExamCountdownProvider level={level}>
             <div className="subject-page-pick-block">
-            <SubjectExamCountdowns level={level} />
-
-            <div className="exam-grid">
-
+            <div className="subject-page-subject-pair">
+            <SubjectExamCountdownCard subjectKey="math" />
         <Link
           to={`/${level}/math`}
           className="exam-card exam-card-math"
@@ -78,7 +80,10 @@ function SubjectPage() {
             </div>
           </div>
         </Link>
+            </div>
 
+            <div className="subject-page-subject-pair">
+            <SubjectExamCountdownCard subjectKey="inf" />
         <Link
           to={`/${level}/inf`}
           className="exam-card exam-card-inf"
@@ -108,7 +113,10 @@ function SubjectPage() {
             </div>
           </div>
         </Link>
+            </div>
 
+            <div className="subject-page-subject-pair">
+            <SubjectExamCountdownCard subjectKey="history" />
         <Link
           to={`/${level}/history`}
           className="exam-card exam-card-history"
@@ -140,6 +148,7 @@ function SubjectPage() {
         </Link>
             </div>
             </div>
+            </SubjectExamCountdownProvider>
           </div>
 
           <aside className="subject-page-sidebar">
