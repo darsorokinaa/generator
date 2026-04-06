@@ -19,15 +19,15 @@ ExecStart=/opt/generator_test/venv/bin/python3 -m gunicorn \
     Generator.wsgi:application
 
 Environment="PATH=/usr/local/bin:/usr/bin:/bin"
-Environment="PGDATABASE=generator_test"
+Environment="PGDATABASE=generatordb_test"
 Environment="PGUSER=generator_test_user"
 Environment="PGPASSWORD=StrongPass123"
 Environment="PGHOST=localhost"
 Environment="PGPORT=5432"
 Environment="DJANGO_SETTINGS_MODULE=Generator.settings"
 Environment="DEBUG=false"
-Environment="SECRET_KEY=ЗАМЕНИТЕ_НА_СЛУЧАЙНЫЙ_КЛЮЧ"
-Environment="CSRF_TRUSTED_ORIGINS=https://ВАШ_ДОМЕН.ru,https://www.ВАШ_ДОМЕН.ru"
+Environment="SECRET_KEY=WNbG1HzC4_lta5i_vvh6TPK3_G33Xlhzlr167fDXCFd_CVc0fS72WcaWvtLXwHreDpo"
+Environment="CSRF_TRUSTED_ORIGINS=http://genurok.tw1.ru,https://genurok.tw1.ru"
 
 Restart=always
 RestartSec=5
