@@ -25,11 +25,7 @@ def react_app(request):
 
 def home_view(request):
     if request.user.is_authenticated:
-        # В dev-режиме React крутится отдельно на 3000,
-        # в проде SPA лежит на /app/ — определяем по DEBUG
-        if settings.DEBUG:
-            return redirect(settings.FRONTEND_URL)   # http://localhost:3000
-        return redirect('react-app')                 # /app/ — SPA в билде
+        return redirect(settings.FRONTEND_URL)
     return redirect('login')
 
 

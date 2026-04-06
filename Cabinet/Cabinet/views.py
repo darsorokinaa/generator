@@ -46,12 +46,8 @@ def get_user_by_login(login_str):
 
 
 def _dashboard_url(request):
-    """Возвращает правильный URL дашборда в зависимости от режима."""
-    from django.conf import settings
-    from django.urls import reverse
-    if settings.DEBUG:
-        return FRONTEND_URL          # http://localhost:3000 (React dev)
-    return request.build_absolute_uri(reverse('react-app'))  # /app/ в проде
+    """Возвращает URL дашборда — всегда FRONTEND_URL."""
+    return FRONTEND_URL
 
 
 def login_view(request):

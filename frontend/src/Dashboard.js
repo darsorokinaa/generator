@@ -5,6 +5,15 @@ import HomeworkPage from './HomeworkPage';
 import StudentProfilePage from './StudentProfilePage';
 import API from './api';
 
+const GENURОК_URL = 'https://genurok.tw1.ru';
+
+function getCookie(name) {
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return '';
+}
+
 const NAV_ITEMS = [
   {
     id: 'dashboard',
@@ -168,6 +177,12 @@ export default function Dashboard() {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [lessonModalOpen, setLessonModalOpen] = useState(false);
+  const [lessonTarget, setLessonTarget] = useState('student');
+  const [groups, setGroups] = useState([]);
+  // { roomId, targetName, type, tab } — tab = ссылка на открытую вкладку урока
+  const [call, setCall] = useState(null);
   const today = new Date();
   const [calYear, setCalYear] = useState(today.getFullYear());
   const [calMonth, setCalMonth] = useState(today.getMonth());
@@ -194,15 +209,12 @@ export default function Dashboard() {
   }, []);
 
   useEffect(() => {
-    fetch(`${API}/api/students/`, {
-      credentials: 'include'
-    })
-    .then(r => r.json())
-    .then(data => {
-      setStudents(data);
-      setLoading(false);
-    })
-    .catch(() => setLoading(false));
+    fetch(`${API}/api/students/`, { credentials: 'include' })
+      .then(r => r.json())
+      .then(data => { setStudents(data); setLoading(false); })
+      .catch(() => setLoading(false));
+    fetch(`${API}/api/groups/`, { credentials: 'include' })
+      .then(r => r.json()).then(setGroups).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -214,8 +226,13 @@ export default function Dashboard() {
         }
         return r.json();
       })
-      .then(data => { if (data) setUser(data); })
-      .catch(() => {});
+      .then(data => {
+        if (data) setUser(data);
+        setAuthChecked(true);
+      })
+      .catch(() => {
+        window.location.href = `${API}/login/`;
+      });
   }, []);
 
   useEffect(() => {
@@ -242,6 +259,25 @@ export default function Dashboard() {
       <span style={{ color: 'var(--text-3)', fontWeight: 600 }}>Загрузка…</span>
     </div>
   );
+
+  if (!authChecked) {
+    return (
+      <div style={{
+        minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: '#F0F2FA', flexDirection: 'column', gap: 16,
+      }}>
+        <div style={{
+          width: 44, height: 44, borderRadius: '50%',
+          border: '3px solid #E5E7EB', borderTopColor: '#4F6EF7',
+          animation: 'spin 0.8s linear infinite',
+        }} />
+        <p style={{ color: '#9CA3AF', fontFamily: 'Montserrat, sans-serif', fontSize: 14, margin: 0 }}>
+          Проверка авторизации…
+        </p>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
 
   return (
     <div className="page-bg">
@@ -337,6 +373,7 @@ export default function Dashboard() {
                 </button>
               )}
             </div>
+
           </div>
 
           {/* Metrics */}
@@ -359,12 +396,44 @@ export default function Dashboard() {
               <p className="welcome-greeting">Добро пожаловать,</p>
               <h1 className="welcome-name">{user ? `${user.name} ${user.surname}` : '...'}</h1>
               <p className="welcome-role">Преподаю: {user ? (user.subjects?.map(s => s.toLowerCase()).join(', ') || '—') : '...'}</p>
-              <a href="#" className="welcome-link">
-                Перейти к урокам
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" />
-                </svg>
-              </a>
+              {call ? (
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {/* Индикатор + переход на платформу */}
+                  <button
+                    className="welcome-link welcome-link--active"
+                    onClick={() => call.tab && !call.tab.closed
+                      ? call.tab.focus()
+                      : window.open(`${GENURОК_URL}`, '_blank', 'noopener,noreferrer')
+                    }
+                  >
+                    <span style={{
+                      width: 7, height: 7, borderRadius: '50%',
+                      background: '#4ADE80', boxShadow: '0 0 6px #4ADE80',
+                      flexShrink: 0, animation: 'pulse 1.5s ease-in-out infinite',
+                    }} />
+                    Урок идёт · {call.targetName}
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                      <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+                    </svg>
+                  </button>
+                  {/* Завершить урок */}
+                  <button
+                    className="welcome-link"
+                    style={{ background: 'rgba(239,68,68,.15)', border: '1.5px solid rgba(239,68,68,.3)', color: '#fca5a5' }}
+                    onClick={() => { call.tab?.close(); setCall(null); }}
+                  >
+                    Завершить урок
+                  </button>
+                </div>
+              ) : (
+                <button className="welcome-link" onClick={() => setLessonModalOpen(true)}>
+                  Начать урок
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" />
+                  </svg>
+                </button>
+              )}
             </div>
             <div className="photo-placeholder-wrap">
               <div className="photo-placeholder">
@@ -690,6 +759,138 @@ export default function Dashboard() {
         </div>
       </nav>
 
+      {/* ── LESSON START MODAL ── */}
+      {lessonModalOpen && (() => {
+        const GEOK_URL = 'https://ГенУрок.рф/lesson/start/';
+        const activeStudents = students.filter(s => s.lesson_type === 'individual');
+
+        async function startLesson(type, id, name) {
+          const roomId = `${type}_${id}_${Date.now()}`;
+
+          try {
+            // Получаем подписанный URL с токеном от кабинета
+            const res = await fetch(`${API}/api/lesson/token/`, {
+              method: 'POST',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+              body: JSON.stringify({
+                room_id:     roomId,
+                type,
+                target_id:   id,
+                target_name: name,
+              }),
+            });
+
+            if (!res.ok) throw new Error('token error');
+            const { url } = await res.json();
+
+            const tab = window.open(url, '_blank', 'noopener,noreferrer');
+            setCall({ roomId, targetName: name, type, tab });
+          } catch {
+            alert('Не удалось создать урок. Попробуйте снова.');
+          }
+
+          setLessonModalOpen(false);
+        }
+
+        return (
+          <div className="modal-overlay" onClick={() => setLessonModalOpen(false)}>
+            <div className="modal modal--lesson" onClick={e => e.stopPropagation()}>
+              <div className="modal-header">
+                <span className="modal-title">Начать урок</span>
+                <button className="modal-close" onClick={() => setLessonModalOpen(false)}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                  </svg>
+                </button>
+              </div>
+              <div className="lesson-modal-body">
+                {/* Tabs */}
+                <div className="lesson-tabs">
+                  <button
+                    className={`lesson-tab${lessonTarget === 'student' ? ' lesson-tab--active' : ''}`}
+                    onClick={() => setLessonTarget('student')}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+                    </svg>
+                    Индивидуальный
+                  </button>
+                  <button
+                    className={`lesson-tab${lessonTarget === 'group' ? ' lesson-tab--active' : ''}`}
+                    onClick={() => setLessonTarget('group')}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+                      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
+                    Групповой
+                  </button>
+                </div>
+
+                {lessonTarget === 'student' && (
+                  <div className="lesson-list">
+                    {activeStudents.length === 0 && (
+                      <p className="lesson-empty">Нет индивидуальных учеников</p>
+                    )}
+                    {activeStudents.map(s => (
+                      <button
+                        key={s.id}
+                        className="lesson-item"
+                        onClick={() => startLesson('student', s.id, `${s.student_name} ${s.student_surname || ''}`.trim())}
+                      >
+                        <div className="lesson-item-avatar">
+                          {(s.student_name?.[0] || '?').toUpperCase()}{(s.student_surname?.[0] || '').toUpperCase()}
+                        </div>
+                        <div className="lesson-item-info">
+                          <span className="lesson-item-name">{s.student_name} {s.student_surname}</span>
+                          <span className="lesson-item-sub">{s.subject_name} · {s.level_name}</span>
+                        </div>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="lesson-item-arrow">
+                          <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+                        </svg>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {lessonTarget === 'group' && (
+                  <div className="lesson-list">
+                    {groups.length === 0 && (
+                      <p className="lesson-empty">Нет созданных групп</p>
+                    )}
+                    {groups.map(g => (
+                      <button
+                        key={g.id}
+                        className="lesson-item"
+                        onClick={() => startLesson('group', g.id, g.group_name)}
+                      >
+                        <div className="lesson-item-avatar lesson-item-avatar--group">
+                          {g.group_name[0]?.toUpperCase()}
+                        </div>
+                        <div className="lesson-item-info">
+                          <span className="lesson-item-name">{g.group_name}</span>
+                          <span className="lesson-item-sub">{g.subject_name} · {g.level_name}</span>
+                        </div>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="lesson-item-arrow">
+                          <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+                        </svg>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <p className="lesson-hint">
+                  После выбора вы будете перенаправлены на платформу ГенУрок.рф для проведения урока.
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+
     </div>
   );
 }
+
