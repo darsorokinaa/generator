@@ -45,9 +45,18 @@ def get_user_by_login(login_str):
     return user
 
 
+def _dashboard_url(request):
+    """Возвращает правильный URL дашборда в зависимости от режима."""
+    from django.conf import settings
+    from django.urls import reverse
+    if settings.DEBUG:
+        return FRONTEND_URL          # http://localhost:3000 (React dev)
+    return request.build_absolute_uri(reverse('react-app'))  # /app/ в проде
+
+
 def login_view(request):
     if request.user.is_authenticated:
-        return redirect(FRONTEND_URL)
+        return redirect(_dashboard_url(request))
 
     if request.method == 'POST':
         login_str = request.POST.get('username', '').strip()
@@ -59,7 +68,7 @@ def login_view(request):
         if user is not None:
             login(request, user)
             next_url = request.GET.get('next')
-            return redirect(next_url if next_url else FRONTEND_URL)
+            return redirect(next_url if next_url else _dashboard_url(request))
         messages.error(request, 'Неверный логин / email или пароль')
 
     return render(request, 'login.html')
