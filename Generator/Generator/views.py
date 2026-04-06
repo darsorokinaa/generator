@@ -1674,7 +1674,7 @@ def verify_lesson_token(token: str) -> dict:
     secret = os.environ.get("LESSON_SECRET", "")
     try:
         payload = pyjwt.decode(token, secret, algorithms=["HS256"])
-        if payload.get("iss") != "cabinet":
+        if payload.get("iss") not in ("cabinet", "lk-cabinet"):
             raise ValueError("Неверный издатель токена")
         return payload
     except pyjwt.ExpiredSignatureError:
