@@ -1672,6 +1672,8 @@ def report_error(request, level, subject):
 
 def verify_lesson_token(token: str) -> dict:
     secret = os.environ.get("LESSON_SECRET", "")
+    if not secret:
+        raise ValueError("LESSON_SECRET не задан на сервере")
     try:
         payload = pyjwt.decode(token, secret, algorithms=["HS256"])
         if payload.get("iss") not in ("cabinet", "lk-cabinet"):
@@ -1683,18 +1685,82 @@ def verify_lesson_token(token: str) -> dict:
         raise ValueError(f"Невалидный токен: {e}")
 
 
+def normalize_lesson_jwt_payload(payload: dict) -> dict:
+    """Кабинет может отдавать snake_case или camelCase — без этого lesson_join давал KeyError (ошибка join)."""
+    room = (
+        payload.get("room_id")
+        or payload.get("roomId")
+        or payload.get("room")
+    )
+    teacher = (
+        payload.get("teacher")
+        or payload.get("teacher_name")
+        or payload.get("teacherName")
+        or payload.get("tutor_name")
+        or payload.get("tutorName")
+        or ""
+    )
+    target = (
+        payload.get("target_name")
+        or payload.get("targetName")
+        or payload.get("student_name")
+        or payload.get("studentName")
+        or payload.get("user_name")
+        or payload.get("display_name")
+        or payload.get("name")
+        or ""
+    )
+    raw_role = (
+        payload.get("type")
+        or payload.get("role")
+        or payload.get("lesson_type")
+        or payload.get("lessonType")
+        or ""
+    )
+    s = str(raw_role).strip().lower()
+    if s in ("teacher", "tutor", "учитель"):
+        lesson_type = "teacher"
+    elif s in ("student", "pupil", "learner", "ученик"):
+        lesson_type = "student"
+    elif payload.get("is_teacher") is True or payload.get("isTeacher") is True:
+        lesson_type = "teacher"
+    elif payload.get("is_student") is True or payload.get("isStudent") is True:
+        lesson_type = "student"
+    elif not s:
+        lesson_type = "student"
+    elif "teacher" in s or "tutor" in s or "учит" in s:
+        lesson_type = "teacher"
+    elif "student" in s or "pupil" in s or "учен" in s:
+        lesson_type = "student"
+    else:
+        lesson_type = "student"
+
+    if room is None or str(room).strip() == "":
+        raise ValueError("В токене нет room_id (или roomId)")
+
+    teacher = str(teacher).strip() or "Учитель"
+    target = str(target).strip()
+    if lesson_type == "student":
+        participant_name = target or "Ученик"
+    else:
+        participant_name = teacher
+    return {
+        "room_id": str(room).strip(),
+        "teacher_name": teacher,
+        "target_name": target,
+        "lesson_type": lesson_type,
+        "participant_name": participant_name,
+    }
+
+
 def lesson_join(request):
     token = request.GET.get("token", "")
     if not token:
         return HttpResponseBadRequest("Токен не передан")
     try:
         payload = verify_lesson_token(token)
+        normalized = normalize_lesson_jwt_payload(payload)
     except ValueError as e:
         return HttpResponseBadRequest(str(e))
 
-    return render(request, "lesson_room.html", {
-        "room_id":      payload["room_id"],
-        "teacher_name": payload["teacher"],
-        "target_name":  payload["target_name"],
-        "lesson_type":  payload["type"],
-    })
+    return render(request, "lesson_room.html", normalized)
