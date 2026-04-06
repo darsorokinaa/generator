@@ -283,14 +283,35 @@
   <aside class="video-panel">
     <div class="video-header">Видеозвонок</div>
     <div class="video-area">
+      {% if lesson_video_embed_url %}
+      <iframe
+        class="video-iframe"
+        src="{{ lesson_video_embed_url }}"
+        title="Видеозвонок"
+        allow="camera; microphone; fullscreen; display-capture; autoplay"
+        referrerpolicy="no-referrer-when-downgrade"
+      ></iframe>
+      {% elif lesson_video_link_url %}
+      <div class="video-placeholder" id="video-placeholder">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5">
+          <rect x="2" y="6" width="14" height="12" rx="2"/>
+          <path d="M16 10l5-3v10l-5-3"/>
+        </svg>
+        <span>Ссылка на звонок из кабинета</span>
+        <a href="{{ lesson_video_link_url }}" target="_blank" rel="noopener noreferrer" class="btn btn-primary" style="margin-top:12px;text-decoration:none">
+          Открыть видеозвонок
+        </a>
+      </div>
+      {% else %}
       <div class="video-placeholder" id="video-placeholder">
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5">
           <rect x="2" y="6" width="14" height="12" rx="2"/>
           <path d="M16 10l5-3v10l-5-3"/>
         </svg>
         <span>Видеосвязь из кабинета</span>
-        <span style="font-size:.7rem;opacity:.7">Откройте урок в личном кабинете</span>
+        <span style="font-size:.7rem;opacity:.7">Если в ЛК задана ссылка на звонок, она появится здесь автоматически</span>
       </div>
+      {% endif %}
       <div class="room-id-box">Room: {{ room_id }}</div>
     </div>
   </aside>
@@ -469,14 +490,17 @@ function handleMessage(msg) {
       break;
     }
 
-    case "answer":
-      if (ROLE === "teacher") {
-        const name = msg.name || "Ученик";
-        if (!studentAnswers[name]) studentAnswers[name] = {};
-        studentAnswers[name][msg.task_number] = msg.value;
-        renderStudentAnswers();
-      }
+    case "answer": {
+      if (ROLE !== "teacher") break;
+      const name = msg.name || "Ученик";
+      const tnum = msg.task_number ?? msg.taskNumber;
+      const val = msg.value ?? msg.answer ?? msg.text ?? "";
+      if (tnum == null || tnum === "") break;
+      if (!studentAnswers[name]) studentAnswers[name] = {};
+      studentAnswers[name][tnum] = val;
+      renderStudentAnswers();
       break;
+    }
   }
 }
 
@@ -611,7 +635,7 @@ function submitAnswer(num, value) {
   if (input) { input.classList.toggle("saved", !!value); input.value = value; }
   if (card)  { card.classList.toggle("answered", !!value); }
 
-  send({type: "answer", task_number: num, value, name: MY_NAME});
+  send({ type: "answer", task_number: num, taskNumber: num, value, name: MY_NAME });
   showToast(`Ответ на задание ${num} отправлен`);
 }
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useParams, useLocation } from "react-router-dom";
+import { useParams, useLocation, Navigate } from "react-router-dom";
 import MathContent from "../components/MathContent";
 import ImageLightbox from "../components/ImageLightbox";
 import SupportInfoModal from "../components/SupportInfoModal";
@@ -58,6 +58,17 @@ function clampExamCornerToViewport(el, left, top) {
 function ExamPage() {
   const { level, subject, variant_id } = useParams();
   const location = useLocation();
+  if (
+    String(level || "").toLowerCase() === "lesson" &&
+    String(subject || "").toLowerCase() === "join"
+  ) {
+    return (
+      <Navigate
+        to={{ pathname: "/lesson/join/", search: location.search }}
+        replace
+      />
+    );
+  }
   const mode = location.state?.mode || "variant";
   const subjectLabel = location.state?.subjectName || SUBJECT_NAMES[subject] || subject;
   const levelLabel = LEVEL_NAMES[level] || level.toUpperCase();

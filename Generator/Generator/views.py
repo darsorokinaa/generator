@@ -3,6 +3,7 @@ import json
 import logging
 import os
 import re
+from urllib.parse import quote
 import secrets
 from datetime import datetime
 
@@ -10,7 +11,13 @@ import jwt as pyjwt
 
 from django.conf import settings as django_settings
 from django.db.models import Case, Count, IntegerField, Prefetch, Q, Value, When
-from django.http import FileResponse, HttpResponse, HttpResponseBadRequest, JsonResponse
+from django.http import (
+    FileResponse,
+    HttpResponse,
+    HttpResponseBadRequest,
+    HttpResponseRedirect,
+    JsonResponse,
+)
 from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
@@ -47,6 +54,14 @@ def get_subject_for_api(subject_param):
     """Subject по short name из URL; регистр не важен (history == History)."""
     s = (subject_param or "").strip()
     return get_object_or_404(Subject, subject_short__iexact=s)
+
+
+def _is_spa_lesson_join_path(level, subject):
+    """React /:level/:subject не должен перехватывать /lesson/join — иначе в API уходит subject=join."""
+    return (
+        str(level or "").strip().lower() == "lesson"
+        and str(subject or "").strip().lower() == "join"
+    )
 
 
 FAVICON_SVG = (
@@ -831,6 +846,8 @@ def api_csrf(request):
 
 
 def api_tasks(request, level, subject):
+    if _is_spa_lesson_join_path(level, subject):
+        return JsonResponse({"subject_name": "", "tasks": []})
     subject_instance = get_subject_for_api(subject)
     level_instance = get_object_or_404(Level, level=level)
 
@@ -1081,6 +1098,8 @@ def api_tasks(request, level, subject):
 
 def api_subtopics(request, level, subject):
     """GET: список подтем по номерам заданий и связанным группам для тренажёра."""
+    if _is_spa_lesson_join_path(level, subject):
+        return JsonResponse({"subtopics_by_task": []})
     subject_instance = get_subject_for_api(subject)
     level_instance = get_object_or_404(Level, level=level)
  
@@ -1767,6 +1786,58 @@ def normalize_lesson_jwt_payload(payload: dict) -> dict:
     }
 
 
+def _lesson_first_url(*candidates) -> str:
+    for v in candidates:
+        if v is None:
+            continue
+        s = str(v).strip()
+        if s:
+            return s
+    return ""
+
+
+def lesson_video_context_from_jwt(payload: dict) -> dict:
+    """
+    Ссылка на видеозвонок из ЛК (JWT). В iframe только https (или localhost) — иначе только внешняя ссылка.
+    """
+    p = payload or {}
+    direct = _lesson_first_url(
+        p.get("video_url"),
+        p.get("videoUrl"),
+        p.get("meeting_url"),
+        p.get("meetingUrl"),
+        p.get("call_url"),
+        p.get("callUrl"),
+        p.get("jitsi_url"),
+        p.get("jitsiUrl"),
+    )
+    jitsi_room = _lesson_first_url(p.get("jitsi_room"), p.get("jitsiRoom"))
+    if not direct and jitsi_room:
+        slug = jitsi_room.strip()
+        if slug:
+            direct = "https://meet.jit.si/" + quote(slug, safe="")
+
+    embed_url = ""
+    link_url = ""
+    if direct:
+        link_url = direct
+        low = direct.lower()
+        if low.startswith("https://") or low.startswith("http://localhost") or low.startswith("http://127.0.0.1"):
+            embed_url = direct
+
+    return {
+        "lesson_video_embed_url": embed_url,
+        "lesson_video_link_url": link_url,
+    }
+
+
+def lesson_join_redirect(request):
+    """Без завершающего слэша запрос иначе попадает в react_app — сохраняем query (?token=…)."""
+    q = request.META.get("QUERY_STRING", "").strip()
+    target = "/lesson/join/" + ("?" + q if q else "")
+    return HttpResponseRedirect(target)
+
+
 def lesson_join(request):
     token = request.GET.get("token", "")
     if not token:
@@ -1774,6 +1845,7 @@ def lesson_join(request):
     try:
         payload = verify_lesson_token(token)
         normalized = normalize_lesson_jwt_payload(payload)
+        normalized.update(lesson_video_context_from_jwt(payload))
     except ValueError as e:
         return HttpResponseBadRequest(str(e))
 
