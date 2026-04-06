@@ -1,5 +1,11 @@
 import { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import {
+  useParams,
+  useNavigate,
+  useSearchParams,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
 
 const SUBJECT_NAMES = { math: "Математика", inf: "Информатика", history: "История" };
 
@@ -15,8 +21,22 @@ function itemsIncludeTaskNumber(items, n) {
 
 function TasksPage() {
   const { level, subject } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+
+  /* Не матчить /lesson/join как предмет: иначе fetch → /api/lesson/join/tasks/ и 404 в get_subject_for_api("join"). */
+  if (
+    String(level || "").toLowerCase() === "lesson" &&
+    String(subject || "").toLowerCase() === "join"
+  ) {
+    return (
+      <Navigate
+        to={{ pathname: "/lesson/join/", search: location.search }}
+        replace
+      />
+    );
+  }
   const searchQuery = searchParams.get("search")?.trim() ?? "";
   const subjectName = SUBJECT_NAMES[subject] || subject;
 
