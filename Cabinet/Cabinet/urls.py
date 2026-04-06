@@ -23,9 +23,15 @@ def react_app(request):
         return FileResponse(open(REACT_INDEX, 'rb'), content_type='text/html')
     return HttpResponseNotFound('React build not found. Run: cd frontend && npm run build')
 
+def home_view(request):
+    if request.user.is_authenticated:
+        return redirect(settings.FRONTEND_URL)
+    return redirect('login')
+
+
 urlpatterns = [
     path('admin/',    admin.site.urls),
-    path('',          lambda req: redirect('login'), name='home'),
+    path('',          home_view, name='home'),
     path('login/',    views.login_view,    name='login'),
     path('register/', views.register_view, name='register'),
     path('logout/',   views.logout_view,   name='logout'),
