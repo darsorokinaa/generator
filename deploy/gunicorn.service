@@ -32,6 +32,7 @@ Environment="SECRET_KEY=WNbG1HzC4_lta5i_vvh6TPK3_G33Xlhzlr167fDXCFd_CVc0fS72WcaW
 Environment="CSRF_TRUSTED_ORIGINS=http://genurok.tw1.ru,https://genurok.tw1.ru"
 # Тестовый стенд часто без Redis — in-memory каналы (один процесс Daphne). С Redis — удалите эту строку.
 Environment="CHANNEL_LAYER_BACKEND=inmemory"
+Environment="LESSON_SECRET=QtU0QtXHHCXMGxFyfUicYgru2ZTYRCQv4OUcRWx123LQx1t50B8hrqI6t63W"
 
 Restart=always
 RestartSec=5
