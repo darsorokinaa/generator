@@ -1,12 +1,12 @@
 #!/bin/bash
-# Скрипт первоначальной настройки VPS для проекта Генератор
+# Скрипт первоначальной настройки VPS для проекта Генератор (тестовый сервер)
 # Запускать от root: bash setup.sh
 set -e
 
-APP_DIR="/opt/generator"
-APP_USER="generator"
-DB_NAME="generatordb"
-DB_USER="generatoruser"
+APP_DIR="/opt/generator_test"
+APP_USER="generator_test"
+DB_NAME="generatordb_test"
+DB_USER="generatoruser_test"
 DB_PASS="ЗАМЕНИТЕ_НА_НАДЁЖНЫЙ_ПАРОЛЬ"
 DOMAIN="ВАШ_ДОМЕН.ru"
 
