@@ -5,6 +5,10 @@ set -e
 
 APP_DIR="/opt/generator"
 
+echo "=== Получение последнего кода ==="
+cd $APP_DIR
+git pull origin generator_test
+
 echo "=== Обновление фронтенда ==="
 cd $APP_DIR/frontend
 npm install
