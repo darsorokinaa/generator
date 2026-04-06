@@ -1,8 +1,7 @@
 [Unit]
 Description=Генератор ЕГЭ/ОГЭ — Daphne ASGI (HTTP + WebSocket уроков)
 After=network.target postgresql.service
-# Каналы урока (channels_redis) — Redis должен быть запущен
-Wants=redis.service
+# С Redis-слоем каналов раскомментируйте: Wants=redis.service
 
 [Service]
 User=root
@@ -31,6 +30,8 @@ Environment="DJANGO_SETTINGS_MODULE=Generator.settings"
 Environment="DEBUG=false"
 Environment="SECRET_KEY=WNbG1HzC4_lta5i_vvh6TPK3_G33Xlhzlr167fDXCFd_CVc0fS72WcaWvtLXwHreDpo"
 Environment="CSRF_TRUSTED_ORIGINS=http://genurok.tw1.ru,https://genurok.tw1.ru"
+# Тестовый стенд часто без Redis — in-memory каналы (один процесс Daphne). С Redis — удалите эту строку.
+Environment="CHANNEL_LAYER_BACKEND=inmemory"
 
 Restart=always
 RestartSec=5

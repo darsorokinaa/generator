@@ -393,6 +393,7 @@ const TEACHER    = "{{ teacher_name|escapejs }}";
 // ── STATE ──
 let ws = null;
 let reconnectTimer = null;
+let wsCloseCount = 0;
 let currentVariant = null;  // {variant_id, level, subject}
 let myAnswers = {};         // {task_number: value}
 let studentAnswers = {};    // {name: {task_number: value}} — teacher only
@@ -404,6 +405,7 @@ function connectWS() {
   ws = new WebSocket(url);
 
   ws.onopen = () => {
+    wsCloseCount = 0;
     setWSStatus(true);
     clearTimeout(reconnectTimer);
     // Announce presence
@@ -412,6 +414,13 @@ function connectWS() {
 
   ws.onclose = () => {
     setWSStatus(false);
+    wsCloseCount += 1;
+    if (wsCloseCount >= 4) {
+      const el = document.getElementById("ws-label");
+      if (el) {
+        el.textContent = "WS недоступен: нужен ASGI (Daphne), не WSGI";
+      }
+    }
     reconnectTimer = setTimeout(connectWS, 3000);
   };
 
