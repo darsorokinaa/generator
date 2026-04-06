@@ -1,154 +1,639 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Урок — {{ teacher_name }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;700&family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    :root {
+      --blue: #3c63d8;
+      --blue-light: #e8f0fe;
+      --green: #22c55e;
+      --red: #ef4444;
+      --gray: #f4f6fb;
+      --text: #1a1a2e;
+      --muted: #888;
+      --header-gradient: linear-gradient(135deg, #3c63d8 0%, #5b7cf7 100%);
+    }
+
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #f4f6fb;
-      color: #1a1a2e;
+      font-family: "Montserrat", sans-serif;
+      background: var(--gray);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── HEADER ── */
+    header {
+      background: var(--header-gradient);
+      padding: 0.7rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    .header-logo { display: flex; align-items: center; gap: 8px; text-decoration: none; }
+    .header-logo-icon {
+      width: 32px; height: 32px; border-radius: 8px;
+      background: rgba(255,255,255,0.2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.1rem; font-family: "Unbounded", sans-serif; color: #fff;
+    }
+    .header-logo-text { font-family: "Unbounded", sans-serif; font-size: 0.9rem; font-weight: 700; color: #fff; }
+    .header-meta { display: flex; align-items: center; gap: 12px; }
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 20px; padding: 0.3rem 0.75rem;
+      font-size: 0.78rem; font-weight: 600; color: #fff; white-space: nowrap;
+    }
+    .badge.green { background: rgba(34,197,94,0.2); border-color: rgba(34,197,94,0.5); }
+    .badge.red   { background: rgba(239,68,68,0.2);  border-color: rgba(239,68,68,0.5); }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); animation: pulse 1.5s ease-in-out infinite; }
+    .dot.off { background: #f87171; animation: none; }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.8)} }
+
+    /* ── LAYOUT ── */
+    .layout {
+      display: grid;
+      grid-template-columns: 320px 1fr;
+      grid-template-rows: auto 1fr;
+      gap: 0;
+      flex: 1;
+      min-height: 0;
+    }
+
+    /* ── VIDEO PANEL ── */
+    .video-panel {
+      grid-row: 1 / 3;
+      background: #1a1a2e;
+      display: flex;
+      flex-direction: column;
+      min-height: 400px;
+    }
+    .video-header {
+      padding: 0.75rem 1rem;
+      background: rgba(255,255,255,0.05);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      font-size: 0.75rem; font-weight: 600; color: rgba(255,255,255,0.6);
+      text-transform: uppercase; letter-spacing: .05em;
+    }
+    .video-area {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .video-placeholder {
+      width: 100%;
+      aspect-ratio: 16/9;
+      background: rgba(255,255,255,0.05);
+      border: 2px dashed rgba(255,255,255,0.15);
+      border-radius: 12px;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      min-height: 100vh;
-      gap: 24px;
-      padding: 24px;
+      gap: 10px;
+      color: rgba(255,255,255,0.4);
+      font-size: 0.8rem;
     }
-
-    .card {
-      background: #fff;
-      border-radius: 16px;
-      box-shadow: 0 4px 24px rgba(0,0,0,.08);
-      padding: 40px 48px;
-      max-width: 480px;
-      width: 100%;
+    .video-placeholder svg { opacity: .4; }
+    .video-iframe { width: 100%; aspect-ratio: 16/9; border: none; border-radius: 12px; }
+    .room-id-box {
+      background: rgba(255,255,255,0.05);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 0.7rem;
+      color: rgba(255,255,255,0.4);
+      font-family: monospace;
+      word-break: break-all;
       text-align: center;
     }
 
-    .badge {
-      display: inline-block;
-      background: #e8f0fe;
-      color: #3c63d8;
-      font-size: 12px;
-      font-weight: 600;
-      letter-spacing: .05em;
-      text-transform: uppercase;
-      border-radius: 20px;
-      padding: 4px 14px;
-      margin-bottom: 20px;
-    }
-
-    h1 {
-      font-size: 22px;
-      font-weight: 700;
-      margin-bottom: 8px;
-    }
-
-    .subtitle {
-      font-size: 15px;
-      color: #666;
-      margin-bottom: 28px;
-    }
-
-    .info-grid {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      text-align: left;
-      margin-bottom: 28px;
-    }
-
-    .info-item {
-      background: #f8f9ff;
-      border-radius: 10px;
-      padding: 12px 16px;
-    }
-
-    .info-label {
-      font-size: 11px;
-      font-weight: 600;
-      color: #888;
-      text-transform: uppercase;
-      letter-spacing: .05em;
-      margin-bottom: 4px;
-    }
-
-    .info-value {
-      font-size: 15px;
-      font-weight: 600;
-    }
-
-    .room-id {
-      background: #f8f9ff;
-      border-radius: 10px;
-      padding: 12px 16px;
-      font-family: "SFMono-Regular", Consolas, monospace;
-      font-size: 13px;
-      color: #444;
-      word-break: break-all;
-      margin-bottom: 28px;
-    }
-
-    .status {
-      display: inline-flex;
+    /* ── INFO BAR (teacher panel top) ── */
+    .info-bar {
+      padding: 1rem 1.5rem;
+      background: #fff;
+      border-bottom: 1px solid #e5e7ef;
+      display: flex;
       align-items: center;
-      gap: 8px;
-      background: #e6faf0;
-      color: #1a7a4a;
-      border-radius: 20px;
-      padding: 8px 20px;
-      font-weight: 600;
-      font-size: 14px;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .info-bar h2 { font-family: "Unbounded", sans-serif; font-size: 0.9rem; font-weight: 700; flex: 1; }
+    .info-bar .sub { font-size: 0.8rem; color: var(--muted); }
+
+    /* ── MAIN CONTENT ── */
+    .main-content {
+      overflow-y: auto;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
     }
 
-    .dot {
-      width: 8px;
-      height: 8px;
-      background: #22c55e;
-      border-radius: 50%;
-      animation: pulse 1.5s ease-in-out infinite;
+    /* ── CARDS ── */
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 2px 12px rgba(0,0,0,.06);
+      overflow: hidden;
     }
+    .card-header {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid #f0f0f5;
+      font-weight: 700;
+      font-size: 0.85rem;
+      display: flex; align-items: center; gap: 8px;
+      font-family: "Unbounded", sans-serif;
+    }
+    .card-body { padding: 1.25rem; }
 
-    @keyframes pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: .5; transform: scale(.8); }
+    /* ── TEACHER: VARIANT SELECTOR ── */
+    .selector-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+    select, input[type=number] {
+      width: 100%; padding: 0.6rem 0.75rem;
+      border: 1.5px solid #e0e3ef; border-radius: 10px;
+      font-family: inherit; font-size: 0.85rem; color: var(--text);
+      background: #fff; outline: none; transition: border-color .2s;
+    }
+    select:focus, input[type=number]:focus { border-color: var(--blue); }
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 0.6rem 1.2rem; border: none; border-radius: 10px;
+      font-family: inherit; font-size: 0.85rem; font-weight: 600;
+      cursor: pointer; transition: all .2s; text-decoration: none;
+    }
+    .btn-primary { background: var(--blue); color: #fff; }
+    .btn-primary:hover { background: #2f50c0; }
+    .btn-primary:disabled { background: #c0c8e8; cursor: not-allowed; }
+    .btn-secondary { background: #f0f3ff; color: var(--blue); }
+    .btn-secondary:hover { background: #dde4ff; }
+    .btn-danger { background: #fee2e2; color: #dc2626; }
+    .btn-danger:hover { background: #fecaca; }
+    .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.78rem; }
+
+    /* ── STUDENT ANSWERS PANEL (teacher) ── */
+    .students-grid { display: flex; flex-direction: column; gap: 10px; }
+    .student-row {
+      display: flex; align-items: flex-start; gap: 12px;
+      padding: 10px 12px; border-radius: 10px; background: var(--gray);
+    }
+    .student-avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--blue); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; font-weight: 700; flex-shrink: 0;
+    }
+    .student-info { flex: 1; min-width: 0; }
+    .student-name { font-weight: 600; font-size: 0.82rem; margin-bottom: 4px; }
+    .answers-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+    .chip {
+      padding: 2px 8px; border-radius: 12px; font-size: 0.72rem; font-weight: 600;
+      background: #e8f0fe; color: var(--blue);
+    }
+    .chip.correct { background: #dcfce7; color: #15803d; }
+    .chip.empty { background: #f1f1f5; color: #aaa; }
+
+    /* ── TASKS (student) ── */
+    .tasks-list { display: flex; flex-direction: column; gap: 1rem; }
+    .task-card {
+      background: var(--gray); border-radius: 12px;
+      padding: 1rem 1.25rem;
+      border: 2px solid transparent; transition: border-color .2s;
+    }
+    .task-card.answered { border-color: #86efac; }
+    .task-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .task-num {
+      width: 26px; height: 26px; border-radius: 50%;
+      background: var(--blue); color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.75rem; font-weight: 700; flex-shrink: 0;
+    }
+    .task-topic { font-size: 0.75rem; color: var(--muted); }
+    .task-content { font-size: 0.88rem; line-height: 1.6; margin-bottom: 10px; }
+    .task-content img { max-width: 100%; border-radius: 6px; }
+    .task-answer-row { display: flex; gap: 8px; }
+    .task-answer-input {
+      flex: 1; padding: 0.5rem 0.75rem;
+      border: 1.5px solid #e0e3ef; border-radius: 8px;
+      font-family: inherit; font-size: 0.85rem;
+      outline: none; transition: border-color .2s;
+    }
+    .task-answer-input:focus { border-color: var(--blue); }
+    .task-answer-input.saved { border-color: var(--green); background: #f0fdf4; }
+
+    /* ── WAITING STATE ── */
+    .waiting-state {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      padding: 3rem 1rem; gap: 16px; color: var(--muted); text-align: center;
+    }
+    .waiting-state svg { opacity: .3; }
+    .waiting-state p { font-size: 0.85rem; }
+
+    /* ── STATUS TOAST ── */
+    #status-toast {
+      position: fixed; bottom: 20px; right: 20px;
+      background: var(--text); color: #fff;
+      padding: 10px 16px; border-radius: 10px;
+      font-size: 0.8rem; font-weight: 500;
+      opacity: 0; transition: opacity .3s; pointer-events: none;
+      z-index: 9999;
+    }
+    #status-toast.show { opacity: 1; }
+
+    @media (max-width: 768px) {
+      .layout { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr; }
+      .video-panel { grid-row: auto; min-height: 220px; }
     }
   </style>
 </head>
 <body>
-  <div class="card">
+
+<header>
+  <a href="/" class="header-logo">
+    <div class="header-logo-icon">∑</div>
+    <span class="header-logo-text">Генератор</span>
+  </a>
+  <div class="header-meta">
     <span class="badge">
-      {% if lesson_type == "student" %}Индивидуальный урок{% else %}Групповой урок{% endif %}
+      {% if lesson_type == "student" %}Ученик{% else %}Учитель{% endif %}
     </span>
+    <span class="badge" id="ws-status-badge">
+      <span class="dot off" id="ws-dot"></span>
+      <span id="ws-label">Подключение…</span>
+    </span>
+  </div>
+</header>
 
-    <h1>Урок с {{ teacher_name }}</h1>
-    <p class="subtitle">Участник: <strong>{{ target_name }}</strong></p>
+<div class="layout">
 
-    <div class="info-grid">
-      <div class="info-item">
-        <div class="info-label">Учитель</div>
-        <div class="info-value">{{ teacher_name }}</div>
+  <!-- ═══ VIDEO PANEL ═══ -->
+  <aside class="video-panel">
+    <div class="video-header">Видеозвонок</div>
+    <div class="video-area">
+      <div class="video-placeholder" id="video-placeholder">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5">
+          <rect x="2" y="6" width="14" height="12" rx="2"/>
+          <path d="M16 10l5-3v10l-5-3"/>
+        </svg>
+        <span>Видеосвязь из кабинета</span>
+        <span style="font-size:.7rem;opacity:.7">Откройте урок в личном кабинете</span>
       </div>
-      <div class="info-item">
-        <div class="info-label">Формат</div>
-        <div class="info-value">
-          {% if lesson_type == "student" %}Один на один{% else %}Группа{% endif %}
+      <div class="room-id-box">Room: {{ room_id }}</div>
+    </div>
+  </aside>
+
+  <!-- ═══ INFO BAR ═══ -->
+  <div class="info-bar">
+    <div>
+      <h2>{{ teacher_name }}
+        {% if lesson_type == "student" %}&nbsp;·&nbsp;<span style="font-weight:400">{{ target_name }}</span>{% endif %}
+      </h2>
+      <div class="sub">
+        {% if lesson_type == "student" %}Индивидуальный урок{% else %}Учитель ведёт урок{% endif %}
+      </div>
+    </div>
+    {% if lesson_type == "teacher" %}
+    <div id="current-variant-badge" style="display:none" class="badge green">
+      <span id="current-variant-text"></span>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- ═══ MAIN CONTENT ═══ -->
+  <main class="main-content">
+
+    {% if lesson_type == "teacher" %}
+    <!-- ══ TEACHER: VARIANT SELECTOR ══ -->
+    <div class="card">
+      <div class="card-header">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+        Выбор варианта
+      </div>
+      <div class="card-body">
+        <div class="selector-grid">
+          <select id="sel-level">
+            <option value="ege">ЕГЭ</option>
+            <option value="oge">ОГЭ</option>
+          </select>
+          <select id="sel-subject">
+            <option value="math">Математика (база)</option>
+            <option value="math-advanced">Математика (профиль)</option>
+            <option value="informatics">Информатика</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input type="number" id="inp-variant-id" placeholder="ID варианта (опционально)" style="flex:1;min-width:160px"/>
+          <button class="btn btn-primary" id="btn-generate" onclick="teacherGenerate()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            Начать вариант
+          </button>
         </div>
       </div>
     </div>
 
-    <div class="info-label" style="margin-bottom:6px;">ID комнаты</div>
-    <div class="room-id">{{ room_id }}</div>
-
-    <div class="status">
-      <span class="dot"></span>
-      Урок идёт
+    <!-- ══ TEACHER: STUDENT ANSWERS ══ -->
+    <div class="card">
+      <div class="card-header">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        Ответы учеников
+      </div>
+      <div class="card-body">
+        <div class="students-grid" id="students-panel">
+          <div class="waiting-state">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            <p>Ждём ответов учеников…</p>
+          </div>
+        </div>
+      </div>
     </div>
-  </div>
+
+    {% else %}
+    <!-- ══ STUDENT: TASKS ══ -->
+    <div class="card" id="tasks-card">
+      <div class="card-header">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Задания
+        <span id="tasks-variant-label" style="margin-left:auto;font-weight:400;font-size:.75rem;color:#888"></span>
+      </div>
+      <div class="card-body">
+        <div id="tasks-container">
+          <div class="waiting-state" id="tasks-waiting">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            <p>Ожидаем вариант от учителя…</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+  </main>
+</div>
+
+<div id="status-toast"></div>
+
+<script>
+const ROOM_ID    = "{{ room_id }}";
+const ROLE       = "{{ lesson_type }}";
+const MY_NAME    = "{{ target_name }}";
+const TEACHER    = "{{ teacher_name }}";
+
+// ── STATE ──
+let ws = null;
+let reconnectTimer = null;
+let currentVariant = null;  // {variant_id, level, subject}
+let myAnswers = {};         // {task_number: value}
+let studentAnswers = {};    // {name: {task_number: value}} — teacher only
+
+// ── WEBSOCKET ──
+function connectWS() {
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  const url = `${proto}://${location.host}/ws/lesson/${ROOM_ID}/`;
+  ws = new WebSocket(url);
+
+  ws.onopen = () => {
+    setWSStatus(true);
+    clearTimeout(reconnectTimer);
+    // Announce presence
+    send({type: "join", name: MY_NAME, role: ROLE});
+  };
+
+  ws.onclose = () => {
+    setWSStatus(false);
+    reconnectTimer = setTimeout(connectWS, 3000);
+  };
+
+  ws.onerror = () => ws.close();
+
+  ws.onmessage = (e) => {
+    try { handleMessage(JSON.parse(e.data)); }
+    catch {}
+  };
+}
+
+function send(data) {
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    ws.send(JSON.stringify(data));
+  }
+}
+
+function setWSStatus(ok) {
+  document.getElementById("ws-dot").className = ok ? "dot" : "dot off";
+  document.getElementById("ws-label").textContent = ok ? "Подключено" : "Переподключение…";
+}
+
+// ── MESSAGE HANDLER ──
+function handleMessage(msg) {
+  switch (msg.type) {
+    case "join":
+      if (ROLE === "teacher") showToast(`${msg.name} подключился`);
+      break;
+
+    case "variant":
+      currentVariant = {variant_id: msg.variant_id, level: msg.level, subject: msg.subject};
+      if (ROLE === "student") {
+        loadVariantForStudent(msg.variant_id, msg.level, msg.subject);
+      } else {
+        // teacher: update label
+        const badge = document.getElementById("current-variant-badge");
+        const text  = document.getElementById("current-variant-text");
+        if (badge && text) {
+          text.textContent = `Вариант ${msg.variant_id} · ${msg.level.toUpperCase()} · ${msg.subject}`;
+          badge.style.display = "";
+        }
+      }
+      break;
+
+    case "answer":
+      if (ROLE === "teacher") {
+        const name = msg.name || "Ученик";
+        if (!studentAnswers[name]) studentAnswers[name] = {};
+        studentAnswers[name][msg.task_number] = msg.value;
+        renderStudentAnswers();
+      }
+      break;
+  }
+}
+
+// ── TEACHER: GENERATE / START VARIANT ──
+async function teacherGenerate() {
+  const level   = document.getElementById("sel-level").value;
+  const subject = document.getElementById("sel-subject").value;
+  const idInput = document.getElementById("inp-variant-id").value.trim();
+  const btn     = document.getElementById("btn-generate");
+
+  btn.disabled = true;
+  btn.textContent = "Загрузка…";
+
+  let variantId = parseInt(idInput) || null;
+
+  if (!variantId) {
+    // Generate a new variant
+    try {
+      const resp = await fetch(`/api/${level}/${subject}/variant/`, {
+        method: "POST",
+        headers: {"Content-Type": "application/json", "X-CSRFToken": getCookie("csrftoken")},
+        body: JSON.stringify({}),
+        credentials: "include",
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        variantId = data.variant_id || data.id;
+      }
+    } catch {}
+  }
+
+  if (!variantId) {
+    showToast("Не удалось получить вариант");
+    btn.disabled = false;
+    btn.textContent = "Начать вариант";
+    return;
+  }
+
+  // Broadcast to room
+  send({type: "variant", variant_id: variantId, level, subject});
+  // Update own badge
+  const badge = document.getElementById("current-variant-badge");
+  const text  = document.getElementById("current-variant-text");
+  if (badge && text) {
+    text.textContent = `Вариант ${variantId} · ${level.toUpperCase()} · ${subject}`;
+    badge.style.display = "";
+  }
+  showToast(`Вариант ${variantId} отправлен ученикам`);
+
+  btn.disabled = false;
+  btn.textContent = "Начать вариант";
+}
+
+// ── STUDENT: LOAD VARIANT ──
+async function loadVariantForStudent(variantId, level, subject) {
+  const container = document.getElementById("tasks-container");
+  const label     = document.getElementById("tasks-variant-label");
+  if (label) label.textContent = `Вариант ${variantId} · ${level.toUpperCase()}`;
+
+  container.innerHTML = `<div class="waiting-state"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg><p>Загрузка заданий…</p></div>`;
+
+  try {
+    const resp = await fetch(`/api/${level}/${subject}/variant/${variantId}/`, {credentials: "include"});
+    if (!resp.ok) throw new Error("Ошибка загрузки");
+    const data = await resp.json();
+    const tasks = data.tasks || data.task_groups || [];
+    renderTasks(tasks, variantId);
+  } catch (err) {
+    container.innerHTML = `<div class="waiting-state"><p style="color:#ef4444">Не удалось загрузить задания: ${err.message}</p></div>`;
+  }
+}
+
+function renderTasks(tasks, variantId) {
+  const container = document.getElementById("tasks-container");
+  if (!tasks.length) {
+    container.innerHTML = `<div class="waiting-state"><p>Задания не найдены</p></div>`;
+    return;
+  }
+
+  const html = tasks.map((t, i) => {
+    const num     = t.number ?? (i + 1);
+    const topic   = t.topic || t.subtopic || "";
+    const content = t.content || t.task_text || t.question || "";
+    const savedVal = myAnswers[num] || "";
+    return `
+      <div class="task-card ${savedVal ? 'answered' : ''}" id="task-card-${num}">
+        <div class="task-header">
+          <div class="task-num">${num}</div>
+          ${topic ? `<div class="task-topic">${topic}</div>` : ""}
+        </div>
+        <div class="task-content">${content}</div>
+        <div class="task-answer-row">
+          <input type="text" class="task-answer-input ${savedVal ? 'saved' : ''}"
+            id="answer-${num}" value="${escapeHtml(savedVal)}"
+            placeholder="Введите ответ…"
+            onchange="submitAnswer(${num}, this.value)"
+            oninput="onAnswerInput(${num}, this)"
+          />
+          <button class="btn btn-secondary btn-sm" onclick="submitAnswer(${num}, document.getElementById('answer-${num}').value)">
+            ✓
+          </button>
+        </div>
+      </div>`;
+  }).join("");
+
+  container.innerHTML = `<div class="tasks-list">${html}</div>`;
+}
+
+function onAnswerInput(num, input) {
+  input.classList.remove("saved");
+  document.getElementById(`task-card-${num}`)?.classList.remove("answered");
+}
+
+function submitAnswer(num, value) {
+  value = (value || "").trim();
+  myAnswers[num] = value;
+
+  const input = document.getElementById(`answer-${num}`);
+  const card  = document.getElementById(`task-card-${num}`);
+  if (input) { input.classList.toggle("saved", !!value); input.value = value; }
+  if (card)  { card.classList.toggle("answered", !!value); }
+
+  send({type: "answer", task_number: num, value, name: MY_NAME});
+  showToast(`Ответ на задание ${num} отправлен`);
+}
+
+// ── TEACHER: RENDER STUDENT ANSWERS ──
+function renderStudentAnswers() {
+  const panel = document.getElementById("students-panel");
+  if (!panel) return;
+
+  const entries = Object.entries(studentAnswers);
+  if (!entries.length) return;
+
+  panel.innerHTML = entries.map(([name, answers]) => {
+    const chips = Object.entries(answers)
+      .sort((a,b) => Number(a[0]) - Number(b[0]))
+      .map(([num, val]) => `<span class="chip ${val ? 'correct' : 'empty'}">#${num}: ${val || "—"}</span>`)
+      .join("");
+    const initials = name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+    return `
+      <div class="student-row">
+        <div class="student-avatar">${initials}</div>
+        <div class="student-info">
+          <div class="student-name">${escapeHtml(name)}</div>
+          <div class="answers-chips">${chips || '<span class="chip empty">Нет ответов</span>'}</div>
+        </div>
+      </div>`;
+  }).join("");
+}
+
+// ── UTILS ──
+function showToast(msg) {
+  const t = document.getElementById("status-toast");
+  t.textContent = msg;
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 2800);
+}
+
+function getCookie(name) {
+  const v = document.cookie.split(";").find(c => c.trim().startsWith(name+"="));
+  return v ? decodeURIComponent(v.trim().slice(name.length+1)) : "";
+}
+
+function escapeHtml(str) {
+  return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+// ── INIT ──
+connectWS();
+</script>
 </body>
 </html>
