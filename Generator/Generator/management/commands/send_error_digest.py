@@ -48,7 +48,7 @@ class Command(BaseCommand):
         dry_run = options["dry_run"]
 
         reports = list(
-            ErrorReport.objects.filter(digest_sent=False).order_by(
+            ErrorReport.objects.filter(is_fixed=False).order_by(
                 "subject", "level", "task_number", "id"
             )
         )

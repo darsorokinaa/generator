@@ -118,7 +118,7 @@ function loadOrCreateUserFootnoteSeed() {
 
 function footnoteTextFor(secTotal, phraseIndex) {
   if (secTotal <= 0) {
-    return "Экзамен уже идёт или прошёл — удачи на полях сражения с билетом.";
+    return "Экзамен уже идёт или прошёл — удачи на полях сражения с вариантом.";
   }
   const idx = ((phraseIndex % COMPARISON_FACTORIES.length) + COMPARISON_FACTORIES.length) %
     COMPARISON_FACTORIES.length;
