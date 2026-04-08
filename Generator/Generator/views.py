@@ -1704,12 +1704,15 @@ def report_error(request, level, subject):
 # ---------------------------------------------------------------------------
 
 def verify_lesson_token(token: str) -> dict:
-    secret = os.environ.get("LESSON_SECRET", "")
+    secret = (getattr(django_settings, "LESSON_SECRET", None) or "").strip() or os.environ.get(
+        "LESSON_SECRET", ""
+    ).strip()
     if not secret:
         raise ValueError("LESSON_SECRET не задан на сервере")
     try:
         payload = pyjwt.decode(token, secret, algorithms=["HS256"])
-        if payload.get("iss") not in ("cabinet", "lk-cabinet"):
+        iss = payload.get("iss")
+        if iss is not None and iss not in ("cabinet", "lk-cabinet"):
             raise ValueError("Неверный издатель токена")
         return payload
     except pyjwt.ExpiredSignatureError:
@@ -1829,6 +1832,37 @@ def lesson_video_context_from_jwt(payload: dict) -> dict:
         "lesson_video_embed_url": embed_url,
         "lesson_video_link_url": link_url,
     }
+
+
+@require_http_methods(["GET"])
+def api_lesson_verify(request):
+    """
+    Проверка JWT из ЛК без HTML-страницы (для SPA на /lesson/join/).
+    GET ?token=...
+    """
+    token = (request.GET.get("token") or "").strip()
+    if not token:
+        return JsonResponse({"ok": False, "error": "Параметр token не передан"}, status=400)
+    try:
+        payload = verify_lesson_token(token)
+        normalized = normalize_lesson_jwt_payload(payload)
+    except ValueError as e:
+        return JsonResponse({"ok": False, "error": str(e)}, status=401)
+    video = lesson_video_context_from_jwt(payload)
+    return JsonResponse(
+        {
+            "ok": True,
+            "room_id": normalized["room_id"],
+            "teacher": normalized["teacher_name"],
+            "target_name": normalized["target_name"],
+            "lesson_type": normalized["lesson_type"],
+            "participant_name": normalized["participant_name"],
+            "teacher_id": payload.get("teacher_id") or payload.get("teacherId"),
+            "target_id": payload.get("target_id") or payload.get("targetId"),
+            "video_embed_url": video["lesson_video_embed_url"],
+            "video_link_url": video["lesson_video_link_url"],
+        }
+    )
 
 
 def lesson_join_redirect(request):

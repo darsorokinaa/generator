@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useParams, useLocation, Navigate } from "react-router-dom";
+import { useParams, useLocation } from "react-router-dom";
 import MathContent from "../components/MathContent";
 import ImageLightbox from "../components/ImageLightbox";
 import SupportInfoModal from "../components/SupportInfoModal";
 import ResultsModal from "../components/ResultsModal";
 import ReportErrorModal from "../components/ReportErrorModal";
+import {
+  SubjectExamCountdownProvider,
+  SubjectExamCountdownCard,
+} from "../components/SubjectExamCountdowns";
 import { readPersistedTheme } from "../utils/themeStorage";
 
 const COLORS = ["#000000", "#ffffff", "#ef4444", "#3b82f6", "#22c55e"];
@@ -58,17 +62,6 @@ function clampExamCornerToViewport(el, left, top) {
 function ExamPage() {
   const { level, subject, variant_id } = useParams();
   const location = useLocation();
-  if (
-    String(level || "").toLowerCase() === "lesson" &&
-    String(subject || "").toLowerCase() === "join"
-  ) {
-    return (
-      <Navigate
-        to={{ pathname: "/lesson/join/", search: location.search }}
-        replace
-      />
-    );
-  }
   const mode = location.state?.mode || "variant";
   const subjectLabel = location.state?.subjectName || SUBJECT_NAMES[subject] || subject;
   const levelLabel = LEVEL_NAMES[level] || level.toUpperCase();
@@ -104,6 +97,9 @@ function ExamPage() {
   // Таймер варианта
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [timerStatus, setTimerStatus] = useState("idle"); // "idle" | "running" | "paused"
+
+  /** Весь фиксированный блок (таймеры, баллы, справка): развёрнут / свёрнут в полоску */
+  const [examFixedPanelOpen, setExamFixedPanelOpen] = useState(true);
 
   // Загрузка PDF
   const [pdfLoading, setPdfLoading] = useState(null); // null | "default" | "cosmos" | "easter"
@@ -1387,29 +1383,55 @@ function ExamPage() {
   };
 
   return (
+    <SubjectExamCountdownProvider level={level}>
     <div ref={mainRef} className="main-wrapper exam-page" id="main-wrapper" data-level={level} data-subject={subject}>
-      {/* Фиксированный блок: таймер и баллы — перетаскивание за ручку; позиция в sessionStorage */}
+      {/* Фиксированный блок: таймер решения, до экзамена, баллы, справка — перетаскивание за ручку */}
       <div
         ref={fixedCornerRef}
-        className="exam-fixed-corner"
+        className={`exam-fixed-corner${examFixedPanelOpen ? "" : " exam-fixed-corner--all-collapsed"}`}
         style={
           fixedCornerPos
             ? { left: fixedCornerPos.left, top: fixedCornerPos.top, right: "auto" }
             : undefined
         }
       >
-        <button
-          type="button"
-          className="exam-fixed-corner__drag"
-          aria-label="Переместить блок с таймером"
-          title="Перетащить"
-          onPointerDown={onFixedCornerDragStart}
-          onPointerMove={onFixedCornerDragMove}
-          onPointerUp={onFixedCornerDragEnd}
-          onPointerCancel={onFixedCornerDragEnd}
-        >
-          <span className="exam-fixed-corner__drag-grip" aria-hidden />
-        </button>
+        <div className="exam-fixed-corner__header">
+          <button
+            type="button"
+            className="exam-fixed-corner__drag"
+            aria-label="Переместить блок с таймером"
+            title="Перетащить"
+            onPointerDown={onFixedCornerDragStart}
+            onPointerMove={onFixedCornerDragMove}
+            onPointerUp={onFixedCornerDragEnd}
+            onPointerCancel={onFixedCornerDragEnd}
+          >
+            <span className="exam-fixed-corner__drag-grip" aria-hidden />
+          </button>
+          {examFixedPanelOpen ? (
+            <button
+              type="button"
+              className="exam-fixed-corner__collapse-all"
+              onClick={() => setExamFixedPanelOpen(false)}
+              title="Свернуть панель"
+              aria-label="Свернуть панель с таймерами"
+            >
+              <span aria-hidden>−</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="exam-fixed-corner__expand-all"
+              onClick={() => setExamFixedPanelOpen(true)}
+              title="Показать таймеры"
+              aria-label="Показать панель с таймерами"
+            >
+              <span aria-hidden>⏱</span>
+            </button>
+          )}
+        </div>
+        {examFixedPanelOpen && (
+          <>
         <div className="variant-timer exam-fixed-timer">
           <div className="variant-timer-display">{formatTimer(timerSeconds)}</div>
           <div className="variant-timer-actions">
@@ -1451,6 +1473,7 @@ function ExamPage() {
             </button>
           </div>
         </div>
+        <SubjectExamCountdownCard subjectKey={subject} />
         <div className="variant-score-block">
           <div className="variant-score-row">
             <span className="variant-score-label">
@@ -1487,6 +1510,8 @@ function ExamPage() {
             </svg>
             <span>Справочная информация</span>
           </button>
+        )}
+          </>
         )}
       </div>
       {pdfLoading && (
@@ -2261,6 +2286,7 @@ function ExamPage() {
         taskNumber={reportErrorTask?.taskNumber}
       />
     </div>
+    </SubjectExamCountdownProvider>
   );
 }
 

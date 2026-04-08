@@ -7,7 +7,17 @@ import {
   useLocation,
 } from "react-router-dom";
 
-const SUBJECT_NAMES = { math: "Математика", inf: "Информатика", history: "История" };
+const SUBJECT_NAMES = {
+  math: "Математика",
+  inf: "Информатика",
+  history: "История",
+  rus: "Русский язык",
+  chem: "Химия",
+  phys: "Физика",
+  lit: "Литература",
+  soc_studies: "Обществознание",
+  bio: "Биология",
+};
 
 function itemsIncludeTaskNumber(items, n) {
   for (const item of items) {
@@ -25,18 +35,10 @@ function TasksPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  /* Не матчить /lesson/join как предмет: иначе fetch → /api/lesson/join/tasks/ и 404 в get_subject_for_api("join"). */
-  if (
+  const isLessonJoinPath =
     String(level || "").toLowerCase() === "lesson" &&
-    String(subject || "").toLowerCase() === "join"
-  ) {
-    return (
-      <Navigate
-        to={{ pathname: "/lesson/join/", search: location.search }}
-        replace
-      />
-    );
-  }
+    String(subject || "").toLowerCase() === "join";
+
   const searchQuery = searchParams.get("search")?.trim() ?? "";
   const subjectName = SUBJECT_NAMES[subject] || subject;
 
@@ -68,6 +70,7 @@ function TasksPage() {
   const [ogeInf13SubtopicId, setOgeInf13SubtopicId] = useState(null);
 
   useEffect(() => {
+    if (isLessonJoinPath) return undefined;
     let cancelled = false;
     fetch(`/api/${level}/${subject}/subtopics/`)
       .then((res) => (res.ok ? res.json() : { subtopics_by_task: [] }))
@@ -82,9 +85,10 @@ function TasksPage() {
         }
       });
     return () => { cancelled = true; };
-  }, [level, subject]);
+  }, [level, subject, isLessonJoinPath]);
 
   useEffect(() => {
+    if (isLessonJoinPath) return;
     if (level !== "oge" || subject !== "inf") {
       setOgeInf13SubtopicId(null);
       return;
@@ -97,9 +101,10 @@ function TasksPage() {
     }
     const ids = new Set(subs.map((st) => st.id));
     setOgeInf13SubtopicId((prev) => (prev != null && ids.has(prev) ? prev : subs[0].id));
-  }, [level, subject, subtopicsByTask]);
+  }, [level, subject, subtopicsByTask, isLessonJoinPath]);
 
   useEffect(() => {
+    if (isLessonJoinPath) return undefined;
     let cancelled = false;
     setLoading(true);
     setError(null);
@@ -126,7 +131,7 @@ function TasksPage() {
         }
       });
     return () => { cancelled = true; };
-  }, [level, subject]);
+  }, [level, subject, isLessonJoinPath]);
 
   // На мобильных прокрутить к блоку подтем при открытии
   useEffect(() => {
@@ -137,6 +142,10 @@ function TasksPage() {
       return () => clearTimeout(t);
     }
   }, [subtopicsPanelOpen, subtopicsByTask.length, testCounts, activeForSubtopics]);
+
+  if (isLessonJoinPath) {
+    return <Navigate to={{ pathname: "/lesson/join/", search: location.search }} replace />;
+  }
 
   const matchesSearch = (item) => {
     if (!searchQuery) return true;

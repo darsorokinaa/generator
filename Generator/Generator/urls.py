@@ -12,6 +12,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
 
     path("api/csrf/", views.api_csrf, name="api_csrf"),
+    path("api/lesson/verify/", views.api_lesson_verify, name="api_lesson_verify"),
     path("api/updates/", views.api_updates, name="api_updates"),
     path("api/announcements/", views.api_announcements, name="api_announcements"),
     path("api/search_task/", views.search_task, name="search_task"),
