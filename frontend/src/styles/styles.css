@@ -2317,13 +2317,38 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
 }
 
 .subject-page .subject-page-container {
-    padding: 0.75rem 0;
+    padding: 0 0 10vh;
+}
+
+@media (max-width: 768px) {
+    .subject-page .subject-page-container {
+        padding: 0 0 6vh;
+    }
 }
 
 .subject-page-layout {
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
+}
+
+/* Плашка «Выбор предмета»: одинаковый внутренний отступ сверху (до заголовка) и снизу (после текста) */
+.subject-page .hero {
+    padding: 2.35rem 1.5rem 2.35rem;
+}
+
+.subject-page .hero h1 {
+    font-size: 1.45rem;
+    font-weight: 600;
+    margin-bottom: 0.45rem;
+    line-height: 1.22;
+}
+
+.subject-page .hero p {
+    font-size: 0.875rem;
+    line-height: 1.45;
+    margin: 0;
+    max-width: 52rem;
 }
 
 /* Ячейка сетки: карточка предмета */
@@ -2405,7 +2430,7 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
     display: flex;
     flex-direction: column;
     gap: 1.25rem;
-    margin-top: 1rem;
+    margin-top: 0.65rem;
     align-items: stretch;
 }
 
@@ -2432,11 +2457,21 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
 
 @media (max-width: 1023px) {
     .subject-page .hero {
-        padding: 1.35rem 1.25rem;
+        padding: 1.35rem 1rem 1.35rem;
+    }
+
+    .subject-page .hero h1 {
+        font-size: 1.28rem;
+        margin-bottom: 0.35rem;
+    }
+
+    .subject-page .hero p {
+        font-size: 0.8125rem;
+        line-height: 1.42;
     }
 
     .subject-page-pick-groups {
-        margin-top: 0.85rem;
+        margin-top: 0.55rem;
         gap: 1rem;
     }
 
@@ -2718,7 +2753,7 @@ details.subject-exam-countdown-card--foldable > summary::-webkit-details-marker 
     }
 
     .subject-page-pick-groups {
-        margin-top: 2rem;
+        margin-top: 1.35rem;
         gap: 1.35rem;
     }
 
