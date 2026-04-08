@@ -38,6 +38,24 @@
       justify-content: space-between;
       gap: 1rem;
     }
+    .header-lk-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #fff;
+      text-decoration: none;
+      padding: 0.32rem 0.75rem;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.18);
+      border: 1.5px solid rgba(255,255,255,0.45);
+      white-space: nowrap;
+    }
+    .header-lk-link:hover {
+      background: rgba(255,255,255,0.28);
+      color: #fff;
+    }
     .header-logo { display: flex; align-items: center; gap: 8px; text-decoration: none; }
     .header-logo-icon {
       width: 32px; height: 32px; border-radius: 8px;
@@ -267,6 +285,7 @@
     <span class="header-logo-text">Генератор</span>
   </a>
   <div class="header-meta">
+    <a href="https://lk.genurok.tw1.ru" class="header-lk-link" target="_blank" rel="noopener noreferrer">Личный кабинет</a>
     <span class="badge">
       {% if lesson_type == "student" %}Ученик{% else %}Учитель{% endif %}
     </span>
