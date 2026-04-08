@@ -6,16 +6,38 @@ import {
   useState,
 } from "react";
 
-const JUNE = 5; // месяц 0-based
+const JUNE = 5; // месяц 0-based (июнь)
+
+/** День июня (1–30), начало экзамена 10:00. Существующие math / inf / history не менялись. */
+const EXAM_DAY_EGE = {
+  history: 1,
+  lit: 1,
+  chem: 1,
+  rus: 4,
+  math: 8,
+  inf: 18,
+  soc_studies: 11,
+  phys: 11,
+  bio: 15,
+};
+
+const EXAM_DAY_OGE = {
+  history: 5,
+  math: 2,
+  inf: 6,
+  rus: 4,
+  lit: 5,
+  chem: 5,
+  phys: 5,
+  soc_studies: 5,
+  bio: 5,
+};
 
 function getExamDayOfMonth(level, subjectKey) {
-  if (subjectKey === "history") {
-    return level === "ege" ? 1 : 5;
-  }
   if (level === "ege") {
-    return subjectKey === "math" ? 8 : 18;
+    return EXAM_DAY_EGE[subjectKey] ?? 18;
   }
-  return subjectKey === "math" ? 2 : 6;
+  return EXAM_DAY_OGE[subjectKey] ?? 6;
 }
 
 /** Ближайшая дата экзамена в локальном времени устройства (июнь, 10:00). */
@@ -139,21 +161,43 @@ const CONFIG = {
     math: { subject: "Математика", dateLine: "8 июня · 10:00" },
     inf: { subject: "Информатика", dateLine: "18 июня · 10:00" },
     history: { subject: "История", dateLine: "1 июня · 10:00" },
+    rus: { subject: "Русский язык", dateLine: "4 июня · 10:00" },
+    chem: { subject: "Химия", dateLine: "1 июня · 10:00" },
+    phys: { subject: "Физика", dateLine: "11 июня · 10:00" },
+    lit: { subject: "Литература", dateLine: "1 июня · 10:00" },
+    soc_studies: { subject: "Обществознание", dateLine: "11 июня · 10:00" },
+    bio: { subject: "Биология", dateLine: "15 июня · 10:00" },
   },
   oge: {
     math: { subject: "Математика", dateLine: "2 июня · 10:00" },
     inf: { subject: "Информатика", dateLine: "6 июня · 10:00" },
     history: { subject: "История", dateLine: "5 июня · 10:00" },
+    rus: { subject: "Русский язык", dateLine: "4 июня · 10:00" },
+    chem: { subject: "Химия", dateLine: "5 июня · 10:00" },
+    phys: { subject: "Физика", dateLine: "5 июня · 10:00" },
+    lit: { subject: "Литература", dateLine: "5 июня · 10:00" },
+    soc_studies: { subject: "Обществознание", dateLine: "5 июня · 10:00" },
+    bio: { subject: "Биология", dateLine: "5 июня · 10:00" },
   },
 };
 
 const COUNTDOWN_HEADLINE = "До экзамена осталось";
 
-const PHRASE_SLOT = { math: 0, inf: 1, history: 2 };
+const PHRASE_SLOT = {
+  math: 0,
+  inf: 1,
+  history: 2,
+  rus: 3,
+  chem: 4,
+  phys: 5,
+  lit: 6,
+  soc_studies: 7,
+  bio: 8,
+};
 
 const ExamCountdownContext = createContext(null);
 
-/** Один интервал на все карточки; оборачивает колонки «таймер + предмет». */
+/** Один интервал на все таймеры до экзамена; оборачивает страницу варианта (или др. потребителей). */
 export function SubjectExamCountdownProvider({ level, children }) {
   const valid = level === "ege" || level === "oge";
   const [now, setNow] = useState(() => Date.now());
@@ -199,35 +243,47 @@ function CountdownCard({ subject, dateLine, targetTs, accent, now, levelLabel, f
   const footnote = footnoteTextFor(secTotal, footnotePhraseIndex);
 
   return (
-    <div
-      className={`subject-exam-countdown-card subject-exam-countdown-card--${accent}`}
-      role="timer"
+    <details
+      className={`subject-exam-countdown-card subject-exam-countdown-card--${accent} subject-exam-countdown-card--foldable`}
+      role="group"
       aria-label={`${subject}, ${levelLabel}, экзамен ${dateLine}. ${COUNTDOWN_HEADLINE}`}
     >
-      <div className="subject-exam-countdown-card__head">
+      <summary className="subject-exam-countdown-card__summary">
         <span className="subject-exam-countdown-card__badge">{subject}</span>
-        <p className="subject-exam-countdown-card__date">{dateLine}</p>
-        <h3 className="subject-exam-countdown-card__title">{COUNTDOWN_HEADLINE}</h3>
-      </div>
-      <div className="subject-exam-countdown-card__grid">
-        {parts.map((p) => (
-          <div key={p.label} className="subject-exam-countdown-card__cell">
-            <span className="subject-exam-countdown-card__value">{p.value}</span>
-            <span className="subject-exam-countdown-card__unit">{p.label}</span>
-          </div>
-        ))}
-      </div>
-      <p className="subject-exam-countdown-card__footnote" role="note">
-        <span className="subject-exam-countdown-card__footnote-mark" aria-hidden="true">
-          *
+        <span className="subject-exam-countdown-card__summary-main">
+          <span className="subject-exam-countdown-card__date">{dateLine}</span>
+          <span className="subject-exam-countdown-card__summary-days">
+            {days}
+            {" "}
+            дн
+          </span>
         </span>
-        <span className="subject-exam-countdown-card__footnote-text">{footnote}</span>
-      </p>
-    </div>
+        <span className="subject-exam-countdown-card__summary-chevron" aria-hidden>
+          ▾
+        </span>
+      </summary>
+      <div className="subject-exam-countdown-card__fold-body" role="timer">
+        <h3 className="subject-exam-countdown-card__title">{COUNTDOWN_HEADLINE}</h3>
+        <div className="subject-exam-countdown-card__grid">
+          {parts.map((p) => (
+            <div key={p.label} className="subject-exam-countdown-card__cell">
+              <span className="subject-exam-countdown-card__value">{p.value}</span>
+              <span className="subject-exam-countdown-card__unit">{p.label}</span>
+            </div>
+          ))}
+        </div>
+        <p className="subject-exam-countdown-card__footnote" role="note">
+          <span className="subject-exam-countdown-card__footnote-mark" aria-hidden="true">
+            *
+          </span>
+          <span className="subject-exam-countdown-card__footnote-text">{footnote}</span>
+        </p>
+      </div>
+    </details>
   );
 }
 
-/** Таймер для одного предмета (math / inf / history). */
+/** Таймер для одного предмета (на странице варианта — текущий предмет). */
 export function SubjectExamCountdownCard({ subjectKey }) {
   const ctx = useContext(ExamCountdownContext);
   if (!ctx?.valid) return null;
@@ -235,7 +291,9 @@ export function SubjectExamCountdownCard({ subjectKey }) {
   const c = cfg[subjectKey];
   if (!c) return null;
   const targetTs = getNextExamTimestamp(level, subjectKey);
-  const slot = PHRASE_SLOT[subjectKey] ?? 0;
+  const slot =
+    PHRASE_SLOT[subjectKey] ??
+    (subjectKey.split("").reduce((a, c) => a + c.charCodeAt(0), 0) % COMPARISON_FACTORIES.length);
   const footnotePhraseIndex = phraseIndexFromSeed(footnoteSeed, hourBucket, slot);
 
   return (
@@ -250,3 +308,4 @@ export function SubjectExamCountdownCard({ subjectKey }) {
     />
   );
 }
+

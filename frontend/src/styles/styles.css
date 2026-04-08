@@ -1211,6 +1211,162 @@ header {
     color: #fff;
 }
 
+/* Русский язык */
+.exam-card.exam-card-rus {
+    background: #7eb8da;
+    border: none;
+}
+.exam-card.exam-card-rus .exam-title,
+.exam-card.exam-card-rus .exam-description {
+    color: #fff;
+}
+.exam-card.exam-card-rus .exam-icon {
+    background: rgba(255, 255, 255, 0.88);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+.exam-card.exam-card-rus .exam-badge {
+    background: rgba(255, 255, 255, 0.92);
+    color: #1e4d6b;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+.exam-card.exam-card-rus .exam-card-footer {
+    border-top-color: rgba(0, 0, 0, 0.1);
+}
+.exam-card.exam-card-rus .exam-card-arrow-wrap .exam-arrow {
+    color: #fff;
+}
+
+/* Химия — бирюзовый teal, отдельно от зелёной биологии */
+.exam-card.exam-card-chem {
+    background: #0d9488;
+    border: none;
+}
+.exam-card.exam-card-chem .exam-title,
+.exam-card.exam-card-chem .exam-description {
+    color: #f0fdfa;
+}
+.exam-card.exam-card-chem .exam-icon {
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 2px 10px rgba(15, 118, 110, 0.35);
+}
+.exam-card.exam-card-chem .exam-badge {
+    background: rgba(240, 253, 250, 0.95);
+    color: #115e59;
+    box-shadow: 0 1px 3px rgba(15, 118, 110, 0.2);
+}
+.exam-card.exam-card-chem .exam-card-footer {
+    border-top-color: rgba(255, 255, 255, 0.2);
+}
+.exam-card.exam-card-chem .exam-card-arrow-wrap .exam-arrow {
+    color: #f0fdfa;
+}
+
+/* Физика */
+.exam-card.exam-card-phys {
+    background: #9aa3e8;
+    border: none;
+}
+.exam-card.exam-card-phys .exam-title,
+.exam-card.exam-card-phys .exam-description {
+    color: #fff;
+}
+.exam-card.exam-card-phys .exam-icon {
+    background: rgba(255, 255, 255, 0.88);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+.exam-card.exam-card-phys .exam-badge {
+    background: rgba(255, 255, 255, 0.92);
+    color: #312c85;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+.exam-card.exam-card-phys .exam-card-footer {
+    border-top-color: rgba(0, 0, 0, 0.1);
+}
+.exam-card.exam-card-phys .exam-card-arrow-wrap .exam-arrow {
+    color: #fff;
+}
+
+/* Литература */
+.exam-card.exam-card-lit {
+    background: #e88fa3;
+    border: none;
+}
+.exam-card.exam-card-lit .exam-title,
+.exam-card.exam-card-lit .exam-description {
+    color: #fff;
+}
+.exam-card.exam-card-lit .exam-icon {
+    background: rgba(255, 255, 255, 0.88);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+.exam-card.exam-card-lit .exam-badge {
+    background: rgba(255, 255, 255, 0.92);
+    color: #7a1f36;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+.exam-card.exam-card-lit .exam-card-footer {
+    border-top-color: rgba(0, 0, 0, 0.1);
+}
+.exam-card.exam-card-lit .exam-card-arrow-wrap .exam-arrow {
+    color: #fff;
+}
+
+/* Обществознание */
+.exam-card.exam-card-soc-studies {
+    background: #c4a574;
+    border: none;
+}
+.exam-card.exam-card-soc-studies .exam-title,
+.exam-card.exam-card-soc-studies .exam-description {
+    color: #fff;
+}
+
+.exam-card.exam-card-soc-studies .exam-title {
+    font-size: 1.05rem;
+    line-height: 1.2;
+}
+
+.exam-card.exam-card-soc-studies .exam-icon {
+    background: rgba(255, 255, 255, 0.88);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+.exam-card.exam-card-soc-studies .exam-badge {
+    background: rgba(255, 255, 255, 0.92);
+    color: #4a3418;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+.exam-card.exam-card-soc-studies .exam-card-footer {
+    border-top-color: rgba(0, 0, 0, 0.1);
+}
+.exam-card.exam-card-soc-studies .exam-card-arrow-wrap .exam-arrow {
+    color: #fff;
+}
+
+/* Биология */
+.exam-card.exam-card-bio {
+    background: #8fd4a8;
+    border: none;
+}
+.exam-card.exam-card-bio .exam-title,
+.exam-card.exam-card-bio .exam-description {
+    color: #fff;
+}
+.exam-card.exam-card-bio .exam-icon {
+    background: rgba(255, 255, 255, 0.88);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+.exam-card.exam-card-bio .exam-badge {
+    background: rgba(255, 255, 255, 0.92);
+    color: #1a5c2e;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+.exam-card.exam-card-bio .exam-card-footer {
+    border-top-color: rgba(0, 0, 0, 0.1);
+}
+.exam-card.exam-card-bio .exam-card-arrow-wrap .exam-arrow {
+    color: #fff;
+}
+
 /* ========================================
    СТРАНИЦА ЗАДАНИЙ (TasksPage)
 ======================================== */
@@ -2170,7 +2326,7 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
     gap: 1.5rem;
 }
 
-/* Колонка: таймер экзамена сразу над карточкой предмета */
+/* Ячейка сетки: карточка предмета */
 .subject-page-subject-pair {
     display: flex;
     flex-direction: column;
@@ -2181,28 +2337,89 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
     align-self: start;
 }
 
-.subject-page-subject-pair .subject-exam-countdown-card {
-    flex-shrink: 0;
-}
-
 .subject-page-subject-pair .exam-card {
     flex: 1 1 auto;
     min-height: 0;
 }
 
-/* Сетка колонок «таймер + предмет»: верх колонок на одной линии */
+/* Типографика и плотность карточек на странице предмета */
+.subject-page .exam-card {
+    padding: 1.35rem 1.25rem 1.15rem;
+    min-height: 148px;
+}
+
+.subject-page .exam-card-main {
+    gap: 0.75rem;
+}
+
+.subject-page .exam-card-left {
+    gap: 0.875rem;
+}
+
+.subject-page .exam-icon {
+    width: 42px;
+    height: 42px;
+    font-size: 1.35rem;
+    border-radius: 10px;
+}
+
+.subject-page .exam-title {
+    font-size: 1.075rem;
+}
+
+.subject-page .exam-card.exam-card-soc-studies .exam-title {
+    font-size: 0.9rem;
+    line-height: 1.22;
+    letter-spacing: -0.03em;
+}
+
+.subject-page .exam-description {
+    font-size: 0.6875rem;
+    line-height: 1.25;
+}
+
+.subject-page .exam-badge {
+    font-size: 0.75rem;
+    padding: 0.3rem 0.65rem;
+}
+
+.subject-page .exam-card-footer {
+    padding-top: 0.65rem;
+}
+
+.subject-page .exam-card-arrow-wrap {
+    width: 36px;
+    height: 36px;
+}
+
+.subject-page .exam-card-arrow-wrap .exam-arrow {
+    font-size: 1rem;
+}
+
+.subject-page .subject-page-subject-pair {
+    gap: 0.625rem;
+}
+
+/* Сетка: математика и информатика первыми, затем физика… литература; по 3 карточки в ряд */
+.subject-page-pick-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    margin-top: 1rem;
+    align-items: stretch;
+}
+
 .subject-page-pick-block {
     display: grid;
     grid-template-columns: 1fr;
     gap: 1.15rem;
-    margin-top: 1rem;
     align-items: start;
     justify-items: stretch;
 }
 
 @media (min-width: 640px) {
     .subject-page-pick-block {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 1.25rem;
         align-items: stretch;
     }
@@ -2213,19 +2430,17 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
     }
 }
 
-@media (min-width: 1280px) {
-    .subject-page-pick-block {
-        grid-template-columns: repeat(3, 1fr);
-    }
-}
-
 @media (max-width: 1023px) {
     .subject-page .hero {
         padding: 1.35rem 1.25rem;
     }
 
-    .subject-page-pick-block {
+    .subject-page-pick-groups {
         margin-top: 0.85rem;
+        gap: 1rem;
+    }
+
+    .subject-page-pick-block {
         gap: 1rem;
     }
 
@@ -2246,6 +2461,20 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
     background: #fff;
     border: 1px solid rgba(15, 23, 42, 0.08);
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04);
+}
+
+details.subject-exam-countdown-card--foldable {
+    display: block;
+    padding: 0;
+    overflow: visible;
+}
+
+details.subject-exam-countdown-card--foldable > summary {
+    list-style: none;
+}
+
+details.subject-exam-countdown-card--foldable > summary::-webkit-details-marker {
+    display: none;
 }
 
 .subject-exam-countdown-card__head {
@@ -2352,6 +2581,84 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
     color: #5c4308;
 }
 
+.subject-exam-countdown-card--rus .subject-exam-countdown-card__badge {
+    background: rgba(126, 184, 218, 0.5);
+    color: #1e4d6b;
+    box-shadow: 0 1px 2px rgba(30, 77, 107, 0.12);
+}
+.subject-exam-countdown-card--rus .subject-exam-countdown-card__cell {
+    background: rgba(126, 184, 218, 0.14);
+    border-color: rgba(30, 77, 107, 0.22);
+}
+.subject-exam-countdown-card--rus .subject-exam-countdown-card__value {
+    color: #1e4d6b;
+}
+
+.subject-exam-countdown-card--chem .subject-exam-countdown-card__badge {
+    background: rgba(45, 212, 191, 0.42);
+    color: #0f766e;
+    box-shadow: 0 1px 2px rgba(15, 118, 110, 0.15);
+}
+.subject-exam-countdown-card--chem .subject-exam-countdown-card__cell {
+    background: rgba(13, 148, 136, 0.12);
+    border-color: rgba(15, 118, 110, 0.28);
+}
+.subject-exam-countdown-card--chem .subject-exam-countdown-card__value {
+    color: #0f766e;
+}
+
+.subject-exam-countdown-card--phys .subject-exam-countdown-card__badge {
+    background: rgba(154, 163, 232, 0.5);
+    color: #312c85;
+    box-shadow: 0 1px 2px rgba(49, 44, 133, 0.12);
+}
+.subject-exam-countdown-card--phys .subject-exam-countdown-card__cell {
+    background: rgba(154, 163, 232, 0.14);
+    border-color: rgba(49, 44, 133, 0.22);
+}
+.subject-exam-countdown-card--phys .subject-exam-countdown-card__value {
+    color: #312c85;
+}
+
+.subject-exam-countdown-card--lit .subject-exam-countdown-card__badge {
+    background: rgba(232, 143, 163, 0.5);
+    color: #7a1f36;
+    box-shadow: 0 1px 2px rgba(122, 31, 54, 0.12);
+}
+.subject-exam-countdown-card--lit .subject-exam-countdown-card__cell {
+    background: rgba(232, 143, 163, 0.14);
+    border-color: rgba(122, 31, 54, 0.22);
+}
+.subject-exam-countdown-card--lit .subject-exam-countdown-card__value {
+    color: #7a1f36;
+}
+
+.subject-exam-countdown-card--soc_studies .subject-exam-countdown-card__badge {
+    background: rgba(196, 165, 116, 0.5);
+    color: #4a3418;
+    box-shadow: 0 1px 2px rgba(74, 52, 24, 0.12);
+}
+.subject-exam-countdown-card--soc_studies .subject-exam-countdown-card__cell {
+    background: rgba(196, 165, 116, 0.14);
+    border-color: rgba(74, 52, 24, 0.22);
+}
+.subject-exam-countdown-card--soc_studies .subject-exam-countdown-card__value {
+    color: #4a3418;
+}
+
+.subject-exam-countdown-card--bio .subject-exam-countdown-card__badge {
+    background: rgba(143, 212, 168, 0.5);
+    color: #1a5c2e;
+    box-shadow: 0 1px 2px rgba(26, 92, 46, 0.12);
+}
+.subject-exam-countdown-card--bio .subject-exam-countdown-card__cell {
+    background: rgba(143, 212, 168, 0.14);
+    border-color: rgba(26, 92, 46, 0.22);
+}
+.subject-exam-countdown-card--bio .subject-exam-countdown-card__value {
+    color: #1a5c2e;
+}
+
 .subject-exam-countdown-card__value {
     font-size: clamp(1rem, 2.8vw, 1.25rem);
     font-weight: 700;
@@ -2410,12 +2717,16 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
         min-width: 0;
     }
 
-    .subject-page-pick-block {
+    .subject-page-pick-groups {
         margin-top: 2rem;
+        gap: 1.35rem;
+    }
+
+    .subject-page-pick-block {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
         gap: 1.35rem;
         align-items: stretch;
         justify-items: stretch;
-        grid-template-columns: repeat(2, 1fr);
     }
 
     .subject-page-sidebar {
@@ -5268,8 +5579,52 @@ body.index .exam-grid .exam-card {
   border: 1px solid rgba(96, 165, 250, 0.2);
 }
 
-.exam-fixed-corner__drag {
+.exam-fixed-corner--all-collapsed {
+  gap: 0.2rem;
+  padding: 0.3rem 0.4rem;
+}
+
+.exam-fixed-corner__header {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.35rem;
   width: 100%;
+}
+
+.exam-fixed-corner__header .exam-fixed-corner__drag {
+  flex: 1;
+  width: auto;
+  min-width: 0;
+  margin: 0;
+}
+
+.exam-fixed-corner__collapse-all,
+.exam-fixed-corner__expand-all {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.98);
+  color: #1d4ed8;
+  font-size: 1.05rem;
+  line-height: 1;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.exam-fixed-corner__collapse-all:hover,
+.exam-fixed-corner__expand-all:hover {
+  background: #eff6ff;
+  border-color: #93c5fd;
+}
+
+.exam-fixed-corner__drag {
   margin: -0.05rem 0 0.05rem 0;
   padding: 4px 8px;
   border: none;
@@ -5332,6 +5687,113 @@ body.index .exam-grid .exam-card {
 .exam-fixed-timer .variant-timer-btn svg {
   width: 16px;
   height: 16px;
+}
+
+/* Обратный отсчёт до экзамена: сворачиваемая карточка (summary = бейдж + дата + дни) */
+.exam-fixed-corner .subject-exam-countdown-card--foldable {
+  width: 100%;
+  max-width: 16.75rem;
+  padding: 0;
+  border-radius: 14px;
+  box-shadow: 0 1px 8px rgba(15, 23, 42, 0.07);
+}
+
+.exam-fixed-corner .subject-exam-countdown-card__summary {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.5rem;
+  padding: 0.4rem 0.45rem 0.45rem;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.exam-fixed-corner .subject-exam-countdown-card__summary::-webkit-details-marker {
+  display: none;
+}
+
+.exam-fixed-corner .subject-exam-countdown-card__summary .subject-exam-countdown-card__badge {
+  margin-bottom: 0;
+}
+
+.exam-fixed-corner .subject-exam-countdown-card__summary-main {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.05rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.exam-fixed-corner .subject-exam-countdown-card__summary-days {
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.exam-fixed-corner .subject-exam-countdown-card__summary-chevron {
+  flex-shrink: 0;
+  font-size: 0.65rem;
+  opacity: 0.5;
+  transition: transform 0.2s ease;
+  align-self: center;
+}
+
+.exam-fixed-corner details.subject-exam-countdown-card--foldable[open] .subject-exam-countdown-card__summary-chevron {
+  transform: rotate(-180deg);
+}
+
+.exam-fixed-corner .subject-exam-countdown-card__fold-body {
+  padding: 0 0.45rem 0.45rem;
+  border-top: 1px solid rgba(15, 23, 42, 0.07);
+}
+
+.exam-fixed-corner .subject-exam-countdown-card__badge {
+  font-size: 0.65rem;
+  padding: 0.18rem 0.45rem;
+  margin-bottom: 0;
+}
+
+.exam-fixed-corner .subject-exam-countdown-card__date {
+  font-size: 0.72rem;
+  margin: 0;
+  line-height: 1.25;
+  font-weight: 600;
+}
+
+.exam-fixed-corner .subject-exam-countdown-card__title {
+  font-size: 0.65rem;
+  margin: 0.3rem 0 0.2rem;
+  text-align: center;
+}
+
+.exam-fixed-corner .subject-exam-countdown-card__grid {
+  gap: 0.22rem;
+}
+
+.exam-fixed-corner .subject-exam-countdown-card__cell {
+  padding: 0.22rem 0.12rem;
+  border-radius: 8px;
+}
+
+.exam-fixed-corner .subject-exam-countdown-card__value {
+  font-size: 0.72rem;
+}
+
+.exam-fixed-corner .subject-exam-countdown-card__unit {
+  font-size: 0.5rem;
+}
+
+.exam-fixed-corner .subject-exam-countdown-card__footnote {
+  font-size: 0.5rem;
+  line-height: 1.35;
+  padding-top: 0.35rem;
+  min-height: 0;
+  max-width: 100%;
+  text-align: right;
 }
 
 /* Баллы под таймером */

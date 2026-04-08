@@ -29,6 +29,9 @@ load_dotenv(BASE_DIR.parent / ".env")
 # В production задайте SECRET_KEY через переменную окружения
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-)&u-i%%%7kr6y6kx11pcr$fq6e1ita5)%ykv1aluxmvtbaln#7')
 
+# Общий секрет с ЛК для JWT входа в урок (/lesson/join/). В .env: LESSON_SECRET=...
+LESSON_SECRET = os.environ.get("LESSON_SECRET", "").strip()
+
 DEBUG = os.environ.get('DEBUG', 'true').lower() == 'true'
 ALLOWED_HOSTS = ["*"]
 
@@ -139,17 +142,27 @@ else:
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 # В systemd задают PGDATABASE/PGUSER/... — обязательно читаем их (раньше были захардкожены generatordb).
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.postgresql",
+#         "NAME": os.environ.get("PGDATABASE", "generatordb"),
+#         "USER": os.environ.get("PGUSER", "generator_user"),
+#         "PASSWORD": os.environ.get("PGPASSWORD", "StrongPass123"),
+#         "HOST": os.environ.get("PGHOST", "localhost"),
+#         "PORT": os.environ.get("PGPORT", "5432"),
+#     }
+# }
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": os.environ.get("PGDATABASE", "generatordb"),
-        "USER": os.environ.get("PGUSER", "generator_user"),
-        "PASSWORD": os.environ.get("PGPASSWORD", "StrongPass123"),
+        "USER": os.environ.get("PGUSER", "postgres"),
+        "PASSWORD": os.environ.get("PGPASSWORD", "postgres"),
         "HOST": os.environ.get("PGHOST", "localhost"),
         "PORT": os.environ.get("PGPORT", "5432"),
     }
 }
-
 
 
 # Password validation

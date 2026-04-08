@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect } from "react";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
 
 import Layout from "./pages/Layout";
 import IndexPage from "./pages/IndexPage";
@@ -58,6 +58,12 @@ function SearchVariantWithKey() {
   return <SearchVariantPage key={location.search} />;
 }
 
+/** Не открывать экзамен как /:level/:subject при level=lesson, subject=join */
+function LessonJoinVariantRedirect() {
+  const location = useLocation();
+  return <Navigate to={{ pathname: "/lesson/join/", search: location.search }} replace />;
+}
+
 function App() {
   return (
     <BrowserRouter>
@@ -76,6 +82,7 @@ function App() {
           {/* Иначе /lesson/join матчится как /:level/:subject → «join» и ложная «Ошибка загрузки» */}
           <Route path="/lesson/join" element={<LessonJoinBridge />} />
           <Route path="/lesson/join/" element={<LessonJoinBridge />} />
+          <Route path="/lesson/join/variant/:variant_id" element={<LessonJoinVariantRedirect />} />
 
           <Route path="/:level" element={<SubjectPage />} />
 
