@@ -15,8 +15,8 @@ const EXAM_DAY_EGE = {
   chem: 1,
   rus: 4,
   math: 8,
+  math_base: 8,
   inf: 18,
-  soc_studies: 11,
   phys: 11,
   bio: 15,
 };
@@ -24,12 +24,12 @@ const EXAM_DAY_EGE = {
 const EXAM_DAY_OGE = {
   history: 5,
   math: 2,
+  math_base: 2,
   inf: 6,
   rus: 4,
   lit: 5,
   chem: 5,
   phys: 5,
-  soc_studies: 5,
   bio: 5,
 };
 
@@ -158,25 +158,25 @@ function footnoteTextFor(secTotal, phraseIndex) {
 
 const CONFIG = {
   ege: {
-    math: { subject: "Математика", dateLine: "8 июня · 10:00" },
+    math: { subject: "Математика (профильная)", dateLine: "8 июня · 10:00" },
+    math_base: { subject: "Математика (базовая)", dateLine: "8 июня · 10:00" },
     inf: { subject: "Информатика", dateLine: "18 июня · 10:00" },
     history: { subject: "История", dateLine: "1 июня · 10:00" },
     rus: { subject: "Русский язык", dateLine: "4 июня · 10:00" },
     chem: { subject: "Химия", dateLine: "1 июня · 10:00" },
     phys: { subject: "Физика", dateLine: "11 июня · 10:00" },
     lit: { subject: "Литература", dateLine: "1 июня · 10:00" },
-    soc_studies: { subject: "Обществознание", dateLine: "11 июня · 10:00" },
     bio: { subject: "Биология", dateLine: "15 июня · 10:00" },
   },
   oge: {
     math: { subject: "Математика", dateLine: "2 июня · 10:00" },
+    math_base: { subject: "Математика", dateLine: "2 июня · 10:00" },
     inf: { subject: "Информатика", dateLine: "6 июня · 10:00" },
     history: { subject: "История", dateLine: "5 июня · 10:00" },
     rus: { subject: "Русский язык", dateLine: "4 июня · 10:00" },
     chem: { subject: "Химия", dateLine: "5 июня · 10:00" },
     phys: { subject: "Физика", dateLine: "5 июня · 10:00" },
     lit: { subject: "Литература", dateLine: "5 июня · 10:00" },
-    soc_studies: { subject: "Обществознание", dateLine: "5 июня · 10:00" },
     bio: { subject: "Биология", dateLine: "5 июня · 10:00" },
   },
 };
@@ -185,14 +185,14 @@ const COUNTDOWN_HEADLINE = "До экзамена осталось";
 
 const PHRASE_SLOT = {
   math: 0,
+  math_base: 0,
   inf: 1,
   history: 2,
   rus: 3,
   chem: 4,
   phys: 5,
   lit: 6,
-  soc_studies: 7,
-  bio: 8,
+  bio: 7,
 };
 
 const ExamCountdownContext = createContext(null);

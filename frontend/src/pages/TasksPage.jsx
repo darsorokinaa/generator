@@ -8,16 +8,26 @@ import {
 } from "react-router-dom";
 
 const SUBJECT_NAMES = {
-  math: "Математика",
   inf: "Информатика",
   history: "История",
   rus: "Русский язык",
   chem: "Химия",
   phys: "Физика",
   lit: "Литература",
-  soc_studies: "Обществознание",
   bio: "Биология",
 };
+
+/** Заголовок предмета: «профильная/базовая» только ЕГЭ; ОГЭ — всегда «Математика». */
+function formatSubjectDisplayName(level, subjectKey, rawName) {
+  const lv = String(level || "").toLowerCase();
+  const sub = String(subjectKey || "").toLowerCase();
+  if (lv === "oge" && (sub === "math" || sub === "math_base")) return "Математика";
+  if (lv === "ege" && sub === "math") return "Математика (профильная)";
+  if (lv === "ege" && sub === "math_base") return "Математика (базовая)";
+  return rawName != null && rawName !== ""
+    ? rawName
+    : (SUBJECT_NAMES[subjectKey] || subjectKey);
+}
 
 function itemsIncludeTaskNumber(items, n) {
   for (const item of items) {
@@ -40,10 +50,11 @@ function TasksPage() {
     String(subject || "").toLowerCase() === "join";
 
   const searchQuery = searchParams.get("search")?.trim() ?? "";
-  const subjectName = SUBJECT_NAMES[subject] || subject;
 
   const [tasks, setTasks] = useState([]);
-  const [subjectNameFromApi, setSubjectNameFromApi] = useState(subjectName);
+  const [subjectNameFromApi, setSubjectNameFromApi] = useState(() =>
+    formatSubjectDisplayName(level, subject, SUBJECT_NAMES[subject] || subject)
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -108,6 +119,9 @@ function TasksPage() {
     let cancelled = false;
     setLoading(true);
     setError(null);
+    setSubjectNameFromApi(
+      formatSubjectDisplayName(level, subject, SUBJECT_NAMES[subject] || subject)
+    );
     fetch(`/api/${level}/${subject}/tasks/`)
       .then((res) => {
         if (res.status === 404) {
@@ -121,7 +135,13 @@ function TasksPage() {
       .then((data) => {
         if (cancelled) return;
         setTasks(data.tasks || []);
-        setSubjectNameFromApi(data.subject_name || subjectName);
+        setSubjectNameFromApi(
+          formatSubjectDisplayName(
+            level,
+            subject,
+            data.subject_name || SUBJECT_NAMES[subject] || subject
+          )
+        );
         setLoading(false);
       })
       .catch((err) => {

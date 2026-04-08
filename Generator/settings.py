@@ -61,7 +61,8 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = "Generator.urls"
+# Полные маршруты API (tasks/, subtopics/, lesson/join/, verify, …) — во вложенном приложении.
+ROOT_URLCONF = "Generator.Generator.urls"
 
 TEMPLATES = [
     {

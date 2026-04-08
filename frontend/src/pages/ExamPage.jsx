@@ -14,10 +14,23 @@ import { readPersistedTheme } from "../utils/themeStorage";
 const COLORS = ["#000000", "#ffffff", "#ef4444", "#3b82f6", "#22c55e"];
 
 const SUBJECT_NAMES = {
-  math: "математике",
   inf: "информатике",
   history: "истории",
 };
+
+/** Подпись для шапки «Тестирование по …»: профиль/база только ЕГЭ, ОГЭ — просто «математике». */
+function examPageSubjectLabel(level, subjectKey) {
+  const lv = String(level || "").toLowerCase();
+  const sub = String(subjectKey || "").toLowerCase();
+  if (sub === "math") return lv === "ege" ? "профильной математике" : "математике";
+  if (sub === "math_base") return lv === "ege" ? "базовой математике" : "математике";
+  return SUBJECT_NAMES[subjectKey] || subjectKey;
+}
+
+function isMathLikeSubject(subject) {
+  const s = String(subject || "").toLowerCase();
+  return s === "math" || s === "math_base";
+}
 
 function TaskReportErrorButton({ taskId, taskNumber, onClick }) {
   return (
@@ -48,7 +61,7 @@ const LEVEL_NAMES = {
 const EXAM_CORNER_POS_KEY = "exam_fixed_corner_pos";
 
 /** Эталон «a или b» — засчитывается любой вариант после нормализации */
-const SUBJECTS_WITH_OR_ALTERNATIVES = ["math", "chem", "history"];
+const SUBJECTS_WITH_OR_ALTERNATIVES = ["math", "math_base", "chem", "history"];
 
 function clampExamCornerToViewport(el, left, top) {
   const margin = 8;
@@ -66,7 +79,8 @@ function ExamPage() {
   const { level, subject, variant_id } = useParams();
   const location = useLocation();
   const mode = location.state?.mode || "variant";
-  const subjectLabel = location.state?.subjectName || SUBJECT_NAMES[subject] || subject;
+  const subjectLabel =
+    location.state?.subjectName || examPageSubjectLabel(level, subject);
   const levelLabel = LEVEL_NAMES[level] || level.toUpperCase();
   const testTaskLabels = location.state?.testTaskLabels || [];
 
@@ -1133,8 +1147,8 @@ function ExamPage() {
   const inferPart = (t) => {
     if (t.part === 1 || t.part === 2) return t.part;
     const n = t.number;
-    if (level === "oge" && subject === "math") return n <= 19 ? 1 : 2;
-    if (level === "ege" && subject === "math") return n <= 11 ? 1 : 2;
+    if (level === "oge" && isMathLikeSubject(subject)) return n <= 19 ? 1 : 2;
+    if (level === "ege" && isMathLikeSubject(subject)) return n <= 11 ? 1 : 2;
     if (level === "oge" && subject === "inf") return n <= 15 ? 1 : 2;
     if (level === "ege" && subject === "inf") return n <= 27 ? 1 : 2;
     return n <= 19 ? 1 : 2;
@@ -1253,7 +1267,8 @@ function ExamPage() {
 
     // В режиме тренировки по номерам конвертация в баллы/оценку не нужна
     if (mode !== "test") {
-      const isOgeMath = String(level).toLowerCase() === "oge" && String(subject).toLowerCase() === "math";
+      const isOgeMath =
+        String(level).toLowerCase() === "oge" && isMathLikeSubject(subject);
       const geoParam = isOgeMath ? `&geo_correct=${geoCorrectCount}` : "";
       try {
         const res = await fetch(
@@ -1614,7 +1629,7 @@ function ExamPage() {
               const cols = useTable ? INF_TABLE_COLS : 0;
 
               return (
-                <section key={task.id} className={`task${task.subdivision === "geom" ? " task-geom" : task.subdivision === "alg" ? " task-alg" : ""}${((level === "oge" && subject === "inf" && task.number === 13) || (level === "oge" && subject === "math" && task.number === 1)) ? " task-img-full" : ""}`} onClick={() => handleTaskFocus(task.id)}>
+                <section key={task.id} className={`task${task.subdivision === "geom" ? " task-geom" : task.subdivision === "alg" ? " task-alg" : ""}${((level === "oge" && subject === "inf" && task.number === 13) || (level === "oge" && isMathLikeSubject(subject) && task.number === 1)) ? " task-img-full" : ""}`} onClick={() => handleTaskFocus(task.id)}>
                   <aside className="task-left">
                     <div className="task-number">{task.number}</div>
                     <div className="task-id">{task.id}</div>
@@ -1784,7 +1799,7 @@ function ExamPage() {
                       const colsHere = useTableHere ? INF_TABLE_COLS : 0;
 
                       return (
-                        <section key={task.id} className={`task task-in-group${task.subdivision === "geom" ? " task-geom" : task.subdivision === "alg" ? " task-alg" : ""}${((level === "oge" && subject === "inf" && task.number === 13) || (level === "oge" && subject === "math" && task.number === 1)) ? " task-img-full" : ""}`} onClick={() => handleTaskFocus(task.id)}>
+                        <section key={task.id} className={`task task-in-group${task.subdivision === "geom" ? " task-geom" : task.subdivision === "alg" ? " task-alg" : ""}${((level === "oge" && subject === "inf" && task.number === 13) || (level === "oge" && isMathLikeSubject(subject) && task.number === 1)) ? " task-img-full" : ""}`} onClick={() => handleTaskFocus(task.id)}>
                           <aside className="task-left">
                             <div className="task-number">{task.number}</div>
                             <div className="task-id">{task.id}</div>
@@ -1967,7 +1982,7 @@ function ExamPage() {
 
                 {/* Остальные задания части 2 */}
                 {part2Regular.map((task) => (
-                  <section key={task.id} className={`task${task.subdivision === "geom" ? " task-geom" : task.subdivision === "alg" ? " task-alg" : ""}${((level === "oge" && subject === "inf" && task.number === 13) || (level === "oge" && subject === "math" && task.number === 1)) ? " task-img-full" : ""}`} onClick={() => handleTaskFocus(task.id)}>
+                  <section key={task.id} className={`task${task.subdivision === "geom" ? " task-geom" : task.subdivision === "alg" ? " task-alg" : ""}${((level === "oge" && subject === "inf" && task.number === 13) || (level === "oge" && isMathLikeSubject(subject) && task.number === 1)) ? " task-img-full" : ""}`} onClick={() => handleTaskFocus(task.id)}>
                     <aside className="task-left">
                       <div className="task-number">{task.number}</div>
                       <div className="task-id">{task.id}</div>

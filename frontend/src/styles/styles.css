@@ -1151,6 +1151,36 @@ header {
     border-top-color: rgba(0, 0, 0, 0.1);
 }
 
+/* Математика базовая — бирюзовый, отличается от профильной (#D0D64E) */
+.exam-card.exam-card-math-base {
+    background: #3d8f9a;
+    border: none;
+}
+
+.exam-card.exam-card-math-base .exam-title,
+.exam-card.exam-card-math-base .exam-description {
+    color: #fff;
+}
+
+.exam-card.exam-card-math-base .exam-icon {
+    background: rgba(255, 255, 255, 0.85);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.exam-card.exam-card-math-base .exam-badge {
+    background: rgba(255, 255, 255, 0.9);
+    color: #0f3d44;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.exam-card.exam-card-math-base .exam-card-arrow-wrap .exam-arrow {
+    color: #fff;
+}
+
+.exam-card.exam-card-math-base .exam-card-footer {
+    border-top-color: rgba(0, 0, 0, 0.12);
+}
+
 /* Информатика — фиолетовый #A99AF7 */
 .exam-card.exam-card-inf {
     background: #A99AF7;
@@ -2375,10 +2405,15 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
 
 .subject-page .exam-card-main {
     gap: 0.75rem;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
 }
 
 .subject-page .exam-card-left {
     gap: 0.875rem;
+    align-items: center;
 }
 
 .subject-page .exam-icon {
@@ -2410,6 +2445,7 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
 
 .subject-page .exam-card-footer {
     padding-top: 0.65rem;
+    margin-top: auto;
 }
 
 .subject-page .exam-card-arrow-wrap {
@@ -2442,6 +2478,45 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
     justify-items: stretch;
 }
 
+/* Узкая колонка: базовая математика сразу под профильной (DOM для десктопа — по-прежнему 2-й ряд) */
+@media (max-width: 639px) {
+    .subject-page-pick-block .subject-page-subject-pair--math {
+        order: 1;
+    }
+
+    .subject-page-pick-block .subject-page-subject-pair--math-base {
+        order: 2;
+    }
+
+    .subject-page-pick-block .subject-page-subject-pair--inf {
+        order: 3;
+    }
+
+    .subject-page-pick-block .subject-page-subject-pair--phys {
+        order: 4;
+    }
+
+    .subject-page-pick-block .subject-page-subject-pair--chem {
+        order: 5;
+    }
+
+    .subject-page-pick-block .subject-page-subject-pair--bio {
+        order: 6;
+    }
+
+    .subject-page-pick-block .subject-page-subject-pair--history {
+        order: 7;
+    }
+
+    .subject-page-pick-block .subject-page-subject-pair--rus {
+        order: 8;
+    }
+
+    .subject-page-pick-block .subject-page-subject-pair--lit {
+        order: 9;
+    }
+}
+
 @media (min-width: 640px) {
     .subject-page-pick-block {
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -2449,9 +2524,18 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
         align-items: stretch;
     }
 
+    .subject-page-pick-block > .subject-page-subject-pair {
+        order: 0;
+    }
+
     .subject-page-subject-pair {
         align-self: stretch;
         height: 100%;
+    }
+
+    .subject-page-subject-pair .exam-card {
+        height: 100%;
+        min-height: 0;
     }
 }
 
@@ -2538,6 +2622,12 @@ details.subject-exam-countdown-card--foldable > summary::-webkit-details-marker 
     box-shadow: 0 1px 2px rgba(90, 107, 26, 0.12);
 }
 
+.subject-exam-countdown-card--math_base .subject-exam-countdown-card__badge {
+    background: rgba(61, 143, 154, 0.48);
+    color: #0f3d44;
+    box-shadow: 0 1px 2px rgba(15, 61, 68, 0.12);
+}
+
 .subject-exam-countdown-card--inf .subject-exam-countdown-card__badge {
     background: rgba(169, 154, 247, 0.5);
     color: #5b21b6;
@@ -2594,6 +2684,11 @@ details.subject-exam-countdown-card--foldable > summary::-webkit-details-marker 
     border-color: rgba(90, 107, 26, 0.22);
 }
 
+.subject-exam-countdown-card--math_base .subject-exam-countdown-card__cell {
+    background: rgba(61, 143, 154, 0.14);
+    border-color: rgba(15, 61, 68, 0.22);
+}
+
 .subject-exam-countdown-card--inf .subject-exam-countdown-card__cell {
     background: rgba(169, 154, 247, 0.16);
     border-color: rgba(91, 33, 182, 0.22);
@@ -2606,6 +2701,10 @@ details.subject-exam-countdown-card--foldable > summary::-webkit-details-marker 
 
 .subject-exam-countdown-card--math .subject-exam-countdown-card__value {
     color: #5a6b1a;
+}
+
+.subject-exam-countdown-card--math_base .subject-exam-countdown-card__value {
+    color: #0f5560;
 }
 
 .subject-exam-countdown-card--inf .subject-exam-countdown-card__value {

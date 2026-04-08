@@ -312,7 +312,7 @@
         <span style="font-size:.7rem;opacity:.7">Если в ЛК задана ссылка на звонок, она появится здесь автоматически</span>
       </div>
       {% endif %}
-      <div class="room-id-box">Room: {{ room_id }}</div>
+      <div class="room-id-box">Room: {{ room_id|escape }}</div>
     </div>
   </aside>
 
@@ -350,9 +350,9 @@
             <option value="oge">ОГЭ</option>
           </select>
           <select id="sel-subject">
-            <option value="math">Математика (база)</option>
-            <option value="math-advanced">Математика (профиль)</option>
-            <option value="informatics">Информатика</option>
+            <option value="math">Математика (профиль / ОГЭ)</option>
+            <option value="math_base">Математика (база ЕГЭ)</option>
+            <option value="inf">Информатика</option>
           </select>
         </div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
@@ -406,7 +406,8 @@
 <div id="status-toast"></div>
 
 <script>
-const ROOM_ID    = "{{ room_id|escapejs }}";
+const ROOM_ID_RAW = "{{ room_id|escapejs }}";
+const ROOM_ID     = encodeURIComponent(ROOM_ID_RAW);
 const ROLE       = "{{ lesson_type|escapejs }}";
 const MY_NAME    = "{{ participant_name|escapejs }}";
 const TEACHER    = "{{ teacher_name|escapejs }}";
@@ -505,6 +506,12 @@ function handleMessage(msg) {
 }
 
 // ── TEACHER: GENERATE / START VARIANT ──
+async function ensureCsrfCookie() {
+  try {
+    await fetch("/api/csrf/", { credentials: "include" });
+  } catch (_) {}
+}
+
 async function teacherGenerate() {
   const level   = document.getElementById("sel-level").value;
   const subject = document.getElementById("sel-subject").value;
@@ -517,6 +524,7 @@ async function teacherGenerate() {
   let variantId = parseInt(idInput) || null;
 
   if (!variantId) {
+    await ensureCsrfCookie();
     // Generate a new variant
     try {
       const resp = await fetch(`/api/${level}/${subject}/variant/`, {
@@ -595,7 +603,7 @@ function renderTasks(tasks, variantId) {
   const html = tasks.map((t, i) => {
     const num     = t.number ?? (i + 1);
     const topic   = t.topic || t.subtopic || t.subtopic_title || t.task_title || "";
-    const content = t.content || t.task_text || t.question || t.text || "";
+    const content = t.content || t.task_text || t.task_template || t.question || t.text || "";
     const savedVal = myAnswers[num] || "";
     return `
       <div class="task-card ${savedVal ? 'answered' : ''}" id="task-card-${num}">
@@ -682,6 +690,23 @@ function escapeHtml(str) {
 }
 
 // ── INIT ──
+(function initLessonSubjectSelector() {
+  const selLevel = document.getElementById("sel-level");
+  const selSubject = document.getElementById("sel-subject");
+  if (!selLevel || !selSubject) return;
+  const optBase = selSubject.querySelector('option[value="math_base"]');
+  function sync() {
+    if (!optBase) return;
+    const isEge = selLevel.value === "ege";
+    optBase.disabled = !isEge;
+    if (!isEge && selSubject.value === "math_base") {
+      selSubject.value = "math";
+    }
+  }
+  selLevel.addEventListener("change", sync);
+  sync();
+})();
+ensureCsrfCookie();
 connectWS();
 </script>
 </body>

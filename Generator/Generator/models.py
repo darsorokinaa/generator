@@ -413,6 +413,22 @@ class ErrorReport(models.Model):
         return f"Ошибка №{self.task_number} ({self.subject} {self.level}) — {self.get_error_type_display()}"
 
 
+class LessonRoom(models.Model):
+    """Комната урока по ссылке из ЛК (JWT): идентификатор и снимок полезной нагрузки токена."""
+
+    room_id = models.CharField(max_length=200, unique=True, db_index=True)
+    jwt_payload = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Комната урока (ЛК)"
+        verbose_name_plural = "Комнаты уроков (ЛК)"
+
+    def __str__(self):
+        return f"LessonRoom {self.room_id}"
+
+
 def username_for_created_by(request):
     """Строка для поля created_by: логин авторизованного пользователя или ADMIN."""
     if request is None:
