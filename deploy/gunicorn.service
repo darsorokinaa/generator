@@ -15,7 +15,7 @@ LogsDirectory=generator_test
 # Нужен ASGI — Daphne, иначе ученик не получает вариант и fetch к API не вызывается / падает по таймауту.
 ExecStart=/opt/generator_test/venv/bin/python3 -m daphne \
     -b 127.0.0.1 \
-    -p 8001 \
+    -p 8002 \
     --access-log - \
     --proxy-headers \
     Generator.asgi:application
