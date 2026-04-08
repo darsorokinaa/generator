@@ -29,8 +29,13 @@ urlpatterns = [
     path("api/<str:level>/<str:subject>/score-conversion/", views.api_score_conversion),
     path("api/<str:level>/<str:subject>/report-pdf/", views.report_pdf),
     path("api/<str:level>/<str:subject>/report-error/", views.report_error),
-    path('api/<str:level>/<str:subject>/variant/<int:variant_id>/pdf/', views.variant_pdf),
-    # path('api/<str:level>/<str:subject>/variant/<int:variant_id>/pdf/cosmos', views.variant_pdfCosmos),
+    path("api/<str:level>/<str:subject>/variant/<int:variant_id>/pdf/", views.variant_pdf),
+    path(
+        "api/<str:level>/<str:subject>/variant/<int:variant_id>/pdf/cosmos",
+        views.variant_pdfCosmos,
+    ),
+    # Совместимость со старым клиентом: /api/ege/math/ → тот же ответ, что tasks/
+    path("api/<str:level>/<str:subject>/", views.api_tasks),
 
     path("", include("Board.urls")),
     path("lesson/join", views.lesson_join_redirect),
@@ -40,6 +45,18 @@ urlpatterns = [
 
 urlpatterns += [
     re_path(r'^media/(?P<path>.*)$', serve, {'document_root': settings.MEDIA_ROOT}),
+]
+
+# PDF без префикса /api/ (старые закладки)
+urlpatterns += [
+    re_path(
+        r"^(?P<level>[^/]+)/(?P<subject>[^/]+)/variant/(?P<variant_id>[0-9]+)/pdf/cosmos/?$",
+        views.variant_pdfCosmos,
+    ),
+    re_path(
+        r"^(?P<level>[^/]+)/(?P<subject>[^/]+)/variant/(?P<variant_id>[0-9]+)/pdf/?$",
+        views.variant_pdf,
+    ),
 ]
 
 urlpatterns += [

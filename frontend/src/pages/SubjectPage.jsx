@@ -41,7 +41,7 @@ function SubjectPage() {
 
               <div className="subject-page-pick-groups">
                 <div className="subject-page-pick-block">
-                  <div className="subject-page-subject-pair">
+                  <div className="subject-page-subject-pair subject-page-subject-pair--math">
                     <Link
                       to={`/${level}/math`}
                       className="exam-card exam-card-math"
@@ -57,10 +57,12 @@ function SubjectPage() {
                         <div className="exam-card-left">
                           <div className="exam-icon exam-icon-math">🔢</div>
                           <div className="exam-card-text">
-                            <h3 className="exam-title">Математика</h3>
-                            <p className="exam-description">
-                              Алгебра, геометрия, теория вероятностей и математический анализ
-                            </p>
+                            <h3 className="exam-title">
+                              {level === "ege" ? "Математика (профильная)" : "Математика"}
+                            </h3>
+                            {/* <p className="exam-description">
+                              Алгебра и начала анализа, геометрия, вероятность и статистика
+                            </p> */}
                           </div>
                         </div>
                         <div className="exam-card-footer">
@@ -73,7 +75,7 @@ function SubjectPage() {
                     </Link>
                   </div>
 
-                  <div className="subject-page-subject-pair">
+                  <div className="subject-page-subject-pair subject-page-subject-pair--inf">
                     <Link
                       to={`/${level}/inf`}
                       className="exam-card exam-card-inf"
@@ -90,9 +92,9 @@ function SubjectPage() {
                           <div className="exam-icon exam-icon-inf">💻</div>
                           <div className="exam-card-text">
                             <h3 className="exam-title">Информатика</h3>
-                            <p className="exam-description">
-                              Алгоритмы, программирование, логика и компьютерные системы
-                            </p>
+                            {/* <p className="exam-description">
+                              Алгоритмы, программирование, моделирование и информационные системы
+                            </p> */}
                           </div>
                         </div>
                         <div className="exam-card-footer">
@@ -105,7 +107,7 @@ function SubjectPage() {
                     </Link>
                   </div>
 
-                  <div className="subject-page-subject-pair">
+                  <div className="subject-page-subject-pair subject-page-subject-pair--phys">
                     <Link
                       to={`/${level}/phys`}
                       className="exam-card exam-card-phys"
@@ -122,9 +124,9 @@ function SubjectPage() {
                           <div className="exam-icon exam-icon-phys">🌡️</div>
                           <div className="exam-card-text">
                             <h3 className="exam-title">Физика</h3>
-                            <p className="exam-description">
-                              Механика, термодинамика, электричество и оптика
-                            </p>
+                            {/* <p className="exam-description">
+                              Механика, молекулярная физика, электричество и оптика
+                            </p> */}
                           </div>
                         </div>
                         <div className="exam-card-footer">
@@ -137,7 +139,41 @@ function SubjectPage() {
                     </Link>
                   </div>
 
-                  <div className="subject-page-subject-pair">
+                  {level === "ege" && (
+                  <div className="subject-page-subject-pair subject-page-subject-pair--math-base">
+                    <Link
+                      to={`/${level}/math_base`}
+                      className="exam-card exam-card-math-base"
+                    >
+                      <div className="exam-card-bg" aria-hidden="true">
+                        <span className="exam-card-decor exam-card-decor-calc">📐</span>
+                        <span className="exam-card-decor exam-card-decor-ruler">📏</span>
+                        <span className="exam-card-decor exam-card-decor-sparkle">✦</span>
+                        <span className="exam-card-decor exam-card-decor-sparkle exam-card-decor-sparkle-2">✦</span>
+                        <span className="exam-card-decor exam-card-decor-sparkle exam-card-decor-sparkle-3">✦</span>
+                      </div>
+                      <div className="exam-card-main">
+                        <div className="exam-card-left">
+                          <div className="exam-icon exam-icon-math">🔢</div>
+                          <div className="exam-card-text">
+                            <h3 className="exam-title">Математика (базовая)</h3>
+                            {/* <p className="exam-description">
+                              Числа и вычисления, уравнения, текстовые задачи и планиметрия
+                            </p> */}
+                          </div>
+                        </div>
+                        <div className="exam-card-footer">
+                          <span className="exam-badge">Перейти</span>
+                          <div className="exam-card-arrow-wrap">
+                            <span className="exam-arrow" aria-hidden="true">→</span>
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  </div>
+                  )}
+
+                  <div className="subject-page-subject-pair subject-page-subject-pair--chem">
                     <Link
                       to={`/${level}/chem`}
                       className="exam-card exam-card-chem"
@@ -154,9 +190,9 @@ function SubjectPage() {
                           <div className="exam-icon exam-icon-chem">🧬</div>
                           <div className="exam-card-text">
                             <h3 className="exam-title">Химия</h3>
-                            <p className="exam-description">
-                              Неорганика, органика, расчёты и химический эксперимент
-                            </p>
+                            {/* <p className="exam-description">
+                              Неорганика, органика, высшая химия и расчётные задачи
+                            </p> */}
                           </div>
                         </div>
                         <div className="exam-card-footer">
@@ -169,7 +205,7 @@ function SubjectPage() {
                     </Link>
                   </div>
 
-                  <div className="subject-page-subject-pair">
+                  <div className="subject-page-subject-pair subject-page-subject-pair--bio">
                     <Link
                       to={`/${level}/bio`}
                       className="exam-card exam-card-bio"
@@ -186,9 +222,9 @@ function SubjectPage() {
                           <div className="exam-icon exam-icon-bio">🦠</div>
                           <div className="exam-card-text">
                             <h3 className="exam-title">Биология</h3>
-                            <p className="exam-description">
-                              Клетка, генетика, экология и эволюция
-                            </p>
+                            {/* <p className="exam-description">
+                              Клетка и генетика, организмы, экология и эволюция
+                            </p> */}
                           </div>
                         </div>
                         <div className="exam-card-footer">
@@ -201,7 +237,7 @@ function SubjectPage() {
                     </Link>
                   </div>
 
-                  <div className="subject-page-subject-pair">
+                  <div className="subject-page-subject-pair subject-page-subject-pair--history">
                     <Link
                       to={`/${level}/history`}
                       className="exam-card exam-card-history"
@@ -218,9 +254,9 @@ function SubjectPage() {
                           <div className="exam-icon exam-icon-history">🏛️</div>
                           <div className="exam-card-text">
                             <h3 className="exam-title">История</h3>
-                            <p className="exam-description">
-                              Россия и мир: периодизация, историческое мышление и работа с источниками
-                            </p>
+                            {/* <p className="exam-description">
+                              Россия и мир, периодизация, историческое мышление и источники
+                            </p> */}
                           </div>
                         </div>
                         <div className="exam-card-footer">
@@ -233,39 +269,7 @@ function SubjectPage() {
                     </Link>
                   </div>
 
-                  <div className="subject-page-subject-pair">
-                    <Link
-                      to={`/${level}/soc_studies`}
-                      className="exam-card exam-card-soc-studies"
-                    >
-                      <div className="exam-card-bg" aria-hidden="true">
-                        <span className="exam-card-decor exam-card-decor-calc">⚖️</span>
-                        <span className="exam-card-decor exam-card-decor-ruler">🌍</span>
-                        <span className="exam-card-decor exam-card-decor-sparkle">✦</span>
-                        <span className="exam-card-decor exam-card-decor-sparkle exam-card-decor-sparkle-2">✦</span>
-                        <span className="exam-card-decor exam-card-decor-sparkle exam-card-decor-sparkle-3">✦</span>
-                      </div>
-                      <div className="exam-card-main">
-                        <div className="exam-card-left">
-                          <div className="exam-icon exam-icon-soc-studies">🏛️</div>
-                          <div className="exam-card-text">
-                            <h3 className="exam-title">Обществознание</h3>
-                            <p className="exam-description">
-                              Человек, общество, право, экономика и политика
-                            </p>
-                          </div>
-                        </div>
-                        <div className="exam-card-footer">
-                          <span className="exam-badge">Перейти</span>
-                          <div className="exam-card-arrow-wrap">
-                            <span className="exam-arrow" aria-hidden="true">→</span>
-                          </div>
-                        </div>
-                      </div>
-                    </Link>
-                  </div>
-
-                  <div className="subject-page-subject-pair">
+                  <div className="subject-page-subject-pair subject-page-subject-pair--rus">
                     <Link
                       to={`/${level}/rus`}
                       className="exam-card exam-card-rus"
@@ -282,9 +286,9 @@ function SubjectPage() {
                           <div className="exam-icon exam-icon-rus">📚</div>
                           <div className="exam-card-text">
                             <h3 className="exam-title">Русский язык</h3>
-                            <p className="exam-description">
-                              Грамматика, орфография, пунктуация и работа с текстом
-                            </p>
+                            {/* <p className="exam-description">
+                              Норма языка, орфография, пунктуация и анализ текста
+                            </p> */}
                           </div>
                         </div>
                         <div className="exam-card-footer">
@@ -297,7 +301,7 @@ function SubjectPage() {
                     </Link>
                   </div>
 
-                  <div className="subject-page-subject-pair">
+                  <div className="subject-page-subject-pair subject-page-subject-pair--lit">
                     <Link
                       to={`/${level}/lit`}
                       className="exam-card exam-card-lit"
@@ -314,9 +318,9 @@ function SubjectPage() {
                           <div className="exam-icon exam-icon-lit">📖</div>
                           <div className="exam-card-text">
                             <h3 className="exam-title">Литература</h3>
-                            <p className="exam-description">
-                              Лирика, проза, сочинение и анализ произведений
-                            </p>
+                            {/* <p className="exam-description">
+                              Поэзия и проза, теория литературы, сочинение и анализ
+                            </p> */}
                           </div>
                         </div>
                         <div className="exam-card-footer">

@@ -28,6 +28,7 @@ from .models import (
     Announcement,
     Criteria,
     ErrorReport,
+    LessonRoom,
     Level,
     LinkedTaskGroup,
     Mark,
@@ -1703,6 +1704,38 @@ def report_error(request, level, subject):
 # Lesson join (receives JWT from cabinet, renders lesson room)
 # ---------------------------------------------------------------------------
 
+def _lesson_jwt_iss_allowed(iss) -> bool:
+    """ЛК может подставлять iss по-разному (домен, короткое имя) — после проверки подписи допускаем типовые варианты."""
+    if iss is None:
+        return True
+    s = str(iss).strip().lower()
+    if not s:
+        return True
+    if s in (
+        "cabinet",
+        "lk-cabinet",
+        "lk_cabinet",
+        "lk",
+        "personal-cabinet",
+        "personal_cabinet",
+        "lesson",
+    ):
+        return True
+    if "cabinet" in s or "lk" in s or "lesson" in s:
+        return True
+    return False
+
+
+def _persist_lesson_room(room_id: str, payload: dict) -> None:
+    rid = str(room_id or "").strip()[:200]
+    if not rid:
+        return
+    try:
+        LessonRoom.objects.update_or_create(room_id=rid, defaults={"jwt_payload": dict(payload or {})})
+    except Exception:
+        logger.exception("Не удалось сохранить LessonRoom для %s", rid)
+
+
 def verify_lesson_token(token: str) -> dict:
     secret = (getattr(django_settings, "LESSON_SECRET", None) or "").strip() or os.environ.get(
         "LESSON_SECRET", ""
@@ -1712,7 +1745,7 @@ def verify_lesson_token(token: str) -> dict:
     try:
         payload = pyjwt.decode(token, secret, algorithms=["HS256"])
         iss = payload.get("iss")
-        if iss is not None and iss not in ("cabinet", "lk-cabinet"):
+        if not _lesson_jwt_iss_allowed(iss):
             raise ValueError("Неверный издатель токена")
         return payload
     except pyjwt.ExpiredSignatureError:
@@ -1727,6 +1760,12 @@ def normalize_lesson_jwt_payload(payload: dict) -> dict:
         payload.get("room_id")
         or payload.get("roomId")
         or payload.get("room")
+        or payload.get("lesson_room_id")
+        or payload.get("lessonRoomId")
+        or payload.get("session_id")
+        or payload.get("sessionId")
+        or payload.get("lesson_id")
+        or payload.get("lessonId")
     )
     teacher = (
         payload.get("teacher")
@@ -1772,7 +1811,7 @@ def normalize_lesson_jwt_payload(payload: dict) -> dict:
         lesson_type = "student"
 
     if room is None or str(room).strip() == "":
-        raise ValueError("В токене нет room_id (или roomId)")
+        raise ValueError("В токене нет идентификатора комнаты (room_id / roomId / session_id и т.п.)")
 
     teacher = str(teacher).strip() or "Учитель"
     target = str(target).strip()
@@ -1848,6 +1887,7 @@ def api_lesson_verify(request):
         normalized = normalize_lesson_jwt_payload(payload)
     except ValueError as e:
         return JsonResponse({"ok": False, "error": str(e)}, status=401)
+    _persist_lesson_room(normalized["room_id"], payload)
     video = lesson_video_context_from_jwt(payload)
     return JsonResponse(
         {
@@ -1883,4 +1923,5 @@ def lesson_join(request):
     except ValueError as e:
         return HttpResponseBadRequest(str(e))
 
+    _persist_lesson_room(normalized["room_id"], payload)
     return render(request, "lesson_room.html", normalized)
