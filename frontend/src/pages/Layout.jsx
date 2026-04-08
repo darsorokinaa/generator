@@ -225,7 +225,7 @@ function Layout() {
         )}
         <Link to="/about" className="header-nav-link">От авторов</Link>
         <a
-          href="http://lk.genurok.tw1.ru"
+          href="https://lk.genurok.tw1.ru"
           target="_blank"
           rel="noopener noreferrer"
           style={{
