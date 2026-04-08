@@ -47,6 +47,9 @@ const LEVEL_NAMES = {
 
 const EXAM_CORNER_POS_KEY = "exam_fixed_corner_pos";
 
+/** Эталон «a или b» — засчитывается любой вариант после нормализации */
+const SUBJECTS_WITH_OR_ALTERNATIVES = ["math", "chem", "history"];
+
 function clampExamCornerToViewport(el, left, top) {
   const margin = 8;
   const w = el.offsetWidth || 1;
@@ -908,13 +911,16 @@ function ExamPage() {
     }
   }
 
-  // Для математики: ответы вида "x или y" считаем как несколько допустимых вариантов
+  // Математика, химия, история: ответы вида "x или y" — несколько допустимых вариантов
   function isUserAnswerCorrect(rawUserValue, correctAnswerHtml) {
     const userNorm = normalize(rawUserValue);
     const correctText = getTextFromHtml(correctAnswerHtml || "");
     const correctNorm = normalize(correctText);
 
-    if (subject === "math" && /\sили\s/i.test(correctText)) {
+    if (
+      SUBJECTS_WITH_OR_ALTERNATIVES.includes(subject) &&
+      /\sили\s/i.test(correctText)
+    ) {
       const alternatives = correctText
         .split(/\s+или\s+/i)
         .map((part) => normalize(part))
