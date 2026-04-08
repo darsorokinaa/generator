@@ -45,9 +45,11 @@ function TasksPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
+  const pathNorm = (location.pathname || "").replace(/\/+$/, "") || "/";
   const isLessonJoinPath =
-    String(level || "").toLowerCase() === "lesson" &&
-    String(subject || "").toLowerCase() === "join";
+    (String(level || "").toLowerCase() === "lesson" &&
+      String(subject || "").toLowerCase() === "join") ||
+    pathNorm.toLowerCase() === "/lesson/join";
 
   const searchQuery = searchParams.get("search")?.trim() ?? "";
 
