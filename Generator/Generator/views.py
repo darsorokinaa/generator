@@ -876,14 +876,26 @@ def lk_nav_password_configured() -> bool:
     return bool((getattr(django_settings, "LK_NAVIGATION_PASSWORD", "") or "").strip())
 
 
+def lk_site_base_url() -> str:
+    return getattr(django_settings, "LK_PUBLIC_URL", "https://lk.genurok.tw1.ru").rstrip("/")
+
+
+def lk_user_nav_url() -> str:
+    """Куда вести пользователя по кнопке «Личный кабинет» (дашборд при наличии LK_DASHBOARD_URL)."""
+    dash = (getattr(django_settings, "LK_DASHBOARD_URL", "") or "").strip().rstrip("/")
+    return dash or lk_site_base_url()
+
+
 @require_http_methods(["GET"])
 def api_site_config(request):
     """Публичные настройки для SPA: URL личного кабинета (не хардкодить в бандле VITE_)."""
-    lk = getattr(django_settings, "LK_PUBLIC_URL", "https://lk.genurok.tw1.ru").rstrip("/")
+    lk_base = lk_site_base_url()
+    lk_nav = lk_user_nav_url()
     pwd_required = lk_nav_password_configured()
     return JsonResponse(
         {
-            "lk_public_url": lk,
+            "lk_public_url": lk_base,
+            "lk_nav_url": lk_nav,
             "lk_nav_password_required": pwd_required,
             "lk_nav_unlocked": (not pwd_required) or lk_nav_cookie_is_valid(request),
         }
@@ -2256,9 +2268,7 @@ def lesson_join(request):
 
     _persist_lesson_room(normalized["room_id"], payload)
     normalized["lesson_token"] = token
-    normalized["lk_public_url"] = getattr(
-        django_settings, "LK_PUBLIC_URL", "https://lk.genurok.tw1.ru"
-    ).rstrip("/")
+    normalized["lk_public_url"] = lk_user_nav_url()
     normalized["lk_nav_password_required"] = lk_nav_password_configured()
     normalized["lk_nav_unlocked"] = (not normalized["lk_nav_password_required"]) or lk_nav_cookie_is_valid(
         request

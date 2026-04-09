@@ -31,6 +31,8 @@ Environment="DEBUG=false"
 Environment="SECRET_KEY=WNbG1HzC4_lta5i_vvh6TPK3_G33Xlhzlr167fDXCFd_CVc0fS72WcaWvtLXwHreDpo"
 Environment="CSRF_TRUSTED_ORIGINS=http://genurok.tw1.ru,https://genurok.tw1.ru"
 Environment="LK_PUBLIC_URL=https://lk.genurok.tw1.ru"
+# Куда открывать ЛК по кнопке (дашборд). Пример: https://lk.genurok.tw1.ru/dashboard
+# Environment="LK_DASHBOARD_URL=https://lk.genurok.tw1.ru/dashboard"
 # Пароль для кнопки «Личный кабинет»: если не задать — в коде по умолчанию 100326.
 # На проде лучше задать только на сервере (не коммитить): Environment="LK_NAVIGATION_PASSWORD=..."
 # Отключить проверку: Environment="LK_NAVIGATION_PASSWORD="

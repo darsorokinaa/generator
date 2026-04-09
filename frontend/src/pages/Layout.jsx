@@ -87,7 +87,7 @@ function Layout() {
     fetch("/api/site-config/", { credentials: "same-origin" })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
-        const u = data?.lk_public_url;
+        const u = data?.lk_nav_url || data?.lk_public_url;
         if (typeof u === "string" && u.trim()) {
           const v = u.trim().replace(/\/$/, "");
           if (/^https?:\/\//i.test(v)) setLkHref(v);
