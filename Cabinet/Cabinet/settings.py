@@ -101,26 +101,17 @@ else:
         }
     }
 
-# Database — PostgreSQL в проде, SQLite локально
-_db_password = os.environ.get('DB_PASSWORD', '')
-if _db_password:
-    DATABASES = {
-        'default': {
-            'ENGINE':   'django.db.backends.postgresql',
-            'NAME':     os.environ.get('DB_NAME',     'lk_cabinet'),
-            'USER':     os.environ.get('DB_USER',     'lk_user'),
-            'PASSWORD': _db_password,
-            'HOST':     os.environ.get('DB_HOST',     'localhost'),
-            'PORT':     os.environ.get('DB_PORT',     '5432'),
-        }
+# Database — PostgreSQL
+DATABASES = {
+    'default': {
+        'ENGINE':   'django.db.backends.postgresql',
+        'NAME':     os.environ.get('DB_NAME', 'lk_cabinet'),
+        'USER':     os.environ.get('DB_USER', 'lk_user'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', 'StrongPass123lk'),
+        'HOST':     os.environ.get('DB_HOST', 'localhost'),
+        'PORT':     os.environ.get('DB_PORT', '5432'),
     }
-else:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME':   BASE_DIR / 'db.sqlite3',
-        }
-    }
+}
 
 
 # Password validation
