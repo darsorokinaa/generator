@@ -854,6 +854,18 @@ def api_csrf(request):
     return JsonResponse({"detail": "CSRF cookie set"})
 
 
+def admin_logout_to_public_home(request):
+    """Выход из Django-админки с редиректом на публичную главную (genurok.ru), а не на / текущего хоста."""
+    from django.contrib.auth import logout as auth_logout
+    from django.http import HttpResponseRedirect
+
+    auth_logout(request)
+    url = getattr(django_settings, "GENUROK_PUBLIC_HOME_URL", "http://genurok.ru/").strip()
+    if not url.endswith("/"):
+        url += "/"
+    return HttpResponseRedirect(url)
+
+
 LK_NAV_COOKIE_NAME = "lk_nav_gate"
 LK_NAV_SIGNER_SALT = "lk_nav_gate_v1"
 
@@ -877,7 +889,7 @@ def lk_nav_password_configured() -> bool:
 
 
 def lk_site_base_url() -> str:
-    return getattr(django_settings, "LK_PUBLIC_URL", "https://lk.genurok.tw1.ru").rstrip("/")
+    return getattr(django_settings, "LK_PUBLIC_URL", "http://lk.genurok.tw1.ru").rstrip("/")
 
 
 def lk_user_nav_url() -> str:

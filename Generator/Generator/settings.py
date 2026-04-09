@@ -32,9 +32,9 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-)&u-i%%%7kr6y6kx11pcr
 # Общий секрет с ЛК для JWT входа в урок (/lesson/join/). В .env: LESSON_SECRET=...
 LESSON_SECRET = os.environ.get("LESSON_SECRET", "").strip()
 
-LK_PUBLIC_URL = os.environ.get("LK_PUBLIC_URL", "https://lk.genurok.tw1.ru").rstrip("/")
+LK_PUBLIC_URL = os.environ.get("LK_PUBLIC_URL", "http://lk.genurok.tw1.ru").rstrip("/")
 # Полный URL страницы после входа (дашборд). Если пусто — кнопка «Личный кабинет» ведёт на LK_PUBLIC_URL.
-# Пример: https://lk.example.com/dashboard или https://lk.example.com/app/
+# Пример: http://lk.example.com/dashboard или http://lk.example.com/app/
 LK_DASHBOARD_URL = os.environ.get("LK_DASHBOARD_URL", "").strip().rstrip("/")
 LK_LESSON_NOTIFY_URL = os.environ.get("LK_LESSON_NOTIFY_URL", "").strip()
 # Кнопка «Личный кабинет»: если переменная не задана — пароль 100326; пустая строка LK_NAVIGATION_PASSWORD= — без пароля.
@@ -227,7 +227,10 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 LOGIN_URL = '/admin/login/'
 LOGIN_REDIRECT_URL = '/'
-LOGOUT_REDIRECT_URL = '/'
+# После выхода из админки — на публичную главную (не «/» текущего хоста: на dev это localhost).
+_gen_home = os.environ.get("GENUROK_PUBLIC_HOME_URL", "http://genurok.ru").strip().rstrip("/")
+GENUROK_PUBLIC_HOME_URL = f"{_gen_home}/"
+LOGOUT_REDIRECT_URL = GENUROK_PUBLIC_HOME_URL
 
 # Telegram bot для отправки сообщений об ошибках
 # Для группового чата: добавьте бота в группу, затем получите ID через
