@@ -43,5 +43,5 @@ React воспринимает путь как `/:level/:subject` → урове
 
 Чаще всего **поддомен `lk` смотрит на тот же nginx `server`, что и генератор** (или в `.env` при сборке указан `VITE_LK_URL=https://genurok...` без `lk.`).
 
-- На сервере генератора задайте **`LK_PUBLIC_URL`** (в systemd или `.env`) = полный URL кабинета, например `https://lk.genurok.tw1.ru`. SPA подставляет его из **`GET /api/site-config/`**.
+- На сервере генератора задайте **`LK_PUBLIC_URL`** (базовый домен ЛК) и при необходимости **`LK_DASHBOARD_URL`** — полный URL дашборда (кнопка «Личный кабинет» и редирект после урока). SPA читает **`GET /api/site-config/`** (`lk_nav_url` / `lk_public_url`).
 - В **nginx** для `lk.genurok.tw1.ru` должен быть **отдельный** `server { ... }` с `proxy_pass` на **бэкенд кабинета**, а не на тот же upstream, что `genurok.tw1.ru`.
