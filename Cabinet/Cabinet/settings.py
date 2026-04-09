@@ -18,9 +18,11 @@ from dotenv import load_dotenv
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# Загрузка .env.local (локальная разработка), затем .env (продовые значения)
-load_dotenv(BASE_DIR / ".env.local")
+# Сначала .env (база для всех сред). .env.local только для машины разработчика и перекрывает .env.
+# Важно: при старом порядке (.env.local → .env) второй файл НЕ перезаписывал уже заданные ключи —
+# на сервере лишний .env.local мог уводить проект на «чужую» БД.
 load_dotenv(BASE_DIR / ".env")
+load_dotenv(BASE_DIR / ".env.local", override=True)
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-0!^zwlov_t=@x1w^im@mgral)1s*+6xw*wy_e^lxa_i-if##y%')
@@ -30,7 +32,12 @@ DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
 ALLOWED_HOSTS = [h.strip() for h in os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if h.strip()]
 
-FRONTEND_URL  = os.environ.get('FRONTEND_URL',  'http://localhost:3000')
+FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:3000').rstrip('/')
+# Пока ЛК без TLS: в .env мог остаться https:// — принудительно http (или просто поправьте FRONTEND_URL на http://...)
+if os.environ.get('FRONTEND_URL_FORCE_HTTP', '').lower() in ('1', 'true', 'yes'):
+    if FRONTEND_URL.lower().startswith('https://'):
+        FRONTEND_URL = 'http://' + FRONTEND_URL[8:]
+
 GENURОК_URL   = os.environ.get('GENURОК_URL',   'https://genurok.tw1.ru')
 # Общий секрет с ГенУрок.рф для подписи JWT. В проде задайте через env-переменную.
 LESSON_SECRET = os.environ.get('LESSON_SECRET', SECRET_KEY)
@@ -108,7 +115,7 @@ DATABASES = {
         'ENGINE':   'django.db.backends.postgresql',
         'NAME':     os.environ.get('DB_NAME', 'lk_cabinet'),
         'USER':     os.environ.get('DB_USER', 'lk_user'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', 'StrongPass123lk'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
         'HOST':     os.environ.get('DB_HOST', 'localhost'),
         'PORT':     os.environ.get('DB_PORT', '5432'),
     }

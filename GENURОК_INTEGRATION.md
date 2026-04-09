@@ -95,6 +95,10 @@ def lesson_join(request):
 path('lesson/join/', views.lesson_join, name='lesson-join'),
 ```
 
+## Кнопка «ЛК» на genurok.tw1.ru
+
+Ссылка на кабинет задаётся **на стороне генератора** (шаблон / конфиг / `https://lk...` → замените на **`http://lk.genurok.tw1.ru`**, если ЛК без SSL). Редиректы после входа в кабинете берут `FRONTEND_URL` из `.env` кабинета.
+
 ## Переменные окружения (оба сервера должны иметь одинаковый LESSON_SECRET)
 
 ```env
