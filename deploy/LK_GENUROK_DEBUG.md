@@ -38,3 +38,10 @@ React воспринимает путь как `/:level/:subject` → урове
 ## Документация в ЛК
 
 В `02_lk_generator/GENURОК_INTEGRATION.md` — формат JWT и контракт (совпадает с `LessonTokenView` в `Cabinet/views.py`).
+
+## Кнопка «Личный кабинет» открывает главную генератора
+
+Чаще всего **поддомен `lk` смотрит на тот же nginx `server`, что и генератор** (или в `.env` при сборке указан `VITE_LK_URL=https://genurok...` без `lk.`).
+
+- На сервере генератора задайте **`LK_PUBLIC_URL`** (в systemd или `.env`) = полный URL кабинета, например `https://lk.genurok.tw1.ru`. SPA подставляет его из **`GET /api/site-config/`**.
+- В **nginx** для `lk.genurok.tw1.ru` должен быть **отдельный** `server { ... }` с `proxy_pass` на **бэкенд кабинета**, а не на тот же upstream, что `genurok.tw1.ru`.

@@ -32,6 +32,15 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-)&u-i%%%7kr6y6kx11pcr
 # Общий секрет с ЛК для JWT входа в урок (/lesson/join/). В .env: LESSON_SECRET=...
 LESSON_SECRET = os.environ.get("LESSON_SECRET", "").strip()
 
+LK_PUBLIC_URL = os.environ.get("LK_PUBLIC_URL", "https://lk.genurok.tw1.ru").rstrip("/")
+LK_LESSON_NOTIFY_URL = os.environ.get("LK_LESSON_NOTIFY_URL", "").strip()
+# Кнопка «Личный кабинет»: если переменная не задана — пароль 100326; пустая строка LK_NAVIGATION_PASSWORD= — без пароля.
+_lk_nav_env = os.environ.get("LK_NAVIGATION_PASSWORD")
+if _lk_nav_env is None:
+    LK_NAVIGATION_PASSWORD = "100326"
+else:
+    LK_NAVIGATION_PASSWORD = _lk_nav_env.strip()
+
 DEBUG = os.environ.get('DEBUG', 'true').lower() == 'true'
 ALLOWED_HOSTS = ["*"]
 
@@ -92,6 +101,11 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:5000",
     "http://localhost:5001",
     "http://127.0.0.1:5001",
+    # ЛК локально
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:8001",
+    "http://127.0.0.1:8001",
     "https://*.replit.dev",
     "https://*.repl.co",
 ] + [o.strip() for o in _extra_origins.split(',') if o.strip()]

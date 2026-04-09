@@ -14,6 +14,9 @@ export default defineConfig(({ command }) => ({
         changeOrigin: true,
         // WeasyPrint + MathJax (Node) для PDF могут занимать минуты — дефолтный таймаут прокси обрывает ответ
         timeout: 600000,
+        configure: (proxy) => {
+          proxy.on('error', (err) => { /* ignore ECONNREFUSED when django not started yet */ });
+        },
       },
       '/media': {
         target: 'http://127.0.0.1:8000',

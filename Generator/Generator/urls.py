@@ -12,7 +12,11 @@ urlpatterns = [
     path('admin/', admin.site.urls),
 
     path("api/csrf/", views.api_csrf, name="api_csrf"),
+    path("api/site-config/", views.api_site_config, name="api_site_config"),
+    path("api/lk-nav-unlock/", views.api_lk_nav_unlock, name="api_lk_nav_unlock"),
     path("api/lesson/verify/", views.api_lesson_verify, name="api_lesson_verify"),
+    path("api/lesson/teacher-joined/", views.api_lesson_teacher_joined, name="api_lesson_teacher_joined"),
+    path("api/lesson/session-close/", views.api_lesson_session_close, name="api_lesson_session_close"),
     path("api/updates/", views.api_updates, name="api_updates"),
     path("api/announcements/", views.api_announcements, name="api_announcements"),
     path("api/search_task/", views.search_task, name="search_task"),
@@ -22,6 +26,7 @@ urlpatterns = [
     path("api/<str:level>/<str:subject>/tasks/", views.api_tasks),
     path("api/<str:level>/<str:subject>/subtopics/", views.api_subtopics),
     path("api/variant-lookup/<int:variant_id>/", views.api_variant_lookup),
+    path("api/lesson/variant/<int:variant_id>/", views.api_lesson_variant_detail, name="api_lesson_variant_detail"),
     path("api/<str:level>/<str:subject>/variant/", views.api_generate_variant),
     path("api/<str:level>/<str:subject>/variant/<int:variant_id>/", views.api_variant_detail),
     path("api/<str:level>/<str:subject>/support-info/", views.api_support_info),
@@ -49,6 +54,10 @@ urlpatterns += [
 
 # PDF без префикса /api/ (старые закладки)
 urlpatterns += [
+    re_path(
+        r"^(?P<level>[^/]+)/(?P<subject>[^/]+)/variant/(?P<variant_id>[0-9]+)/?$",
+        views.variant_detail_short_url,
+    ),
     re_path(
         r"^(?P<level>[^/]+)/(?P<subject>[^/]+)/variant/(?P<variant_id>[0-9]+)/pdf/cosmos/?$",
         views.variant_pdfCosmos,
