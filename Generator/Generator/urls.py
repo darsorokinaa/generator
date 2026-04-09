@@ -9,6 +9,8 @@ from . import views
 urlpatterns = [
 
     path("ckeditor5/", include("django_ckeditor_5.urls")),
+    # Раньше срабатывал logout админки с LOGOUT_REDIRECT_URL='/' → на localhost при разработке.
+    path("admin/logout/", views.admin_logout_to_public_home, name="generator_admin_logout"),
     path('admin/', admin.site.urls),
 
     path("api/csrf/", views.api_csrf, name="api_csrf"),

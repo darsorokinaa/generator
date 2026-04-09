@@ -12,7 +12,7 @@
 ## Обязательно одинаково на обоих серверах
 
 - **`LESSON_SECRET`** — как в `02_lk_generator/Cabinet/.env.example` и в `systemctl cat generator_test`.
-- **`GENURОК_URL`** в ЛК — точный URL сайта генератора (например `https://genurok.tw1.ru`).
+- **`GENURОК_URL`** в ЛК — точный URL сайта генератора (например `http://genurok.tw1.ru`).
 
 ## Типичная причина «join» + «Ошибка загрузки»
 
@@ -41,7 +41,7 @@ React воспринимает путь как `/:level/:subject` → урове
 
 ## Кнопка «Личный кабинет» открывает главную генератора
 
-Чаще всего **поддомен `lk` смотрит на тот же nginx `server`, что и генератор** (или в `.env` при сборке указан `VITE_LK_URL=https://genurok...` без `lk.`).
+Чаще всего **поддомен `lk` смотрит на тот же nginx `server`, что и генератор** (или в `.env` при сборке указан `VITE_LK_URL=http://genurok...` без `lk.`).
 
 - На сервере генератора задайте **`LK_PUBLIC_URL`** (базовый домен ЛК) и при необходимости **`LK_DASHBOARD_URL`** — полный URL дашборда (кнопка «Личный кабинет» и редирект после урока). SPA читает **`GET /api/site-config/`** (`lk_nav_url` / `lk_public_url`).
 - В **nginx** для `lk.genurok.tw1.ru` должен быть **отдельный** `server { ... }` с `proxy_pass` на **бэкенд кабинета**, а не на тот же upstream, что `genurok.tw1.ru`.

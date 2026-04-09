@@ -1414,7 +1414,7 @@ function ExamPage() {
       loc.hostname === "localhost" ||
       loc.hostname === "127.0.0.1" ||
       loc.hostname === "[::1]";
-    const url = isLocal ? loc.href : `https://генурок.рф${pathWithQuery}`;
+    const url = isLocal ? loc.href : `http://генурок.рф${pathWithQuery}`;
     let ok = false;
     if (navigator.clipboard?.writeText) {
       try {
