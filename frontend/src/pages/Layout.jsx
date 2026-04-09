@@ -5,11 +5,19 @@ import {
   writePersistedTheme,
   clearPersistedTheme,
 } from "../utils/themeStorage";
+import { LK_PUBLIC_URL } from "../config/publicUrls";
 
 const COOKIE_CONSENT_KEY = "cookie_consent_accepted";
 
 function Layout() {
   const { pathname } = useLocation();
+  /** URL ЛК: сначала из сборки, после запроса — с сервера (LK_PUBLIC_URL в Django), чтобы не открывалась та же главная генератора из‑за ошибочного VITE_LK_URL или DNS. */
+  const [lkHref, setLkHref] = useState(LK_PUBLIC_URL);
+  const [lkNavGateRequired, setLkNavGateRequired] = useState(false);
+  const [lkNavUnlocked, setLkNavUnlocked] = useState(false);
+  const [lkModalOpen, setLkModalOpen] = useState(false);
+  const [lkModalPassword, setLkModalPassword] = useState("");
+  const [lkModalError, setLkModalError] = useState("");
   const [themeData, setThemeData] = useState(() => readPersistedTheme().themeData);
   const [cookieAccepted, setCookieAccepted] = useState(() => {
     try { return !!localStorage.getItem(COOKIE_CONSENT_KEY); } catch { return false; }
@@ -74,6 +82,52 @@ function Layout() {
       root.classList.remove("theme-decor-active");
     };
   }, [themeData?.decor]);
+
+  useEffect(() => {
+    fetch("/api/site-config/", { credentials: "same-origin" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        const u = data?.lk_public_url;
+        if (typeof u === "string" && u.trim()) {
+          const v = u.trim().replace(/\/$/, "");
+          if (/^https?:\/\//i.test(v)) setLkHref(v);
+        }
+        setLkNavGateRequired(!!data?.lk_nav_password_required);
+        setLkNavUnlocked(!!data?.lk_nav_unlocked);
+      })
+      .catch(() => {});
+  }, []);
+
+  function handleLkNavClick(e) {
+    if (!lkNavGateRequired || lkNavUnlocked) return;
+    e.preventDefault();
+    setLkModalError("");
+    setLkModalPassword("");
+    setLkModalOpen(true);
+  }
+
+  async function submitLkNavUnlock() {
+    setLkModalError("");
+    try {
+      const r = await fetch("/api/lk-nav-unlock/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ password: lkModalPassword.trim() }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        setLkModalError(data.error || "Неверный пароль");
+        return;
+      }
+      setLkNavUnlocked(true);
+      setLkModalOpen(false);
+      setLkModalPassword("");
+      window.open(lkHref, "_blank", "noopener,noreferrer");
+    } catch {
+      setLkModalError("Не удалось проверить пароль");
+    }
+  }
 
   useEffect(() => {
     fetch("/api/announcements/", { credentials: "include" })
@@ -225,20 +279,16 @@ function Layout() {
         )}
         <Link to="/about" className="header-nav-link">От авторов</Link>
         <a
-          href="https://lk.genurok.tw1.ru"
+          href={lkHref}
           target="_blank"
           rel="noopener noreferrer"
-          style={{
-            display:"inline-flex", alignItems:"center", gap:"6px",
-            fontSize:"0.88rem", fontWeight:600, color:"#fff",
-            textDecoration:"none", padding:"0.32rem 0.8rem",
-            borderRadius:"20px", background:"rgba(255,255,255,0.18)",
-            border:"1.5px solid rgba(255,255,255,0.45)", whiteSpace:"nowrap",
-          }}
+          className="header-nav-cabinet"
+          onClick={handleLkNavClick}
+          style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <circle cx="12" cy="8" r="4"/>
-            <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+            <circle cx="12" cy="8" r="4" />
+            <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
           </svg>
           Личный кабинет
         </a>
@@ -259,12 +309,102 @@ function Layout() {
         <div className="site-footer-inner">
           <span className="site-footer-copy">© 2026 ГенУрок</span>
           <div className="site-footer-links">
+            <a
+              href={lkHref}
+              className="site-footer-link"
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={handleLkNavClick}
+            >
+              Личный кабинет
+            </a>
+            <span className="site-footer-sep" aria-hidden="true">·</span>
             <Link to="/privacy" className="site-footer-link">Политика конфиденциальности</Link>
             <span className="site-footer-sep" aria-hidden="true">·</span>
             <Link to="/privacy#pd" className="site-footer-link">Согласие на обработку ПД</Link>
           </div>
         </div>
       </footer>
+
+      {lkModalOpen && (
+        <div
+          className="lk-nav-gate-overlay"
+          role="presentation"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 20000,
+            background: "rgba(2, 6, 23, 0.55)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 16,
+          }}
+          onClick={() => setLkModalOpen(false)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setLkModalOpen(false);
+          }}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="lk-nav-gate-title"
+            className="lk-nav-gate-card"
+            style={{
+              width: "min(420px, 94vw)",
+              background: "#fff",
+              borderRadius: 16,
+              padding: "20px 18px",
+              boxShadow: "0 20px 56px rgba(2, 6, 23, 0.32)",
+              border: "1px solid #e2e8f0",
+              textAlign: "center",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 id="lk-nav-gate-title" style={{ fontSize: "1.05rem", marginBottom: 8, color: "#0f172a" }}>
+              Личный кабинет
+            </h2>
+            <p style={{ color: "#64748b", fontSize: "0.88rem", marginBottom: 14, lineHeight: 1.45 }}>
+              Введите пароль, чтобы открыть ссылку в новой вкладке.
+            </p>
+            <input
+              type="password"
+              value={lkModalPassword}
+              onChange={(e) => setLkModalPassword(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  submitLkNavUnlock();
+                }
+              }}
+              autoComplete="current-password"
+              placeholder="Пароль"
+              style={{
+                width: "100%",
+                maxWidth: 300,
+                margin: "0 auto 12px",
+                display: "block",
+                padding: "10px 12px",
+                border: "1px solid #cbd5e1",
+                borderRadius: 10,
+                font: "inherit",
+                textAlign: "center",
+              }}
+            />
+            {lkModalError ? (
+              <p style={{ color: "#b91c1c", fontSize: "0.82rem", marginBottom: 10 }}>{lkModalError}</p>
+            ) : null}
+            <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+              <button type="button" className="btn btn-primary btn-sm" onClick={submitLkNavUnlock}>
+                Открыть
+              </button>
+              <button type="button" className="btn btn-secondary btn-sm" onClick={() => setLkModalOpen(false)}>
+                Отмена
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {!cookieAccepted && (
         <div className="cookie-banner" role="alertdialog" aria-label="Уведомление об использовании файлов cookie">

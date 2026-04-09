@@ -418,6 +418,12 @@ class LessonRoom(models.Model):
 
     room_id = models.CharField(max_length=200, unique=True, db_index=True)
     jwt_payload = models.JSONField(default=dict, blank=True)
+    lesson_ended_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Урок завершён",
+        help_text="После установки вход по той же ссылке (комната) запрещён.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

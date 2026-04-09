@@ -2,41 +2,95 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
   <title>Урок — {{ teacher_name }}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;600;700&family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet">
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [["\\(", "\\)"], ["$", "$"]],
+        displayMath: [["\\[", "\\]"], ["$$", "$$"]],
+      },
+      options: { skipHtmlTags: ["script", "noscript", "style", "textarea", "pre", "code"] },
+    };
+  </script>
+  <script defer src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+    html {
+      height: 100%;
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
+    }
+
     :root {
-      --blue: #3c63d8;
+      --primary-purple: #667eea;
+      --primary-purple2: #586fd7;
+      --primary-purple-dark: #764ba2;
+      --primary-pink: #ffb8a0;
+      --primary-peach: #fff4e6;
+      --bg-main: #ffffff;
+      --bg-card: #ffffff;
+      --text-primary: #2d3748;
+      --text-secondary: #718096;
+      --shadow-sm: 0 2px 8px rgba(102, 126, 234, 0.08);
+      --shadow-md: 0 4px 16px rgba(102, 126, 234, 0.12);
+      --shadow-lg: 0 8px 24px rgba(102, 126, 234, 0.15);
+      --radius-sm: 12px;
+      --radius-md: 16px;
+      --radius-lg: 24px;
+      --border-hairline: rgba(0, 0, 0, 0.08);
+      --blue: #667eea;
+      --blue-strong: #586fd7;
       --blue-light: #e8f0fe;
       --green: #22c55e;
       --red: #ef4444;
       --gray: #f4f6fb;
-      --text: #1a1a2e;
-      --muted: #888;
-      --header-gradient: linear-gradient(135deg, #3c63d8 0%, #5b7cf7 100%);
+      --text: var(--text-primary);
+      --muted: var(--text-secondary);
+      --paper: #ffffff;
+      --border-soft: #e8edf8;
+      --header-gradient: linear-gradient(90deg, #3e73ef 0%, #4b91f7 100%);
     }
 
     body {
       font-family: "Montserrat", sans-serif;
-      background: var(--gray);
+      font-size: 15px;
+      font-optical-sizing: auto;
+      font-weight: 400;
+      font-style: normal;
+      line-height: 1.6;
+      background-color: var(--bg-main);
+      background-image: url('/static/img/bg.png');
+      background-repeat: repeat;
+      background-attachment: fixed;
+      background-size: auto;
       color: var(--text);
-      min-height: 100vh;
+      height: 100%;
+      overflow: hidden;
       display: flex;
       flex-direction: column;
+    }
+    body.lesson-gate-pending #lesson-app-root {
+      display: none !important;
+    }
+    body.lesson-gate-pending {
+      background-image: none;
+      background-color: #0f172a;
     }
 
     /* ── HEADER ── */
     header {
       background: var(--header-gradient);
-      padding: 0.7rem 1.5rem;
+      padding: 0.6rem 1.25rem;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 1rem;
+      border-bottom: 0;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     }
     .header-lk-link {
       display: inline-flex;
@@ -46,7 +100,7 @@
       font-weight: 600;
       color: #fff;
       text-decoration: none;
-      padding: 0.32rem 0.75rem;
+      padding: 0.35rem 0.85rem;
       border-radius: 20px;
       background: rgba(255,255,255,0.18);
       border: 1.5px solid rgba(255,255,255,0.45);
@@ -59,17 +113,17 @@
     .header-logo { display: flex; align-items: center; gap: 8px; text-decoration: none; }
     .header-logo-icon {
       width: 32px; height: 32px; border-radius: 8px;
-      background: rgba(255,255,255,0.2);
+      background: rgba(255, 255, 255, 0.25);
       display: flex; align-items: center; justify-content: center;
-      font-size: 1.1rem; font-family: "Unbounded", sans-serif; color: #fff;
+      font-size: 1.25rem; font-family: "Unbounded", sans-serif; color: rgba(255, 255, 255, 0.95);
     }
-    .header-logo-text { font-family: "Unbounded", sans-serif; font-size: 0.9rem; font-weight: 700; color: #fff; }
-    .header-meta { display: flex; align-items: center; gap: 12px; }
+    .header-logo-text { font-family: "Unbounded", sans-serif; font-size: 1.125rem; font-weight: 600; color: #fff; letter-spacing: 0.5px; }
+    .header-meta { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
     .badge {
       display: inline-flex; align-items: center; gap: 6px;
       background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3);
-      border-radius: 20px; padding: 0.3rem 0.75rem;
-      font-size: 0.78rem; font-weight: 600; color: #fff; white-space: nowrap;
+      border-radius: 8px; padding: 0.35rem 0.6rem;
+      font-size: 0.9rem; font-weight: 500; color: rgba(255,255,255,0.95); white-space: nowrap;
     }
     .badge.green { background: rgba(34,197,94,0.2); border-color: rgba(34,197,94,0.5); }
     .badge.red   { background: rgba(239,68,68,0.2);  border-color: rgba(239,68,68,0.5); }
@@ -80,132 +134,476 @@
     /* ── LAYOUT ── */
     .layout {
       display: grid;
-      grid-template-columns: 320px 1fr;
+      grid-template-columns: 1fr 340px;   /* контент слева, видео СПРАВА */
       grid-template-rows: auto 1fr;
-      gap: 0;
+      gap: 14px;
       flex: 1;
       min-height: 0;
+      overflow: hidden;
+      padding: 14px;
+    }
+    .layout.video-off {
+      grid-template-columns: 1fr;
+    }
+    .layout.video-collapsed:not(.video-off) {
+      grid-template-columns: 1fr 56px;
+    }
+    .layout.video-collapsed:not(.video-off) .lesson-control-bar #current-variant-badge {
+      display: none !important;
     }
 
-    /* ── VIDEO PANEL ── */
+    /* ── VIDEO PANEL — правая колонка ── */
     .video-panel {
+      grid-column: 2;
       grid-row: 1 / 3;
-      background: #1a1a2e;
+      background: linear-gradient(180deg, #ffffff 0%, #f6f9ff 100%);
       display: flex;
       flex-direction: column;
-      min-height: 400px;
+      border: 1px solid rgba(0, 0, 0, 0.06);
+      border-radius: 20px;
+      box-shadow: var(--shadow-md);
+      overflow: hidden;
+    }
+    .layout.video-off .video-panel { display: none; }
+    .video-panel.collapsed .video-area,
+    .video-panel.collapsed .room-id-box {
+      display: none;
+    }
+    .video-panel.collapsed {
+      align-self: stretch;
+      min-width: 0;
+      border-radius: 14px;
+    }
+    .video-panel.collapsed .video-header {
+      border-bottom: none;
+      flex: 1;
+      flex-direction: column;
+      justify-content: flex-start;
+      align-items: center;
+      padding: 10px 4px 8px;
+      gap: 8px;
+      min-height: 0;
+    }
+    .video-header-title-expanded {
+      min-width: 0;
+      line-height: 1.25;
+    }
+    .video-panel.collapsed .video-header-title-expanded {
+      display: none;
+    }
+    .video-header-variant-collapsed {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      flex: 1;
+      min-height: 48px;
+      width: 100%;
+      text-transform: none;
+      letter-spacing: normal;
+    }
+    .video-panel.collapsed .video-header-variant-collapsed {
+      display: flex;
+    }
+    .video-variant-hint {
+      font-size: 0.58rem;
+      font-weight: 700;
+      color: #64748b;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+    }
+    .video-variant-num {
+      font-family: "Unbounded", sans-serif;
+      font-size: 0.82rem;
+      font-weight: 700;
+      color: #1d4ed8;
+      line-height: 1;
+      writing-mode: vertical-rl;
+      transform: rotate(180deg);
+      max-height: 160px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .video-panel.collapsed .video-collapse-btn {
+      width: 30px;
+      height: 30px;
+      margin-top: auto;
     }
     .video-header {
-      padding: 0.75rem 1rem;
-      background: rgba(255,255,255,0.05);
-      border-bottom: 1px solid rgba(255,255,255,0.08);
-      font-size: 0.75rem; font-weight: 600; color: rgba(255,255,255,0.6);
-      text-transform: uppercase; letter-spacing: .05em;
+      padding: 0.7rem 1rem;
+      background: linear-gradient(180deg, #f8faff 0%, #f1f5ff 100%);
+      border-bottom: 1px solid #dde7ff;
+      font-size: 0.72rem; font-weight: 700; color: #5b6b98;
+      text-transform: uppercase; letter-spacing: .08em;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .video-collapse-btn {
+      flex-shrink: 0;
+      width: 34px;
+      height: 34px;
+      border: 1px solid #c7d7f5;
+      border-radius: 10px;
+      background: #fff;
+      color: #4169e1;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+    }
+    .video-collapse-btn:hover {
+      background: #eef4ff;
+      border-color: #93b4f5;
+    }
+    .video-collapse-btn:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(62, 115, 239, 0.25);
+    }
+    .video-collapse-btn svg {
+      width: 18px;
+      height: 18px;
+      display: block;
+      transition: transform 0.22s ease;
+    }
+    .video-panel.collapsed .video-collapse-btn svg {
+      transform: rotate(180deg);
     }
     .video-area {
       flex: 1;
       display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 1.5rem;
       flex-direction: column;
-      gap: 16px;
+      min-height: 0;
+      overflow: hidden;
     }
     .video-placeholder {
-      width: 100%;
-      aspect-ratio: 16/9;
-      background: rgba(255,255,255,0.05);
-      border: 2px dashed rgba(255,255,255,0.15);
-      border-radius: 12px;
+      flex: 1;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 10px;
-      color: rgba(255,255,255,0.4);
+      gap: 12px;
+      color: #7382ab;
       font-size: 0.8rem;
+      padding: 2rem 1.5rem;
+      text-align: center;
     }
-    .video-placeholder svg { opacity: .4; }
-    .video-iframe { width: 100%; aspect-ratio: 16/9; border: none; border-radius: 12px; }
+    .video-placeholder svg { opacity: .3; }
+    /* iframe на всю высоту панели — без aspect-ratio */
+    .video-iframe {
+      width: 100%;
+      flex: 1;
+      border: none;
+      display: block;
+      min-height: 0;
+    }
     .room-id-box {
-      background: rgba(255,255,255,0.05);
-      border-radius: 8px;
       padding: 8px 12px;
-      font-size: 0.7rem;
-      color: rgba(255,255,255,0.4);
+      font-size: 0.65rem;
+      color: #8fa0cb;
       font-family: monospace;
       word-break: break-all;
       text-align: center;
+      background: #f8faff;
+      border-top: 1px solid #dde7ff;
+      flex-shrink: 0;
     }
 
-    /* ── INFO BAR (teacher panel top) ── */
-    .info-bar {
-      padding: 1rem 1.5rem;
+    /* ── LESSON CONTROL BAR (teacher / student top strip) ── */
+    .lesson-control-bar.info-bar {
+      grid-column: 1;
+      grid-row: 1;
+      padding: 14px 20px;
       background: #fff;
-      border-bottom: 1px solid #e5e7ef;
+      border: none;
+      border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+      border-radius: 0;
+      box-shadow: none;
       display: flex;
       align-items: center;
       gap: 16px;
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
+      position: relative;
+      overflow: visible;
+      min-height: 0;
     }
-    .info-bar h2 { font-family: "Unbounded", sans-serif; font-size: 0.9rem; font-weight: 700; flex: 1; }
-    .info-bar .sub { font-size: 0.8rem; color: var(--muted); }
+    .lesson-control-bar__brand {
+      flex: 0 1 auto;
+      min-width: 0;
+      padding-right: 4px;
+    }
+    .lesson-control-bar__name {
+      font-family: "Montserrat", sans-serif;
+      font-size: 15px;
+      font-weight: 500;
+      line-height: 1.35;
+      color: #0f172a;
+      margin: 0;
+    }
+    .lesson-control-bar__name .lesson-control-bar__name-muted {
+      font-weight: 400;
+      color: #64748b;
+    }
+    .lesson-control-bar__sub {
+      font-size: 12px;
+      font-weight: 400;
+      color: #64748b;
+      margin: 2px 0 0 0;
+      line-height: 1.3;
+    }
+    .lesson-control-bar__vdiv {
+      width: 1px;
+      height: 32px;
+      flex-shrink: 0;
+      background: rgba(15, 23, 42, 0.08);
+      align-self: center;
+    }
+    .lesson-control-bar__actions {
+      flex: 1 1 auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      min-width: 0;
+    }
+    .lesson-control-bar__input {
+      width: 100%;
+      max-width: 280px;
+      min-width: 100px;
+      height: 36px;
+      box-sizing: border-box;
+      padding: 0 12px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      color: #0f172a;
+      background: #f1f5f9;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    }
+    .lesson-control-bar__input::placeholder {
+      color: #94a3b8;
+      font-weight: 400;
+    }
+    .lesson-control-bar__input:hover {
+      background: #e2e8f0;
+    }
+    .lesson-control-bar__input:focus {
+      background: #fff;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 1px #2563eb;
+    }
+    .lesson-control-bar__btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      height: 36px;
+      padding: 0 14px;
+      font-family: inherit;
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 1;
+      border-radius: 8px;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+      flex-shrink: 0;
+    }
+    .lesson-control-bar__btn .lcb-icon {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+      display: block;
+    }
+    .lesson-control-bar__btn--primary {
+      background: #2563eb;
+      color: #fff;
+      border: 1px solid #2563eb;
+    }
+    .lesson-control-bar__btn--primary:hover {
+      background: #1d4ed8;
+      border-color: #1d4ed8;
+    }
+    .lesson-control-bar__btn--outline {
+      background: #fff;
+      color: #334155;
+      border: 1px solid #e2e8f0;
+    }
+    .lesson-control-bar__btn--outline:hover {
+      background: #f8fafc;
+      border-color: #cbd5e1;
+    }
+    .lesson-control-bar__btn--danger {
+      background: #fff;
+      color: #dc2626;
+      border: 1px solid #fca5a5;
+    }
+    .lesson-control-bar__btn--danger:hover {
+      background: #fef2f2;
+      border-color: #f87171;
+    }
+    .lesson-control-bar__spacer {
+      flex: 1 1 auto;
+      min-width: 16px;
+      height: 1px;
+    }
+    .lesson-control-bar #current-variant-badge {
+      align-items: center;
+      gap: 6px;
+      padding: 0 10px;
+      height: 32px;
+      border-radius: 8px;
+      border: 1px solid #86efac;
+      background: #f0fdf4;
+      color: #166534;
+      font-size: 12px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+    .lesson-control-bar #current-variant-badge::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #22c55e;
+      flex-shrink: 0;
+    }
 
     /* ── MAIN CONTENT ── */
     .main-content {
+      grid-column: 1;
+      grid-row: 2;
       overflow-y: auto;
-      padding: 1.5rem;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-y: contain;
+      padding: 0.1rem;
       display: flex;
       flex-direction: column;
-      gap: 1.5rem;
+      gap: 1rem;
+      min-height: 0;
+    }
+    .main-content.main-content-teacher {
+      display: grid;
+      grid-template-columns: minmax(0, 1.45fr) minmax(340px, 1fr);
+      gap: 1rem;
+      align-items: start;
     }
 
     /* ── CARDS ── */
     .card {
-      background: #fff;
-      border-radius: 14px;
-      box-shadow: 0 2px 12px rgba(0,0,0,.06);
+      background: var(--paper);
+      border-radius: 20px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04);
       overflow: hidden;
+      border: none;
     }
     .card-header {
-      padding: 1rem 1.25rem;
-      border-bottom: 1px solid #f0f0f5;
+      padding: 0.95rem 1.1rem;
+      border-bottom: 1px solid #e8efff;
       font-weight: 700;
       font-size: 0.85rem;
       display: flex; align-items: center; gap: 8px;
       font-family: "Unbounded", sans-serif;
+      color: #2d3748;
+      background: linear-gradient(180deg, #f8fbff 0%, #f2f7ff 100%);
     }
-    .card-body { padding: 1.25rem; }
+    .card-body { padding: 1rem 1.1rem; }
 
-    /* ── TEACHER: VARIANT SELECTOR ── */
-    .selector-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
-    select, input[type=number] {
+    input[type=number] {
       width: 100%; padding: 0.6rem 0.75rem;
-      border: 1.5px solid #e0e3ef; border-radius: 10px;
+      border: 1.5px solid #d9e3fb; border-radius: 14px;
       font-family: inherit; font-size: 0.85rem; color: var(--text);
-      background: #fff; outline: none; transition: border-color .2s;
+      background: #fff; outline: none; transition: border-color .2s, box-shadow .2s;
     }
-    select:focus, input[type=number]:focus { border-color: var(--blue); }
+    input[type=number]:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(93,131,243,0.14); }
     .btn {
       display: inline-flex; align-items: center; gap: 6px;
-      padding: 0.6rem 1.2rem; border: none; border-radius: 10px;
+      padding: 0.6rem 1.2rem; border: none; border-radius: 12px;
       font-family: inherit; font-size: 0.85rem; font-weight: 600;
-      cursor: pointer; transition: all .2s; text-decoration: none;
+      cursor: pointer;
+      transition: transform .18s ease, box-shadow .22s ease, background .22s ease, border-color .22s ease, color .22s ease;
+      text-decoration: none;
+      box-shadow: var(--shadow-sm);
+      position: relative;
+      isolation: isolate;
     }
-    .btn-primary { background: var(--blue); color: #fff; }
-    .btn-primary:hover { background: #2f50c0; }
-    .btn-primary:disabled { background: #c0c8e8; cursor: not-allowed; }
-    .btn-secondary { background: #f0f3ff; color: var(--blue); }
-    .btn-secondary:hover { background: #dde4ff; }
-    .btn-danger { background: #fee2e2; color: #dc2626; }
-    .btn-danger:hover { background: #fecaca; }
+    .btn:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 3px rgba(62, 115, 239, 0.2), var(--shadow-md);
+      transform: translateY(-1px);
+    }
+    .btn:active {
+      transform: translateY(0);
+      box-shadow: var(--shadow-sm);
+    }
+    .btn-primary { background: linear-gradient(135deg, #3e73ef 0%, #5b9cf7 100%); color: #fff; border-radius: 999px; }
+    .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 6px 16px rgba(62, 115, 239, 0.34); }
+    .btn-primary:disabled { background: #c0c8e8; box-shadow: none; cursor: not-allowed; }
+    .btn-secondary { background: #fff; color: #4169e1; border: 1px solid rgba(59,130,246,0.24); }
+    .btn-secondary:hover { background: #f8fbff; }
+    .btn-danger { background: #fff4f4; color: #dc2626; border: 1px solid #fecaca; box-shadow: 0 2px 10px rgba(220,38,38,0.12); }
+    .btn-danger:hover { background: #ffe8e8; }
     .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.78rem; }
-
-    /* ── STUDENT ANSWERS PANEL (teacher) ── */
+    .btn-info { background: #eaf1ff; color: #3551c7; border: 1px solid #d2e0ff; box-shadow: 0 2px 10px rgba(66,95,186,0.12); }
+    .btn-info:hover { background: #dee9ff; }
+    .btn-icon {
+      width: 14px;
+      height: 14px;
+      display: inline-block;
+      flex-shrink: 0;
+      opacity: 0.95;
+    }
+    .btn-icon svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .btn-cta {
+      padding: 0.65rem 1.25rem;
+      font-size: 0.86rem;
+      font-weight: 700;
+      letter-spacing: 0.015em;
+      box-shadow: 0 10px 22px rgba(62, 115, 239, 0.22);
+    }
+    .btn-cta::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      border-radius: inherit;
+      pointer-events: none;
+      background: linear-gradient(120deg, rgba(255,255,255,0.18), transparent 48%);
+      mix-blend-mode: screen;
+      opacity: 0.85;
+      z-index: -1;
+    }
+    .btn-cta:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 14px 26px rgba(62, 115, 239, 0.3);
+    }
+    .btn-critical {
+      border-radius: 999px;
+      border-color: #fecaca;
+      box-shadow: 0 8px 16px rgba(220, 38, 38, 0.12);
+    }
+    .btn-critical:hover {
+      box-shadow: 0 10px 20px rgba(220, 38, 38, 0.16);
+    }
+    /* ── TEACHER: STUDENT ANSWERS PANEL ── */
     .students-grid { display: flex; flex-direction: column; gap: 10px; }
     .student-row {
       display: flex; align-items: flex-start; gap: 12px;
-      padding: 10px 12px; border-radius: 10px; background: var(--gray);
+      padding: 12px; border-radius: 12px; background: #f8faff;
+      border: 1px solid #dbe6ff;
     }
     .student-avatar {
       width: 32px; height: 32px; border-radius: 50%;
@@ -214,41 +612,590 @@
       font-size: 0.75rem; font-weight: 700; flex-shrink: 0;
     }
     .student-info { flex: 1; min-width: 0; }
-    .student-name { font-weight: 600; font-size: 0.82rem; margin-bottom: 4px; }
-    .answers-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+    .student-name { font-weight: 700; font-size: 0.82rem; margin-bottom: 6px; }
+    .answers-chips { display: flex; flex-wrap: wrap; gap: 6px; }
     .chip {
-      padding: 2px 8px; border-radius: 12px; font-size: 0.72rem; font-weight: 600;
-      background: #e8f0fe; color: var(--blue);
+      padding: 3px 9px; border-radius: 12px; font-size: 0.72rem; font-weight: 700;
+      background: #e8f0fe; color: #1d4ed8;
+      border: 1px solid #d7e5ff;
     }
-    .chip.correct { background: #dcfce7; color: #15803d; }
-    .chip.empty { background: #f1f1f5; color: #aaa; }
+    .chip.correct {
+      background: #dcfce7;
+      border-color: #86efac;
+      color: #166534;
+    }
+    .chip.wrong {
+      background: #fee2e2;
+      border-color: #fecaca;
+      color: #991b1b;
+    }
+    .chip.pending {
+      background: #fff7ed;
+      border-color: #fed7aa;
+      color: #9a3412;
+    }
+    /* Критерии части 2 — как в приложении-генераторе (ExamPage) */
+    .lesson-answer-chip-group.part2-with-criteria {
+      flex: 1 1 100%;
+      width: 100%;
+      max-width: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 8px;
+    }
+    .lesson-answer-chip-group.part2-with-criteria > .chip { align-self: flex-start; }
+    .lesson-criteria-grade-block { width: 100%; max-width: 100%; }
+    .teacher-answer-box .lesson-part2-criteria { margin-top: 0.65rem; }
+    .part2-answer-criteria-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.65rem;
+      margin-top: 0;
+      width: 100%;
+    }
+    .part2-answer-criteria-buttons .add-button {
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      font-weight: 600;
+      border-radius: 12px;
+      flex: 0 1 auto;
+      min-width: 0;
+      text-align: center;
+      padding: 0.55rem 1rem;
+      font-size: 0.82rem;
+      transition: box-shadow .2s ease, transform .15s ease;
+    }
+    .part2-answer-criteria-buttons .add-button.criteria-btn {
+      background: linear-gradient(135deg, #0d9488 0%, #14b8a6 100%);
+      color: #fff;
+      box-shadow: 0 2px 8px rgba(13, 148, 136, 0.35);
+    }
+    .part2-answer-criteria-buttons .add-button.criteria-btn:hover:not(:disabled) {
+      box-shadow: 0 4px 12px rgba(13, 148, 136, 0.4);
+    }
+    .part2-answer-criteria-buttons .add-button.criteria-btn.active {
+      background: linear-gradient(135deg, #0f766e 0%, #0d9488 100%);
+      box-shadow: 0 2px 10px rgba(13, 148, 136, 0.45);
+    }
+    .criteria-panel {
+      margin-top: 0.65rem;
+      margin-bottom: 0.15rem;
+    }
+    .criteria-table-wrap {
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      border: 1px solid rgba(102, 126, 234, 0.28);
+      border-radius: 12px;
+      background: #fff;
+    }
+    .criteria-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+    .criteria-table th,
+    .criteria-table td {
+      border: 1px solid rgba(102, 126, 234, 0.2);
+      padding: 0.6rem 0.75rem;
+      text-align: left;
+      vertical-align: top;
+    }
+    .criteria-th-content,
+    .criteria-td-content { width: 100%; min-width: 0; }
+    .criteria-th-score,
+    .criteria-td-score {
+      width: 72px;
+      min-width: 72px;
+      text-align: center;
+      white-space: nowrap;
+      font-weight: 700;
+    }
+    .criteria-th-content,
+    .criteria-th-score {
+      background: linear-gradient(135deg, rgba(102, 126, 234, 0.14), rgba(118, 75, 162, 0.08));
+      font-weight: 700;
+      color: #2d3748;
+      font-size: 0.78rem;
+    }
+    .criteria-row:hover { background: rgba(102, 126, 234, 0.05); }
+    .criteria-tfoot-label {
+      text-align: right !important;
+      font-weight: 700;
+      background: rgba(102, 126, 234, 0.07);
+      color: #334155;
+    }
+    .criteria-tfoot-score {
+      font-weight: 800;
+      color: #667eea;
+      background: rgba(102, 126, 234, 0.07);
+    }
+    .criteria-radio-label {
+      display: flex;
+      align-items: flex-start;
+      gap: 0.6rem;
+      cursor: pointer;
+      width: 100%;
+      margin: 0;
+    }
+    .criteria-radio-input {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+      pointer-events: none;
+    }
+    .criteria-radio-check {
+      flex-shrink: 0;
+      width: 22px;
+      height: 22px;
+      min-width: 22px;
+      border: 2px solid #667eea;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 800;
+      color: #fff;
+      background: #fff;
+      transition: background .2s ease, border-color .2s ease;
+    }
+    .criteria-radio-input:checked + .criteria-radio-check {
+      background: #667eea;
+      color: #fff;
+    }
+    .criteria-radio-label:hover .criteria-radio-check {
+      border-color: #586fd7;
+    }
+    .criteria-panel .criteria-text {
+      flex: 1;
+      min-width: 0;
+      line-height: 1.55;
+      font-size: 0.88rem;
+      color: #0f172a;
+    }
+    .criteria-panel .criteria-text img { max-width: 100%; height: auto; }
+    .criteria-panel .criteria-text mjx-container {
+      max-width: 100% !important;
+      overflow-x: auto;
+      font-size: 1.05em !important;
+    }
+    .criteria-empty {
+      color: #64748b;
+      font-size: 0.85rem;
+      margin-top: 0.5rem;
+    }
 
     /* ── TASKS (student) ── */
-    .tasks-list { display: flex; flex-direction: column; gap: 1rem; }
+    .tasks-list { display: flex; flex-direction: column; gap: 0.75rem; }
     .task-card {
-      background: var(--gray); border-radius: 12px;
-      padding: 1rem 1.25rem;
-      border: 2px solid transparent; transition: border-color .2s;
+      background: #ffffff; border-radius: 16px;
+      padding: 1rem 1.05rem;
+      border: 1.5px solid #e1e9ff; transition: border-color .2s, box-shadow .2s;
+      box-shadow: 0 4px 16px rgba(66, 95, 186, 0.08);
+    }
+    .task-card.part1 {
+      background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+      border-color: #dbe7ff;
+    }
+    .task-card.part2 {
+      background: linear-gradient(180deg, #ffffff 0%, #fffaf4 100%);
+      border-color: #fde0bf;
     }
     .task-card.answered { border-color: #86efac; }
-    .task-header { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .task-card.checked-correct { border-color: #16a34a !important; box-shadow: 0 0 0 2px rgba(22,163,74,0.12) inset; }
+    .task-card.checked-wrong { border-color: #dc2626 !important; box-shadow: 0 0 0 2px rgba(220,38,38,0.10) inset; }
+    .task-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 6px;
+      flex-wrap: wrap;
+      row-gap: 4px;
+    }
     .task-num {
       width: 26px; height: 26px; border-radius: 50%;
-      background: var(--blue); color: #fff;
+      background: linear-gradient(135deg, #3e73ef 0%, #5b9cf7 100%); color: #fff;
       display: flex; align-items: center; justify-content: center;
-      font-size: 0.75rem; font-weight: 700; flex-shrink: 0;
+      font-size: 0.7rem; font-weight: 800; flex-shrink: 0;
+      box-shadow: 0 2px 6px rgba(62, 115, 239, 0.3);
     }
-    .task-topic { font-size: 0.75rem; color: var(--muted); }
-    .task-content { font-size: 0.88rem; line-height: 1.6; margin-bottom: 10px; }
-    .task-content img { max-width: 100%; border-radius: 6px; }
-    .task-answer-row { display: flex; gap: 8px; }
+    .task-topic {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      line-height: 1.25;
+      flex: 1 1 120px;
+      min-width: 0;
+    }
+    .task-header-toolbar {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      flex-wrap: nowrap;
+      margin-left: auto;
+    }
+    .task-content { margin-bottom: 10px; min-width: 0; max-width: 100%; overflow-x: auto; overflow-y: visible; -webkit-overflow-scrolling: touch; }
+    .task-content-wrap {
+      position: relative;
+      border-radius: 10px;
+    }
+    .task-content-overlay {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      display: block;
+      z-index: 3;
+      border-radius: 10px;
+      pointer-events: none;
+      touch-action: none;
+    }
+    .task-content-overlay.active {
+      pointer-events: auto;
+      cursor: crosshair;
+    }
+    .task-content-wrap.task-surface-move {
+      cursor: grab;
+    }
+    .task-content-wrap.task-surface-move:active {
+      cursor: grabbing;
+    }
+    .task-content-wrap.task-surface-move .task-content-overlay.active {
+      cursor: inherit;
+    }
+    .task-draw-board.draw-surface-move {
+      cursor: grab;
+    }
+    .task-draw-board.draw-surface-move:active {
+      cursor: grabbing;
+    }
+    .task-draw-board.draw-surface-move .task-draw-canvas {
+      cursor: inherit;
+    }
+    .task-draw-pan-layer {
+      position: relative;
+      will-change: transform;
+      transform-origin: 0 0;
+    }
+    .task-text {
+      margin-bottom: 1rem;
+      font-size: 0.98rem;
+      line-height: 1.58;
+      color: inherit;
+      max-width: 100%;
+      overflow-wrap: break-word;
+      word-wrap: break-word;
+      word-break: break-word;
+      white-space: normal;
+    }
+    .task-text p { margin-bottom: 0; }
+    .correct-answer-content,
+    .criteria-text {
+      font-size: 1rem;
+      line-height: 1.65;
+      color: #0f172a;
+    }
+    .teacher-answer-box {
+      margin-top: 0.7rem;
+      border: 1px solid #dbeafe;
+      background: #f8fbff;
+      border-radius: 10px;
+      padding: 0.65rem 0.75rem;
+    }
+    .teacher-answer-title {
+      font-size: 0.75rem;
+      font-weight: 800;
+      color: #1e40af;
+      text-transform: uppercase;
+      letter-spacing: 0.02em;
+      margin-bottom: 0.35rem;
+    }
+    .task-text img,
+    .task-text figure {
+      max-width: 100%;
+      height: auto;
+    }
+    .task-text img,
+    .task-text figure img {
+      background: #fff;
+      border-radius: 6px;
+    }
+    .task-text table {
+      border-collapse: collapse;
+      margin: 10px auto;
+      max-width: 100%;
+      width: 100% !important;
+      min-width: 100% !important;
+    }
+    .task-text th,
+    .task-text td {
+      border: 1px solid rgba(0, 0, 0, 0.2);
+      padding: 6px 14px;
+      text-align: center;
+      font-size: 18px;
+      min-width: 40px;
+    }
+    .task-text th {
+      background-color: #7084e0;
+      color: #fff;
+      font-weight: 600;
+    }
+    .task-text mjx-container {
+      color: inherit !important;
+      max-width: 100% !important;
+      overflow-x: auto;
+      overflow-y: hidden;
+      font-size: 1.475em !important;
+    }
+    .task-text mjx-container,
+    .task-text mjx-container * {
+      white-space: revert !important;
+      overflow-wrap: normal !important;
+      word-break: normal !important;
+    }
+    mjx-container {
+      font-size: 150% !important;
+    }
+    .task-files {
+      margin: 1.2rem 0 0.4rem !important;
+      text-align: center;
+    }
+    .task-file-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: #e0f2fe;
+      border: 1px solid #bae6fd;
+      border-radius: 8px;
+      color: #0369a1;
+      font-size: 0.875rem;
+      font-weight: 400;
+      text-decoration: none;
+      transition: border-color 0.15s ease, background 0.15s ease;
+    }
+    .task-file-link:hover {
+      background: #bae6fd;
+      border-color: #7dd3fc;
+    }
+    .task-file-icon {
+      font-size: 0.95rem;
+      opacity: 0.8;
+    }
+    .task-file-label {
+      letter-spacing: 0;
+    }
+    .task-answer-row {
+      display: flex;
+      gap: 8px;
+      align-items: stretch;
+    }
+    .task-eval-row { margin-top: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .task-eval-badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-size: 0.74rem;
+      font-weight: 700;
+      border: 1px solid transparent;
+    }
+    .task-eval-badge.correct { background: #dcfce7; border-color: #86efac; color: #166534; }
+    .task-eval-badge.wrong { background: #fee2e2; border-color: #fecaca; color: #991b1b; }
+    .task-eval-badge.pending { background: #fff7ed; border-color: #fed7aa; color: #9a3412; }
+    .task-inline-tools {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
+    .task-draw-wrap {
+      margin-top: 10px;
+      border: 1px dashed #cbd5e1;
+      border-radius: 10px;
+      background: #fff;
+      padding: 8px;
+    }
+    .task-draw-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      margin-bottom: 5px;
+      font-size: 0.7rem;
+      color: #64748b;
+      font-weight: 600;
+    }
+    .task-draw-head-label {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 0;
+    }
+    .task-draw-tools {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .task-draw-tool-btn {
+      border: 1px solid #c9d6ee;
+      background: #fff;
+      color: #334155;
+      border-radius: 8px;
+      padding: 0;
+      width: 28px;
+      height: 28px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    .task-draw-tool-btn svg {
+      width: 16px;
+      height: 16px;
+      display: block;
+    }
+    .task-draw-tool-btn.active {
+      background: #dbeafe;
+      border-color: #60a5fa;
+      color: #1d4ed8;
+    }
+    .task-draw-tools--compact .task-draw-tool-btn {
+      width: 28px;
+      height: 28px;
+      padding: 0;
+    }
+    .task-draw-tools--compact .task-draw-tool-btn svg {
+      width: 16px;
+      height: 16px;
+    }
+    .task-draw-board {
+      position: relative;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      background:
+        linear-gradient(transparent 95%, #f1f5f9 95%),
+        linear-gradient(90deg, transparent 95%, #f1f5f9 95%);
+      background-size: 18px 18px;
+      overflow: hidden;
+      touch-action: none;
+    }
+    .task-draw-canvas {
+      width: 100%;
+      height: 180px;
+      display: block;
+      cursor: crosshair;
+    }
+    .task-draw-overlay {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+    }
+    .draw-text-editor {
+      position: absolute;
+      min-width: 100px;
+      max-width: min(260px, 90%);
+      min-height: 32px;
+      resize: both;
+      z-index: 9;
+      border: 1px solid #93c5fd;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.96);
+      box-shadow: 0 8px 24px rgba(30, 64, 175, 0.2);
+      padding: 6px 8px;
+      font: 700 14px/1.35 "Montserrat", sans-serif;
+      color: #0f172a;
+      outline: none;
+    }
+    .draw-text-editor:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2), 0 8px 24px rgba(30, 64, 175, 0.2);
+    }
+    .draw-cursor {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      pointer-events: none;
+      z-index: 3;
+      white-space: nowrap;
+      width: 0;
+      height: 0;
+    }
+    .draw-cursor-dot {
+      position: absolute;
+      left: 0;
+      top: 0;
+      transform: translate(-50%, -50%);
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      border: 2px solid #fff;
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.18);
+      display: block;
+    }
+    .draw-cursor-name {
+      position: absolute;
+      left: 9px;
+      top: 9px;
+      padding: 1px 6px;
+      border-radius: 999px;
+      background: rgba(15, 23, 42, 0.9);
+      color: #fff;
+      font-size: 0.64rem;
+      font-weight: 700;
+      display: inline-block;
+    }
+    .task-draw-legend {
+      margin-top: 6px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .task-draw-legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 0.68rem;
+      color: #334155;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+    }
+    .task-draw-legend-swatch {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      border: 1px solid rgba(0,0,0,.12);
+    }
+    #teacher-tasks-container,
+    #tasks-container {
+      max-height: 60vh;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    #students-panel {
+      max-height: 60vh;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    #teacher-tasks-card {
+      grid-column: 1;
+    }
+    #teacher-students-card {
+      grid-column: 2;
+      position: sticky;
+      top: 8px;
+    }
     .task-answer-input {
       flex: 1; padding: 0.5rem 0.75rem;
-      border: 1.5px solid #e0e3ef; border-radius: 8px;
+      border: 1.5px solid #d9e3fb; border-radius: 14px;
       font-family: inherit; font-size: 0.85rem;
-      outline: none; transition: border-color .2s;
+      outline: none; transition: border-color .2s, box-shadow .2s;
     }
-    .task-answer-input:focus { border-color: var(--blue); }
+    .task-answer-input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(93,131,243,0.14); }
     .task-answer-input.saved { border-color: var(--green); background: #f0fdf4; }
 
     /* ── WAITING STATE ── */
@@ -262,30 +1209,510 @@
 
     /* ── STATUS TOAST ── */
     #status-toast {
-      position: fixed; bottom: 20px; right: 20px;
-      background: var(--text); color: #fff;
-      padding: 10px 16px; border-radius: 10px;
-      font-size: 0.8rem; font-weight: 500;
-      opacity: 0; transition: opacity .3s; pointer-events: none;
+      position: fixed;
+      top: 18px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-8px);
+      background: #1f2937;
+      color: #fff;
+      padding: 12px 18px;
+      border-radius: 12px;
+      border: 2px solid rgba(255, 255, 255, 0.18);
+      box-shadow: 0 12px 28px rgba(0,0,0,0.22);
+      font-size: 0.9rem;
+      font-weight: 700;
+      letter-spacing: .01em;
+      opacity: 0;
+      transition: opacity .2s, transform .2s;
+      pointer-events: none;
       z-index: 9999;
+      max-width: min(92vw, 760px);
+      text-align: center;
     }
-    #status-toast.show { opacity: 1; }
+    #status-toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+    #status-toast.success { background: #166534; }
+    #status-toast.warning { background: #b45309; }
+    #status-toast.error { background: #b91c1c; }
+    #status-toast.info { background: #1d4ed8; }
+    #video-mode-prompt {
+      position: fixed;
+      inset: 0;
+      z-index: 11000;
+      background: rgba(2, 6, 23, 0.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    #video-mode-prompt.show {
+      display: flex;
+    }
+    #lk-nav-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 11100;
+      background: rgba(2, 6, 23, 0.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    #lk-nav-modal.show {
+      display: flex;
+    }
+    .lk-nav-modal-input {
+      width: 100%;
+      max-width: 320px;
+      margin: 0 auto 12px;
+      display: block;
+      padding: 10px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      font: inherit;
+      text-align: center;
+    }
+    .video-mode-card {
+      width: min(520px, 94vw);
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      box-shadow: 0 20px 56px rgba(2, 6, 23, 0.32);
+      padding: 18px;
+      text-align: center;
+    }
+    .video-mode-title {
+      font-family: "Unbounded", sans-serif;
+      font-size: 1rem;
+      margin-bottom: 8px;
+      color: #0f172a;
+    }
+    .video-mode-sub {
+      color: #64748b;
+      font-size: 0.86rem;
+      margin-bottom: 14px;
+    }
+    .video-mode-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .video-mode-actions .btn {
+      min-width: 180px;
+      justify-content: center;
+    }
+    #support-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.55);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      padding: 16px;
+    }
+    #support-modal.show { display: flex; }
+    .support-modal-window {
+      width: min(900px, 96vw);
+      max-height: min(82vh, 900px);
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: 0 18px 50px rgba(2, 6, 23, 0.34);
+      border: 1px solid #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .support-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 12px 14px;
+      border-bottom: 1px solid #e5e7eb;
+      background: #f8fafc;
+    }
+    .support-modal-title {
+      font-size: 0.92rem;
+      font-family: "Unbounded", sans-serif;
+      font-weight: 700;
+      color: #0f172a;
+    }
+    .support-modal-close {
+      border: 1px solid #cbd5e1;
+      background: #fff;
+      color: #334155;
+      border-radius: 8px;
+      padding: 5px 10px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .support-modal-close:hover { background: #f1f5f9; }
+    .support-modal-body {
+      overflow: auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .support-item {
+      border: 1px solid #dbeafe;
+      background: #f8fbff;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 0.95rem;
+      line-height: 1.7;
+      color: #0f172a;
+    }
 
-    @media (max-width: 768px) {
-      .layout { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr; }
-      .video-panel { grid-row: auto; min-height: 220px; }
+    @media (max-width: 1200px) and (min-width: 901px) {
+      .layout {
+        grid-template-columns: minmax(0, 1fr) 300px;
+        padding: 12px;
+        gap: 10px;
+      }
+      .main-content {
+        padding: 0.95rem;
+        gap: 0.85rem;
+      }
+      .main-content.main-content-teacher {
+        grid-template-columns: minmax(0, 1.2fr) minmax(300px, 1fr);
+      }
+      .lesson-control-bar.info-bar {
+        flex-wrap: wrap;
+        row-gap: 12px;
+      }
+      .lesson-control-bar__vdiv {
+        display: none;
+      }
+      .lesson-control-bar__brand {
+        flex: 1 1 100%;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+      }
+      .lesson-control-bar__actions {
+        flex: 1 1 100%;
+      }
+      .card-header {
+        padding: 0.8rem 0.95rem;
+      }
+      .card-body {
+        padding: 0.85rem 0.95rem;
+      }
+      .task-draw-canvas {
+        height: 150px;
+      }
+    }
+
+    @media (max-width: 900px) {
+      header {
+        padding-left: max(0.65rem, env(safe-area-inset-left, 0px));
+        padding-right: max(0.65rem, env(safe-area-inset-right, 0px));
+        padding-top: max(0.5rem, env(safe-area-inset-top, 0px));
+      }
+      .layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr minmax(148px, min(36vh, 260px));
+        padding-top: max(8px, env(safe-area-inset-top, 0px));
+        padding-right: max(10px, env(safe-area-inset-right, 0px));
+        padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
+        padding-left: max(10px, env(safe-area-inset-left, 0px));
+        gap: 10px;
+      }
+      .layout.video-off {
+        grid-template-rows: auto 1fr;
+      }
+      .layout.video-collapsed:not(.video-off) {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto auto;
+      }
+      .video-panel {
+        grid-column: 1;
+        grid-row: 3;
+        border-left: none;
+        border-top: 1px solid rgba(0, 0, 0, 0.06);
+        min-height: 0;
+        max-height: min(40vh, 280px);
+      }
+      .layout.video-collapsed:not(.video-off) .video-panel {
+        max-height: none;
+      }
+      .video-area {
+        min-height: 0;
+      }
+      .video-panel.collapsed {
+        flex-direction: row;
+        align-items: stretch;
+      }
+      .video-panel.collapsed .video-header {
+        flex-direction: row;
+        flex: 1;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 12px;
+        gap: 10px;
+      }
+      .video-panel.collapsed .video-header-variant-collapsed {
+        flex-direction: row;
+        flex: 1;
+        justify-content: flex-start;
+        align-items: center;
+        gap: 8px;
+        min-height: 0;
+      }
+      .video-panel.collapsed .video-variant-hint,
+      .video-panel.collapsed .video-variant-num {
+        writing-mode: horizontal-tb;
+        transform: none;
+        max-height: none;
+      }
+      .video-panel.collapsed .video-variant-num {
+        font-size: 1rem;
+      }
+      .video-panel.collapsed .video-collapse-btn {
+        margin-top: 0;
+        flex-shrink: 0;
+      }
+      .lesson-control-bar.info-bar {
+        grid-row: 1;
+        padding: 12px 14px;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .lesson-control-bar__vdiv {
+        display: none;
+      }
+      .lesson-control-bar__brand {
+        flex: 1 1 100%;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+      }
+      .lesson-control-bar__actions {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 8px;
+      }
+      .lesson-control-bar__input {
+        grid-column: 1 / -1;
+        max-width: none;
+        min-height: 44px;
+        height: auto;
+      }
+      .lesson-control-bar__btn {
+        min-height: 44px;
+        height: auto;
+        justify-content: center;
+      }
+      .lesson-control-bar__spacer {
+        display: none;
+      }
+      .lesson-control-bar #current-variant-badge {
+        grid-column: 1 / -1;
+        justify-content: center;
+      }
+      .lesson-control-bar__btn--danger {
+        grid-column: 1 / -1;
+        order: 99;
+      }
+      .main-content {
+        grid-row: 2;
+        padding: 0.5rem 0.65rem;
+        gap: 0.65rem;
+      }
+      .main-content:not(.main-content-teacher) {
+        padding-bottom: 0.35rem;
+      }
+      .main-content:not(.main-content-teacher) .task-answer-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .main-content:not(.main-content-teacher) .task-answer-input {
+        width: 100%;
+        min-height: 48px;
+        font-size: 16px;
+        box-sizing: border-box;
+      }
+      .main-content:not(.main-content-teacher) .task-answer-row .btn {
+        width: 100%;
+        justify-content: center;
+        min-height: 48px;
+      }
+      #tasks-card .card-header {
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px 8px;
+      }
+      #tasks-card .card-header #tasks-variant-label {
+        margin-left: auto;
+      }
+      .main-content.main-content-teacher {
+        display: flex;
+        flex-direction: column;
+      }
+      .header-lk-link {
+        font-size: 0.74rem;
+        padding: 0.28rem 0.62rem;
+      }
+      .badge {
+        padding: 0.26rem 0.62rem;
+        font-size: 0.74rem;
+      }
+      .header-logo-text {
+        font-size: 0.84rem;
+      }
+      .header-logo-icon {
+        width: 28px;
+        height: 28px;
+        font-size: 1rem;
+      }
+      .task-draw-canvas {
+        height: 140px;
+      }
+      .task-text {
+        font-size: 0.93rem;
+        line-height: 1.5;
+      }
+      #teacher-tasks-container,
+      #tasks-container,
+      #students-panel {
+        max-height: none;
+      }
+      #teacher-students-card {
+        position: static;
+      }
+    }
+
+    @media (max-width: 640px) {
+      header {
+        padding-left: max(0.75rem, env(safe-area-inset-left, 0px));
+        padding-right: max(0.75rem, env(safe-area-inset-right, 0px));
+        padding-top: max(0.6rem, env(safe-area-inset-top, 0px));
+        padding-bottom: 0.6rem;
+        align-items: flex-start;
+      }
+      .header-meta {
+        width: 100%;
+        justify-content: flex-start;
+        gap: 8px;
+      }
+      .lesson-control-bar__name {
+        font-size: 14px;
+      }
+      .lesson-control-bar__sub {
+        font-size: 11px;
+      }
+      #tasks-card .card-header #tasks-variant-label,
+      #tasks-card .card-header #student-score-live {
+        flex-basis: 100%;
+        margin-left: 0;
+        text-align: left;
+      }
+      .btn {
+        padding: 0.5rem 0.8rem;
+        font-size: 0.78rem;
+      }
+      .btn-icon {
+        width: 13px;
+        height: 13px;
+      }
+      .btn-sm {
+        padding: 0.35rem 0.65rem;
+        font-size: 0.72rem;
+      }
+      .lesson-control-bar__btn {
+        min-height: 44px;
+        font-size: 12px;
+      }
+      .task-card {
+        padding: 0.75rem;
+      }
+      .task-topic {
+        font-size: 0.7rem;
+      }
+      .task-num {
+        width: 24px;
+        height: 24px;
+        font-size: 0.7rem;
+      }
+      .task-draw-head {
+        flex-wrap: wrap;
+      }
+      .task-draw-tools {
+        order: 3;
+        width: 100%;
+        justify-content: flex-end;
+      }
+      .task-header-toolbar {
+        width: 100%;
+        margin-left: 0;
+        justify-content: space-between;
+      }
+      .task-draw-tool-btn {
+        width: 42px;
+        height: 42px;
+        min-width: 42px;
+        min-height: 42px;
+        padding: 0;
+      }
+      .task-draw-tool-btn svg {
+        width: 18px;
+        height: 18px;
+      }
+      #support-modal,
+      #video-mode-prompt {
+        padding: max(12px, env(safe-area-inset-top, 0px)) max(12px, env(safe-area-inset-right, 0px)) max(12px, env(safe-area-inset-bottom, 0px)) max(12px, env(safe-area-inset-left, 0px));
+      }
+      .support-modal-window {
+        width: min(100%, 100vw - 24px);
+        max-height: min(92vh, calc(100vh - 24px));
+      }
+      .support-modal-close {
+        min-height: 48px;
+        padding: 10px 16px;
+        font-size: 0.88rem;
+      }
+      .video-mode-card {
+        width: min(100%, 100vw - 24px);
+        padding: 16px;
+      }
+      .video-mode-actions {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      .video-mode-actions .btn {
+        min-width: 0;
+        width: 100%;
+        min-height: 48px;
+        justify-content: center;
+      }
+      .task-draw-canvas {
+        height: 120px;
+      }
+      .room-id-box {
+        display: none;
+      }
+      #status-toast {
+        top: 10px;
+        max-width: 96vw;
+        font-size: 0.8rem;
+      }
     }
   </style>
 </head>
 <body>
 
+<div id="lesson-app-root">
 <header>
   <a href="/" class="header-logo">
     <div class="header-logo-icon">∑</div>
     <span class="header-logo-text">Генератор</span>
   </a>
   <div class="header-meta">
-    <a href="https://lk.genurok.tw1.ru" class="header-lk-link" target="_blank" rel="noopener noreferrer">Личный кабинет</a>
+    <a href="{{ lk_public_url }}" class="header-lk-link" id="header-lk-link" target="_blank" rel="noopener noreferrer"{% if lk_nav_password_required and not lk_nav_unlocked %} data-lk-gated="1"{% endif %} onclick="return onLessonRoomLkNavClick(event);">Личный кабинет</a>
     <span class="badge">
       {% if lesson_type == "student" %}Ученик{% else %}Учитель{% endif %}
     </span>
@@ -299,8 +1726,26 @@
 <div class="layout">
 
   <!-- ═══ VIDEO PANEL ═══ -->
-  <aside class="video-panel">
-    <div class="video-header">Видеозвонок</div>
+  <aside class="video-panel" id="video-panel">
+    <div class="video-header">
+      <span class="video-header-title-expanded">Видеозвонок</span>
+      <div class="video-header-variant-collapsed" id="video-header-variant-collapsed" aria-hidden="true">
+        <span class="video-variant-hint" id="video-header-collapsed-hint" {% if not lesson_video_collapsed_hint %}style="display:none"{% endif %}>{{ lesson_video_collapsed_hint }}</span>
+        <span class="video-variant-num" id="video-sidebar-variant-id">{{ lesson_video_collapsed_label|default:"—" }}</span>
+      </div>
+      <button
+        type="button"
+        class="video-collapse-btn"
+        id="video-collapse-btn"
+        onclick="toggleVideoPanelCollapse()"
+        aria-expanded="true"
+        title="Свернуть панель видео"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M6 9l6 6 6-6"/>
+        </svg>
+      </button>
+    </div>
     <div class="video-area">
       {% if lesson_video_embed_url %}
       <iframe
@@ -331,61 +1776,74 @@
         <span style="font-size:.7rem;opacity:.7">Если в ЛК задана ссылка на звонок, она появится здесь автоматически</span>
       </div>
       {% endif %}
-      <div class="room-id-box">Room: {{ room_id|escape }}</div>
     </div>
+    <div class="room-id-box">Room: {{ room_id|escape }}</div>
   </aside>
 
-  <!-- ═══ INFO BAR ═══ -->
-  <div class="info-bar">
-    <div>
-      <h2>{{ teacher_name }}
-        {% if lesson_type == "student" %}&nbsp;·&nbsp;<span style="font-weight:400">{{ target_name }}</span>{% endif %}
-      </h2>
-      <div class="sub">
-        {% if lesson_type == "student" %}Индивидуальный урок{% else %}Учитель ведёт урок{% endif %}
+  <!-- ═══ LESSON CONTROL BAR ═══ -->
+  <div class="info-bar lesson-control-bar">
+    <div class="lesson-control-bar__brand">
+      <p class="lesson-control-bar__name">{{ teacher_name }}{% if lesson_type == "student" %}<span class="lesson-control-bar__name-muted"> · {{ target_name }}</span>{% endif %}</p>
+      <p class="lesson-control-bar__sub">{% if lesson_type == "student" %}Индивидуальный урок{% else %}Учитель ведёт урок{% endif %}</p>
+    </div>
+    <div class="lesson-control-bar__vdiv" aria-hidden="true"></div>
+    <div class="lesson-control-bar__actions">
+      {% if lesson_type == "teacher" %}
+      <input
+        type="number"
+        class="lesson-control-bar__input"
+        id="inp-variant-id"
+        placeholder="Номер варианта"
+        min="1"
+        inputmode="numeric"
+      />
+      <button type="button" class="lesson-control-bar__btn lesson-control-bar__btn--primary" id="btn-generate" onclick="teacherGenerate()">
+        <svg class="lcb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M17 7h-4"/><path d="M17 7v4"/></svg>
+        Открыть вариант
+      </button>
+      <div id="current-variant-badge" class="lesson-control-bar__variant-badge" style="display:none">
+        <span id="current-variant-text"></span>
       </div>
+      {% endif %}
+      <button type="button" class="lesson-control-bar__btn lesson-control-bar__btn--outline" onclick="openSupportModal()" title="Справочные материалы">
+        <svg class="lcb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+        Справочные материалы
+      </button>
+      <button type="button" class="lesson-control-bar__btn lesson-control-bar__btn--outline" onclick="reopenVideoModePrompt()" title="С видеосвязью или без">
+        <svg class="lcb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="5" width="11" height="14" rx="2"/><rect x="15" y="5" width="7" height="10" rx="2"/><path d="M15 17h7"/></svg>
+        Режим видео
+      </button>
+      {% if lesson_type == "teacher" %}
+      <div class="lesson-control-bar__spacer" aria-hidden="true"></div>
+      <button type="button" class="lesson-control-bar__btn lesson-control-bar__btn--danger" onclick="terminateLessonManually()">
+        <svg class="lcb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+        Завершить урок
+      </button>
+      {% endif %}
     </div>
-    {% if lesson_type == "teacher" %}
-    <div id="current-variant-badge" style="display:none" class="badge green">
-      <span id="current-variant-text"></span>
-    </div>
-    {% endif %}
   </div>
 
   <!-- ═══ MAIN CONTENT ═══ -->
-  <main class="main-content">
+  <main class="main-content {% if lesson_type == 'teacher' %}main-content-teacher{% endif %}">
 
     {% if lesson_type == "teacher" %}
-    <!-- ══ TEACHER: VARIANT SELECTOR ══ -->
-    <div class="card">
+    <div class="card" id="teacher-tasks-card">
       <div class="card-header">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
-        Выбор варианта
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Текущий вариант
+        <span id="teacher-tasks-variant-label" style="margin-left:auto;font-weight:400;font-size:.75rem;color:#888"></span>
       </div>
       <div class="card-body">
-        <div class="selector-grid">
-          <select id="sel-level">
-            <option value="ege">ЕГЭ</option>
-            <option value="oge">ОГЭ</option>
-          </select>
-          <select id="sel-subject">
-            <option value="math">Математика (профиль / ОГЭ)</option>
-            <option value="math_base">Математика (база ЕГЭ)</option>
-            <option value="inf">Информатика</option>
-          </select>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <input type="number" id="inp-variant-id" placeholder="ID варианта (опционально)" style="flex:1;min-width:160px"/>
-          <button class="btn btn-primary" id="btn-generate" onclick="teacherGenerate()">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-            Начать вариант
-          </button>
+        <div id="teacher-tasks-container">
+          <div class="waiting-state">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+            <p>Выберите вариант для совместной работы…</p>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- ══ TEACHER: STUDENT ANSWERS ══ -->
-    <div class="card">
+    <div class="card" id="teacher-students-card">
       <div class="card-header">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
         Ответы учеников
@@ -394,7 +1852,7 @@
         <div class="students-grid" id="students-panel">
           <div class="waiting-state">
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-            <p>Ждём ответов учеников…</p>
+            <p>Пока нет ответов учеников…</p>
           </div>
         </div>
       </div>
@@ -407,6 +1865,7 @@
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
         Задания
         <span id="tasks-variant-label" style="margin-left:auto;font-weight:400;font-size:.75rem;color:#888"></span>
+        <span id="student-score-live" style="margin-left:8px;font-weight:700;font-size:.78rem;color:#166534"></span>
       </div>
       <div class="card-body">
         <div id="tasks-container">
@@ -421,8 +1880,42 @@
 
   </main>
 </div>
+</div><!-- #lesson-app-root -->
 
 <div id="status-toast"></div>
+<div id="video-mode-prompt">
+  <div class="video-mode-card">
+    <div class="video-mode-title">Видеосвязь на экране</div>
+    <div class="video-mode-sub">После выбора ученика в кабинете укажите, показывать ли панель видеозвонка. Затем откроется комната урока.</div>
+    <div class="video-mode-actions">
+      <button type="button" class="btn btn-primary" onclick="chooseVideoMode(true)">С видеосвязью</button>
+      <button type="button" class="btn btn-secondary" onclick="chooseVideoMode(false)">Без видеосвязи</button>
+    </div>
+  </div>
+</div>
+<div id="lk-nav-modal" aria-hidden="true" onclick="if(event.target.id==='lk-nav-modal'){closeLkNavModal()}">
+  <div class="video-mode-card" role="dialog" aria-modal="true" aria-labelledby="lk-nav-modal-title" onclick="event.stopPropagation()">
+    <div class="video-mode-title" id="lk-nav-modal-title">Личный кабинет</div>
+    <div class="video-mode-sub">Введите пароль, чтобы открыть ссылку в новой вкладке.</div>
+    <input type="password" class="lk-nav-modal-input" id="lk-nav-modal-input" autocomplete="current-password" placeholder="Пароль" onkeydown="if(event.key==='Enter'){event.preventDefault();submitLkNavModal();}"/>
+    <p id="lk-nav-modal-err" style="display:none;color:#b91c1c;font-size:0.8rem;margin-bottom:10px;"></p>
+    <div class="video-mode-actions">
+      <button type="button" class="btn btn-primary" onclick="submitLkNavModal()">Открыть</button>
+      <button type="button" class="btn btn-secondary" onclick="closeLkNavModal()">Отмена</button>
+    </div>
+  </div>
+</div>
+<div id="support-modal" onclick="if(event.target.id==='support-modal'){closeSupportModal()}">
+  <div class="support-modal-window" role="dialog" aria-modal="true" aria-labelledby="support-modal-title">
+    <div class="support-modal-header">
+      <div class="support-modal-title" id="support-modal-title">Справочные материалы</div>
+      <button type="button" class="support-modal-close" onclick="closeSupportModal()">Закрыть</button>
+    </div>
+    <div class="support-modal-body" id="support-modal-body">
+      <div class="waiting-state"><p>Выберите вариант, чтобы загрузить материалы…</p></div>
+    </div>
+  </div>
+</div>
 
 <script>
 const ROOM_ID_RAW = "{{ room_id|escapejs }}";
@@ -430,17 +1923,91 @@ const ROOM_ID     = encodeURIComponent(ROOM_ID_RAW);
 const ROLE       = "{{ lesson_type|escapejs }}";
 const MY_NAME    = "{{ participant_name|escapejs }}";
 const TEACHER    = "{{ teacher_name|escapejs }}";
+const LESSON_TOKEN = "{{ lesson_token|default:''|escapejs }}";
+const LK_PUBLIC_URL_FOR_NAV = "{{ lk_public_url|escapejs }}";
+const LESSON_VIDEO_COLLAPSED_LABEL = "{{ lesson_video_collapsed_label|default:''|escapejs }}";
+const LESSON_VIDEO_COLLAPSED_HINT = "{{ lesson_video_collapsed_hint|default:''|escapejs }}";
+let inviteSentAfterOpen = false;
+let inviteSendInFlight = false;
+let inviteRetryTimer = null;
 
 // ── STATE ──
 let ws = null;
 let reconnectTimer = null;
 let wsCloseCount = 0;
+let lessonEnded = false;
 let currentVariant = null;  // {variant_id, level, subject}
 let myAnswers = {};         // {task_number: value}
-let studentAnswers = {};    // {name: {task_number: value}} — teacher only
+let myCheckedTasks = {};    // {task_number: true}
+let studentAnswers = {};    // {name: {task_number: value}}
+let answerKeyByTaskNumber = {}; // {task_number: answer_text}
+let taskMetaByNumber = {}; // {task_number: {is_part2, max_score, part, task_id}}
+let currentTasks = [];
+let criteriaByTaskNumber = {}; // {task_number: {criteria, max_score}}
+let teacherScoresByStudent = {}; // {student: {task_number: score_payload}}
+let myScoresByTask = {}; // student side: {task_number: score_payload}
+let drawStateByTask = {}; // {task_number: {strokes: [], cursors: {name: {x,y,color}}}}
+let drawToolBySurface = {}; // {"task::board"|"task::task": "move"|"pen"|"eraser"|"text"}
+let drawIsPointerDown = false;
+let drawActivePointerId = null;
+let drawLastPointByTask = {}; // {task_number: {x,y}}
+let drawCursorTimer = null;
+let drawTextDraftBySurface = {}; // {"task::surface": text}
+let drawTextEditorBySurface = {}; // {"task::surface": HTMLTextAreaElement}
+let drawMoveDragState = null; // { kind:'stroke'|'pan', taskNumber, surface, pointerId, ... }
+let drawTransformThrottleTimer = null;
+
+const DRAW_TOOL_ICONS = {
+  move: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="1.4" fill="currentColor"/><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.5V8M12 16v3.5M7.5 12H4M20 12h-3.5"/><path d="M10.15 7.35L12 5l1.85 2.35"/><path d="M13.85 16.65L12 19l-1.85-2.35"/><path d="M7.35 13.85L5 12l2.35-1.85"/><path d="M16.65 10.15L19 12l-2.35 1.85"/></g></svg>',
+  pen: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4l10.5-10.5a2.828 2.828 0 1 0-4-4L4 16v4"/><path d="m13.5 6.5 4 4"/></svg>',
+  eraser: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.7 5.7c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H2"/><path d="m5.5 11.5 9 9"/></svg>',
+  text: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4.5h14"/><path d="M12 4.5v13"/><path d="M8.5 19.5h7"/></svg>',
+};
+const DRAW_COLORS = ["#ef4444", "#3b82f6", "#22c55e", "#a855f7", "#f59e0b", "#06b6d4", "#ec4899", "#64748b"];
+let supportItems = [];
+let supportMeta = { level: "", subject: "" };
+
+function drawSurfaceKey(taskNumber, surface = "board") {
+  return `${String(taskNumber)}::${String(surface || "board")}`;
+}
+
+function pressureWidth(event, base = 2.5, minK = 0.7, maxK = 2.0) {
+  const p = Number(event?.pressure);
+  if (!Number.isFinite(p) || p <= 0) return base;
+  const k = Math.max(minK, Math.min(maxK, minK + p * (maxK - minK)));
+  return base * k;
+}
+
+function isPenEraserEvent(event) {
+  if (!event || event.pointerType !== "pen") return false;
+  const b = Number(event.buttons || 0);
+  const btn = Number(event.button || 0);
+  return b === 32 || btn === 5;
+}
+
+function colorForName(name) {
+  const s = String(name || "");
+  let h = 0;
+  for (let i = 0; i < s.length; i += 1) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return DRAW_COLORS[h % DRAW_COLORS.length];
+}
+
+function getVariantUIRefs() {
+  if (ROLE === "teacher") {
+    return {
+      container: document.getElementById("teacher-tasks-container"),
+      label: document.getElementById("teacher-tasks-variant-label"),
+    };
+  }
+  return {
+    container: document.getElementById("tasks-container"),
+    label: document.getElementById("tasks-variant-label"),
+  };
+}
 
 // ── WEBSOCKET ──
 function connectWS() {
+  if (lessonEnded) return;
   const proto = location.protocol === "https:" ? "wss" : "ws";
   const url = `${proto}://${location.host}/ws/lesson/${ROOM_ID}/`;
   ws = new WebSocket(url);
@@ -454,6 +2021,7 @@ function connectWS() {
   };
 
   ws.onclose = () => {
+    if (lessonEnded) return;
     setWSStatus(false);
     wsCloseCount += 1;
     if (wsCloseCount >= 4) {
@@ -487,8 +2055,18 @@ function setWSStatus(ok) {
 // ── MESSAGE HANDLER ──
 function handleMessage(msg) {
   switch (msg.type) {
+    case "lesson_ended":
+      if (msg.reason === "session_closed") {
+        endLessonSession("session_closed");
+        break;
+      }
+      if (msg.reason === "manual_end" && (msg.by_role === "teacher" || msg.role === "teacher")) {
+        endLessonSession("manual_end");
+      }
+      break;
+
     case "join":
-      if (ROLE === "teacher") showToast(`${msg.name} подключился`);
+      if (ROLE === "teacher") showToast(`Ученик ${msg.name} присоединился к уроку`, "success");
       break;
 
     case "variant": {
@@ -497,16 +2075,14 @@ function handleMessage(msg) {
       const sub = msg.subject;
       if (vid == null || !lvl || !sub) break;
       currentVariant = {variant_id: vid, level: lvl, subject: sub};
-      if (ROLE === "student") {
-        loadVariantForStudent(vid, lvl, sub);
-      } else {
-        const badge = document.getElementById("current-variant-badge");
-        const text  = document.getElementById("current-variant-text");
-        if (badge && text) {
-          text.textContent = `Вариант ${vid} · ${String(lvl).toUpperCase()} · ${sub}`;
-          badge.style.display = "";
-        }
+      loadVariantForParticipant(vid, lvl, sub);
+      const badge = document.getElementById("current-variant-badge");
+      const text  = document.getElementById("current-variant-text");
+      if (ROLE === "teacher" && badge && text) {
+        text.textContent = `Вариант ${vid} · ${String(lvl).toUpperCase()} · ${sub}`;
+        badge.style.display = "inline-flex";
       }
+      updateVideoSidebarVariantRail();
       break;
     }
 
@@ -521,6 +2097,122 @@ function handleMessage(msg) {
       renderStudentAnswers();
       break;
     }
+
+    case "score_update": {
+      const studentName = msg.student_name || msg.studentName || "";
+      const tnum = String(msg.task_number ?? msg.taskNumber ?? "");
+      if (!studentName || !tnum) break;
+      const payload = {
+        score: Number(msg.score ?? 0),
+        max_score: Number(msg.max_score ?? taskMetaByNumber[tnum]?.max_score ?? 0),
+        criteria_id: msg.criteria_id ?? null,
+        criteria_text: msg.criteria_text || "",
+      };
+      if (!teacherScoresByStudent[studentName]) teacherScoresByStudent[studentName] = {};
+      teacherScoresByStudent[studentName][tnum] = payload;
+      if (ROLE === "teacher") {
+        renderStudentAnswers();
+      } else if (studentName === MY_NAME) {
+        myScoresByTask[tnum] = payload;
+        refreshStudentTaskStates();
+        showToast(`Оценка за задание ${tnum}: ${payload.score}/${payload.max_score}`, "success");
+      }
+      break;
+    }
+
+    case "draw_stroke": {
+      const taskNumber = String(msg.task_number ?? msg.taskNumber ?? "");
+      const surface = msg.surface === "task" ? "task" : "board";
+      const from = msg.from || msg.name || "Участник";
+      if (!taskNumber || !Array.isArray(msg.points) || msg.points.length < 2) break;
+      const color = String(msg.color || colorForName(from));
+      const width = Number(msg.width || 2.5);
+      const key = drawSurfaceKey(taskNumber, surface);
+      if (!drawStateByTask[key]) drawStateByTask[key] = { strokes: [], cursors: {} };
+      drawStateByTask[key].strokes.push({
+        points: msg.points.map((p) => ({ x: Number(p.x || 0), y: Number(p.y || 0) })),
+        color,
+        width,
+        from,
+        tool: msg.tool || "pen",
+        surface,
+      });
+      renderDrawingBoard(taskNumber, surface);
+      break;
+    }
+
+    case "draw_text": {
+      const taskNumber = String(msg.task_number ?? msg.taskNumber ?? "");
+      const surface = msg.surface === "task" ? "task" : "board";
+      const from = msg.from || msg.name || "Участник";
+      const text = String(msg.text || "").trim();
+      if (!taskNumber || !text) break;
+      const x = Number(msg.x);
+      const y = Number(msg.y);
+      if (Number.isNaN(x) || Number.isNaN(y)) break;
+      const key = drawSurfaceKey(taskNumber, surface);
+      if (!drawStateByTask[key]) drawStateByTask[key] = { strokes: [], cursors: {} };
+      drawStateByTask[key].strokes.push({
+        type: "text",
+        text,
+        x,
+        y,
+        color: String(msg.color || colorForName(from)),
+        from,
+        surface,
+      });
+      renderDrawingBoard(taskNumber, surface);
+      break;
+    }
+
+    case "draw_erase": {
+      const taskNumber = String(msg.task_number ?? msg.taskNumber ?? "");
+      const surface = msg.surface === "task" ? "task" : "board";
+      const eraseIndex = Number(msg.erase_index);
+      if (!taskNumber || Number.isNaN(eraseIndex)) break;
+      const key = drawSurfaceKey(taskNumber, surface);
+      if (!drawStateByTask[key] || !Array.isArray(drawStateByTask[key].strokes)) break;
+      if (eraseIndex < 0 || eraseIndex >= drawStateByTask[key].strokes.length) break;
+      drawStateByTask[key].strokes.splice(eraseIndex, 1);
+      renderDrawingBoard(taskNumber, surface);
+      break;
+    }
+
+    case "draw_transform": {
+      const taskNumber = String(msg.task_number ?? msg.taskNumber ?? "");
+      const surface = msg.surface === "task" ? "task" : "board";
+      const idx = Number(msg.stroke_index ?? msg.strokeIndex);
+      if (!taskNumber || Number.isNaN(idx)) break;
+      const key = drawSurfaceKey(taskNumber, surface);
+      const st = drawStateByTask[key];
+      if (!st || !Array.isArray(st.strokes) || idx < 0 || idx >= st.strokes.length) break;
+      const s = st.strokes[idx];
+      if (s.type === "text" && msg.x != null && msg.y != null) {
+        s.x = clampNorm(Number(msg.x));
+        s.y = clampNorm(Number(msg.y));
+      } else if (Array.isArray(msg.points) && s.points) {
+        s.points = msg.points.map((pt) => ({ x: clampNorm(Number(pt.x || 0)), y: clampNorm(Number(pt.y || 0)) }));
+      }
+      renderDrawingBoard(taskNumber, surface);
+      break;
+    }
+
+    case "draw_cursor": {
+      const taskNumber = String(msg.task_number ?? msg.taskNumber ?? "");
+      const surface = msg.surface === "task" ? "task" : "board";
+      const from = msg.from || msg.name || "Участник";
+      if (!taskNumber || Number.isNaN(Number(msg.x)) || Number.isNaN(Number(msg.y))) break;
+      const key = drawSurfaceKey(taskNumber, surface);
+      if (!drawStateByTask[key]) drawStateByTask[key] = { strokes: [], cursors: {} };
+      drawStateByTask[key].cursors[from] = {
+        x: Number(msg.x),
+        y: Number(msg.y),
+        color: String(msg.color || colorForName(from)),
+        ts: Date.now(),
+      };
+      renderDrawingOverlay(taskNumber, surface);
+      break;
+    }
   }
 }
 
@@ -532,130 +2224,281 @@ async function ensureCsrfCookie() {
 }
 
 async function teacherGenerate() {
-  const level   = document.getElementById("sel-level").value;
-  const subject = document.getElementById("sel-subject").value;
   const idInput = document.getElementById("inp-variant-id").value.trim();
   const btn     = document.getElementById("btn-generate");
-
-  btn.disabled = true;
-  btn.textContent = "Загрузка…";
-
-  let variantId = parseInt(idInput) || null;
-
+  const variantId = parseInt(idInput, 10) || null;
   if (!variantId) {
-    await ensureCsrfCookie();
-    // Generate a new variant
-    try {
-      const resp = await fetch(`/api/${level}/${subject}/variant/`, {
-        method: "POST",
-        headers: {"Content-Type": "application/json", "X-CSRFToken": getCookie("csrftoken")},
-        body: JSON.stringify({}),
-        credentials: "include",
-      });
-      if (resp.ok) {
-        const data = await resp.json();
-        variantId = data.variant_id || data.id;
-      }
-    } catch {}
-  }
-
-  if (!variantId) {
-    showToast("Не удалось получить вариант");
-    btn.disabled = false;
-    btn.textContent = "Начать вариант";
+    showToast("Введите номер варианта", "warning");
     return;
   }
 
-  // Broadcast to room
-  send({type: "variant", variant_id: variantId, level, subject});
-  // Update own badge
-  const badge = document.getElementById("current-variant-badge");
-  const text  = document.getElementById("current-variant-text");
-  if (badge && text) {
-    text.textContent = `Вариант ${variantId} · ${level.toUpperCase()} · ${subject}`;
-    badge.style.display = "";
+  const btnGenerateHtml = `<svg class="lcb-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 17 17 7"/><path d="M17 7h-4"/><path d="M17 7v4"/></svg>Открыть вариант`;
+  btn.disabled = true;
+  btn.textContent = "Загрузка…";
+  try {
+    const resp = await fetch(`/api/lesson/variant/${variantId}/`, {
+      credentials: "include",
+    });
+    if (!resp.ok) {
+      if (resp.status === 404) {
+        showToast(`Вариант ${variantId} не найден`, "error");
+      } else {
+        showToast(`Не удалось открыть вариант ${variantId}`, "error");
+      }
+      throw new Error(`HTTP ${resp.status}`);
+    }
+    const data = await resp.json();
+    const level = (data.level || "").toString().trim().toLowerCase();
+    const subject = (data.subject || "").toString().trim().toLowerCase();
+    if (!level || !subject) {
+      throw new Error("Вариант не содержит уровень/предмет");
+    }
+    currentVariant = { variant_id: variantId, level, subject };
+    send({ type: "variant", variant_id: variantId, level, subject });
+    const badge = document.getElementById("current-variant-badge");
+    const text  = document.getElementById("current-variant-text");
+    if (badge && text) {
+      text.textContent = `Вариант ${variantId} · ${level.toUpperCase()} · ${subject}`;
+      badge.style.display = "inline-flex";
+    }
+    updateVideoSidebarVariantRail();
+    showToast(`Вариант ${variantId} отправлен ученикам`, "success");
+  } catch (err) {
+    if (!String(err && err.message || "").includes("HTTP")) {
+      showToast(`Не удалось открыть вариант ${variantId}`, "error");
+    }
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = btnGenerateHtml;
   }
-  showToast(`Вариант ${variantId} отправлен ученикам`);
-
-  btn.disabled = false;
-  btn.textContent = "Начать вариант";
 }
 
-// ── STUDENT: LOAD VARIANT ──
-async function loadVariantForStudent(variantId, level, subject) {
-  const container = document.getElementById("tasks-container");
-  const label     = document.getElementById("tasks-variant-label");
+// ── PARTICIPANTS: LOAD VARIANT ──
+async function loadVariantForParticipant(variantId, level, subject) {
+  const { container, label } = getVariantUIRefs();
+  if (!container) return;
   if (label) label.textContent = `Вариант ${variantId} · ${level.toUpperCase()}`;
 
   container.innerHTML = `<div class="waiting-state"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg><p>Загрузка заданий…</p></div>`;
 
   try {
-    const resp = await fetch(`/api/${level}/${subject}/variant/${variantId}/`, {credentials: "include"});
-    if (!resp.ok) {
-      let detail = "";
+    const urls = [
+      `/api/lesson/variant/${variantId}/`,
+      `/api/${level}/${subject}/variant/${variantId}/`,
+    ];
+    let data = null;
+    let lastError = "";
+
+    for (const url of urls) {
+      const resp = await fetch(url, { credentials: "include" });
+      const ct = (resp.headers.get("content-type") || "").toLowerCase();
+      if (!resp.ok) {
+        let detail = "";
+        try {
+          if (ct.includes("application/json")) {
+            const j = await resp.json();
+            detail = (j.detail || j.error || JSON.stringify(j)).slice(0, 200);
+          } else {
+            detail = (await resp.text()).slice(0, 200);
+          }
+        } catch (_) {}
+        lastError = detail ? `HTTP ${resp.status}: ${detail}` : `HTTP ${resp.status}`;
+        continue;
+      }
+      // В dev через Vite короткий URL может вернуть index.html (text/html, 200).
+      if (!ct.includes("application/json")) {
+        lastError = "Сервер вернул HTML вместо JSON";
+        continue;
+      }
       try {
-        const ct = resp.headers.get("content-type") || "";
-        if (ct.includes("application/json")) {
-          const j = await resp.json();
-          detail = (j.detail || j.error || JSON.stringify(j)).slice(0, 200);
-        } else {
-          detail = (await resp.text()).slice(0, 200);
-        }
-      } catch (_) {}
-      throw new Error(detail ? `HTTP ${resp.status}: ${detail}` : `HTTP ${resp.status}`);
+        data = await resp.json();
+        break;
+      } catch (_) {
+        lastError = "Некорректный JSON ответа";
+      }
     }
-    const data = await resp.json();
+
+    if (!data) {
+      throw new Error(lastError || "Не удалось получить данные варианта");
+    }
     const tasks = data.tasks || data.task_groups || [];
-    renderTasks(tasks, variantId);
+    supportMeta = { level, subject };
+    supportItems = [];
+    currentTasks = tasks;
+    answerKeyByTaskNumber = {};
+    taskMetaByNumber = {};
+    criteriaByTaskNumber = {};
+    myCheckedTasks = {};
+    if (ROLE === "teacher") teacherScoresByStudent = {};
+    if (ROLE === "student") myScoresByTask = {};
+    for (const t of tasks) {
+      const num = t.number;
+      if (num == null) continue;
+      const key = String(num);
+      answerKeyByTaskNumber[key] = String(t.answer || "");
+      const partRaw = t.part;
+      const partNum = Number(partRaw);
+      const maxScore = Number(t.max_score || 0);
+      const isPart2 = partNum === 2 || String(partRaw || "").toLowerCase() === "2" || maxScore > 1;
+      taskMetaByNumber[key] = {
+        is_part2: !!isPart2,
+        max_score: Number.isFinite(maxScore) ? maxScore : 0,
+        part: partRaw,
+        task_id: t.id,
+      };
+    }
+    if (ROLE === "teacher") {
+      await preloadCriteriaForPart2(level, subject);
+    }
+    renderTasks(tasks, variantId, {allowAnswers: ROLE === "student"});
+    if (ROLE === "teacher") {
+      renderStudentAnswers();
+    } else {
+      refreshStudentTaskStates();
+    }
+    const { container } = getVariantUIRefs();
+    await typesetMath(container);
+    scheduleDrawBoardsRelayout();
+    updateVideoSidebarVariantRail();
   } catch (err) {
     container.innerHTML = `<div class="waiting-state"><p style="color:#ef4444">Не удалось загрузить задания: ${escapeHtml(err.message)}</p></div>`;
+    showToast(`Не удалось загрузить задания: ${String(err.message || "")}`.slice(0, 180), "error");
   }
 }
 
-function renderTasks(tasks, variantId) {
-  const container = document.getElementById("tasks-container");
+function renderTasks(tasks, variantId, {allowAnswers = true} = {}) {
+  const { container } = getVariantUIRefs();
+  if (!container) return;
   if (!tasks.length) {
     container.innerHTML = `<div class="waiting-state"><p>Задания не найдены</p></div>`;
     return;
   }
 
-  const html = tasks.map((t, i) => {
+  let html = "";
+  for (let i = 0; i < tasks.length; i += 1) {
+    const t = tasks[i];
     const num     = t.number ?? (i + 1);
-    const topic   = t.topic || t.subtopic || t.subtopic_title || t.task_title || "";
+    const numKey  = String(num);
+    const topic   = (t.topic != null && String(t.topic).trim()) ? String(t.topic).trim() : "";
     const content = t.content || t.task_text || t.task_template || t.question || t.text || "";
+    const fileUrl = t.file || "";
     const savedVal = myAnswers[num] || "";
-    return `
-      <div class="task-card ${savedVal ? 'answered' : ''}" id="task-card-${num}">
-        <div class="task-header">
-          <div class="task-num">${num}</div>
-          ${topic ? `<div class="task-topic">${topic}</div>` : ""}
-        </div>
-        <div class="task-content">${content}</div>
-        <div class="task-answer-row">
+    const partRaw = t.part ?? taskMetaByNumber[numKey]?.part ?? "";
+    const partNum = Number(partRaw);
+    const isPart2 = partNum === 2 || String(partRaw).toLowerCase() === "2";
+    const cardPartClass = isPart2 ? "part2" : "part1";
+
+    const evalState = allowAnswers ? getStudentTaskState(numKey, savedVal) : null;
+    const isChecked = !!myCheckedTasks[numKey];
+    const checkedClass = allowAnswers && isChecked
+      ? (evalState?.cls === "correct" ? "checked-correct" : (evalState?.cls === "wrong" ? "checked-wrong" : ""))
+      : "";
+    const evalBadgeHtml = allowAnswers && evalState
+      ? `<div class="task-eval-row"><span class="task-eval-badge ${evalState.cls}">${escapeHtml(evalState.label)}</span></div>`
+      : "";
+    const answerRowHtml = allowAnswers
+      ? `<div class="task-answer-row">
           <input type="text" class="task-answer-input ${savedVal ? 'saved' : ''}"
             id="answer-${num}" value="${escapeHtml(savedVal)}"
             placeholder="Введите ответ…"
-            onchange="submitAnswer(${num}, this.value)"
             oninput="onAnswerInput(${num}, this)"
+            onkeydown="if(event.key==='Enter'){event.preventDefault(); submitAnswer(${num}, this.value);}"
           />
           <button class="btn btn-secondary btn-sm" onclick="submitAnswer(${num}, document.getElementById('answer-${num}').value)">
-            ✓
+            Проверить
           </button>
+        </div>`
+      : "";
+    const teacherAnswerHtml = !allowAnswers
+      ? `<div class="teacher-answer-box">
+          <div class="teacher-answer-title">Эталонный ответ</div>
+          <div class="correct-answer-content">${t.answer || "—"}</div>
+          ${isPart2 ? buildTeacherCriteriaBlockHtml(numKey) : ""}
+        </div>`
+      : "";
+    html += `
+      <div class="task-card ${cardPartClass} ${savedVal ? 'answered' : ''} ${checkedClass}" id="task-card-${num}">
+        <div class="task-header">
+          <div class="task-num">${num}</div>
+          ${topic ? `<div class="task-topic">${escapeHtml(topic)}</div>` : ""}
+          <div class="task-header-toolbar">
+            <div class="task-inline-tools">
+              <button type="button" class="task-draw-tool-btn ${getDrawTool(numKey, 'task') === 'move' ? 'active' : ''}" onclick="setDrawTool('${numKey}','task','move')" title="Перемещение: перетаскивание линии целиком">${DRAW_TOOL_ICONS.move}</button>
+              <button type="button" class="task-draw-tool-btn ${getDrawTool(numKey, 'task') === 'pen' ? 'active' : ''}" onclick="setDrawTool('${numKey}','task','pen')" title="Перо">${DRAW_TOOL_ICONS.pen}</button>
+              <button type="button" class="task-draw-tool-btn ${getDrawTool(numKey, 'task') === 'eraser' ? 'active' : ''}" onclick="setDrawTool('${numKey}','task','eraser')" title="Ластик: удалить целый штрих">${DRAW_TOOL_ICONS.eraser}</button>
+              <button type="button" class="task-draw-tool-btn ${getDrawTool(numKey, 'task') === 'text' ? 'active' : ''}" onclick="setDrawTool('${numKey}','task','text')" title="Текст на доске">${DRAW_TOOL_ICONS.text}</button>
+            </div>
+          </div>
+        </div>
+        <div class="task-content">
+          <div class="task-content-wrap ${getDrawTool(numKey, 'task') === 'move' ? 'task-surface-move' : ''}" id="task-content-wrap-${num}">
+            <div class="task-text">${content}</div>
+            <canvas
+              class="task-content-overlay ${isTaskDrawOverlayActive(numKey) ? "active" : ""}"
+              id="draw-overlay-canvas-${num}"
+              onpointerdown="onDrawPointerDown(event, '${numKey}', 'task')"
+              onpointermove="onDrawPointerMove(event, '${numKey}', 'task')"
+              onpointerup="onDrawPointerUp(event, '${numKey}', 'task')"
+              onpointerleave="onDrawPointerLeave(event, '${numKey}', 'task')"
+            ></canvas>
+          </div>
+          ${fileUrl ? `<div class="task-files">
+            <a href="${escapeHtml(fileUrl)}" target="_blank" rel="noreferrer noopener" class="task-file-link">
+              <span class="task-file-icon">📎</span>
+              <span class="task-file-label">Скачать файл</span>
+            </a>
+          </div>` : ""}
+        </div>
+        ${answerRowHtml}
+        ${teacherAnswerHtml}
+        ${evalBadgeHtml}
+        <div class="task-draw-wrap">
+          <div class="task-draw-head">
+            <span class="task-draw-head-label" title="Совместная доска">Доска</span>
+            <div class="task-draw-tools task-draw-tools--compact">
+              <button type="button" class="task-draw-tool-btn ${getDrawTool(numKey, 'board') === 'move' ? 'active' : ''}" onclick="setDrawTool('${numKey}','board','move')" title="Перемещение: линии и текст; пустое место — сдвиг доски">${DRAW_TOOL_ICONS.move}</button>
+              <button type="button" class="task-draw-tool-btn ${getDrawTool(numKey, 'board') === 'pen' ? 'active' : ''}" onclick="setDrawTool('${numKey}','board','pen')" title="Перо">${DRAW_TOOL_ICONS.pen}</button>
+              <button type="button" class="task-draw-tool-btn ${getDrawTool(numKey, 'board') === 'eraser' ? 'active' : ''}" onclick="setDrawTool('${numKey}','board','eraser')" title="Ластик: целый штрих">${DRAW_TOOL_ICONS.eraser}</button>
+              <button type="button" class="task-draw-tool-btn ${getDrawTool(numKey, 'board') === 'text' ? 'active' : ''}" onclick="setDrawTool('${numKey}','board','text')" title="Текст">${DRAW_TOOL_ICONS.text}</button>
+            </div>
+          </div>
+          <div class="task-draw-board ${getDrawTool(numKey, 'board') === 'move' ? 'draw-surface-move' : ''}" id="draw-board-${num}">
+            <div class="task-draw-pan-layer" id="draw-pan-layer-${num}" data-pan-x="0" data-pan-y="0">
+            <canvas
+              class="task-draw-canvas"
+              id="draw-canvas-${num}"
+              onpointerdown="onDrawPointerDown(event, '${numKey}')"
+              onpointermove="onDrawPointerMove(event, '${numKey}')"
+              onpointerup="onDrawPointerUp(event, '${numKey}')"
+              onpointerleave="onDrawPointerLeave(event, '${numKey}')"
+            ></canvas>
+            <div class="task-draw-overlay" id="draw-overlay-${num}"></div>
+            </div>
+          </div>
+          <div class="task-draw-legend" id="draw-legend-${num}"></div>
         </div>
       </div>`;
-  }).join("");
+  }
 
   container.innerHTML = `<div class="tasks-list">${html}</div>`;
+  initDrawBoards(tasks);
 }
 
 function onAnswerInput(num, input) {
   input.classList.remove("saved");
-  document.getElementById(`task-card-${num}`)?.classList.remove("answered");
+  const key = String(num);
+  myCheckedTasks[key] = false;
+  const cardEl = document.getElementById(`task-card-${num}`);
+  cardEl?.classList.remove("answered");
+  cardEl?.classList.remove("checked-correct");
+  cardEl?.classList.remove("checked-wrong");
 }
 
 function submitAnswer(num, value) {
   value = (value || "").trim();
-  myAnswers[num] = value;
+  const key = String(num);
+  myAnswers[key] = value;
+  myCheckedTasks[key] = true;
 
   const input = document.getElementById(`answer-${num}`);
   const card  = document.getElementById(`task-card-${num}`);
@@ -664,39 +2507,1207 @@ function submitAnswer(num, value) {
 
   send({ type: "answer", task_number: num, taskNumber: num, value, name: MY_NAME });
   showToast(`Ответ на задание ${num} отправлен`);
+  if (ROLE === "student") {
+    refreshStudentTaskStates();
+  }
 }
 
-// ── TEACHER: RENDER STUDENT ANSWERS ──
 function renderStudentAnswers() {
   const panel = document.getElementById("students-panel");
   if (!panel) return;
 
   const entries = Object.entries(studentAnswers);
-  if (!entries.length) return;
+  if (!entries.length) {
+    panel.innerHTML = `<div class="waiting-state"><p>Пока нет ответов учеников…</p></div>`;
+    return;
+  }
 
-  panel.innerHTML = entries.map(([name, answers]) => {
+  panel.innerHTML = entries.map(([name, answers], studentIdx) => {
     const chips = Object.entries(answers)
       .sort((a,b) => Number(a[0]) - Number(b[0]))
-      .map(([num, val]) => `<span class="chip ${val ? 'correct' : 'empty'}">#${num}: ${val || "—"}</span>`)
+      .map(([num, val]) => {
+        const numKey = String(num);
+        const state = evaluateAnswerState(num, val);
+        const cls = state === "correct" ? "correct" : (state === "wrong" ? "wrong" : "pending");
+        const mark = state === "correct" ? "✓" : (state === "wrong" ? "✗" : "?");
+        const meta = taskMetaByNumber[numKey] || {};
+        const isPart2 = !!meta.is_part2;
+        const scoreInfo = teacherScoresByStudent[name]?.[numKey] || null;
+        const scoreText = scoreInfo ? ` · ${scoreInfo.score}/${scoreInfo.max_score}` : "";
+        const cfg = criteriaByTaskNumber[numKey];
+        const hasCriteria = isPart2 && cfg && Array.isArray(cfg.criteria) && cfg.criteria.length > 0;
+        const chip = `<span class="chip ${cls}">#${escapeHtml(num)}: ${escapeHtml(val || "—")} ${mark}${scoreText}</span>`;
+        const grading = hasCriteria
+          ? buildCriteriaGradingHtml(name, numKey, scoreInfo?.criteria_id, `lesson-crit-${studentIdx}-${numKey}`)
+          : "";
+        if (grading) {
+          return `<div class="lesson-answer-chip-group part2-with-criteria">${chip}${grading}</div>`;
+        }
+        return chip;
+      })
       .join("");
-    const initials = name.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+    const initials = name.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase();
+    const scoreTotals = getTeacherStudentTotal(name);
     return `
       <div class="student-row">
-        <div class="student-avatar">${initials}</div>
+        <div class="student-avatar">${escapeHtml(initials || "У")}</div>
         <div class="student-info">
-          <div class="student-name">${escapeHtml(name)}</div>
-          <div class="answers-chips">${chips || '<span class="chip empty">Нет ответов</span>'}</div>
+          <div class="student-name">${escapeHtml(name)} · Баллы: ${scoreTotals.current}/${scoreTotals.max}</div>
+          <div class="answers-chips">${chips || '<span class="chip pending">Нет ответов</span>'}</div>
         </div>
       </div>`;
   }).join("");
+  void typesetMath(panel);
+}
+
+function toggleLessonCriteriaSection(btn) {
+  const wrap = btn.closest(".lesson-criteria-grade-block, .teacher-criteria-wrap");
+  const panel = wrap?.querySelector(".lesson-criteria-collapsible");
+  if (!panel) return;
+  const open = panel.style.display === "none" || panel.style.display === "";
+  panel.style.display = open ? "block" : "none";
+  btn.classList.toggle("active", open);
+  btn.textContent = open ? "Скрыть критерии" : "Критерии";
+}
+
+function buildCriteriaGradingHtml(studentName, taskNumber, selectedCriteriaId, radioBaseName) {
+  const cfg = criteriaByTaskNumber[String(taskNumber)];
+  if (!cfg || !Array.isArray(cfg.criteria) || !cfg.criteria.length) return "";
+  const maxScore = Number(cfg.max_score || taskMetaByNumber[String(taskNumber)]?.max_score || 0);
+  const sel = String(selectedCriteriaId || "");
+  const rows = cfg.criteria.map((c) => {
+    const cid = String(c.id);
+    const checked = sel === cid ? " checked" : "";
+    const tick = sel === cid ? "✓" : "";
+    const html = String(c.criteria_text || "");
+    return `<tr class="criteria-row">
+      <td class="criteria-td-content">
+        <label class="criteria-radio-label">
+          <input type="radio" name="${escapeHtml(radioBaseName)}" class="criteria-radio-input" value="${escapeHtml(cid)}"${checked}
+            onchange="teacherSetCriterion('${escapeJsString(studentName)}','${escapeJsString(String(taskNumber))}', this.value)">
+          <span class="criteria-radio-check">${tick}</span>
+          <div class="criteria-text">${html}</div>
+        </label>
+      </td>
+      <td class="criteria-td-score">${Number(c.criteria_score || 0)}</td>
+    </tr>`;
+  }).join("");
+  return `<div class="lesson-criteria-grade-block">
+    <div class="part2-answer-criteria-buttons">
+      <button type="button" class="add-button criteria-btn" onclick="toggleLessonCriteriaSection(this)">Критерии</button>
+    </div>
+    <div class="criteria-panel lesson-criteria-collapsible" style="display:none">
+      <div class="criteria-table-wrap">
+        <table class="criteria-table">
+          <thead><tr><th class="criteria-th-content">Содержание критерия</th><th class="criteria-th-score">Баллы</th></tr></thead>
+          <tbody>${rows}</tbody>
+          <tfoot><tr><td class="criteria-tfoot-label">Максимальный балл</td><td class="criteria-tfoot-score">${maxScore}</td></tr></tfoot>
+        </table>
+      </div>
+    </div>
+  </div>`;
+}
+
+function buildTeacherCriteriaBlockHtml(taskNumber) {
+  const cfg = criteriaByTaskNumber[String(taskNumber)];
+  if (!cfg || !Array.isArray(cfg.criteria) || !cfg.criteria.length) return "";
+  const maxScore = Number(cfg.max_score || taskMetaByNumber[String(taskNumber)]?.max_score || 0);
+  const rows = cfg.criteria.map((c) => {
+    const html = String(c.criteria_text || "");
+    return `<tr class="criteria-row">
+      <td class="criteria-td-content"><div class="criteria-text">${html}</div></td>
+      <td class="criteria-td-score">${Number(c.criteria_score || 0)}</td>
+    </tr>`;
+  }).join("");
+  return `<div class="teacher-criteria-wrap lesson-part2-criteria">
+    <div class="part2-answer-criteria-buttons">
+      <button type="button" class="add-button criteria-btn" onclick="toggleLessonCriteriaSection(this)">Критерии</button>
+    </div>
+    <div class="criteria-panel lesson-criteria-collapsible" style="display:none">
+      <div class="criteria-table-wrap">
+        <table class="criteria-table">
+          <thead><tr><th class="criteria-th-content">Содержание критерия</th><th class="criteria-th-score">Баллы</th></tr></thead>
+          <tbody>${rows}</tbody>
+          <tfoot><tr><td class="criteria-tfoot-label">Максимальный балл</td><td class="criteria-tfoot-score">${maxScore}</td></tr></tfoot>
+        </table>
+      </div>
+    </div>
+  </div>`;
+}
+
+async function preloadCriteriaForPart2(level, subject) {
+  const nums = Object.keys(taskMetaByNumber).filter((n) => taskMetaByNumber[n]?.is_part2);
+  for (const num of nums) {
+    try {
+      const resp = await fetch(`/api/${level}/${subject}/criteria/?task_number=${encodeURIComponent(num)}`, { credentials: "include" });
+      if (!resp.ok) continue;
+      const data = await resp.json();
+      criteriaByTaskNumber[num] = {
+        criteria: Array.isArray(data.criteria) ? data.criteria : [],
+        max_score: Number(data.max_score || taskMetaByNumber[num]?.max_score || 0),
+      };
+    } catch (_) {}
+  }
+  if (ROLE === "teacher") {
+    renderTasks(currentTasks || [], currentVariant?.variant_id || "", {allowAnswers: false});
+    const { container } = getVariantUIRefs();
+    typesetMath(container);
+  }
+}
+
+function teacherSetCriterion(studentName, taskNumber, criteriaIdRaw) {
+  const taskKey = String(taskNumber);
+  const cfg = criteriaByTaskNumber[taskKey];
+  if (!cfg) return;
+  const criteriaId = String(criteriaIdRaw || "").trim();
+  const criterion = (cfg.criteria || []).find((c) => String(c.id) === criteriaId);
+  if (!criterion) return;
+  const payload = {
+    score: Number(criterion.criteria_score || 0),
+    max_score: Number(cfg.max_score || taskMetaByNumber[taskKey]?.max_score || 0),
+    criteria_id: criterion.id,
+    criteria_text: String(criterion.criteria_text || "").replace(/<[^>]*>/g, " ").trim(),
+  };
+  if (!teacherScoresByStudent[studentName]) teacherScoresByStudent[studentName] = {};
+  teacherScoresByStudent[studentName][taskKey] = payload;
+  send({
+    type: "score_update",
+    student_name: studentName,
+    task_number: Number(taskKey),
+    score: payload.score,
+    max_score: payload.max_score,
+    criteria_id: payload.criteria_id,
+    criteria_text: payload.criteria_text,
+  });
+  renderStudentAnswers();
+}
+
+function evaluateAnswerState(taskNumber, value) {
+  const meta = taskMetaByNumber[String(taskNumber)];
+  if (meta?.is_part2) return "pending";
+  const keyRaw = answerKeyByTaskNumber[String(taskNumber)];
+  const userNorm = normalizeAnswerText(value);
+  if (!keyRaw) return "pending";
+  if (!userNorm) return "wrong";
+  const variants = normalizeAnswerVariants(keyRaw);
+  if (!variants.length) return "pending";
+  return variants.includes(userNorm) ? "correct" : "wrong";
+}
+
+function getStudentTaskState(taskNumber, value) {
+  const meta = taskMetaByNumber[String(taskNumber)] || {};
+  const maxScore = Number(meta.max_score || 0);
+  if (meta.is_part2) {
+    const s = myScoresByTask[String(taskNumber)];
+    if (s) return { cls: "correct", label: `Оценено: ${Number(s.score || 0)}/${Number(s.max_score || maxScore || 0)}` };
+    return { cls: "pending", label: "Ожидает проверки учителем" };
+  }
+  const state = evaluateAnswerState(taskNumber, value);
+  const scoreIfCorrect = Math.max(1, maxScore || 1);
+  if (state === "correct") return { cls: "correct", label: `Ответ верный · ${scoreIfCorrect} б` };
+  if (state === "wrong" && String(value || "").trim()) return { cls: "wrong", label: "Ответ неверный · 0 б" };
+  return { cls: "pending", label: "Ответ не проверен" };
+}
+
+function refreshStudentTaskStates() {
+  if (ROLE !== "student") return;
+  renderTasks(currentTasks || [], currentVariant?.variant_id || "", {allowAnswers: true});
+  refreshStudentScoreBadge();
+  const { container } = getVariantUIRefs();
+  typesetMath(container);
+  scheduleDrawBoardsRelayout();
+}
+
+function initDrawBoards(tasks) {
+  (tasks || []).forEach((t, i) => {
+    const num = t.number ?? (i + 1);
+    ["board", "task"].forEach((surface) => {
+      const key = drawSurfaceKey(num, surface);
+      if (!drawStateByTask[key]) drawStateByTask[key] = { strokes: [], cursors: {} };
+      const canvasId = surface === "task" ? `draw-overlay-canvas-${num}` : `draw-canvas-${num}`;
+      const canvas = document.getElementById(canvasId);
+      if (!canvas) return;
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      const w = Math.max(10, Math.round(rect.width));
+      const h = Math.max(10, Math.round(rect.height));
+      canvas.width = Math.floor(w * dpr);
+      canvas.height = Math.floor(h * dpr);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      renderDrawingBoard(num, surface);
+    });
+  });
+}
+
+let drawRelayoutTimer = null;
+function scheduleDrawBoardsRelayout() {
+  if (drawRelayoutTimer) clearTimeout(drawRelayoutTimer);
+  drawRelayoutTimer = setTimeout(() => {
+    initDrawBoards(currentTasks || []);
+  }, 120);
+}
+
+const LESSON_VIDEO_COLLAPSED_KEY = "lesson_video_collapsed";
+const LEGACY_LESSON_VIDEO_MODE_KEY = "lesson_video_mode";
+
+function lessonVideoModeStorageKey() {
+  const id = String(typeof ROOM_ID_RAW !== "undefined" ? ROOM_ID_RAW : "").trim();
+  return id ? `lesson_video_mode__${id}` : LEGACY_LESSON_VIDEO_MODE_KEY;
+}
+
+function getLessonVideoMode() {
+  const k = lessonVideoModeStorageKey();
+  try {
+    const v = sessionStorage.getItem(k);
+    if (v === "on" || v === "off") return v;
+    const leg = sessionStorage.getItem(LEGACY_LESSON_VIDEO_MODE_KEY);
+    if (leg === "on" || leg === "off") {
+      sessionStorage.setItem(k, leg);
+      return leg;
+    }
+  } catch (_) {}
+  return "";
+}
+
+function setLessonVideoMode(mode) {
+  if (mode !== "on" && mode !== "off") return;
+  const k = lessonVideoModeStorageKey();
+  try {
+    sessionStorage.setItem(k, mode);
+    if (k !== LEGACY_LESSON_VIDEO_MODE_KEY) {
+      sessionStorage.removeItem(LEGACY_LESSON_VIDEO_MODE_KEY);
+    }
+  } catch (_) {}
+}
+
+function lessonVideoGateStorageKey() {
+  const id = String(typeof ROOM_ID_RAW !== "undefined" ? ROOM_ID_RAW : "").trim();
+  return id ? `lesson_video_gate_ok__${id}` : "lesson_video_gate_ok";
+}
+
+function getLessonVideoGatePassed() {
+  try {
+    return sessionStorage.getItem(lessonVideoGateStorageKey()) === "1";
+  } catch (_) {
+    return false;
+  }
+}
+
+function setLessonVideoGatePassed() {
+  try {
+    sessionStorage.setItem(lessonVideoGateStorageKey(), "1");
+  } catch (_) {}
+}
+
+function reopenVideoModePrompt() {
+  document.getElementById("video-mode-prompt")?.classList.add("show");
+}
+
+function closeLkNavModal() {
+  const m = document.getElementById("lk-nav-modal");
+  if (m) {
+    m.classList.remove("show");
+    m.setAttribute("aria-hidden", "true");
+  }
+  const inp = document.getElementById("lk-nav-modal-input");
+  if (inp) inp.value = "";
+  const err = document.getElementById("lk-nav-modal-err");
+  if (err) {
+    err.style.display = "none";
+    err.textContent = "";
+  }
+}
+
+function onLessonRoomLkNavClick(event) {
+  const el = event.currentTarget;
+  if (!el || el.getAttribute("data-lk-gated") !== "1") return true;
+  event.preventDefault();
+  const m = document.getElementById("lk-nav-modal");
+  if (m) {
+    m.classList.add("show");
+    m.setAttribute("aria-hidden", "false");
+  }
+  setTimeout(() => document.getElementById("lk-nav-modal-input")?.focus(), 50);
+  return false;
+}
+
+async function submitLkNavModal() {
+  const inp = document.getElementById("lk-nav-modal-input");
+  const err = document.getElementById("lk-nav-modal-err");
+  if (err) {
+    err.style.display = "none";
+    err.textContent = "";
+  }
+  try {
+    const r = await fetch("/api/lk-nav-unlock/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ password: (inp?.value || "").trim() }),
+    });
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) {
+      if (err) {
+        err.textContent = data.error || "Неверный пароль";
+        err.style.display = "block";
+      }
+      return;
+    }
+    closeLkNavModal();
+    const link = document.getElementById("header-lk-link");
+    if (link) link.removeAttribute("data-lk-gated");
+    window.open(LK_PUBLIC_URL_FOR_NAV, "_blank", "noopener,noreferrer");
+  } catch (_) {
+    if (err) {
+      err.textContent = "Не удалось проверить пароль";
+      err.style.display = "block";
+    }
+  }
+}
+
+function updateVideoSidebarVariantRail() {
+  const mainEl = document.getElementById("video-sidebar-variant-id");
+  const hintEl = document.getElementById("video-header-collapsed-hint");
+  const wrap = document.getElementById("video-header-variant-collapsed");
+  if (!mainEl) return;
+  const main = String(LESSON_VIDEO_COLLAPSED_LABEL || "").trim();
+  mainEl.textContent = main || "—";
+  if (hintEl) {
+    const h = String(LESSON_VIDEO_COLLAPSED_HINT || "").trim();
+    hintEl.textContent = h;
+    hintEl.style.display = h ? "" : "none";
+  }
+  const vid = currentVariant?.variant_id;
+  if (wrap) {
+    const parts = [];
+    if (main) parts.push(main);
+    if (vid != null) parts.push(`Вариант №${vid}`);
+    wrap.title = parts.length
+      ? `${parts.join(" · ")}. Нажмите стрелку, чтобы развернуть видеозвонок.`
+      : "Нажмите стрелку, чтобы развернуть видеозвонок.";
+  }
+}
+
+function syncVideoCollapseButton() {
+  const panel = document.getElementById("video-panel");
+  const btn = document.getElementById("video-collapse-btn");
+  if (!btn || !panel) return;
+  const collapsed = panel.classList.contains("collapsed");
+  btn.setAttribute("aria-expanded", String(!collapsed));
+  btn.title = collapsed ? "Развернуть видеозвонок" : "Свернуть сайдбар (имя ученика, группа или учитель)";
+  updateVideoSidebarVariantRail();
+}
+
+function setVideoPanelCollapsed(collapsed) {
+  const layout = document.querySelector(".layout");
+  const panel = document.getElementById("video-panel");
+  if (!layout || !panel || layout.classList.contains("video-off")) return;
+  panel.classList.toggle("collapsed", collapsed);
+  layout.classList.toggle("video-collapsed", collapsed);
+  try {
+    sessionStorage.setItem(LESSON_VIDEO_COLLAPSED_KEY, collapsed ? "1" : "0");
+  } catch (_) {}
+  syncVideoCollapseButton();
+}
+
+function toggleVideoPanelCollapse() {
+  const panel = document.getElementById("video-panel");
+  if (!panel) return;
+  setVideoPanelCollapsed(!panel.classList.contains("collapsed"));
+}
+
+function restoreVideoPanelCollapseState() {
+  const layout = document.querySelector(".layout");
+  const panel = document.getElementById("video-panel");
+  if (!layout || !panel || layout.classList.contains("video-off")) return;
+  let v = "";
+  try { v = sessionStorage.getItem(LESSON_VIDEO_COLLAPSED_KEY) || ""; } catch (_) {}
+  const collapsed = v === "1";
+  layout.classList.toggle("video-collapsed", collapsed);
+  panel.classList.toggle("collapsed", collapsed);
+  syncVideoCollapseButton();
+}
+
+function applyVideoMode(showVideo) {
+  const layout = document.querySelector(".layout");
+  const iframe = document.querySelector("iframe.video-iframe");
+  const panel = document.getElementById("video-panel");
+  if (layout) {
+    layout.classList.toggle("video-off", !showVideo);
+    if (!showVideo) {
+      layout.classList.remove("video-collapsed");
+      panel?.classList.remove("collapsed");
+    }
+  }
+  if (showVideo) {
+    restoreVideoPanelCollapseState();
+  }
+  if (iframe) {
+    const originalSrc = iframe.dataset.originalSrc || iframe.getAttribute("src") || "";
+    if (!iframe.dataset.originalSrc) iframe.dataset.originalSrc = originalSrc;
+    if (showVideo) {
+      if (iframe.getAttribute("src") === "about:blank" && originalSrc) {
+        iframe.setAttribute("src", originalSrc);
+      }
+    } else {
+      iframe.setAttribute("src", "about:blank");
+    }
+  }
+  syncVideoCollapseButton();
+}
+
+function chooseVideoMode(showVideo) {
+  applyVideoMode(!!showVideo);
+  setLessonVideoMode(showVideo ? "on" : "off");
+  setLessonVideoGatePassed();
+  document.body.classList.remove("lesson-gate-pending");
+  document.getElementById("video-mode-prompt")?.classList.remove("show");
+  if (!ws || ws.readyState === WebSocket.CLOSED) {
+    connectWS();
+  }
+  restoreVideoPanelCollapseState();
+  scheduleTeacherInviteAfterGate();
+}
+
+function initLessonEntryGate() {
+  if (getLessonVideoGatePassed()) {
+    document.body.classList.remove("lesson-gate-pending");
+    const mode = getLessonVideoMode();
+    if (mode === "off") applyVideoMode(false);
+    else applyVideoMode(true);
+    connectWS();
+    restoreVideoPanelCollapseState();
+    scheduleTeacherInviteAfterGate();
+    return;
+  }
+  document.body.classList.add("lesson-gate-pending");
+  document.getElementById("video-mode-prompt")?.classList.add("show");
+}
+
+function getDrawCanvasElement(taskNumber, surface = "board") {
+  return surface === "task"
+    ? document.getElementById(`draw-overlay-canvas-${taskNumber}`)
+    : document.getElementById(`draw-canvas-${taskNumber}`);
+}
+
+/** ~14–18px в координатах холста (0–1 по меньшей стороне canvas). */
+function getMoveHitSlopNorm(canvas) {
+  if (!canvas) return 0.022;
+  const r = canvas.getBoundingClientRect();
+  const px = Math.min(r.width, r.height);
+  if (!Number.isFinite(px) || px < 8) return 0.022;
+  const slopPx = 16;
+  return Math.min(0.08, Math.max(0.007, slopPx / px));
+}
+
+function strokeHalfWidthNorm(canvas, strokeWidth) {
+  const r = canvas?.getBoundingClientRect?.();
+  const px = r && r.width && r.height ? Math.min(r.width, r.height) : 280;
+  const w = Number(strokeWidth);
+  const ww = Number.isFinite(w) && w > 0 ? w : 2.5;
+  return (ww / 2) / Math.max(px, 1);
+}
+
+function getBoardPoint(event, taskNumber, surface = "board") {
+  const canvas = getDrawCanvasElement(taskNumber, surface);
+  if (!canvas) return null;
+  const rect = canvas.getBoundingClientRect();
+  if (!rect.width || !rect.height) return null;
+  let x = (event.clientX - rect.left) / rect.width;
+  let y = (event.clientY - rect.top) / rect.height;
+  x = Math.max(0, Math.min(1, x));
+  y = Math.max(0, Math.min(1, y));
+  return { x, y };
+}
+
+function pointToSegmentDistance(px, py, ax, ay, bx, by) {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const denom = (dx * dx + dy * dy) || 1e-9;
+  const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / denom));
+  const cx = ax + t * dx;
+  const cy = ay + t * dy;
+  return Math.hypot(px - cx, py - cy);
+}
+
+function clampNorm(v) {
+  return Math.max(0, Math.min(1, Number(v)));
+}
+
+function findStrokeIndexAtPoint(taskNumber, surface, p, canvasEl) {
+  const key = drawSurfaceKey(taskNumber, surface);
+  const st = drawStateByTask[key];
+  if (!st || !Array.isArray(st.strokes) || !st.strokes.length) return -1;
+  const canvas = canvasEl || getDrawCanvasElement(taskNumber, surface);
+  const slop = getMoveHitSlopNorm(canvas);
+  for (let i = st.strokes.length - 1; i >= 0; i -= 1) {
+    const s = st.strokes[i];
+    let hit = false;
+    if (s?.type === "text") {
+      const tx = Number(s.x || 0);
+      const ty = Number(s.y || 0);
+      hit = Math.hypot(p.x - tx, p.y - ty) <= Math.max(0.04, slop * 1.35);
+    } else if (Array.isArray(s?.points) && s.points.length >= 1) {
+      const halfW = strokeHalfWidthNorm(canvas, s.width);
+      const hitRadius = slop + halfW;
+      if (s.points.length === 1) {
+        const q = s.points[0];
+        hit = Math.hypot(p.x - Number(q.x || 0), p.y - Number(q.y || 0)) <= hitRadius;
+      } else {
+        for (let j = 1; j < s.points.length; j += 1) {
+          const a = s.points[j - 1];
+          const b = s.points[j];
+          const d = pointToSegmentDistance(
+            p.x, p.y,
+            Number(a.x || 0), Number(a.y || 0),
+            Number(b.x || 0), Number(b.y || 0)
+          );
+          if (d <= hitRadius) {
+            hit = true;
+            break;
+          }
+        }
+      }
+    }
+    if (hit) return i;
+  }
+  return -1;
+}
+
+function pointsCloseNorm(a, b, eps) {
+  return Math.hypot(Number(a.x) - Number(b.x), Number(a.y) - Number(b.y)) <= eps;
+}
+
+function strokeChainMetaForMove(s) {
+  if (!s || s.type === "text" || !Array.isArray(s.points) || s.points.length < 2) return null;
+  return {
+    from: s.from || "",
+    tool: s.tool || "pen",
+    start: s.points[0],
+    end: s.points[s.points.length - 1],
+  };
+}
+
+function chainableMoveStrokes(before, after, eps) {
+  const A = strokeChainMetaForMove(before);
+  const B = strokeChainMetaForMove(after);
+  if (!A || !B) return false;
+  if (A.from !== B.from || A.tool !== B.tool) return false;
+  return pointsCloseNorm(A.end, B.start, eps);
+}
+
+function chainEpsilonNorm(canvas) {
+  const r = canvas?.getBoundingClientRect?.();
+  const px = r && r.width && r.height ? Math.min(r.width, r.height) : 300;
+  return Math.min(0.045, Math.max(0.01, 12 / Math.max(px, 1)));
+}
+
+function findConnectedStrokeGroupIndices(taskNumber, surface, startIndex, canvasEl) {
+  const key = drawSurfaceKey(taskNumber, surface);
+  const st = drawStateByTask[key];
+  if (!st || !Array.isArray(st.strokes) || startIndex < 0 || startIndex >= st.strokes.length) {
+    return [startIndex];
+  }
+  const base = st.strokes[startIndex];
+  if (base?.type === "text") return [startIndex];
+  const canvas = canvasEl || getDrawCanvasElement(taskNumber, surface);
+  const eps = chainEpsilonNorm(canvas);
+  let lo = startIndex;
+  while (lo > 0 && chainableMoveStrokes(st.strokes[lo - 1], st.strokes[lo], eps)) lo -= 1;
+  let hi = startIndex;
+  while (hi < st.strokes.length - 1 && chainableMoveStrokes(st.strokes[hi], st.strokes[hi + 1], eps)) hi += 1;
+  const out = [];
+  for (let i = lo; i <= hi; i += 1) out.push(i);
+  return out.length ? out : [startIndex];
+}
+
+function applyStrokeDeltaToIndex(taskNumber, surface, index, dx, dy) {
+  const key = drawSurfaceKey(taskNumber, surface);
+  const s = drawStateByTask[key]?.strokes?.[index];
+  if (!s) return;
+  if (s.type === "text") {
+    s.x = clampNorm(Number(s.x) + dx);
+    s.y = clampNorm(Number(s.y) + dy);
+  } else if (Array.isArray(s.points)) {
+    s.points = s.points.map((pt) => ({
+      x: clampNorm(Number(pt.x) + dx),
+      y: clampNorm(Number(pt.y) + dy),
+    }));
+  }
+}
+
+function sendDrawTransformMessage(taskNumber, surface, index) {
+  const key = drawSurfaceKey(taskNumber, surface);
+  const s = drawStateByTask[key]?.strokes?.[index];
+  if (!s) return;
+  const base = { type: "draw_transform", task_number: Number(taskNumber), surface, stroke_index: index };
+  if (s.type === "text") {
+    send({ ...base, x: Number(s.x), y: Number(s.y) });
+  } else if (Array.isArray(s.points) && s.points.length) {
+    send({ ...base, points: s.points.map((pt) => ({ x: Number(pt.x), y: Number(pt.y) })) });
+  }
+}
+
+function sendDrawTransformMessagesForIndices(taskNumber, surface, indices) {
+  if (!indices || !indices.length) return;
+  for (const idx of indices) {
+    sendDrawTransformMessage(taskNumber, surface, idx);
+  }
+}
+
+function eraseStrokeAtPoint(taskNumber, surface, p, emit = true) {
+  const key = drawSurfaceKey(taskNumber, surface);
+  const st = drawStateByTask[key];
+  if (!st || !Array.isArray(st.strokes) || !st.strokes.length) return false;
+  const hitRadius = 0.02;
+  for (let i = st.strokes.length - 1; i >= 0; i -= 1) {
+    const s = st.strokes[i];
+    let hit = false;
+    if (s?.type === "text") {
+      const tx = Number(s.x || 0);
+      const ty = Number(s.y || 0);
+      hit = Math.hypot(p.x - tx, p.y - ty) <= 0.03;
+    } else if (Array.isArray(s?.points) && s.points.length >= 1) {
+      if (s.points.length === 1) {
+        const q = s.points[0];
+        hit = Math.hypot(p.x - Number(q.x || 0), p.y - Number(q.y || 0)) <= hitRadius;
+      } else {
+        for (let j = 1; j < s.points.length; j += 1) {
+          const a = s.points[j - 1];
+          const b = s.points[j];
+          const d = pointToSegmentDistance(
+            p.x, p.y,
+            Number(a.x || 0), Number(a.y || 0),
+            Number(b.x || 0), Number(b.y || 0)
+          );
+          if (d <= hitRadius) {
+            hit = true;
+            break;
+          }
+        }
+      }
+    }
+    if (!hit) continue;
+    st.strokes.splice(i, 1);
+    renderDrawingBoard(taskNumber, surface);
+    if (emit) {
+      send({
+        type: "draw_erase",
+        task_number: Number(taskNumber),
+        surface,
+        erase_index: i,
+      });
+    }
+    return true;
+  }
+  return false;
+}
+
+function getDrawPanLayer(taskNumber, surface = "board") {
+  if (surface !== "board") return null;
+  return document.getElementById(`draw-pan-layer-${taskNumber}`);
+}
+
+function resetDrawSurfacePan(taskNumber, surface = "board") {
+  if (surface !== "board") return;
+  const el = document.getElementById(`draw-pan-layer-${taskNumber}`);
+  if (!el) return;
+  el.dataset.panX = "0";
+  el.dataset.panY = "0";
+  el.style.transform = "";
+}
+
+function onDrawPointerLeave(event, taskNumber, surface = "board") {
+  if (event.target?.hasPointerCapture?.(event.pointerId)) return;
+  onDrawPointerUp(event, taskNumber, surface);
+}
+
+function onDrawPointerDown(event, taskNumber, surface = "board") {
+  if (drawMoveDragState && drawMoveDragState.pointerId === event.pointerId) return;
+  if (drawIsPointerDown && drawActivePointerId !== event.pointerId) return;
+  const p = getBoardPoint(event, taskNumber, surface);
+  if (!p) return;
+  const forcedEraser = isPenEraserEvent(event);
+  const tool = forcedEraser ? "eraser" : getDrawTool(taskNumber, surface);
+  emitDrawCursor(taskNumber, p, surface);
+  if (tool === "move") {
+    const canvas = getDrawCanvasElement(taskNumber, surface);
+    const idx = findStrokeIndexAtPoint(taskNumber, surface, p, canvas);
+    if (idx >= 0) {
+      const indices = findConnectedStrokeGroupIndices(taskNumber, surface, idx, canvas);
+      drawMoveDragState = {
+        kind: "stroke",
+        taskNumber: String(taskNumber),
+        surface,
+        indices,
+        pointerId: event.pointerId,
+        last: { ...p },
+      };
+      event.target.setPointerCapture?.(event.pointerId);
+      return;
+    }
+    const panLayer = surface === "board" ? getDrawPanLayer(taskNumber, surface) : null;
+    if (panLayer) {
+      drawMoveDragState = {
+        kind: "pan",
+        taskNumber: String(taskNumber),
+        surface,
+        pointerId: event.pointerId,
+        lastClientX: event.clientX,
+        lastClientY: event.clientY,
+        layer: panLayer,
+      };
+      event.target.setPointerCapture?.(event.pointerId);
+    }
+    return;
+  }
+  if (tool === "text") {
+    openDrawTextEditor(taskNumber, surface, p);
+    return;
+  }
+  if (tool === "eraser") {
+    drawIsPointerDown = true;
+    drawActivePointerId = event.pointerId;
+    eraseStrokeAtPoint(taskNumber, surface, p, true);
+    event.target.setPointerCapture?.(event.pointerId);
+    return;
+  }
+  drawIsPointerDown = true;
+  drawActivePointerId = event.pointerId;
+  const key = drawSurfaceKey(taskNumber, surface);
+  drawLastPointByTask[key] = p;
+  emitDrawCursor(taskNumber, p, surface);
+  event.target.setPointerCapture?.(event.pointerId);
+}
+
+function onDrawPointerMove(event, taskNumber, surface = "board") {
+  if (drawMoveDragState && event.pointerId === drawMoveDragState.pointerId) {
+    if (String(taskNumber) !== drawMoveDragState.taskNumber || surface !== drawMoveDragState.surface) return;
+    const m = drawMoveDragState;
+    if (m.kind === "pan") {
+      const dx = event.clientX - m.lastClientX;
+      const dy = event.clientY - m.lastClientY;
+      m.lastClientX = event.clientX;
+      m.lastClientY = event.clientY;
+      const tx = Number(m.layer.dataset.panX || 0) + dx;
+      const ty = Number(m.layer.dataset.panY || 0) + dy;
+      m.layer.dataset.panX = String(tx);
+      m.layer.dataset.panY = String(ty);
+      m.layer.style.transform = `translate(${tx}px, ${ty}px)`;
+      return;
+    }
+    const p = getBoardPoint(event, taskNumber, surface);
+    if (!p) return;
+    const dx = p.x - drawMoveDragState.last.x;
+    const dy = p.y - drawMoveDragState.last.y;
+    drawMoveDragState.last = { ...p };
+    for (const i of drawMoveDragState.indices) {
+      applyStrokeDeltaToIndex(taskNumber, surface, i, dx, dy);
+    }
+    renderDrawingBoard(taskNumber, surface);
+    emitDrawCursor(taskNumber, p, surface);
+    if (drawTransformThrottleTimer) clearTimeout(drawTransformThrottleTimer);
+    drawTransformThrottleTimer = setTimeout(() => {
+      drawTransformThrottleTimer = null;
+      const st = drawMoveDragState;
+      if (st && st.kind !== "pan" && String(taskNumber) === st.taskNumber && surface === st.surface) {
+        sendDrawTransformMessagesForIndices(taskNumber, surface, st.indices);
+      }
+    }, 90);
+    return;
+  }
+  if (drawActivePointerId != null && event.pointerId !== drawActivePointerId) return;
+  const p = getBoardPoint(event, taskNumber, surface);
+  if (!p) return;
+  emitDrawCursor(taskNumber, p, surface);
+  const forcedEraser = isPenEraserEvent(event);
+  const tool = forcedEraser ? "eraser" : getDrawTool(taskNumber, surface);
+  if (tool === "move" || tool === "text") return;
+  if (!drawIsPointerDown) return;
+  const key = drawSurfaceKey(taskNumber, surface);
+  const prev = drawLastPointByTask[key];
+  if (!prev) {
+    drawLastPointByTask[key] = p;
+    return;
+  }
+  drawLastPointByTask[key] = p;
+  if (tool === "eraser") {
+    eraseStrokeAtPoint(taskNumber, surface, p, true);
+    return;
+  }
+  const color = colorForName(MY_NAME);
+  const width = pressureWidth(event, 2.5, 0.65, 2.1);
+  if (!drawStateByTask[key]) drawStateByTask[key] = { strokes: [], cursors: {} };
+  drawStateByTask[key].strokes.push({ points: [prev, p], color, width, from: MY_NAME, surface, tool });
+  renderDrawingBoard(taskNumber, surface);
+  send({ type: "draw_stroke", task_number: Number(taskNumber), points: [prev, p], color, width, from: MY_NAME, surface, tool });
+}
+
+function onDrawPointerUp(event, taskNumber, surface = "board") {
+  if (drawMoveDragState && event.pointerId === drawMoveDragState.pointerId) {
+    if (String(taskNumber) === drawMoveDragState.taskNumber && surface === drawMoveDragState.surface) {
+      if (drawMoveDragState.kind !== "pan") {
+        if (drawTransformThrottleTimer) {
+          clearTimeout(drawTransformThrottleTimer);
+          drawTransformThrottleTimer = null;
+        }
+        sendDrawTransformMessagesForIndices(
+          drawMoveDragState.taskNumber,
+          drawMoveDragState.surface,
+          drawMoveDragState.indices
+        );
+      }
+    }
+    drawMoveDragState = null;
+    const p = getBoardPoint(event, taskNumber, surface);
+    if (p) emitDrawCursor(taskNumber, p, surface);
+    return;
+  }
+  if (drawActivePointerId != null && event.pointerId !== drawActivePointerId) return;
+  drawIsPointerDown = false;
+  drawActivePointerId = null;
+  drawLastPointByTask[drawSurfaceKey(taskNumber, surface)] = null;
+  const p = getBoardPoint(event, taskNumber, surface);
+  if (p) emitDrawCursor(taskNumber, p, surface);
+}
+
+function emitDrawCursor(taskNumber, p, surface = "board") {
+  const key = drawSurfaceKey(taskNumber, surface);
+  if (!drawStateByTask[key]) drawStateByTask[key] = { strokes: [], cursors: {} };
+  drawStateByTask[key].cursors[MY_NAME] = { x: p.x, y: p.y, color: colorForName(MY_NAME), ts: Date.now() };
+  renderDrawingOverlay(taskNumber, surface);
+  if (drawCursorTimer) clearTimeout(drawCursorTimer);
+  drawCursorTimer = setTimeout(() => {
+    send({ type: "draw_cursor", task_number: Number(taskNumber), x: p.x, y: p.y, color: colorForName(MY_NAME), from: MY_NAME, surface });
+  }, 24);
+}
+
+function renderDrawingBoard(taskNumber, surface = "board") {
+  const canvas = surface === "task"
+    ? document.getElementById(`draw-overlay-canvas-${taskNumber}`)
+    : document.getElementById(`draw-canvas-${taskNumber}`);
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  const rect = canvas.getBoundingClientRect();
+  ctx.clearRect(0, 0, rect.width, rect.height);
+  const st = drawStateByTask[drawSurfaceKey(taskNumber, surface)] || { strokes: [], cursors: {} };
+  for (const s of st.strokes || []) {
+    if (s.type === "text") {
+      ctx.save();
+      ctx.globalCompositeOperation = "source-over";
+      ctx.fillStyle = s.color || "#0f172a";
+      ctx.font = "700 15px Montserrat, sans-serif";
+      ctx.textBaseline = "top";
+      const tx = (Number(s.x || 0) * rect.width);
+      const ty = (Number(s.y || 0) * rect.height);
+      const lines = String(s.text || "").split("\n");
+      lines.forEach((line, i) => {
+        ctx.fillText(line, tx, ty + i * 18);
+      });
+      ctx.restore();
+      continue;
+    }
+    if (!Array.isArray(s.points) || s.points.length < 2) continue;
+    const isEraser = s.tool === "eraser";
+    ctx.save();
+    ctx.globalCompositeOperation = isEraser ? "destination-out" : "source-over";
+    ctx.strokeStyle = s.color || "#111827";
+    ctx.lineWidth = Number(s.width || (isEraser ? 16 : 2.5));
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    ctx.beginPath();
+    const p0 = s.points[0];
+    ctx.moveTo((p0.x || 0) * rect.width, (p0.y || 0) * rect.height);
+    for (let i = 1; i < s.points.length; i += 1) {
+      const p = s.points[i];
+      ctx.lineTo((p.x || 0) * rect.width, (p.y || 0) * rect.height);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+  renderDrawingOverlay(taskNumber, surface);
+  if (surface === "task") updateTaskOverlayPointerActive(taskNumber);
+}
+
+window.addEventListener("resize", () => {
+  scheduleDrawBoardsRelayout();
+});
+
+function renderDrawingOverlay(taskNumber, surface = "board") {
+  if (surface === "task") return;
+  const overlay = document.getElementById(`draw-overlay-${taskNumber}`);
+  const legend = document.getElementById(`draw-legend-${taskNumber}`);
+  const canvas = document.getElementById(`draw-canvas-${taskNumber}`);
+  if (!overlay || !canvas) return;
+  const rect = canvas.getBoundingClientRect();
+  const st = drawStateByTask[drawSurfaceKey(taskNumber, "board")] || { strokes: [], cursors: {} };
+  const now = Date.now();
+  const entries = Object.entries(st.cursors || {})
+    .filter(([, c]) => now - Number(c.ts || 0) < 30000);
+
+  overlay.innerHTML = entries.map(([name, c]) => {
+    const left = Math.round((Number(c.x || 0) * rect.width));
+    const top = Math.round((Number(c.y || 0) * rect.height));
+    const color = c.color || colorForName(name);
+    return `<div class="draw-cursor" style="left:${left}px;top:${top}px">
+      <span class="draw-cursor-dot" style="background:${color}"></span>
+      <span class="draw-cursor-name">${escapeHtml(name)}</span>
+    </div>`;
+  }).join("");
+
+  if (legend) {
+    legend.innerHTML = entries.map(([name, c]) =>
+      `<span class="task-draw-legend-item"><span class="task-draw-legend-swatch" style="background:${c.color || colorForName(name)}"></span>${escapeHtml(name)}</span>`
+    ).join("");
+  }
+}
+
+function refreshStudentScoreBadge() {
+  if (ROLE !== "student") return;
+  const el = document.getElementById("student-score-live");
+  if (!el) return;
+  const totals = getStudentTotal();
+  el.textContent = `Баллы: ${totals.current}/${totals.max}`;
+}
+
+function getStudentTotal() {
+  let current = 0;
+  let max = 0;
+  for (const [num, meta] of Object.entries(taskMetaByNumber || {})) {
+    const maxScore = Number(meta.max_score || 0);
+    max += maxScore > 0 ? maxScore : 0;
+    if (meta.is_part2) {
+      const s = myScoresByTask[num];
+      if (s) current += Number(s.score || 0);
+    } else {
+      const val = myAnswers[num];
+      if (evaluateAnswerState(num, val) === "correct") current += Math.max(1, maxScore || 1);
+    }
+  }
+  return { current, max };
+}
+
+function getTeacherStudentTotal(studentName) {
+  const answers = studentAnswers[studentName] || {};
+  const scores = teacherScoresByStudent[studentName] || {};
+  let current = 0;
+  let max = 0;
+  for (const [num, meta] of Object.entries(taskMetaByNumber || {})) {
+    const maxScore = Number(meta.max_score || 0);
+    max += maxScore > 0 ? maxScore : 0;
+    if (meta.is_part2) {
+      const s = scores[String(num)];
+      if (s) current += Number(s.score || 0);
+    } else {
+      if (evaluateAnswerState(num, answers[String(num)] || "") === "correct") {
+        current += Math.max(1, maxScore || 1);
+      }
+    }
+  }
+  return { current, max };
+}
+
+function normalizeAnswerVariants(rawAnswer) {
+  const cleaned = stripHtmlAndDecode(rawAnswer || "");
+  const split = cleaned
+    .split(/\s*;\s*|\s*\|\s*|\s+или\s+/i)
+    .map(normalizeAnswerText)
+    .filter(Boolean);
+  return Array.from(new Set(split));
+}
+
+function normalizeAnswerText(input) {
+  return stripHtmlAndDecode(input || "")
+    .toLowerCase()
+    .replace(/\s+/g, "")
+    .trim();
+}
+
+function stripHtmlAndDecode(str) {
+  const tmp = document.createElement("textarea");
+  tmp.innerHTML = String(str || "");
+  const decoded = tmp.value || tmp.textContent || "";
+  return decoded.replace(/<[^>]*>/g, " ").replace(/\u00a0/g, " ");
 }
 
 // ── UTILS ──
-function showToast(msg) {
+function showToast(msg, type = "info") {
   const t = document.getElementById("status-toast");
+  if (!t) return;
   t.textContent = msg;
+  t.classList.remove("success", "warning", "error", "info");
+  t.classList.add(type || "info");
   t.classList.add("show");
-  setTimeout(() => t.classList.remove("show"), 2800);
+  setTimeout(() => t.classList.remove("show"), 3800);
+}
+
+async function openSupportModal() {
+  const modal = document.getElementById("support-modal");
+  const body = document.getElementById("support-modal-body");
+  if (!modal || !body) return;
+  modal.classList.add("show");
+  if (!supportMeta.level || !supportMeta.subject) {
+    body.innerHTML = `<div class="waiting-state"><p>Сначала откройте вариант урока.</p></div>`;
+    return;
+  }
+  if (!supportItems.length) {
+    body.innerHTML = `<div class="waiting-state"><p>Загрузка материалов…</p></div>`;
+    try {
+      const resp = await fetch(`/api/${supportMeta.level}/${supportMeta.subject}/support-info/`, { credentials: "include" });
+      const data = resp.ok ? await resp.json() : { items: [] };
+      supportItems = Array.isArray(data.items) ? data.items : [];
+    } catch (_) {
+      supportItems = [];
+    }
+  }
+  renderSupportModalBody();
+}
+
+function closeSupportModal() {
+  const modal = document.getElementById("support-modal");
+  if (!modal) return;
+  modal.classList.remove("show");
+}
+
+async function renderSupportModalBody() {
+  const body = document.getElementById("support-modal-body");
+  if (!body) return;
+  if (!supportItems.length) {
+    body.innerHTML = `<div class="waiting-state"><p>Для этого предмета пока нет справочных материалов.</p></div>`;
+    return;
+  }
+  body.innerHTML = supportItems
+    .map((it) => `<div class="support-item">${String(it?.html || "")}</div>`)
+    .join("");
+  await typesetMath(body);
+}
+
+async function typesetMath(rootEl) {
+  if (!rootEl || !window.MathJax || typeof window.MathJax.typesetPromise !== "function") return;
+  try {
+    await window.MathJax.typesetPromise([rootEl]);
+  } catch (_) {}
+}
+
+function endLessonSession(reason) {
+  if (lessonEnded) return;
+  lessonEnded = true;
+  clearTimeout(reconnectTimer);
+  try {
+    if (ws && ws.readyState <= 1) ws.close();
+  } catch (_) {}
+
+  // Останавливаем встроенную видеосвязь (если была в iframe)
+  const iframe = document.querySelector("iframe.video-iframe");
+  if (iframe) iframe.src = "about:blank";
+
+  let text = ROLE === "teacher"
+    ? "Ученик вышел из урока. Урок завершён."
+    : "Учитель завершил урок. Урок завершён.";
+  if (reason === "manual_end") {
+    text = "Урок завершён.";
+  }
+  if (reason === "session_closed") {
+    text = "Урок завершён. Ссылка на эту комнату больше не действует.";
+  }
+  showToast(text, "warning");
+
+  setTimeout(() => {
+    const target = "{{ lk_public_url|escapejs }}";
+    if (target) {
+      window.location.href = target;
+    } else {
+      window.location.href = "/";
+    }
+  }, 1200);
+}
+
+async function terminateLessonManually() {
+  if (ROLE !== "teacher") return;
+  if (lessonEnded) return;
+  let closedOk = false;
+  try {
+    const r = await fetch("/api/lesson/session-close/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ token: LESSON_TOKEN, reason: "manual_end" }),
+    });
+    closedOk = r.ok;
+  } catch (_) {}
+  if (!closedOk) {
+    send({ type: "lesson_ended", reason: "manual_end", by_role: "teacher" });
+  }
+  setTimeout(() => endLessonSession("manual_end"), 120);
+}
+
+function reportLessonSessionCloseBeacon(reason) {
+  if (lessonEnded || !LESSON_TOKEN) return;
+  const url = `${location.origin}/api/lesson/session-close/`;
+  const body = JSON.stringify({ token: LESSON_TOKEN, reason: reason || "page_unload" });
+  try {
+    if (navigator.sendBeacon) {
+      const ok = navigator.sendBeacon(url, new Blob([body], { type: "application/json" }));
+      if (!ok) {
+        fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body,
+          keepalive: true,
+        }).catch(() => {});
+      }
+    } else {
+      fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+        keepalive: true,
+      }).catch(() => {});
+    }
+  } catch (_) {}
+}
+
+function reportLessonSessionCloseFetch(reason) {
+  if (lessonEnded || !LESSON_TOKEN) return;
+  fetch("/api/lesson/session-close/", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ token: LESSON_TOKEN, reason: reason || "client" }),
+  }).catch(() => {});
+}
+
+function onLessonVideoFrameMessage(event) {
+  if (lessonEnded || !LESSON_TOKEN) return;
+  if (typeof getLessonVideoGatePassed === "function" && !getLessonVideoGatePassed()) return;
+  const iframe = document.querySelector("iframe.video-iframe");
+  if (!iframe || event.source !== iframe.contentWindow) return;
+  const o = event.data;
+  if (!o || typeof o !== "object") return;
+  let name = null;
+  if (o.type === "event" && o.data && typeof o.data === "object") {
+    name = o.data.name || null;
+  }
+  if (!name && typeof o.event === "string") name = o.event;
+  if (name === "videoConferenceLeft" || name === "readyToClose") {
+    reportLessonSessionCloseFetch("video_hangup");
+  }
+}
+
+let lessonSessionCloseHooksBound = false;
+function initLessonSessionCloseHooks() {
+  if (lessonSessionCloseHooksBound) return;
+  lessonSessionCloseHooksBound = true;
+  window.addEventListener("pagehide", (ev) => {
+    if (ev.persisted) return;
+    if (lessonEnded || !LESSON_TOKEN) return;
+    if (typeof getLessonVideoGatePassed === "function" && !getLessonVideoGatePassed()) return;
+    reportLessonSessionCloseBeacon("page_unload");
+  });
+  window.addEventListener("message", onLessonVideoFrameMessage);
 }
 
 function getCookie(name) {
@@ -704,29 +3715,216 @@ function getCookie(name) {
   return v ? decodeURIComponent(v.trim().slice(name.length+1)) : "";
 }
 
+function scheduleTeacherInviteAfterGate() {
+  if (ROLE !== "teacher") return;
+  notifyTeacherJoinedOnce();
+  const iframe = document.querySelector("iframe.video-iframe");
+  if (!iframe || iframe.dataset.lessonInviteHook) return;
+  iframe.dataset.lessonInviteHook = "1";
+  iframe.addEventListener("load", () => {
+    notifyTeacherJoinedOnce();
+  }, { once: true });
+}
+
+async function notifyTeacherJoinedOnce() {
+  if (!getLessonVideoGatePassed()) return;
+  if (inviteSentAfterOpen || inviteSendInFlight || ROLE !== "teacher" || !LESSON_TOKEN) return;
+  inviteSendInFlight = true;
+  try {
+    const resp = await fetch("/api/lesson/teacher-joined/", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      credentials: "include",
+      body: JSON.stringify({token: LESSON_TOKEN, role: ROLE}),
+    });
+    if (resp.ok) {
+      inviteSentAfterOpen = true;
+    }
+  } catch (_) {
+    // ignore and retry below
+  } finally {
+    inviteSendInFlight = false;
+    if (!inviteSentAfterOpen && ROLE === "teacher" && !inviteRetryTimer) {
+      inviteRetryTimer = setTimeout(() => {
+        inviteRetryTimer = null;
+        notifyTeacherJoinedOnce();
+      }, 1500);
+    }
+  }
+}
+
 function escapeHtml(str) {
   return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
 }
 
-// ── INIT ──
-(function initLessonSubjectSelector() {
-  const selLevel = document.getElementById("sel-level");
-  const selSubject = document.getElementById("sel-subject");
-  if (!selLevel || !selSubject) return;
-  const optBase = selSubject.querySelector('option[value="math_base"]');
-  function sync() {
-    if (!optBase) return;
-    const isEge = selLevel.value === "ege";
-    optBase.disabled = !isEge;
-    if (!isEge && selSubject.value === "math_base") {
-      selSubject.value = "math";
+function escapeJsString(str) {
+  return String(str)
+    .replace(/\\/g, "\\\\")
+    .replace(/'/g, "\\'")
+    .replace(/\n/g, "\\n")
+    .replace(/\r/g, "\\r");
+}
+
+function isTaskDrawOverlayActive(taskNumber) {
+  const key = String(taskNumber);
+  if (getDrawTool(key, "task") !== "move") return true;
+  const dk = drawSurfaceKey(key, "task");
+  return ((drawStateByTask[dk]?.strokes || []).length > 0);
+}
+
+function updateTaskOverlayPointerActive(taskNumber) {
+  const key = String(taskNumber);
+  const canvas = document.getElementById(`draw-overlay-canvas-${key}`);
+  if (!canvas) return;
+  canvas.classList.toggle("active", isTaskDrawOverlayActive(key));
+}
+
+function getDrawTool(taskNumber, surface = "board") {
+  return drawToolBySurface[drawSurfaceKey(taskNumber, surface)] || "move";
+}
+
+function syncDrawSurfaceCursorClasses(taskNumber) {
+  const key = String(taskNumber);
+  const wrap = document.getElementById(`task-content-wrap-${key}`);
+  if (wrap) wrap.classList.toggle("task-surface-move", getDrawTool(key, "task") === "move");
+  const board = document.getElementById(`draw-board-${key}`);
+  if (board) board.classList.toggle("draw-surface-move", getDrawTool(key, "board") === "move");
+}
+
+function setDrawTool(taskNumber, surface = "board", tool = "pen") {
+  const key = drawSurfaceKey(taskNumber, surface);
+  const prevTool = drawToolBySurface[key];
+  closeDrawTextEditor(taskNumber, surface, false);
+  if (prevTool === "move" && tool !== "move") {
+    resetDrawSurfacePan(String(taskNumber), surface);
+  }
+  drawToolBySurface[key] = tool;
+  drawTextDraftBySurface[key] = drawTextDraftBySurface[key] || "";
+  const card = document.getElementById(`task-card-${taskNumber}`);
+  if (!card) return;
+  card.querySelectorAll(".task-draw-tool-btn").forEach((btn) => {
+    const onclick = btn.getAttribute("onclick") || "";
+    const isSameSurface = onclick.includes(`'${surface}'`);
+    if (!isSameSurface) return;
+    const isActive = onclick.includes(`'${tool}'`);
+    btn.classList.toggle("active", isActive);
+  });
+  syncDrawSurfaceCursorClasses(taskNumber);
+  if (surface === "task") updateTaskOverlayPointerActive(taskNumber);
+}
+
+function placeDrawText(taskNumber, surface, point, text) {
+  const key = drawSurfaceKey(taskNumber, surface);
+  drawTextDraftBySurface[key] = text;
+  if (!drawStateByTask[key]) drawStateByTask[key] = { strokes: [], cursors: {} };
+  const payload = {
+    type: "text",
+    text,
+    x: Number(point.x || 0),
+    y: Number(point.y || 0),
+    color: colorForName(MY_NAME),
+    from: MY_NAME,
+    surface,
+  };
+  drawStateByTask[key].strokes.push(payload);
+  renderDrawingBoard(taskNumber, surface);
+  send({
+    type: "draw_text",
+    task_number: Number(taskNumber),
+    text,
+    x: payload.x,
+    y: payload.y,
+    color: payload.color,
+    from: MY_NAME,
+    surface,
+  });
+}
+
+function getDrawHostElement(taskNumber, surface = "board") {
+  if (surface === "task") {
+    return document.getElementById(`task-content-wrap-${taskNumber}`);
+  }
+  return document.getElementById(`draw-pan-layer-${taskNumber}`) || document.getElementById(`draw-board-${taskNumber}`);
+}
+
+function closeDrawTextEditor(taskNumber, surface = "board", commit = false) {
+  const key = drawSurfaceKey(taskNumber, surface);
+  const editor = drawTextEditorBySurface[key];
+  if (!editor) return;
+  if (commit) {
+    const val = String(editor.value || "").trim();
+    if (val) {
+      const x = Number(editor.dataset.x || 0);
+      const y = Number(editor.dataset.y || 0);
+      placeDrawText(taskNumber, surface, { x, y }, val);
     }
   }
-  selLevel.addEventListener("change", sync);
-  sync();
-})();
+  if (editor.parentNode) editor.parentNode.removeChild(editor);
+  delete drawTextEditorBySurface[key];
+}
+
+function openDrawTextEditor(taskNumber, surface, p) {
+  const key = drawSurfaceKey(taskNumber, surface);
+  closeDrawTextEditor(taskNumber, surface, false);
+  const host = getDrawHostElement(taskNumber, surface);
+  if (!host) return;
+  const editor = document.createElement("textarea");
+  editor.className = "draw-text-editor";
+  editor.placeholder = "Введите текст...";
+  editor.value = drawTextDraftBySurface[key] || "";
+  editor.dataset.x = String(p.x);
+  editor.dataset.y = String(p.y);
+  editor.style.left = `${Math.round(p.x * 100)}%`;
+  editor.style.top = `${Math.round(p.y * 100)}%`;
+  editor.style.transform = "translate(0, 0)";
+  editor.onkeydown = (ev) => {
+    if (ev.key === "Escape") {
+      ev.preventDefault();
+      closeDrawTextEditor(taskNumber, surface, false);
+      return;
+    }
+    if (ev.key === "Enter" && !ev.shiftKey) {
+      ev.preventDefault();
+      closeDrawTextEditor(taskNumber, surface, true);
+    }
+  };
+  editor.onblur = () => closeDrawTextEditor(taskNumber, surface, true);
+  host.appendChild(editor);
+  drawTextEditorBySurface[key] = editor;
+  requestAnimationFrame(() => {
+    editor.focus();
+    editor.select();
+  });
+}
+
+document.addEventListener("click", (e) => {
+  const link = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+  if (!link) return;
+  if (ROLE !== "teacher") return;
+  if (!link.href) return;
+  const href = link.href.toLowerCase();
+  if (href.includes("meet.jit.si") || href.includes("/call/")) {
+    notifyTeacherJoinedOnce();
+  }
+});
+
+window.addEventListener("load", () => {
+  scheduleTeacherInviteAfterGate();
+  initLessonSessionCloseHooks();
+});
+
+// ── INIT ──
+document.getElementById("inp-variant-id")?.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    teacherGenerate();
+  }
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeSupportModal();
+});
 ensureCsrfCookie();
-connectWS();
+initLessonEntryGate();
 </script>
 </body>
 </html>

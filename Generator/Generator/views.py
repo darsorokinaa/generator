@@ -4,12 +4,14 @@ import logging
 import os
 import re
 from urllib.parse import quote
+from urllib import request as urlrequest, error as urlerror
 import secrets
 from datetime import datetime
 
 import jwt as pyjwt
 
 from django.conf import settings as django_settings
+from django.core.signing import BadSignature, Signer
 from django.db.models import Case, Count, IntegerField, Prefetch, Q, Value, When
 from django.http import (
     FileResponse,
@@ -20,9 +22,15 @@ from django.http import (
 )
 from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
+from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
-from weasyprint import HTML as WeasyHTML
+try:
+    from weasyprint import HTML as WeasyHTML
+    _WEASYPRINT_OK = True
+except Exception:
+    WeasyHTML = None  # type: ignore[assignment,misc]
+    _WEASYPRINT_OK = False
 
 from .models import (
     Announcement,
@@ -846,6 +854,70 @@ def api_csrf(request):
     return JsonResponse({"detail": "CSRF cookie set"})
 
 
+LK_NAV_COOKIE_NAME = "lk_nav_gate"
+LK_NAV_SIGNER_SALT = "lk_nav_gate_v1"
+
+
+def _lk_nav_signer():
+    return Signer(salt=LK_NAV_SIGNER_SALT)
+
+
+def lk_nav_cookie_is_valid(request) -> bool:
+    raw = (request.COOKIES.get(LK_NAV_COOKIE_NAME) or "").strip()
+    if not raw:
+        return False
+    try:
+        return _lk_nav_signer().unsign(raw) == "1"
+    except BadSignature:
+        return False
+
+
+def lk_nav_password_configured() -> bool:
+    return bool((getattr(django_settings, "LK_NAVIGATION_PASSWORD", "") or "").strip())
+
+
+@require_http_methods(["GET"])
+def api_site_config(request):
+    """Публичные настройки для SPA: URL личного кабинета (не хардкодить в бандле VITE_)."""
+    lk = getattr(django_settings, "LK_PUBLIC_URL", "https://lk.genurok.tw1.ru").rstrip("/")
+    pwd_required = lk_nav_password_configured()
+    return JsonResponse(
+        {
+            "lk_public_url": lk,
+            "lk_nav_password_required": pwd_required,
+            "lk_nav_unlocked": (not pwd_required) or lk_nav_cookie_is_valid(request),
+        }
+    )
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_lk_nav_unlock(request):
+    """Проверка пароля для перехода в ЛК; при успехе — подписанная cookie на несколько дней."""
+    expected = (getattr(django_settings, "LK_NAVIGATION_PASSWORD", "") or "").strip()
+    if not expected:
+        return JsonResponse({"ok": True, "unlocked": True})
+    try:
+        data = json.loads(request.body or b"{}")
+    except (json.JSONDecodeError, TypeError):
+        return JsonResponse({"ok": False, "error": "invalid json"}, status=400)
+    pwd = str((data or {}).get("password") or "")
+    if pwd != expected:
+        return JsonResponse({"ok": False, "error": "Неверный пароль"}, status=403)
+    max_age = int(getattr(django_settings, "LK_NAV_COOKIE_MAX_AGE", 604800))
+    response = JsonResponse({"ok": True, "unlocked": True})
+    response.set_cookie(
+        LK_NAV_COOKIE_NAME,
+        _lk_nav_signer().sign("1"),
+        max_age=max_age,
+        httponly=True,
+        samesite="Lax",
+        secure=request.is_secure(),
+        path="/",
+    )
+    return response
+
+
 def api_tasks(request, level, subject):
     if _is_spa_lesson_join_path(level, subject):
         return JsonResponse({"subject_name": "", "tasks": []})
@@ -1204,9 +1276,8 @@ def api_criteria(request, level, subject):
     return JsonResponse({"criteria": criteria_list, "max_score": max_score})
 
 
-def api_variant_detail(request, level, subject, variant_id):
-    variant = get_object_or_404(Variant.objects.select_related('level', 'var_subject'), id=variant_id)
-
+def _variant_detail_payload(request, variant):
+    """Единая сборка JSON варианта для API (по id)."""
     contents = (
         VariantContent.objects
         .filter(variant=variant)
@@ -1227,12 +1298,10 @@ def api_variant_detail(request, level, subject, variant_id):
             except Exception:
                 pass
             if not file_url and f.name:
-                # Fallback: build URL from file name (when .url fails)
                 media_url = getattr(django_settings, "MEDIA_URL", "/media/") or "/media/"
                 rel = (media_url.rstrip("/") + "/" + f.name.lstrip("/")).replace("//", "/")
                 file_url = request.build_absolute_uri(rel)
 
-        # Приоритет: TaskList.max_score (задаёт слот задания), иначе Task.max_score
         if task_list:
             max_score = getattr(task_list, "max_score", 1)
         else:
@@ -1257,12 +1326,30 @@ def api_variant_detail(request, level, subject, variant_id):
             "max_score": max_score,
         })
 
-    return JsonResponse({
+    return {
         "id": variant.id,
         "level": variant.level.level,
         "subject": variant.var_subject.subject_short,
         "tasks": tasks_data,
-    })
+    }
+
+
+def api_variant_detail(request, level, subject, variant_id):
+    variant = get_object_or_404(Variant.objects.select_related('level', 'var_subject'), id=variant_id)
+    return JsonResponse(_variant_detail_payload(request, variant))
+
+
+@require_http_methods(["GET"])
+def api_lesson_variant_detail(request, variant_id):
+    """Вариант для урока: всегда по /api, без зависимости от роутинга SPA."""
+    variant = get_object_or_404(Variant.objects.select_related("level", "var_subject"), id=variant_id)
+    return JsonResponse(_variant_detail_payload(request, variant))
+
+
+@require_http_methods(["GET"])
+def variant_detail_short_url(request, level, subject, variant_id):
+    """Короткий URL без /api для получения JSON варианта в уроке и внешних интеграциях."""
+    return api_variant_detail(request, level, subject, variant_id)
 
 
 @require_http_methods(["GET"])
@@ -1505,6 +1592,9 @@ def report_pdf(request, level, subject):
     html_string = render_to_string("report_template.html", context)
     base_url = request.build_absolute_uri("/")
 
+    if not _WEASYPRINT_OK:
+        return HttpResponse("PDF недоступен: WeasyPrint не установлен", status=503, content_type="text/plain; charset=utf-8")
+
     try:
         pdf = WeasyHTML(string=html_string, base_url=base_url).write_pdf()
     except Exception as e:
@@ -1543,6 +1633,9 @@ def _render_variant_pdf(request, level, subject, variant_id, background_url="", 
 
     html_string = render_to_string("pdf_template.html", context)
     base_url = request.build_absolute_uri('/')
+
+    if not _WEASYPRINT_OK:
+        return HttpResponse("PDF недоступен: WeasyPrint не установлен", status=503, content_type="text/plain; charset=utf-8")
 
     try:
         pdf = WeasyHTML(string=html_string, base_url=base_url).write_pdf()
@@ -1731,9 +1824,112 @@ def _persist_lesson_room(room_id: str, payload: dict) -> None:
     if not rid:
         return
     try:
-        LessonRoom.objects.update_or_create(room_id=rid, defaults={"jwt_payload": dict(payload or {})})
+        current_payload = (
+            LessonRoom.objects.filter(room_id=rid)
+            .values_list("jwt_payload", flat=True)
+            .first()
+        )
+        merged_payload = dict(payload or {})
+        if isinstance(current_payload, dict):
+            for key, value in current_payload.items():
+                if str(key).startswith("_lesson_"):
+                    merged_payload[key] = value
+        LessonRoom.objects.update_or_create(
+            room_id=rid,
+            defaults={"jwt_payload": merged_payload},
+        )
     except Exception:
         logger.exception("Не удалось сохранить LessonRoom для %s", rid)
+
+
+def _is_lesson_session_closed(room_id: str) -> bool:
+    rid = str(room_id or "").strip()[:200]
+    if not rid:
+        return False
+    try:
+        return LessonRoom.objects.filter(room_id=rid, lesson_ended_at__isnull=False).exists()
+    except Exception:
+        logger.exception("LessonRoom closed check failed for %s", rid)
+        return False
+
+
+def mark_lesson_session_closed(room_id: str) -> bool:
+    """
+    Помечает комнату завершённой. Возвращает True, если закрытие выполнено впервые
+    (нужно уведомить остальных по WebSocket).
+    """
+    rid = str(room_id or "").strip()[:200]
+    if not rid:
+        return False
+    try:
+        now = timezone.now()
+        room = LessonRoom.objects.filter(room_id=rid).first()
+        if room and room.lesson_ended_at:
+            return False
+        if room:
+            room.lesson_ended_at = now
+            room.save(update_fields=["lesson_ended_at", "updated_at"])
+            return True
+        LessonRoom.objects.create(room_id=rid, jwt_payload={}, lesson_ended_at=now)
+        return True
+    except Exception:
+        logger.exception("Не удалось пометить LessonRoom завершённой: %s", rid)
+        return False
+
+
+def _broadcast_lesson_session_closed(room_id: str) -> None:
+    try:
+        from asgiref.sync import async_to_sync
+        from channels.layers import get_channel_layer
+
+        channel_layer = get_channel_layer()
+        if not channel_layer:
+            return
+        rid = str(room_id or "").strip()
+        if not rid:
+            return
+        async_to_sync(channel_layer.group_send)(
+            f"lesson_{rid}",
+            {
+                "type": "lesson_message",
+                "payload": {
+                    "type": "lesson_ended",
+                    "reason": "session_closed",
+                    "by_role": "server",
+                },
+            },
+        )
+    except Exception:
+        logger.exception("WS broadcast session_closed failed for %s", room_id)
+
+
+def notify_lk_teacher_joined(token: str) -> bool:
+    """
+    Сообщает ЛК, что учитель реально вошёл в урок.
+    ЛК после этого отправляет приглашение ученику по личному WS-каналу.
+    """
+    endpoint = (getattr(django_settings, "LK_LESSON_NOTIFY_URL", "") or "").strip()
+    if not endpoint:
+        lk_base = (getattr(django_settings, "LK_PUBLIC_URL", "") or "").rstrip("/")
+        if lk_base:
+            endpoint = f"{lk_base}/api/lesson/teacher-joined/"
+    if not endpoint and bool(getattr(django_settings, "DEBUG", False)):
+        endpoint = "http://127.0.0.1:8001/api/lesson/teacher-joined/"
+    if not endpoint:
+        return False
+    body = json.dumps({"token": token}).encode("utf-8")
+    req = urlrequest.Request(
+        endpoint,
+        data=body,
+        method="POST",
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        with urlrequest.urlopen(req, timeout=2.5):
+            return True
+    except (urlerror.URLError, TimeoutError, ValueError):
+        logger.warning("Не удалось уведомить ЛК о входе учителя: %s", endpoint)
+        return False
 
 
 def verify_lesson_token(token: str) -> dict:
@@ -1785,6 +1981,19 @@ def normalize_lesson_jwt_payload(payload: dict) -> dict:
         or payload.get("name")
         or ""
     )
+    group_name = (
+        payload.get("group_name")
+        or payload.get("groupName")
+        or payload.get("class_name")
+        or payload.get("className")
+        or payload.get("stream_name")
+        or payload.get("streamName")
+        or payload.get("cohort_name")
+        or payload.get("cohortName")
+        or payload.get("lesson_group_name")
+        or payload.get("lessonGroupName")
+        or ""
+    )
     raw_role = (
         payload.get("type")
         or payload.get("role")
@@ -1815,6 +2024,7 @@ def normalize_lesson_jwt_payload(payload: dict) -> dict:
 
     teacher = str(teacher).strip() or "Учитель"
     target = str(target).strip()
+    group_name = str(group_name).strip()
     if lesson_type == "student":
         participant_name = target or "Ученик"
     else:
@@ -1823,9 +2033,30 @@ def normalize_lesson_jwt_payload(payload: dict) -> dict:
         "room_id": str(room).strip(),
         "teacher_name": teacher,
         "target_name": target,
+        "lesson_group_name": group_name,
         "lesson_type": lesson_type,
         "participant_name": participant_name,
     }
+
+
+def _apply_lesson_video_collapsed_ui(normalized: dict) -> None:
+    """Текст в свёрнутой колонке видео: группа, имя ученика или (для ученика) имя учителя — не номер варианта."""
+    g = (normalized.get("lesson_group_name") or "").strip()
+    t = (normalized.get("target_name") or "").strip()
+    teacher = (normalized.get("teacher_name") or "").strip()
+    role = normalized.get("lesson_type")
+    if g:
+        normalized["lesson_video_collapsed_label"] = g
+        normalized["lesson_video_collapsed_hint"] = "Группа"
+    elif t:
+        normalized["lesson_video_collapsed_label"] = t
+        normalized["lesson_video_collapsed_hint"] = "Ученик" if role == "teacher" else ""
+    elif role == "student" and teacher:
+        normalized["lesson_video_collapsed_label"] = teacher
+        normalized["lesson_video_collapsed_hint"] = "Учитель"
+    else:
+        normalized["lesson_video_collapsed_label"] = ""
+        normalized["lesson_video_collapsed_hint"] = ""
 
 
 def _lesson_first_url(*candidates) -> str:
@@ -1838,27 +2069,43 @@ def _lesson_first_url(*candidates) -> str:
     return ""
 
 
-def lesson_video_context_from_jwt(payload: dict) -> dict:
+def lesson_video_context_from_jwt(payload: dict, lesson_type: str = "teacher") -> dict:
     """
     Ссылка на видеозвонок из ЛК (JWT). В iframe только https (или localhost) — иначе только внешняя ссылка.
+    lesson_type: 'teacher' или 'student' — выбирает нужный URL из payload.
     """
     p = payload or {}
+
+    # Чистый Jitsi-поток: берём role-specific URL, затем fallback на общий video_url.
+    if lesson_type == "teacher":
+        role_url = _lesson_first_url(
+            p.get("teacher_video_url"),
+            p.get("teacherVideoUrl"),
+            p.get("video_url"),
+            p.get("videoUrl"),
+        )
+    else:
+        role_url = _lesson_first_url(
+            p.get("student_video_url"),
+            p.get("studentVideoUrl"),
+            p.get("video_url"),
+            p.get("videoUrl"),
+        )
+
     direct = _lesson_first_url(
-        p.get("video_url"),
-        p.get("videoUrl"),
-        p.get("meeting_url"),
-        p.get("meetingUrl"),
-        p.get("call_url"),
-        p.get("callUrl"),
-        p.get("jitsi_url"),
-        p.get("jitsiUrl"),
+        role_url,
+        p.get("jitsi_url"), p.get("jitsiUrl"),
     )
-    jitsi_room = _lesson_first_url(p.get("jitsi_room"), p.get("jitsiRoom"))
-    if not direct and jitsi_room:
-        slug = jitsi_room.strip()
+    role_jitsi_room = _lesson_first_url(
+        p.get("teacher_jitsi_room") if lesson_type == "teacher" else p.get("student_jitsi_room"),
+        p.get("teacherJitsiRoom") if lesson_type == "teacher" else p.get("studentJitsiRoom"),
+        p.get("jitsi_room"),
+        p.get("jitsiRoom"),
+    )
+    if not direct and role_jitsi_room:
+        slug = role_jitsi_room.strip()
         if slug:
             direct = "https://meet.jit.si/" + quote(slug, safe="")
-
     embed_url = ""
     link_url = ""
     if direct:
@@ -1887,22 +2134,92 @@ def api_lesson_verify(request):
         normalized = normalize_lesson_jwt_payload(payload)
     except ValueError as e:
         return JsonResponse({"ok": False, "error": str(e)}, status=401)
+    if _is_lesson_session_closed(normalized["room_id"]):
+        return JsonResponse(
+            {
+                "ok": False,
+                "error": "Урок уже завершён. Запросите новую ссылку в личном кабинете.",
+            },
+            status=403,
+        )
     _persist_lesson_room(normalized["room_id"], payload)
-    video = lesson_video_context_from_jwt(payload)
+    video = lesson_video_context_from_jwt(payload, lesson_type=normalized.get("lesson_type", "teacher"))
+    _apply_lesson_video_collapsed_ui(normalized)
     return JsonResponse(
         {
             "ok": True,
             "room_id": normalized["room_id"],
             "teacher": normalized["teacher_name"],
             "target_name": normalized["target_name"],
+            "group_name": normalized.get("lesson_group_name") or "",
             "lesson_type": normalized["lesson_type"],
             "participant_name": normalized["participant_name"],
+            "video_collapsed_label": normalized.get("lesson_video_collapsed_label") or "",
+            "video_collapsed_hint": normalized.get("lesson_video_collapsed_hint") or "",
             "teacher_id": payload.get("teacher_id") or payload.get("teacherId"),
             "target_id": payload.get("target_id") or payload.get("targetId"),
             "video_embed_url": video["lesson_video_embed_url"],
             "video_link_url": video["lesson_video_link_url"],
         }
     )
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_lesson_teacher_joined(request):
+    """
+    Явный сигнал от страницы урока, что учитель открыл видеозвонок.
+    После этого ЛК отправляет приглашение ученику.
+    """
+    try:
+        data = json.loads(request.body or b"{}")
+    except (json.JSONDecodeError, TypeError):
+        return JsonResponse({"ok": False, "error": "invalid json"}, status=400)
+    token = str((data or {}).get("token") or "").strip()
+    role_override = str((data or {}).get("role") or "").strip().lower()
+    if not token:
+        return JsonResponse({"ok": False, "error": "token required"}, status=400)
+    try:
+        payload = verify_lesson_token(token)
+        normalized = normalize_lesson_jwt_payload(payload)
+    except ValueError as e:
+        return JsonResponse({"ok": False, "error": str(e)}, status=401)
+    if role_override in ("teacher", "tutor"):
+        normalized["lesson_type"] = "teacher"
+    elif role_override in ("student", "pupil"):
+        normalized["lesson_type"] = "student"
+    if normalized.get("lesson_type") != "teacher":
+        return JsonResponse({"ok": False, "error": "teacher token required"}, status=400)
+    delivered = notify_lk_teacher_joined(token)
+    if not delivered:
+        return JsonResponse({"ok": False, "error": "notify failed"}, status=502)
+    return JsonResponse({"ok": True})
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_lesson_session_close(request):
+    """
+    Завершение сессии урока: после вызова повторный вход в ту же комнату по JWT запрещён.
+    Вызывается со страницы урока (закрытие вкладки, выход из Jitsi, кнопка «Завершить урок»).
+    """
+    try:
+        data = json.loads(request.body or b"{}")
+    except (json.JSONDecodeError, TypeError):
+        return JsonResponse({"ok": False, "error": "invalid json"}, status=400)
+    token = str((data or {}).get("token") or "").strip()
+    if not token:
+        return JsonResponse({"ok": False, "error": "token required"}, status=400)
+    try:
+        payload = verify_lesson_token(token)
+        normalized = normalize_lesson_jwt_payload(payload)
+    except ValueError as e:
+        return JsonResponse({"ok": False, "error": str(e)}, status=401)
+    room_id = normalized["room_id"]
+    first_close = mark_lesson_session_closed(room_id)
+    if first_close:
+        _broadcast_lesson_session_closed(room_id)
+    return JsonResponse({"ok": True, "closed": True})
 
 
 def lesson_join_redirect(request):
@@ -1919,9 +2236,31 @@ def lesson_join(request):
     try:
         payload = verify_lesson_token(token)
         normalized = normalize_lesson_jwt_payload(payload)
-        normalized.update(lesson_video_context_from_jwt(payload))
+        # ?role= в URL переопределяет роль из JWT (учитель и ученик открывают разные ссылки)
+        role_override = request.GET.get("role", "").strip().lower()
+        if role_override in ("teacher", "tutor"):
+            normalized["lesson_type"] = "teacher"
+            normalized["participant_name"] = normalized["teacher_name"]
+        elif role_override in ("student", "pupil"):
+            normalized["lesson_type"] = "student"
+            normalized["participant_name"] = normalized["target_name"] or "Ученик"
+        normalized.update(lesson_video_context_from_jwt(payload, lesson_type=normalized.get("lesson_type", "teacher")))
+        _apply_lesson_video_collapsed_ui(normalized)
     except ValueError as e:
         return HttpResponseBadRequest(str(e))
 
+    if _is_lesson_session_closed(normalized["room_id"]):
+        return HttpResponseBadRequest(
+            "Урок уже завершён. Ссылка из личного кабинета больше не открывает эту комнату."
+        )
+
     _persist_lesson_room(normalized["room_id"], payload)
+    normalized["lesson_token"] = token
+    normalized["lk_public_url"] = getattr(
+        django_settings, "LK_PUBLIC_URL", "https://lk.genurok.tw1.ru"
+    ).rstrip("/")
+    normalized["lk_nav_password_required"] = lk_nav_password_configured()
+    normalized["lk_nav_unlocked"] = (not normalized["lk_nav_password_required"]) or lk_nav_cookie_is_valid(
+        request
+    )
     return render(request, "lesson_room.html", normalized)

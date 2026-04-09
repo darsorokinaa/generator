@@ -435,6 +435,18 @@ function ExamPage() {
     const geomRef = { current: { vw: 1, vh: 1, dpr: 1 } };
     const PEN_WIDTH = 3;
     const POINT_STEP = 2;
+    function pressureWidth(ev, base, minK = 0.7, maxK = 2.2) {
+      const p = Number(ev?.pressure);
+      if (!Number.isFinite(p) || p <= 0) return base;
+      const k = Math.max(minK, Math.min(maxK, minK + p * (maxK - minK)));
+      return base * k;
+    }
+    function isPenEraserEvent(ev) {
+      if (!ev || ev.pointerType !== "pen") return false;
+      const b = Number(ev.buttons || 0);
+      const btn = Number(ev.button || 0);
+      return b === 32 || btn === 5;
+    }
 
     let rafId2 = null;
     let scrollRaf = null;
@@ -518,6 +530,10 @@ function ExamPage() {
           }
         }
         line.points.push({ x: pos.x, y: pos.y });
+      }
+      const lastEv = samples[samples.length - 1];
+      if (lastEv) {
+        line.width = pressureWidth(lastEv, PEN_WIDTH, 0.65, 2.2);
       }
     }
 
@@ -668,6 +684,16 @@ function ExamPage() {
     }
 
     function onPointerDown(e) {
+      // Кнопка-ластик на стилусе (например, Wacom/Apple Pencil 2 side switch)
+      if (isPenEraserEvent(e)) {
+        e.preventDefault();
+        canvas.setPointerCapture(e.pointerId);
+        erasingRef.current = true;
+        drawingRef.current = false;
+        eraseAt(getPos(e).x, getPos(e).y);
+        setCanvasTouchAction();
+        return;
+      }
       if (e.pointerType === "touch") {
         touchScrollGuard = {
           pointerId: e.pointerId,
@@ -685,6 +711,12 @@ function ExamPage() {
     }
 
     function onPointerMove(e) {
+      if (isPenEraserEvent(e) && !erasingRef.current) {
+        erasingRef.current = true;
+        drawingRef.current = false;
+        currentLineRef.current = null;
+        currentShapeRef.current = null;
+      }
       if (touchScrollGuard && e.pointerId === touchScrollGuard.pointerId) {
         const d = Math.hypot(
           e.clientX - touchScrollGuard.startX,
