@@ -108,7 +108,7 @@ DATABASES = {
         'ENGINE':   'django.db.backends.postgresql',
         'NAME':     os.environ.get('DB_NAME', 'lk_cabinet'),
         'USER':     os.environ.get('DB_USER', 'lk_user'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', 'StrongPass123lk'),
+        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
         'HOST':     os.environ.get('DB_HOST', 'localhost'),
         'PORT':     os.environ.get('DB_PORT', '5432'),
     }
@@ -150,6 +150,9 @@ USE_TZ = True
 # Ведущий слэш обязателен: иначе в /admin/ браузер запрашивает /admin/static/... и стили не находятся
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Отдаём статику через finders (admin, DRF, STATICFILES_DIRS), даже если collectstatic не заполнял STATIC_ROOT
+WHITENOISE_USE_FINDERS = True
 
 # React build — Django отдаёт его в проде
 REACT_BUILD_DIR = BASE_DIR.parent / 'frontend' / 'build'
