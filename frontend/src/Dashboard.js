@@ -5,7 +5,8 @@ import HomeworkPage from './HomeworkPage';
 import StudentProfilePage from './StudentProfilePage';
 import API from './api';
 
-const GENURОК_URL = 'https://genurok.tw1.ru';
+// В разработке ссылка ведёт на локальный генератор; в проде — на переменную окружения
+const GENURОК_URL = (process.env.REACT_APP_GENERATOR_URL || 'https://genurok.tw1.ru').replace(/\/$/, '');
 
 function getCookie(name) {
   const value = `; ${document.cookie}`;
@@ -181,8 +182,13 @@ export default function Dashboard() {
   const [lessonModalOpen, setLessonModalOpen] = useState(false);
   const [lessonTarget, setLessonTarget] = useState('student');
   const [groups, setGroups] = useState([]);
-  // { roomId, targetName, type, tab } — tab = ссылка на открытую вкладку урока
   const [call, setCall] = useState(null);
+  // Входящий звонок от учителя { teacher, studentUrl, lessonType }
+  const [incomingLesson, setIncomingLesson] = useState(null);
+  const notifyWsRef = useRef(null);
+  const incomingAudioRef = useRef(null);
+  const incomingRingTimerRef = useRef(null);
+  const audioUnlockedRef = useRef(false);
   const today = new Date();
   const [calYear, setCalYear] = useState(today.getFullYear());
   const [calMonth, setCalMonth] = useState(today.getMonth());
@@ -235,12 +241,114 @@ export default function Dashboard() {
       });
   }, []);
 
+  // Личный WS-канал уведомлений — для входящих уроков
   useEffect(() => {
-    fetch(`${API}/api/subject/`, { credentials: 'include' })
-      .then(r => r.json())
-      .then(data => setUser(data))
-      .catch(() => {});
+    const wsBase = API.replace(/^http/, 'ws');
+    const ws = new WebSocket(`${wsBase}/ws/notify/`);
+    notifyWsRef.current = ws;
+    ws.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data);
+        if (msg.event === 'incoming_lesson') {
+          setIncomingLesson(msg);
+        }
+      } catch {}
+    };
+    ws.onerror = () => {};
+    return () => ws.close();
   }, []);
+
+  // Fallback: если WS-сообщение потерялось, подтягиваем pending invite из API.
+  useEffect(() => {
+    let stopped = false;
+    const poll = () => {
+      fetch(`${API}/api/lesson/pending/`, { credentials: 'include' })
+        .then(r => (r.ok ? r.json() : null))
+        .then(data => {
+          if (stopped) return;
+          if (data?.invite?.event === 'incoming_lesson') {
+            setIncomingLesson(data.invite);
+          }
+        })
+        .catch(() => {});
+    };
+    poll();
+    const timer = setInterval(poll, 3000);
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+    };
+  }, []);
+
+  // Разблокировка аудио после первого пользовательского жеста
+  useEffect(() => {
+    const unlockAudio = () => {
+      if (audioUnlockedRef.current) return;
+      if (!incomingAudioRef.current) {
+        incomingAudioRef.current = new Audio('/sounds/incomingMessage.mp3');
+        incomingAudioRef.current.preload = 'auto';
+      }
+      const a = incomingAudioRef.current;
+      a.muted = true;
+      a.play()
+        .then(() => {
+          a.pause();
+          a.currentTime = 0;
+          a.muted = false;
+          audioUnlockedRef.current = true;
+        })
+        .catch(() => {
+          a.muted = false;
+        });
+    };
+
+    window.addEventListener('pointerdown', unlockAudio, { passive: true });
+    window.addEventListener('keydown', unlockAudio);
+
+    return () => {
+      window.removeEventListener('pointerdown', unlockAudio);
+      window.removeEventListener('keydown', unlockAudio);
+    };
+  }, []);
+
+  // Звук входящего урока (повторяем, пока окно приглашения открыто)
+  useEffect(() => {
+    const stopRing = () => {
+      if (incomingRingTimerRef.current) {
+        clearInterval(incomingRingTimerRef.current);
+        incomingRingTimerRef.current = null;
+      }
+      if (incomingAudioRef.current) {
+        incomingAudioRef.current.pause();
+        incomingAudioRef.current.currentTime = 0;
+      }
+    };
+
+    if (!incomingLesson) {
+      stopRing();
+      return;
+    }
+
+    if (!incomingAudioRef.current) {
+      incomingAudioRef.current = new Audio('/sounds/incomingMessage.mp3');
+      incomingAudioRef.current.preload = 'auto';
+    }
+
+    const playRing = () => {
+      const a = incomingAudioRef.current;
+      if (!a) return;
+      a.currentTime = 0;
+      a.play().catch(() => {});
+    };
+
+    playRing();
+    stopRing();
+    incomingRingTimerRef.current = setInterval(playRing, 3000);
+
+    return () => {
+      stopRing();
+    };
+  }, [incomingLesson]);
 
   const filtered = students.filter(s => {
     const byLevel = levelFilter === 'all' || s.level_name === levelFilter;
@@ -403,7 +511,7 @@ export default function Dashboard() {
                     className="welcome-link welcome-link--active"
                     onClick={() => call.tab && !call.tab.closed
                       ? call.tab.focus()
-                      : window.open(`${GENURОК_URL}`, '_blank', 'noopener,noreferrer')
+                      : window.open(call.url || GENURОК_URL, '_blank', 'noopener,noreferrer')
                     }
                   >
                     <span style={{
@@ -417,6 +525,19 @@ export default function Dashboard() {
                       <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
                     </svg>
                   </button>
+                  {/* Ссылка для ученика */}
+                  {call.studentUrl && (
+                    <button
+                      className="welcome-link"
+                      style={{ background: 'rgba(99,179,237,.12)', border: '1.5px solid rgba(99,179,237,.3)', color: '#93C5FD' }}
+                      onClick={() => {
+                        navigator.clipboard.writeText(call.studentUrl);
+                      }}
+                      title={call.studentUrl}
+                    >
+                      📋 Ссылка ученику
+                    </button>
+                  )}
                   {/* Завершить урок */}
                   <button
                     className="welcome-link"
@@ -618,12 +739,12 @@ export default function Dashboard() {
                 </svg>
                 <span className="notif-dot" />
               </button>
-              <a href="http://localhost:8000/settings/" className="icon-btn" title="Настройки">
+              <a href={`${API}/settings/`} className="icon-btn" title="Настройки">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
                 </svg>
               </a>
-              <a href="http://localhost:8000/logout/" className="icon-btn icon-btn--logout" title="Выйти">
+              <a href={`${API}/logout/`} className="icon-btn icon-btn--logout" title="Выйти">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
                 </svg>
@@ -767,8 +888,11 @@ export default function Dashboard() {
         async function startLesson(type, id, name) {
           const roomId = `${type}_${id}_${Date.now()}`;
 
+          // Открываем таб немедленно (синхронно при клике), чтобы браузер не заблокировал его как попап.
+          // Без noopener — иначе window.open возвращает null и tab.location.href не работает.
+          const tab = window.open('about:blank', '_blank');
+
           try {
-            // Получаем подписанный URL с токеном от кабинета
             const res = await fetch(`${API}/api/lesson/token/`, {
               method: 'POST',
               credentials: 'include',
@@ -782,11 +906,19 @@ export default function Dashboard() {
             });
 
             if (!res.ok) throw new Error('token error');
-            const { url } = await res.json();
+            const { url, student_url } = await res.json();
 
-            const tab = window.open(url, '_blank', 'noopener,noreferrer');
-            setCall({ roomId, targetName: name, type, tab });
+            if (tab && !tab.closed) {
+              tab.location.href = url;
+            } else {
+              if (window.confirm(`Браузер заблокировал вкладку. Открыть урок в этой вкладке?`)) {
+                window.location.href = url;
+              }
+            }
+
+            setCall({ roomId, targetName: name, type, tab, url, studentUrl: student_url });
           } catch {
+            if (tab && !tab.closed) tab.close();
             alert('Не удалось создать урок. Попробуйте снова.');
           }
 
@@ -889,6 +1021,72 @@ export default function Dashboard() {
         );
       })()}
 
+      {/* ── INCOMING LESSON MODAL ── */}
+      {incomingLesson && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 9999, backdropFilter: 'blur(4px)',
+        }}>
+          <div style={{
+            background: '#fff', borderRadius: 20, padding: '36px 40px',
+            maxWidth: 380, width: '100%', textAlign: 'center',
+            boxShadow: '0 20px 60px rgba(0,0,0,.25)',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
+          }}>
+            {/* Анимированный звонок */}
+            <div style={{
+              width: 72, height: 72, borderRadius: '50%',
+              background: 'linear-gradient(135deg,#4F6EF7,#5b7cf7)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              animation: 'ringing 1s ease-in-out infinite',
+            }}>
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.49 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.4 2.18h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 21 16.92z"/>
+              </svg>
+            </div>
+            <style>{`@keyframes ringing{0%,100%{transform:rotate(0)}20%{transform:rotate(-12deg)}40%{transform:rotate(12deg)}60%{transform:rotate(-8deg)}80%{transform:rotate(8deg)}}`}</style>
+
+            <p style={{ margin: 0, fontSize: 13, color: '#9CA3AF', fontFamily: 'Montserrat,sans-serif' }}>
+              Входящий урок
+            </p>
+            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, fontFamily: 'Montserrat,sans-serif', color: '#1a1a2e' }}>
+              {incomingLesson.teacher}
+            </h2>
+            <p style={{ margin: 0, fontSize: 14, color: '#6B7280', fontFamily: 'Montserrat,sans-serif' }}>
+              приглашает вас на урок
+            </p>
+
+            <div style={{ display: 'flex', gap: 12, marginTop: 8, width: '100%' }}>
+              <button
+                onClick={() => setIncomingLesson(null)}
+                style={{
+                  flex: 1, padding: '12px 0', borderRadius: 12, border: 'none',
+                  background: '#FEE2E2', color: '#DC2626',
+                  fontWeight: 700, fontSize: 14, cursor: 'pointer',
+                  fontFamily: 'Montserrat,sans-serif',
+                }}
+              >
+                Отклонить
+              </button>
+              <button
+                onClick={() => {
+                  window.open(incomingLesson.student_url, '_blank');
+                  setIncomingLesson(null);
+                }}
+                style={{
+                  flex: 1, padding: '12px 0', borderRadius: 12, border: 'none',
+                  background: 'linear-gradient(135deg,#4F6EF7,#5b7cf7)', color: '#fff',
+                  fontWeight: 700, fontSize: 14, cursor: 'pointer',
+                  fontFamily: 'Montserrat,sans-serif',
+                }}
+              >
+                Принять
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

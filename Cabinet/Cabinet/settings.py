@@ -13,9 +13,14 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 from django.contrib import admin
 import os
+from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Загрузка .env.local (локальная разработка), затем .env (продовые значения)
+load_dotenv(BASE_DIR / ".env.local")
+load_dotenv(BASE_DIR / ".env")
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-0!^zwlov_t=@x1w^im@mgral)1s*+6xw*wy_e^lxa_i-if##y%')
@@ -23,12 +28,13 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-0!^zwlov_t=@x1w^im@mg
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = [h.strip() for h in os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if h.strip()]
 
 FRONTEND_URL  = os.environ.get('FRONTEND_URL',  'http://localhost:3000')
 GENURОК_URL   = os.environ.get('GENURОК_URL',   'https://genurok.tw1.ru')
 # Общий секрет с ГенУрок.рф для подписи JWT. В проде задайте через env-переменную.
 LESSON_SECRET = os.environ.get('LESSON_SECRET', SECRET_KEY)
+JITSI_BASE_URL = os.environ.get('JITSI_BASE_URL', 'https://meet.jit.si').rstrip('/')
 
 
 # Application definition
@@ -95,15 +101,26 @@ else:
         }
     }
 
-# Database
-# https://docs.djangoproject.com/en/5.2/ref/settings/#databases
-
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# Database — PostgreSQL в проде, SQLite локально
+_db_password = os.environ.get('DB_PASSWORD', '')
+if _db_password:
+    DATABASES = {
+        'default': {
+            'ENGINE':   'django.db.backends.postgresql',
+            'NAME':     os.environ.get('DB_NAME',     'lk_cabinet'),
+            'USER':     os.environ.get('DB_USER',     'lk_user'),
+            'PASSWORD': _db_password,
+            'HOST':     os.environ.get('DB_HOST',     'localhost'),
+            'PORT':     os.environ.get('DB_PORT',     '5432'),
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME':   BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # Password validation
@@ -153,7 +170,8 @@ admin.AdminSite.enable_nav_sidebar = True
 
 LOGIN_URL           = '/login/'
 LOGIN_REDIRECT_URL  = FRONTEND_URL
-LOGOUT_REDIRECT_URL = '/login/'
+# После выхода — на главную (генератор / публичный сайт), см. views.logout_view
+LOGOUT_REDIRECT_URL = GENURОК_URL.rstrip('/')
 
 # CORS — в проде список задаётся через env
 _cors_origins = os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:3000')

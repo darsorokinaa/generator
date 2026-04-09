@@ -4,9 +4,11 @@ from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.conf import settings
+from django.core.cache import cache
 import random
 import string
 import time
+import re
 import jwt
 from .models import UserProfile, FunnyWord, Subject, Level, TeacherSubject, TeachersStudent, Group
 from rest_framework import viewsets, status
@@ -123,7 +125,7 @@ def register_view(request):
 
 def logout_view(request):
     logout(request)
-    return redirect('login')
+    return redirect(GENURОК_URL.rstrip('/'))
 
 
 def settings_view(request):
@@ -385,20 +387,153 @@ class LessonTokenView(APIView):
         except Exception:
             teacher_name = request.user.get_full_name() or request.user.username
 
+        from django.conf import settings as dj_settings
+        import urllib.parse
+
+        genurок_url  = GENURОК_URL.rstrip('/')
+
         now = int(time.time())
+        # Jitsi: одна комната на урок, разные ссылки только по display name.
+        jitsi_base = getattr(dj_settings, 'JITSI_BASE_URL', 'https://meet.jit.si').rstrip('/')
+        room_slug = re.sub(r'[^A-Za-z0-9_-]+', '-', room_id).strip('-') or f"lesson-{now}"
+        room_path = urllib.parse.quote(room_slug, safe='-_')
+
+        def jitsi_url(display_name):
+            safe_display = urllib.parse.quote((display_name or '').strip() or 'Участник', safe='')
+            return (
+                f"{jitsi_base}/{room_path}"
+                f"#userInfo.displayName=%22{safe_display}%22"
+                f"&config.prejoinPageEnabled=false"
+                f"&config.prejoinConfig.enabled=false"
+            )
+
+        teacher_video_url = jitsi_url(teacher_name)
+        student_video_url = jitsi_url(target_name)
+
         payload = {
-            'iss':         'cabinet',
-            'iat':         now,
-            'exp':         now + LESSON_TTL,
-            'room_id':     room_id,
-            'teacher_id':  request.user.id,
-            'teacher':     teacher_name,
-            'type':        lesson_type,
-            'target_id':   target_id,
-            'target_name': target_name,
+            'iss':               'cabinet',
+            'iat':               now,
+            'exp':               now + LESSON_TTL,
+            'room_id':           room_id,
+            'teacher_id':        request.user.id,
+            'teacher':           teacher_name,
+            'lesson_format':     lesson_type,   # 'student'/'group' — тип занятия, НЕ роль
+            'target_id':         target_id,
+            'target_name':       target_name,
+            # Видеозвонок через Jitsi (role-specific URL + room для совместимости).
+            'jitsi_room':         room_slug,
+            'teacher_jitsi_room': room_slug,
+            'student_jitsi_room': room_slug,
+            'video_url':          teacher_video_url,   # legacy поле
+            'teacher_video_url':  teacher_video_url,
+            'student_video_url':  student_video_url,
         }
 
-        token = jwt.encode(payload, LESSON_SECRET, algorithm='HS256')
-        url   = f'{GENURОК_URL}/lesson/join/?token={token}'
+        token       = jwt.encode(payload, LESSON_SECRET, algorithm='HS256')
+        teacher_url = f'{genurок_url}/lesson/join/?token={token}&role=teacher'
+        student_url = f'{genurок_url}/lesson/join/?token={token}&role=student'
 
-        return Response({'url': url, 'token': token, 'expires_in': LESSON_TTL})
+        return Response({
+            'url':         teacher_url,
+            'student_url': student_url,
+            'token':       token,
+            'expires_in':  LESSON_TTL,
+        })
+
+
+class LessonTeacherJoinedView(APIView):
+    """
+    POST /api/lesson/teacher-joined/
+    Тело: { token }
+    Вызывается Генератором, когда учитель реально открыл /lesson/join/?...&role=teacher.
+    """
+    authentication_classes = []
+    permission_classes = []
+
+    def post(self, request):
+        token = (request.data.get('token') or '').strip()
+        if not token:
+            return Response({'error': 'token required'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            payload = jwt.decode(token, LESSON_SECRET, algorithms=['HS256'])
+        except Exception:
+            return Response({'error': 'invalid token'}, status=status.HTTP_401_UNAUTHORIZED)
+
+        room_id = str(payload.get('room_id') or '').strip()
+        target_id = payload.get('target_id')
+        teacher_name = str(payload.get('teacher') or '').strip() or 'Учитель'
+        target_name = str(payload.get('target_name') or '').strip() or 'Ученик'
+        lesson_type = str(payload.get('lesson_format') or payload.get('type') or 'student').strip() or 'student'
+        genurок_url = GENURОК_URL.rstrip('/')
+        student_url = f'{genurок_url}/lesson/join/?token={token}&role=student'
+
+        # Дедупликация отмечается флагом, но не блокирует обновление pending invite.
+        already_sent = False
+        if room_id:
+            cache_key = f'lesson_invite_sent:{room_id}'
+            already_sent = not cache.add(cache_key, 1, timeout=LESSON_TTL)
+
+        invite_payload = {
+            "event": "incoming_lesson",
+            "teacher": teacher_name,
+            "target_name": target_name,
+            "lesson_type": lesson_type,
+            "student_url": student_url,
+        }
+
+        student_user_id = None
+        if target_id:
+            try:
+                ts = TeachersStudent.objects.select_related('student__user').get(pk=target_id)
+                if ts.student and ts.student.user_id:
+                    student_user_id = ts.student.user_id
+            except TeachersStudent.DoesNotExist:
+                pass
+
+        # Резерв: сохраняем pending invite, чтобы ученик получил его даже если WS-сообщение было пропущено.
+        if student_user_id:
+            cache.set(f'lesson_pending_invite:{student_user_id}', invite_payload, timeout=LESSON_TTL)
+
+        ws_sent = False
+        if target_id:
+            try:
+                from channels.layers import get_channel_layer
+                from asgiref.sync import async_to_sync
+                channel_layer = get_channel_layer()
+                notify_channel = f"user_{student_user_id}" if student_user_id else f"user_{target_id}"
+                async_to_sync(channel_layer.group_send)(
+                    notify_channel,
+                    {
+                        "type": "notify_message",
+                        "data": invite_payload,
+                    },
+                )
+                ws_sent = True
+            except Exception:
+                ws_sent = False
+
+        return Response({
+            'ok': True,
+            'student_url': student_url,
+            'ws_sent': ws_sent,
+            'already_sent': already_sent,
+        })
+
+
+class LessonPendingInviteView(APIView):
+    """
+    GET /api/lesson/pending/
+    Возвращает pending invite для текущего пользователя (если есть) и очищает его.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user_id = getattr(request.user, 'id', None)
+        if not user_id:
+            return Response({'ok': True, 'invite': None})
+        cache_key = f'lesson_pending_invite:{user_id}'
+        invite = cache.get(cache_key)
+        if invite:
+            cache.delete(cache_key)
+            return Response({'ok': True, 'invite': invite})
+        return Response({'ok': True, 'invite': None})

@@ -6,7 +6,7 @@ const SUBJECT_COLOR = {
 };
 
 const ALL_HW = [
-  { student: 'Анна Козлова',    subject: 'Математика', task: 'Квадратные уравнения §5',   submitted: '2 ч назад',   deadline: '17.09.2024', urgent: false, reviewed: false },
+  { student: 'Анна Козлова',    subject: 'Математика', task: 'Квадратные уравнения §5',    submitted: '2 ч назад',   deadline: '17.09.2024', urgent: false, reviewed: false },
   { student: 'Иван Петров',     subject: 'Физика',     task: 'Законы Ньютона',             submitted: '5 ч назад',   deadline: '17.09.2024', urgent: false, reviewed: false },
   { student: 'Дмитрий Волков',  subject: 'Математика', task: 'Тригонометрия §12',          submitted: 'вчера',       deadline: '16.09.2024', urgent: true,  reviewed: false },
   { student: 'Елена Новикова',  subject: 'Алгебра',    task: 'Степени и логарифмы',        submitted: '2 дня назад', deadline: '15.09.2024', urgent: true,  reviewed: false },
