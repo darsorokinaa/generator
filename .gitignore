@@ -1,0 +1,10 @@
+# Django / Cabinet
+Cabinet/db.sqlite3
+Cabinet/staticfiles/
+Cabinet/**/__pycache__/
+*.py[cod]
+Cabinet/.env.local
+
+# venv (если в корне репозитория)
+venv/
+.venv/
