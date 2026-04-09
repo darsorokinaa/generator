@@ -146,7 +146,8 @@ USE_TZ = True
 
 
 # Static files (CSS, JavaScript, Images)
-STATIC_URL = 'static/'
+# Ведущий слэш обязателен: иначе в /admin/ браузер запрашивает /admin/static/... и стили не находятся
+STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 # React build — Django отдаёт его в проде
