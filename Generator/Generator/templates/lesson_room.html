@@ -303,6 +303,23 @@
       display: block;
       min-height: 0;
     }
+    /* Запасная ссылка под iframe (Jitsi и др.), если встроенное окно не подключается */
+    .video-external-fallback {
+      flex-shrink: 0;
+      padding: 8px 10px;
+      font-size: 0.72rem;
+      text-align: center;
+      line-height: 1.35;
+      background: #f8faff;
+      border-top: 1px solid #dde7ff;
+      color: #5a6b8a;
+    }
+    .video-external-fallback a {
+      color: #2563eb;
+      font-weight: 600;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
     .room-id-box {
       padding: 8px 12px;
       font-size: 0.65rem;
@@ -1752,9 +1769,15 @@
         class="video-iframe"
         src="{{ lesson_video_embed_url }}"
         title="Видеозвонок"
-        allow="camera; microphone; fullscreen; display-capture; autoplay"
+        allow="camera; microphone; fullscreen; display-capture; autoplay; clipboard-write; encrypted-media"
+        allowfullscreen
         referrerpolicy="no-referrer-when-downgrade"
       ></iframe>
+      {% if lesson_video_link_url %}
+      <div class="video-external-fallback">
+        <a href="{{ lesson_video_link_url }}" target="_blank" rel="noopener noreferrer">Если встроенное окно не подключается — открыть звонок в отдельной вкладке</a>
+      </div>
+      {% endif %}
       {% elif lesson_video_link_url %}
       <div class="video-placeholder" id="video-placeholder">
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5">
