@@ -390,13 +390,13 @@
     <div class="nav-divider"></div>
     <span class="nav-section-label">Кабинет</span>
 
-    <a class="nav-link" href="http://localhost:3000">
+    <a class="nav-link" href="{{ FRONTEND_URL }}/">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
       </svg>
       <span>Дашборд</span>
     </a>
-    <a class="nav-link" href="http://localhost:3000">
+    <a class="nav-link" href="{{ FRONTEND_URL }}/">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
       </svg>
@@ -406,7 +406,7 @@
     <div class="nav-spacer"></div>
     <div class="nav-divider"></div>
 
-    <a class="nav-action logout" href="http://localhost:8000/logout/">
+    <a class="nav-action logout" href="{% url 'logout' %}">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
       </svg>
