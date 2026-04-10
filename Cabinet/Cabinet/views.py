@@ -14,7 +14,7 @@ from .models import UserProfile, FunnyWord, Subject, Level, TeacherSubject, Teac
 from rest_framework import viewsets, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated
+from .permissions import IsLKTeacher
 from .serializers import (
     UserProfileSerializer, SubjectSerializer,
     LevelSerializer, TeachersStudentSerializer, GroupSerializer,
@@ -54,6 +54,8 @@ def _dashboard_url(request):
 
 def login_view(request):
     if request.user.is_authenticated:
+        if request.user.is_staff or request.user.is_superuser:
+            return redirect('/admin/')
         return redirect(_dashboard_url(request))
 
     if request.method == 'POST':
@@ -64,16 +66,26 @@ def login_view(request):
         user = authenticate(request, username=user_obj.username, password=password) if user_obj else None
 
         if user is not None:
-            login(request, user)
-            next_url = request.GET.get('next')
-            return redirect(next_url if next_url else _dashboard_url(request))
-        messages.error(request, 'Неверный логин / email или пароль')
+            if user.is_staff or user.is_superuser:
+                messages.error(
+                    request,
+                    'Эта учётная запись только для админ-панели (/admin/). '
+                    'В личный кабинет учителя входите под отдельным логином (регистрация в кабинете).',
+                )
+            else:
+                login(request, user)
+                next_url = request.GET.get('next')
+                return redirect(next_url if next_url else _dashboard_url(request))
+        else:
+            messages.error(request, 'Неверный логин / email или пароль')
 
     return render(request, 'login.html')
 
 
 def register_view(request):
     if request.user.is_authenticated:
+        if request.user.is_staff or request.user.is_superuser:
+            return redirect('/admin/')
         return redirect(FRONTEND_URL)
 
     subjects = Subject.objects.all().order_by('subject_name')
@@ -104,6 +116,8 @@ def register_view(request):
                 password=password1,
                 first_name=name,
                 last_name=surname,
+                is_staff=False,
+                is_superuser=False,
             )
             profile = UserProfile.objects.create(
                 user=user,
@@ -129,19 +143,21 @@ def logout_view(request):
 
 
 def settings_view(request):
+    if request.user.is_authenticated and (request.user.is_staff or request.user.is_superuser):
+        return redirect('/admin/')
     return render(request, 'settings.html')
 
 
 # ── REST API ──────────────────────────────────────────────────────────────────
 
 class UserProfileViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsLKTeacher]
     queryset = UserProfile.objects.all()
     serializer_class = UserProfileSerializer
 
 
 class SubjectListView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsLKTeacher]
 
     def get(self, request):
         try:
@@ -158,7 +174,7 @@ class SubjectListView(APIView):
 
 
 class LevelListView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsLKTeacher]
 
     def get(self, request):
         levels = Level.objects.all()
@@ -166,7 +182,7 @@ class LevelListView(APIView):
 
 
 class StudentsView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsLKTeacher]
 
     def _get_teacher_profile(self, request):
         try:
@@ -263,7 +279,7 @@ class StudentsView(APIView):
 
 
 class StudentDetailView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsLKTeacher]
 
     def delete(self, request, pk):
         teacher_profile = self._get_teacher_profile(request)
@@ -291,7 +307,7 @@ class StudentDetailView(APIView):
 
 
 class MeProfile(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsLKTeacher]
 
     def get(self, request):
         try:
@@ -320,7 +336,7 @@ class MeProfile(APIView):
 
 
 class GroupView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsLKTeacher]
 
     def get(self, request):
         teacher_profile = self._teacher(request)
@@ -366,7 +382,7 @@ class LessonTokenView(APIView):
     Тело: { room_id, type: 'student'|'group', target_id, target_name }
     Ответ: { url, token, expires_in }
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsLKTeacher]
 
     def post(self, request):
         data        = request.data
@@ -525,7 +541,7 @@ class LessonPendingInviteView(APIView):
     GET /api/lesson/pending/
     Возвращает pending invite для текущего пользователя (если есть) и очищает его.
     """
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsLKTeacher]
 
     def get(self, request):
         user_id = getattr(request.user, 'id', None)

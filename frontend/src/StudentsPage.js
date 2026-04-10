@@ -88,15 +88,31 @@ export default function StudentsPage({ onOpenProfile }) {
   useEffect(() => {
     loadStudents();
     fetch(`${API}/api/subjects/`, { credentials: 'include' })
-      .then(r => r.json()).then(setSubjects).catch(() => {});
+      .then(r => (r.ok ? r.json() : []))
+      .then(data => setSubjects(Array.isArray(data) ? data : []))
+      .catch(() => setSubjects([]));
     fetch(`${API}/api/levels/`, { credentials: 'include' })
-      .then(r => r.json()).then(setLevels).catch(() => {});
+      .then(r => (r.ok ? r.json() : []))
+      .then(data => setLevels(Array.isArray(data) ? data : []))
+      .catch(() => setLevels([]));
     fetch(`${API}/api/groups/`, { credentials: 'include' })
-      .then(r => r.json()).then(setGroups).catch(() => {});
+      .then(r => (r.ok ? r.json() : []))
+      .then(data => setGroups(Array.isArray(data) ? data : []))
+      .catch(() => setGroups([]));
   }, [loadStudents]);
 
+  // Уровни приходят асинхронно: подставить первый, если модалка уже открыта с пустым level
+  useEffect(() => {
+    if (!modalOpen || !levels.length) return;
+    setForm(f => (f.level ? f : { ...f, level: String(levels[0].id) }));
+  }, [levels, modalOpen]);
+
   function openModal() {
-    setForm({ ...EMPTY_FORM, subject: subjects[0]?.id || '', level: levels[0]?.id || '' });
+    setForm({
+      ...EMPTY_FORM,
+      subject: subjects[0]?.id != null ? String(subjects[0].id) : '',
+      level: levels[0]?.id != null ? String(levels[0].id) : '',
+    });
     setFormError('');
     setModalOpen(true);
   }

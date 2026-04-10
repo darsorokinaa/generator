@@ -105,6 +105,9 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         if not user or not user.is_authenticated:
             await self.close()
             return
+        if user.is_staff or user.is_superuser:
+            await self.close()
+            return
         self.group_name = f"user_{user.id}"
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()

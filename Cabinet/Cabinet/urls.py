@@ -36,6 +36,8 @@ def react_app(request):
 
 def home_view(request):
     if request.user.is_authenticated:
+        if request.user.is_staff or request.user.is_superuser:
+            return redirect('/admin/')
         return redirect(settings.FRONTEND_URL)
     return redirect('login')
 
