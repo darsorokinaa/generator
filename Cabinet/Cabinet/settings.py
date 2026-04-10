@@ -38,7 +38,10 @@ if os.environ.get('FRONTEND_URL_FORCE_HTTP', '').lower() in ('1', 'true', 'yes')
     if FRONTEND_URL.lower().startswith('https://'):
         FRONTEND_URL = 'http://' + FRONTEND_URL[8:]
 
-GENURОК_URL   = os.environ.get('GENURОК_URL',   'https://genurok.tw1.ru').rstrip('/')
+# URL сайта генератора уроков (ссылки lesson/join в JWT). В .env задавайте GENUROK_URL латиницей.
+_LEGACY_GENUROK_KEY = 'GENUR\u041e\u041a_URL'  # старый ключ с кирилл. О и К (если остался на сервере)
+_genurok_raw = (os.environ.get('GENUROK_URL') or os.environ.get(_LEGACY_GENUROK_KEY) or 'https://genurok.tw1.ru')
+GENUROK_URL = _genurok_raw.strip().rstrip('/')
 # После /logout/ — по умолчанию страница входа (`/login/` на хосте FRONTEND_URL). Иначе задайте LOGOUT_REDIRECT_URL.
 _logout_url = os.environ.get('LOGOUT_REDIRECT_URL', '').strip().rstrip('/')
 LOGOUT_REDIRECT_URL = _logout_url if _logout_url else f"{FRONTEND_URL}/login/"

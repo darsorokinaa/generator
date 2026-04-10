@@ -5,10 +5,13 @@ from .models import UserProfile
 
 def user_can_use_lk(user) -> bool:
     """
-    Доступ к ЛК: есть профиль учителя (регистрация в кабинете) — всегда да,
-    даже если у записи по ошибке включён staff. Чистый админ (staff/superuser без профиля) — нет.
+    Доступ к ЛК: учитель с профилем кабинета (в т.ч. с ошибочным is_staff).
+    Суперпользователь — только /admin/, даже если в БД есть UserProfile.
+    Без профиля: staff/superuser не в ЛК.
     """
     if not getattr(user, 'is_authenticated', False):
+        return False
+    if user.is_superuser:
         return False
     if UserProfile.objects.filter(user=user).exists():
         return True

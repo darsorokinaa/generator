@@ -6,7 +6,7 @@ import StudentProfilePage from './StudentProfilePage';
 import API from './api';
 
 // В разработке ссылка ведёт на локальный генератор; в проде — на переменную окружения
-const GENURОК_URL = (process.env.REACT_APP_GENERATOR_URL || 'https://genurok.tw1.ru').replace(/\/$/, '');
+const GENUROK_URL = (process.env.REACT_APP_GENERATOR_URL || 'https://genurok.tw1.ru').replace(/\/$/, '');
 
 function getCookie(name) {
   const value = `; ${document.cookie}`;
@@ -511,7 +511,7 @@ export default function Dashboard() {
                     className="welcome-link welcome-link--active"
                     onClick={() => call.tab && !call.tab.closed
                       ? call.tab.focus()
-                      : window.open(call.url || GENURОК_URL, '_blank', 'noopener,noreferrer')
+                      : window.open(call.url || GENUROK_URL, '_blank', 'noopener,noreferrer')
                     }
                   >
                     <span style={{

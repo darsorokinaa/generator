@@ -21,8 +21,8 @@ from .serializers import (
 )
 
 
-FRONTEND_URL   = getattr(settings, 'FRONTEND_URL',   'http://localhost:3000')
-GENURОК_URL    = getattr(settings, 'GENURОК_URL',    'https://генурок.рф')
+FRONTEND_URL = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')
+GENUROK_URL = getattr(settings, 'GENUROK_URL', 'https://genurok.tw1.ru')
 LESSON_SECRET  = getattr(settings, 'LESSON_SECRET',  settings.SECRET_KEY)
 LESSON_TTL     = 60 * 60 * 2  # токен живёт 2 часа
 
@@ -406,7 +406,7 @@ class LessonTokenView(APIView):
         from django.conf import settings as dj_settings
         import urllib.parse
 
-        genurок_url  = GENURОК_URL.rstrip('/')
+        genurok_url = GENUROK_URL.rstrip('/')
 
         now = int(time.time())
         # Jitsi: одна комната на урок, разные ссылки только по display name.
@@ -446,8 +446,8 @@ class LessonTokenView(APIView):
         }
 
         token       = jwt.encode(payload, LESSON_SECRET, algorithm='HS256')
-        teacher_url = f'{genurок_url}/lesson/join/?token={token}&role=teacher'
-        student_url = f'{genurок_url}/lesson/join/?token={token}&role=student'
+        teacher_url = f'{genurok_url}/lesson/join/?token={token}&role=teacher'
+        student_url = f'{genurok_url}/lesson/join/?token={token}&role=student'
 
         return Response({
             'url':         teacher_url,
@@ -480,8 +480,8 @@ class LessonTeacherJoinedView(APIView):
         teacher_name = str(payload.get('teacher') or '').strip() or 'Учитель'
         target_name = str(payload.get('target_name') or '').strip() or 'Ученик'
         lesson_type = str(payload.get('lesson_format') or payload.get('type') or 'student').strip() or 'student'
-        genurок_url = GENURОК_URL.rstrip('/')
-        student_url = f'{genurок_url}/lesson/join/?token={token}&role=student'
+        genurok_url = GENUROK_URL.rstrip('/')
+        student_url = f'{genurok_url}/lesson/join/?token={token}&role=student'
 
         # Дедупликация отмечается флагом, но не блокирует обновление pending invite.
         already_sent = False
