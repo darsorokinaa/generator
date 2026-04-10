@@ -4,6 +4,16 @@ import react from '@vitejs/plugin-react'
 export default defineConfig(({ command }) => ({
   plugins: [react()],
   base: command === 'build' ? '/static/' : '/',
+  build: {
+    rollupOptions: {
+      output: {
+        // Единое имя входного бандла (как у стандартной SPA), чтобы не путаться с index-*.js и кэшем
+        entryFileNames: 'assets/main-[hash].js',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        assetFileNames: 'assets/[name]-[hash][extname]',
+      },
+    },
+  },
   server: {
     host: '0.0.0.0',
     port: 5000,

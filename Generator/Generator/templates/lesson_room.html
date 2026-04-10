@@ -1953,6 +1953,8 @@ const LESSON_VIDEO_COLLAPSED_HINT = "{{ lesson_video_collapsed_hint|default:''|e
 let inviteSentAfterOpen = false;
 let inviteSendInFlight = false;
 let inviteRetryTimer = null;
+let inviteAttemptCount = 0;
+const INVITE_MAX_ATTEMPTS = 28;
 
 // ── STATE ──
 let ws = null;
@@ -3751,7 +3753,7 @@ function scheduleTeacherInviteAfterGate() {
 
 async function notifyTeacherJoinedOnce() {
   if (!getLessonVideoGatePassed()) return;
-  if (inviteSentAfterOpen || inviteSendInFlight || ROLE !== "teacher" || !LESSON_TOKEN) return;
+  if (inviteSentAfterOpen || inviteSendInFlight || ROLE !== "teacher" || !LESSON_TOKEN || lessonEnded) return;
   inviteSendInFlight = true;
   try {
     const resp = await fetch("/api/lesson/teacher-joined/", {
@@ -3762,18 +3764,43 @@ async function notifyTeacherJoinedOnce() {
     });
     if (resp.ok) {
       inviteSentAfterOpen = true;
+      inviteAttemptCount = 0;
+      if (inviteRetryTimer) {
+        clearTimeout(inviteRetryTimer);
+        inviteRetryTimer = null;
+      }
     }
   } catch (_) {
-    // ignore and retry below
+    // повтор ниже
   } finally {
     inviteSendInFlight = false;
-    if (!inviteSentAfterOpen && ROLE === "teacher" && !inviteRetryTimer) {
-      inviteRetryTimer = setTimeout(() => {
-        inviteRetryTimer = null;
-        notifyTeacherJoinedOnce();
-      }, 1500);
+    if (!inviteSentAfterOpen && ROLE === "teacher" && LESSON_TOKEN && !lessonEnded) {
+      inviteAttemptCount += 1;
+      if (inviteAttemptCount <= INVITE_MAX_ATTEMPTS) {
+        const delay = Math.min(45000, 900 * Math.pow(1.38, inviteAttemptCount - 1));
+        if (inviteRetryTimer) clearTimeout(inviteRetryTimer);
+        inviteRetryTimer = setTimeout(() => {
+          inviteRetryTimer = null;
+          notifyTeacherJoinedOnce();
+        }, delay);
+      }
     }
   }
+}
+
+function scheduleNotifyTeacherWhenVisibleOrOnline() {
+  if (ROLE !== "teacher") return;
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible") return;
+    if (lessonEnded || inviteSentAfterOpen || inviteSendInFlight || !LESSON_TOKEN) return;
+    if (typeof getLessonVideoGatePassed === "function" && !getLessonVideoGatePassed()) return;
+    notifyTeacherJoinedOnce();
+  });
+  window.addEventListener("online", () => {
+    if (lessonEnded || inviteSentAfterOpen || inviteSendInFlight || !LESSON_TOKEN) return;
+    if (typeof getLessonVideoGatePassed === "function" && !getLessonVideoGatePassed()) return;
+    notifyTeacherJoinedOnce();
+  });
 }
 
 function escapeHtml(str) {
@@ -3933,6 +3960,7 @@ document.addEventListener("click", (e) => {
 
 window.addEventListener("load", () => {
   scheduleTeacherInviteAfterGate();
+  scheduleNotifyTeacherWhenVisibleOrOnline();
   initLessonSessionCloseHooks();
 });
 

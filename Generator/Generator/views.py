@@ -3,9 +3,10 @@ import json
 import logging
 import os
 import re
-from urllib.parse import quote, urlparse, urlunparse
+from urllib.parse import parse_qs, quote, urlencode, urlparse, urlunparse
 from urllib import request as urlrequest, error as urlerror
 import secrets
+import time
 from datetime import datetime
 
 import jwt as pyjwt
@@ -1927,10 +1928,12 @@ def _broadcast_lesson_session_closed(room_id: str) -> None:
         logger.exception("WS broadcast session_closed failed for %s", room_id)
 
 
-def notify_lk_teacher_joined(token: str) -> bool:
+def notify_lk_teacher_joined(token: str, extra: dict | None = None) -> bool:
     """
     Сообщает ЛК, что учитель реально вошёл в урок.
-    ЛК после этого отправляет приглашение ученику по личному WS-каналу.
+    ЛК рассылает ученику приглашение (WS / push на все устройства — реализуется в ЛК).
+    В extra передаются room_id и target_id, чтобы ЛК не парсил JWT повторно и мог
+    адресно отправить web-push на все токены ученика.
     """
     endpoint = (getattr(django_settings, "LK_LESSON_NOTIFY_URL", "") or "").strip()
     if not endpoint:
@@ -1941,19 +1944,34 @@ def notify_lk_teacher_joined(token: str) -> bool:
         endpoint = "http://127.0.0.1:8001/api/lesson/teacher-joined/"
     if not endpoint:
         return False
-    body = json.dumps({"token": token}).encode("utf-8")
-    req = urlrequest.Request(
+    payload: dict = {"token": token}
+    if extra:
+        for k, v in extra.items():
+            if v is None or v == "":
+                continue
+            payload[k] = v
+    body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    last_err: Exception | None = None
+    for attempt in range(3):
+        req = urlrequest.Request(
+            endpoint,
+            data=body,
+            method="POST",
+            headers={"Content-Type": "application/json"},
+        )
+        try:
+            with urlrequest.urlopen(req, timeout=12):
+                return True
+        except (urlerror.URLError, TimeoutError, OSError, ValueError) as e:
+            last_err = e
+            if attempt < 2:
+                time.sleep(0.35 * (2**attempt))
+    logger.warning(
+        "Не удалось уведомить ЛК о входе учителя после 3 попыток: %s (%s)",
         endpoint,
-        data=body,
-        method="POST",
-        headers={"Content-Type": "application/json"},
+        last_err,
     )
-    try:
-        with urlrequest.urlopen(req, timeout=2.5):
-            return True
-    except (urlerror.URLError, TimeoutError, ValueError):
-        logger.warning("Не удалось уведомить ЛК о входе учителя: %s", endpoint)
-        return False
+    return False
 
 
 def verify_lesson_token(token: str) -> dict:
@@ -2093,6 +2111,35 @@ def _lesson_first_url(*candidates) -> str:
     return ""
 
 
+def _merge_jitsi_jwt_query(url: str, payload: dict, lesson_type: str) -> str:
+    """
+    Для учителя подставляет ?jwt= из payload ЛК (если ещё нет в ссылке).
+    На своём Jitsi / JaaS в токене задаётся роль организатора; meet.jit.si чужие JWT не примет.
+    """
+    if lesson_type != "teacher":
+        return url
+    tok = _lesson_first_url(
+        payload.get("jitsi_jwt"),
+        payload.get("jitsiJwt"),
+        payload.get("jitsi_token"),
+        payload.get("jitsiToken"),
+    )
+    tok = (tok or "").strip()
+    if not tok:
+        return url
+    u = urlparse(url)
+    if not u.scheme or not u.hostname:
+        return url
+    if not _jitsi_embed_host_allowed(u.hostname):
+        return url
+    qs = parse_qs(u.query, keep_blank_values=True)
+    if qs.get("jwt"):
+        return url
+    qs["jwt"] = [tok]
+    new_query = urlencode(qs, doseq=True)
+    return urlunparse(u._replace(query=new_query))
+
+
 def _jitsi_embed_host_allowed(hostname: str) -> bool:
     """Хосты, для которых дополняем URL параметрами встраивания во фрейм."""
     h = (hostname or "").lower().rstrip(".")
@@ -2109,10 +2156,11 @@ def _jitsi_embed_host_allowed(hostname: str) -> bool:
     return False
 
 
-def enhance_jitsi_iframe_url(url: str) -> str:
+def enhance_jitsi_iframe_url(url: str, *, as_organizer: bool = False) -> str:
     """
     Добавляет во fragment параметры Jitsi Meet для работы во встроенном iframe:
     отключает deep linking (редирект в приложение) и экран prejoin в узкой вставке.
+    Для учителя (as_organizer=True) — config.startAsModerator (в интерфейсе Jitsi — организатор комнаты).
     Не трогает URL с JSON во fragment и неизвестные хосты.
     """
     raw = (url or "").strip()
@@ -2132,6 +2180,8 @@ def enhance_jitsi_iframe_url(url: str) -> str:
         ("config.disableDeepLinking", "true"),
         ("config.prejoinConfig.enabled", "false"),
     ]
+    if as_organizer:
+        additions.append(("config.startAsModerator", "true"))
     existing_keys = set()
     pairs = []
     if frag:
@@ -2187,13 +2237,20 @@ def lesson_video_context_from_jwt(payload: dict, lesson_type: str = "teacher") -
         slug = role_jitsi_room.strip()
         if slug:
             direct = "https://meet.jit.si/" + quote(slug, safe="")
+    if direct:
+        direct = _merge_jitsi_jwt_query(direct, p, lesson_type)
     embed_url = ""
     link_url = ""
     if direct:
-        link_url = direct
         low = direct.lower()
+        as_organizer = lesson_type == "teacher"
         if low.startswith("https://") or low.startswith("http://localhost") or low.startswith("http://127.0.0.1"):
-            embed_url = enhance_jitsi_iframe_url(direct)
+            enhanced = enhance_jitsi_iframe_url(direct, as_organizer=as_organizer)
+            embed_url = enhanced
+            # Та же ссылка, что в iframe — в т.ч. «открыть в отдельной вкладке» с ролью организатора у учителя
+            link_url = enhanced
+        else:
+            link_url = direct
 
     return {
         "lesson_video_embed_url": embed_url,
@@ -2271,7 +2328,12 @@ def api_lesson_teacher_joined(request):
         normalized["lesson_type"] = "student"
     if normalized.get("lesson_type") != "teacher":
         return JsonResponse({"ok": False, "error": "teacher token required"}, status=400)
-    delivered = notify_lk_teacher_joined(token)
+    lk_extra = {
+        "room_id": normalized.get("room_id"),
+        "target_id": payload.get("target_id") or payload.get("targetId"),
+        "teacher_id": payload.get("teacher_id") or payload.get("teacherId"),
+    }
+    delivered = notify_lk_teacher_joined(token, extra=lk_extra)
     if not delivered:
         return JsonResponse({"ok": False, "error": "notify failed"}, status=502)
     return JsonResponse({"ok": True})

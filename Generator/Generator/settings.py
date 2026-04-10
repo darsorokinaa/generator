@@ -44,6 +44,8 @@ LK_PUBLIC_URL = os.environ.get("LK_PUBLIC_URL", "http://lk.genurok.tw1.ru").rstr
 # Полный URL страницы после входа (дашборд). Если пусто — кнопка «Личный кабинет» ведёт на LK_PUBLIC_URL.
 # Пример: http://lk.example.com/dashboard или http://lk.example.com/app/
 LK_DASHBOARD_URL = os.environ.get("LK_DASHBOARD_URL", "").strip().rstrip("/")
+# Явный URL POST при входе учителя в звонок (иначе LK_PUBLIC_URL + /api/lesson/teacher-joined/).
+# ЛК по этому вызову шлёт ученику приглашение на все устройства (WS + web-push и т.д.).
 LK_LESSON_NOTIFY_URL = os.environ.get("LK_LESSON_NOTIFY_URL", "").strip()
 # Кнопка «Личный кабинет»: если переменная не задана — пароль 100326; пустая строка LK_NAVIGATION_PASSWORD= — без пароля.
 _lk_nav_env = os.environ.get("LK_NAVIGATION_PASSWORD")
