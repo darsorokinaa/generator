@@ -32,6 +32,14 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-)&u-i%%%7kr6y6kx11pcr
 # Общий секрет с ЛК для JWT входа в урок (/lesson/join/). В .env: LESSON_SECRET=...
 LESSON_SECRET = os.environ.get("LESSON_SECRET", "").strip()
 
+# Свой сервер Jitsi (meet.example.com) — через запятую, нижний регистр не обязателен.
+# Нужно, чтобы во встроенный iframe подставлялись параметры config.* (см. views.enhance_jitsi_iframe_url).
+JITSI_EMBED_EXTRA_HOSTS = tuple(
+    h.strip().lower()
+    for h in os.environ.get("JITSI_EMBED_EXTRA_HOSTS", "").split(",")
+    if h.strip()
+)
+
 LK_PUBLIC_URL = os.environ.get("LK_PUBLIC_URL", "http://lk.genurok.tw1.ru").rstrip("/")
 # Полный URL страницы после входа (дашборд). Если пусто — кнопка «Личный кабинет» ведёт на LK_PUBLIC_URL.
 # Пример: http://lk.example.com/dashboard или http://lk.example.com/app/

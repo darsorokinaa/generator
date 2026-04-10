@@ -3,7 +3,7 @@ import json
 import logging
 import os
 import re
-from urllib.parse import quote
+from urllib.parse import parse_qs, quote, unquote, urlparse, urlunparse
 from urllib import request as urlrequest, error as urlerror
 import secrets
 from datetime import datetime
@@ -2093,6 +2093,95 @@ def _lesson_first_url(*candidates) -> str:
     return ""
 
 
+def _jitsi_embed_host_allowed(hostname: str) -> bool:
+    """Хосты, для которых дополняем URL параметрами встраивания во фрейм."""
+    h = (hostname or "").lower().rstrip(".")
+    if not h:
+        return False
+    if h in django_settings.JITSI_EMBED_EXTRA_HOSTS:
+        return True
+    if h == "meet.jit.si":
+        return True
+    if h.endswith(".8x8.vc"):
+        return True
+    if h.endswith(".meet.jitsi.net"):
+        return True
+    return False
+
+
+def enhance_jitsi_iframe_url(url: str) -> str:
+    """
+    Добавляет во fragment параметры Jitsi Meet для работы во встроенном iframe:
+    отключает deep linking (редирект в приложение) и экран prejoin в узкой вставке.
+    Не трогает URL с JSON во fragment и неизвестные хосты.
+    """
+    raw = (url or "").strip()
+    if not raw:
+        return raw
+    u = urlparse(raw)
+    if u.scheme not in ("https", "http") or not u.hostname:
+        return raw
+    if u.scheme == "http" and u.hostname not in ("localhost", "127.0.0.1"):
+        return raw
+    if not _jitsi_embed_host_allowed(u.hostname):
+        return raw
+    frag = u.fragment or ""
+    if frag.strip().startswith("{"):
+        return raw
+    additions = [
+        ("config.disableDeepLinking", "true"),
+        ("config.prejoinConfig.enabled", "false"),
+    ]
+    existing_keys = set()
+    pairs = []
+    if frag:
+        for part in frag.split("&"):
+            part = part.strip()
+            if not part or "=" not in part:
+                continue
+            k, v = part.split("=", 1)
+            existing_keys.add(k)
+            pairs.append((k, v))
+    for k, v in additions:
+        if k not in existing_keys:
+            pairs.append((k, v))
+            existing_keys.add(k)
+    new_frag = "&".join(f"{k}={v}" for k, v in pairs)
+    return urlunparse(u._replace(fragment=new_frag))
+
+
+def _parse_jitsi_meeting_params(direct: str, payload: dict) -> dict:
+    """
+    Домен и имя комнаты для @jitsi/react-sdk (без iframe src на meet — через External API).
+    JWT: из payload или query строки ссылки.
+    """
+    out = {"domain": "", "room": "", "jwt": ""}
+    if not (direct or "").strip():
+        return out
+    u = urlparse(direct.strip())
+    if not u.scheme or not u.hostname:
+        return out
+    host = u.hostname.lower().rstrip(".")
+    if not _jitsi_embed_host_allowed(host):
+        return out
+    path = (u.path or "").strip("/")
+    if not path:
+        return out
+    room = unquote(path)
+    qs = parse_qs(u.query or "")
+    jwt_from_url = (qs.get("jwt") or [None])[0] or ""
+    jwt_from_payload = _lesson_first_url(
+        payload.get("jitsi_jwt"),
+        payload.get("jitsiJwt"),
+        payload.get("jitsi_token"),
+        payload.get("jitsiToken"),
+        payload.get("video_jwt"),
+        payload.get("videoJwt"),
+    )
+    jwt = (jwt_from_payload or jwt_from_url or "").strip()
+    return {"domain": host, "room": room, "jwt": jwt}
+
+
 def lesson_video_context_from_jwt(payload: dict, lesson_type: str = "teacher") -> dict:
     """
     Ссылка на видеозвонок из ЛК (JWT). В iframe только https (или localhost) — иначе только внешняя ссылка.
@@ -2132,15 +2221,19 @@ def lesson_video_context_from_jwt(payload: dict, lesson_type: str = "teacher") -
             direct = "https://meet.jit.si/" + quote(slug, safe="")
     embed_url = ""
     link_url = ""
+    jitsi_params = _parse_jitsi_meeting_params(direct, p) if direct else {"domain": "", "room": "", "jwt": ""}
     if direct:
         link_url = direct
         low = direct.lower()
         if low.startswith("https://") or low.startswith("http://localhost") or low.startswith("http://127.0.0.1"):
-            embed_url = direct
+            embed_url = enhance_jitsi_iframe_url(direct)
 
     return {
         "lesson_video_embed_url": embed_url,
         "lesson_video_link_url": link_url,
+        "lesson_jitsi_domain": jitsi_params.get("domain") or "",
+        "lesson_jitsi_room": jitsi_params.get("room") or "",
+        "lesson_jitsi_jwt": jitsi_params.get("jwt") or "",
     }
 
 
@@ -2280,6 +2373,12 @@ def lesson_join(request):
 
     _persist_lesson_room(normalized["room_id"], payload)
     normalized["lesson_token"] = token
+    normalized["lesson_jitsi_props"] = {
+        "domain": (normalized.get("lesson_jitsi_domain") or "").strip(),
+        "roomName": (normalized.get("lesson_jitsi_room") or "").strip(),
+        "jwt": (normalized.get("lesson_jitsi_jwt") or "").strip(),
+        "displayName": (normalized.get("participant_name") or "").strip() or "Участник",
+    }
     normalized["lk_public_url"] = lk_user_nav_url()
     normalized["lk_nav_password_required"] = lk_nav_password_configured()
     normalized["lk_nav_unlocked"] = (not normalized["lk_nav_password_required"]) or lk_nav_cookie_is_valid(

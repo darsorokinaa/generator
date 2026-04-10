@@ -54,21 +54,33 @@
 
 ## Команды на сервере (по порядку)
 
+**Рекомендуется:** один скрипт из репозитория (ветка по умолчанию `generator_test`, nginx-файл `generator_test`; см. переменные в шапке скрипта):
+
+```bash
+sudo bash /opt/generator_test/deploy/update.sh
+```
+
+**Вручную** (если нужно обойти скрипт):
+
 ```bash
 cd /opt/generator_test
-git pull origin <ваша-ветка>
+git pull origin generator_test
 
 sudo cp deploy/gunicorn.service /etc/systemd/system/generator_test.service
 sudo systemctl daemon-reload
 
-# при изменении nginx:
-sudo cp deploy/nginx.conf /etc/nginx/sites-available/genurok
+# при изменении nginx (имя файла должно совпадать с тем, что в sites-enabled):
+sudo cp deploy/nginx.conf /etc/nginx/sites-available/generator_test
+sudo ln -sf /etc/nginx/sites-available/generator_test /etc/nginx/sites-enabled/generator_test
 sudo nginx -t && sudo systemctl reload nginx
 
 source venv/bin/activate
 cd Generator
+pip install -r ../requirements.txt
 python manage.py migrate --noinput
 python manage.py collectstatic --noinput
+
+cd ../frontend && rm -rf dist && npm ci && npm run build
 
 sudo systemctl restart generator_test
 sudo systemctl status generator_test
