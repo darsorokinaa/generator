@@ -5,6 +5,7 @@ from django.conf import settings
 from django.views.generic import TemplateView
 from django.contrib.staticfiles.views import serve as serve_static
 from . import views
+from .permissions import user_can_use_lk
 from rest_framework.routers import DefaultRouter
 from .views import (
     UserProfileViewSet,
@@ -36,9 +37,9 @@ def react_app(request):
 
 def home_view(request):
     if request.user.is_authenticated:
-        if request.user.is_staff or request.user.is_superuser:
-            return redirect('/admin/')
-        return redirect(settings.FRONTEND_URL)
+        if user_can_use_lk(request.user):
+            return redirect(settings.FRONTEND_URL)
+        return redirect('/admin/')
     return redirect('login')
 
 

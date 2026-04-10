@@ -14,7 +14,7 @@ from .models import UserProfile, FunnyWord, Subject, Level, TeacherSubject, Teac
 from rest_framework import viewsets, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .permissions import IsLKTeacher
+from .permissions import IsLKTeacher, user_can_use_lk
 from .serializers import (
     UserProfileSerializer, SubjectSerializer,
     LevelSerializer, TeachersStudentSerializer, GroupSerializer,
@@ -54,9 +54,9 @@ def _dashboard_url(request):
 
 def login_view(request):
     if request.user.is_authenticated:
-        if request.user.is_staff or request.user.is_superuser:
-            return redirect('/admin/')
-        return redirect(_dashboard_url(request))
+        if user_can_use_lk(request.user):
+            return redirect(_dashboard_url(request))
+        return redirect('/admin/')
 
     if request.method == 'POST':
         login_str = request.POST.get('username', '').strip()
@@ -66,7 +66,7 @@ def login_view(request):
         user = authenticate(request, username=user_obj.username, password=password) if user_obj else None
 
         if user is not None:
-            if user.is_staff or user.is_superuser:
+            if not user_can_use_lk(user):
                 messages.error(
                     request,
                     'Эта учётная запись только для админ-панели (/admin/). '
@@ -84,9 +84,9 @@ def login_view(request):
 
 def register_view(request):
     if request.user.is_authenticated:
-        if request.user.is_staff or request.user.is_superuser:
-            return redirect('/admin/')
-        return redirect(FRONTEND_URL)
+        if user_can_use_lk(request.user):
+            return redirect(FRONTEND_URL)
+        return redirect('/admin/')
 
     subjects = Subject.objects.all().order_by('subject_name')
 
@@ -143,7 +143,7 @@ def logout_view(request):
 
 
 def settings_view(request):
-    if request.user.is_authenticated and (request.user.is_staff or request.user.is_superuser):
+    if request.user.is_authenticated and not user_can_use_lk(request.user):
         return redirect('/admin/')
     return render(request, 'settings.html')
 

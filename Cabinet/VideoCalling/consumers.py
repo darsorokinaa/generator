@@ -105,7 +105,8 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         if not user or not user.is_authenticated:
             await self.close()
             return
-        if user.is_staff or user.is_superuser:
+        from Cabinet.permissions import user_can_use_lk
+        if not user_can_use_lk(user):
             await self.close()
             return
         self.group_name = f"user_{user.id}"
