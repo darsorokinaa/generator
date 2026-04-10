@@ -882,7 +882,6 @@ export default function Dashboard() {
 
       {/* ── LESSON START MODAL ── */}
       {lessonModalOpen && (() => {
-        const GEOK_URL = 'https://ГенУрок.рф/lesson/start/';
         const activeStudents = students.filter(s => s.lesson_type === 'individual');
 
         async function startLesson(type, id, name) {
@@ -1013,7 +1012,7 @@ export default function Dashboard() {
                 )}
 
                 <p className="lesson-hint">
-                  После выбора вы будете перенаправлены на платформу ГенУрок.рф для проведения урока.
+                  После выбора откроется страница урока на сайте генератора.
                 </p>
               </div>
             </div>
