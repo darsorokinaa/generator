@@ -98,6 +98,10 @@ function Layout() {
       .catch(() => {});
   }, []);
 
+  /** Не даём href стать пустым, если /api/site-config/ не отдал URL */
+  const cabinetHref =
+    typeof lkHref === "string" && lkHref.trim() ? lkHref.trim() : LK_PUBLIC_URL;
+
   function handleLkNavClick(e) {
     if (!lkNavGateRequired || lkNavUnlocked) return;
     e.preventDefault();
@@ -123,7 +127,7 @@ function Layout() {
       setLkNavUnlocked(true);
       setLkModalOpen(false);
       setLkModalPassword("");
-      window.open(lkHref, "_blank", "noopener,noreferrer");
+      window.open(cabinetHref, "_blank", "noopener,noreferrer");
     } catch {
       setLkModalError("Не удалось проверить пароль");
     }
@@ -279,7 +283,7 @@ function Layout() {
         )}
         <Link to="/about" className="header-nav-link">От авторов</Link>
         <a
-          href={lkHref}
+          href={cabinetHref}
           target="_blank"
           rel="noopener noreferrer"
           className="header-nav-cabinet"
@@ -310,7 +314,7 @@ function Layout() {
           <span className="site-footer-copy">© 2026 ГенУрок</span>
           <div className="site-footer-links">
             <a
-              href={lkHref}
+              href={cabinetHref}
               className="site-footer-link"
               target="_blank"
               rel="noopener noreferrer"
