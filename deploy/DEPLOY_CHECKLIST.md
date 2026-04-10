@@ -37,8 +37,8 @@
 | `DEBUG` | `false` |
 | `PGDATABASE`, `PGUSER`, `PGPASSWORD`, `PGHOST`, `PGPORT` | PostgreSQL |
 | `LESSON_SECRET` | **Тот же**, что в ЛК — иначе `/lesson/join/` не откроется |
-| `LK_PUBLIC_URL` | **Только поддомен ЛК**, например `https://lk.genurok.tw1.ru` — не корень генератора (`genurok…` без `lk.`). Иначе логин и кнопка «Личный кабинет» откроют не тот сайт |
-| `LK_DASHBOARD_URL` | **Опционально.** Дашборд на **том же хосте ЛК**, например `https://lk.example.com/dashboard`. Не задавайте URL сайта генератора — сервер принудительно подставит `LK_PUBLIC_URL` |
+| `LK_PUBLIC_URL` | Базовый URL ЛК (домен), например `http://lk.example.com` — для обратных вызовов к API ЛК |
+| `LK_DASHBOARD_URL` | **Опционально.** Полный URL дашборда после входа, куда ведёт кнопка «Личный кабинет», например `http://lk.example.com/dashboard`. Если не задан, открывается корень `LK_PUBLIC_URL` (часто это не дашборд, а лендинг или логин) |
 | `GENUROK_PUBLIC_HOME_URL` | Публичная главная после **выхода из админки** генератора (`/admin/logout/`). По умолчанию `http://genurok.ru`. Без этого при `LOGOUT_REDIRECT_URL='/'` с dev-сервера уводило на `localhost` |
 | `LK_NAVIGATION_PASSWORD` | Пароль для кнопки «Личный кабинет» на сайте генератора. Не задан — по умолчанию `100326`. Пустое значение `LK_NAVIGATION_PASSWORD=` — **отключить** запрос пароля |
 | `CSRF_TRUSTED_ORIGINS` | Список через запятую: `http://ваш-домен.ru`, при необходимости `http://lk.ваш-домен.ru` |

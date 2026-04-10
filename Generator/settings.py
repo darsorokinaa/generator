@@ -13,7 +13,7 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-insecure-secret-key")
 LESSON_SECRET = os.environ.get("LESSON_SECRET", "").strip()
 
 # Ссылка «Личный кабинет» в шаблоне урока и согласованность с фронтом (VITE_LK_URL)
-LK_PUBLIC_URL = os.environ.get("LK_PUBLIC_URL", "https://lk.genurok.tw1.ru").rstrip("/")
+LK_PUBLIC_URL = os.environ.get("LK_PUBLIC_URL", "http://lk.genurok.tw1.ru").rstrip("/")
 LK_DASHBOARD_URL = os.environ.get("LK_DASHBOARD_URL", "").strip().rstrip("/")
 _gen_home_outer = os.environ.get("GENUROK_PUBLIC_HOME_URL", "http://genurok.ru").strip().rstrip("/")
 GENUROK_PUBLIC_HOME_URL = f"{_gen_home_outer}/"

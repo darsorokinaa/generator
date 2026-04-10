@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "react-router-dom";
 import MathContent from "../components/MathContent";
-import { apiUrl, apiFetchCredentials } from "../config/api";
+import { devApiBase } from "../utils/devApiBase";
 
 function SearchTaskPage() {
   const location = useLocation();
@@ -18,8 +18,9 @@ function SearchTaskPage() {
     }
     setLoading(true);
     setError(null);
-    fetch(apiUrl(`search_task/?q=${encodeURIComponent(q)}`), {
-      credentials: apiFetchCredentials(),
+    const apiBase = devApiBase();
+    fetch(`${apiBase}/api/search_task/?q=${encodeURIComponent(q)}`, {
+      credentials: apiBase ? "omit" : "same-origin",
     })
       .then((res) => {
         if (!res.ok) throw new Error(res.statusText);

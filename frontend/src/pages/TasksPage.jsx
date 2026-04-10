@@ -6,7 +6,6 @@ import {
   Navigate,
   useLocation,
 } from "react-router-dom";
-import { trainerSubjectApiUrl } from "../config/api";
 
 const SUBJECT_NAMES = {
   inf: "Информатика",
@@ -85,10 +84,8 @@ function TasksPage() {
 
   useEffect(() => {
     if (isLessonJoinPath) return undefined;
-    const subtopicsUrl = trainerSubjectApiUrl(level, subject, "subtopics/");
-    if (!subtopicsUrl) return undefined;
     let cancelled = false;
-    fetch(subtopicsUrl)
+    fetch(`/api/${level}/${subject}/subtopics/`)
       .then((res) => (res.ok ? res.json() : { subtopics_by_task: [] }))
       .then((data) => {
         if (!cancelled) {
@@ -121,15 +118,13 @@ function TasksPage() {
 
   useEffect(() => {
     if (isLessonJoinPath) return undefined;
-    const tasksUrl = trainerSubjectApiUrl(level, subject, "tasks/");
-    if (!tasksUrl) return undefined;
     let cancelled = false;
     setLoading(true);
     setError(null);
     setSubjectNameFromApi(
       formatSubjectDisplayName(level, subject, SUBJECT_NAMES[subject] || subject)
     );
-    fetch(tasksUrl)
+    fetch(`/api/${level}/${subject}/tasks/`)
       .then((res) => {
         if (res.status === 404) {
           throw new Error(
@@ -241,12 +236,8 @@ function TasksPage() {
   };
 
   const postVariant = (payload, mode = "variant", extra = {}) => {
-    const variantUrl = trainerSubjectApiUrl(level, subject, "variant/");
-    if (!variantUrl) {
-      return Promise.reject(new Error("Некорректный адрес страницы"));
-    }
     const body = JSON.stringify(payload);
-    return fetch(variantUrl, {
+    return fetch(`/api/${level}/${subject}/variant/`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body,

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { readPersistedTheme } from "../utils/themeStorage";
-import { apiUrl, apiFetchCredentials } from "../config/api";
 
 function AnnouncementCta({ url, label }) {
   const href = (url || "").trim();
@@ -132,14 +131,14 @@ function IndexPage() {
   }, [welcomeSlides.length]);
 
   useEffect(() => {
-    fetch(apiUrl("updates/"), { credentials: apiFetchCredentials() })
+    fetch("/api/updates/", { credentials: "include" })
       .then((res) => (res.ok ? res.json() : { updates: [] }))
       .then((data) => setUpdates(Array.isArray(data.updates) ? data.updates : []))
       .catch(() => setUpdates([]));
   }, []);
 
   useEffect(() => {
-    fetch(apiUrl("announcements/"), { credentials: apiFetchCredentials() })
+    fetch("/api/announcements/", { credentials: "include" })
       .then((res) => (res.ok ? res.json() : { announcements: [] }))
       .then((data) =>
         setAnnouncements(Array.isArray(data.announcements) ? data.announcements : [])

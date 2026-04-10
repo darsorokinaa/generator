@@ -1,5 +1,4 @@
 import { useLayoutEffect, useEffect, useState } from "react";
-import { apiUrl, apiFetchCredentials } from "../config/api";
 
 /**
  * Ссылка из ЛК: /lesson/join/?token=JWT
@@ -33,9 +32,7 @@ export default function LessonJoinBridge() {
     let cancelled = false;
     setStatus("verifying");
 
-    fetch(apiUrl(`lesson/verify/?token=${encodeURIComponent(token)}`), {
-      credentials: apiFetchCredentials(),
-    })
+    fetch(`/api/lesson/verify/?token=${encodeURIComponent(token)}`)
       .then(async (res) => {
         const data = await res.json().catch(() => ({}));
         if (cancelled) return;

@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import StudentNameModal from "./StudentNameModal";
-import { trainerSubjectApiUrl, apiFetchCredentials } from "../config/api";
 
 /**
  * Модальное окно с результатами выполнения варианта.
@@ -54,14 +53,15 @@ export default function ResultsModal({ open, onClose, results }) {
         markLevel: results.markLevel,
         tasks: results.tasks,
       };
-      const reportUrl = trainerSubjectApiUrl(results.level, results.subject, "report-pdf/");
-      if (!reportUrl) throw new Error("Некорректные level/subject");
-      const res = await fetch(reportUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: apiFetchCredentials(),
-        body: JSON.stringify(payload),
-      });
+      const res = await fetch(
+        `/api/${results.level}/${results.subject}/report-pdf/`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify(payload),
+        }
+      );
       if (!res.ok) throw new Error("Ошибка загрузки отчёта");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
