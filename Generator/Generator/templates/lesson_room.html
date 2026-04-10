@@ -1712,7 +1712,7 @@
     <span class="header-logo-text">Генератор</span>
   </a>
   <div class="header-meta">
-    <a href="{{ lk_public_url }}" class="header-lk-link" id="header-lk-link" target="_blank" rel="noopener noreferrer"{% if lk_nav_password_required and not lk_nav_unlocked %} data-lk-gated="1"{% endif %} onclick="return onLessonRoomLkNavClick(event);">Личный кабинет</a>
+    <a href="{% firstof lk_nav_url lk_public_url %}" class="header-lk-link" id="header-lk-link" target="_blank" rel="noopener noreferrer"{% if lk_nav_password_required and not lk_nav_unlocked %} data-lk-gated="1"{% endif %} onclick="return onLessonRoomLkNavClick(event);">Личный кабинет</a>
     <span class="badge">
       {% if lesson_type == "student" %}Ученик{% else %}Учитель{% endif %}
     </span>
@@ -1924,7 +1924,7 @@ const ROLE       = "{{ lesson_type|escapejs }}";
 const MY_NAME    = "{{ participant_name|escapejs }}";
 const TEACHER    = "{{ teacher_name|escapejs }}";
 const LESSON_TOKEN = "{{ lesson_token|default:''|escapejs }}";
-const LK_PUBLIC_URL_FOR_NAV = "{{ lk_public_url|escapejs }}";
+const LK_NAV_URL_FOR_WINDOW = "{{ lk_nav_url|default:lk_public_url|escapejs }}";
 const LESSON_VIDEO_COLLAPSED_LABEL = "{{ lesson_video_collapsed_label|default:''|escapejs }}";
 const LESSON_VIDEO_COLLAPSED_HINT = "{{ lesson_video_collapsed_hint|default:''|escapejs }}";
 let inviteSentAfterOpen = false;
@@ -2858,7 +2858,7 @@ async function submitLkNavModal() {
     closeLkNavModal();
     const link = document.getElementById("header-lk-link");
     if (link) link.removeAttribute("data-lk-gated");
-    window.open(LK_PUBLIC_URL_FOR_NAV, "_blank", "noopener,noreferrer");
+    window.open(LK_NAV_URL_FOR_WINDOW, "_blank", "noopener,noreferrer");
   } catch (_) {
     if (err) {
       err.textContent = "Не удалось проверить пароль";

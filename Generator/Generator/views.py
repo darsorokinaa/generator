@@ -3,7 +3,7 @@ import json
 import logging
 import os
 import re
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 from urllib import request as urlrequest, error as urlerror
 import secrets
 from datetime import datetime
@@ -889,13 +889,27 @@ def lk_nav_password_configured() -> bool:
 
 
 def lk_site_base_url() -> str:
-    return getattr(django_settings, "LK_PUBLIC_URL", "http://lk.genurok.tw1.ru").rstrip("/")
+    return getattr(django_settings, "LK_PUBLIC_URL", "https://lk.genurok.tw1.ru").rstrip("/")
 
 
 def lk_user_nav_url() -> str:
     """Куда вести пользователя по кнопке «Личный кабинет» (дашборд при наличии LK_DASHBOARD_URL)."""
+    base = lk_site_base_url()
     dash = (getattr(django_settings, "LK_DASHBOARD_URL", "") or "").strip().rstrip("/")
-    return dash or lk_site_base_url()
+    if not dash:
+        return base
+    try:
+        bh = (urlparse(base).hostname or "").lower()
+        dh = (urlparse(dash).hostname or "").lower()
+        # Типичная ошибка конфигурации: LK_PUBLIC_URL = lk.*, а LK_DASHBOARD_URL указывает на корневой домен
+        # генератора (тот же «хвост» без префикса lk.) — логин должен оставаться на поддомене ЛК.
+        if bh.startswith("lk.") and "." in bh:
+            apex = bh.split(".", 1)[1]
+            if dh == apex:
+                return base
+    except Exception:
+        pass
+    return dash
 
 
 @require_http_methods(["GET"])
@@ -2280,7 +2294,9 @@ def lesson_join(request):
 
     _persist_lesson_room(normalized["room_id"], payload)
     normalized["lesson_token"] = token
-    normalized["lk_public_url"] = lk_user_nav_url()
+    # Как в api_site_config: база ЛК (логин) и целевой URL кнопки (дашборд на lk, не на генераторе).
+    normalized["lk_public_url"] = lk_site_base_url()
+    normalized["lk_nav_url"] = lk_user_nav_url()
     normalized["lk_nav_password_required"] = lk_nav_password_configured()
     normalized["lk_nav_unlocked"] = (not normalized["lk_nav_password_required"]) or lk_nav_cookie_is_valid(
         request
