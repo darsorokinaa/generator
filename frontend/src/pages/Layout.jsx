@@ -6,6 +6,7 @@ import {
   clearPersistedTheme,
 } from "../utils/themeStorage";
 import { LK_PUBLIC_URL } from "../config/publicUrls";
+import { apiUrl, apiFetchCredentials } from "../config/api";
 
 const COOKIE_CONSENT_KEY = "cookie_consent_accepted";
 
@@ -84,7 +85,7 @@ function Layout() {
   }, [themeData?.decor]);
 
   useEffect(() => {
-    fetch("/api/site-config/", { credentials: "same-origin" })
+    fetch(apiUrl("site-config/"), { credentials: apiFetchCredentials() })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         const u = data?.lk_nav_url || data?.lk_public_url;
@@ -109,10 +110,10 @@ function Layout() {
   async function submitLkNavUnlock() {
     setLkModalError("");
     try {
-      const r = await fetch("/api/lk-nav-unlock/", {
+      const r = await fetch(apiUrl("lk-nav-unlock/"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
+        credentials: apiFetchCredentials(),
         body: JSON.stringify({ password: lkModalPassword.trim() }),
       });
       const data = await r.json().catch(() => ({}));
@@ -130,7 +131,7 @@ function Layout() {
   }
 
   useEffect(() => {
-    fetch("/api/announcements/", { credentials: "include" })
+    fetch(apiUrl("announcements/"), { credentials: apiFetchCredentials() })
       .then((r) => (r.ok ? r.json() : { announcements: [] }))
       .then((data) => {
         const items = Array.isArray(data.announcements) ? data.announcements : [];

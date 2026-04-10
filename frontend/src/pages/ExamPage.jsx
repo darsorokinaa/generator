@@ -10,6 +10,7 @@ import {
   SubjectExamCountdownCard,
 } from "../components/SubjectExamCountdowns";
 import { readPersistedTheme } from "../utils/themeStorage";
+import { trainerSubjectApiUrl, apiFetchCredentials } from "../config/api";
 
 const COLORS = ["#000000", "#ffffff", "#ef4444", "#3b82f6", "#22c55e"];
 
@@ -187,7 +188,12 @@ function ExamPage() {
      Загрузка варианта
   ========================== */
   useEffect(() => {
-    fetch(`/api/${level}/${subject}/variant/${variant_id}/`)
+    const url = trainerSubjectApiUrl(level, subject, `variant/${variant_id}/`);
+    if (!url) {
+      setError("Некорректный адрес страницы");
+      return;
+    }
+    fetch(url, { credentials: apiFetchCredentials() })
       .then((res) => {
         if (!res.ok) throw new Error("Ошибка загрузки варианта");
         return res.json();
@@ -200,7 +206,9 @@ function ExamPage() {
      Справочная информация
   ========================== */
   useEffect(() => {
-    fetch(`/api/${level}/${subject}/support-info/`)
+    const url = trainerSubjectApiUrl(level, subject, "support-info/");
+    if (!url) return;
+    fetch(url, { credentials: apiFetchCredentials() })
       .then((res) => res.ok ? res.json() : { items: [] })
       .then((data) => setSupportInfo((s) => ({ ...s, items: data.items || [] })))
       .catch(() => setSupportInfo((s) => ({ ...s, items: [] })));
@@ -1114,7 +1122,9 @@ function ExamPage() {
       const params = new URLSearchParams();
       if (task.task_list_id != null) params.set("task_list_id", task.task_list_id);
       if (task.number != null) params.set("task_number", task.number);
-      fetch(`/api/${level}/${subject}/criteria/?${params.toString()}`)
+      const critUrl = trainerSubjectApiUrl(level, subject, `criteria/?${params.toString()}`);
+      if (!critUrl) return;
+      fetch(critUrl, { credentials: apiFetchCredentials() })
         .then((res) => (res.ok ? res.json() : { criteria: [], max_score: null }))
         .then((data) => setCriteriaByTaskList((prev) => ({
           ...prev,
@@ -1261,10 +1271,12 @@ function ExamPage() {
 
   const handleReportErrorSubmit = async ({ errorType, comment }) => {
     if (!reportErrorTask) return;
-    const res = await fetch(`/api/${level}/${subject}/report-error/`, {
+    const reportUrl = trainerSubjectApiUrl(level, subject, "report-error/");
+    if (!reportUrl) throw new Error("Некорректный адрес страницы");
+    const res = await fetch(reportUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      credentials: "same-origin",
+      credentials: apiFetchCredentials(),
       body: JSON.stringify({
         taskId: reportErrorTask.taskId,
         taskNumber: reportErrorTask.taskNumber,
@@ -1303,10 +1315,13 @@ function ExamPage() {
         String(level).toLowerCase() === "oge" && isMathLikeSubject(subject);
       const geoParam = isOgeMath ? `&geo_correct=${geoCorrectCount}` : "";
       try {
-        const res = await fetch(
-          `/api/${level}/${subject}/score-conversion/?score=${effTotalScore}${geoParam}`,
-          { credentials: "same-origin" }
+        const scUrl = trainerSubjectApiUrl(
+          level,
+          subject,
+          `score-conversion/?score=${effTotalScore}${geoParam}`
         );
+        if (!scUrl) throw new Error("bad path");
+        const res = await fetch(scUrl, { credentials: apiFetchCredentials() });
         if (res.ok) {
           const data = await res.json();
           scoreExam = data.score_exam !== undefined ? data.score_exam : null;
@@ -1345,9 +1360,13 @@ function ExamPage() {
 
   const openPdf = async (variantId) => {
     setPdfLoading("default");
-    const url = `/api/${level}/${subject}/variant/${variantId}/pdf/`;
+    const url = trainerSubjectApiUrl(level, subject, `variant/${variantId}/pdf/`);
+    if (!url) {
+      setPdfLoading(null);
+      return;
+    }
     try {
-      const res = await fetch(url, { credentials: "same-origin" });
+      const res = await fetch(url, { credentials: apiFetchCredentials() });
       if (!res.ok) throw new Error("Ошибка загрузки PDF");
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
@@ -1381,9 +1400,13 @@ function ExamPage() {
     const bgUrl = getThemeWorksheetBg();
     const params = new URLSearchParams({ theme: themeName });
     if (bgUrl) params.set("bg_url", bgUrl);
-    const url = `/api/${level}/${subject}/variant/${variantId}/pdf/?${params}`;
+    const url = trainerSubjectApiUrl(level, subject, `variant/${variantId}/pdf/?${params}`);
+    if (!url) {
+      setPdfLoading(null);
+      return;
+    }
     try {
-      const res = await fetch(url, { credentials: "same-origin" });
+      const res = await fetch(url, { credentials: apiFetchCredentials() });
       if (!res.ok) throw new Error("Ошибка загрузки PDF");
       const blob = await res.blob();
       const blobUrl = URL.createObjectURL(blob);
