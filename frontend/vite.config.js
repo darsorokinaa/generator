@@ -1,29 +1,9 @@
-import { dirname, resolve } from 'node:path'
-import { fileURLToPath } from 'node:url'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-
-const __dirname = dirname(fileURLToPath(import.meta.url))
 
 export default defineConfig(({ command }) => ({
   plugins: [react()],
   base: command === 'build' ? '/static/' : '/',
-  build: {
-    rollupOptions: {
-      input: {
-        main: resolve(__dirname, 'index.html'),
-        'lesson-jitsi': resolve(__dirname, 'src/lesson-jitsi.jsx'),
-      },
-      output: {
-        entryFileNames: (chunkInfo) => {
-          if (chunkInfo.name === 'lesson-jitsi') return 'assets/lesson-jitsi.js'
-          return 'assets/[name]-[hash].js'
-        },
-        chunkFileNames: 'assets/[name]-[hash].js',
-        assetFileNames: 'assets/[name]-[hash][extname]',
-      },
-    },
-  },
   server: {
     host: '0.0.0.0',
     port: 5000,

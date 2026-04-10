@@ -303,29 +303,6 @@
       display: block;
       min-height: 0;
     }
-    /* Jitsi Meet через @jitsi/react-sdk (External API) */
-    .video-jitsi-root {
-      flex: 1;
-      min-height: 0;
-      width: 100%;
-      display: flex;
-      flex-direction: column;
-      position: relative;
-    }
-    .video-jitsi-root > div {
-      flex: 1;
-      min-height: 0;
-      width: 100%;
-    }
-    .lesson-jitsi-spinner {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex: 1;
-      min-height: 120px;
-      font-size: 0.85rem;
-      color: #7382ab;
-    }
     /* Запасная ссылка под iframe (Jitsi и др.), если встроенное окно не подключается */
     .video-external-fallback {
       flex-shrink: 0;
@@ -1787,16 +1764,7 @@
       </button>
     </div>
     <div class="video-area">
-      {% if lesson_jitsi_domain and lesson_jitsi_room %}
-      <div id="lesson-jitsi-root" class="video-jitsi-root" aria-label="Видеозвонок"></div>
-      {{ lesson_jitsi_props|json_script:"lesson-jitsi-props" }}
-      <script type="module" src="/static/assets/lesson-jitsi.js"></script>
-      {% if lesson_video_link_url %}
-      <div class="video-external-fallback">
-        <a href="{{ lesson_video_link_url }}" target="_blank" rel="noopener noreferrer">Открыть звонок в отдельной вкладке</a>
-      </div>
-      {% endif %}
-      {% elif lesson_video_embed_url %}
+      {% if lesson_video_embed_url %}
       <iframe
         class="video-iframe"
         src="{{ lesson_video_embed_url }}"

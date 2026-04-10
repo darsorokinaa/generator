@@ -3,7 +3,7 @@ import json
 import logging
 import os
 import re
-from urllib.parse import parse_qs, quote, unquote, urlparse, urlunparse
+from urllib.parse import quote, urlparse, urlunparse
 from urllib import request as urlrequest, error as urlerror
 import secrets
 from datetime import datetime
@@ -2150,38 +2150,6 @@ def enhance_jitsi_iframe_url(url: str) -> str:
     return urlunparse(u._replace(fragment=new_frag))
 
 
-def _parse_jitsi_meeting_params(direct: str, payload: dict) -> dict:
-    """
-    Домен и имя комнаты для @jitsi/react-sdk (без iframe src на meet — через External API).
-    JWT: из payload или query строки ссылки.
-    """
-    out = {"domain": "", "room": "", "jwt": ""}
-    if not (direct or "").strip():
-        return out
-    u = urlparse(direct.strip())
-    if not u.scheme or not u.hostname:
-        return out
-    host = u.hostname.lower().rstrip(".")
-    if not _jitsi_embed_host_allowed(host):
-        return out
-    path = (u.path or "").strip("/")
-    if not path:
-        return out
-    room = unquote(path)
-    qs = parse_qs(u.query or "")
-    jwt_from_url = (qs.get("jwt") or [None])[0] or ""
-    jwt_from_payload = _lesson_first_url(
-        payload.get("jitsi_jwt"),
-        payload.get("jitsiJwt"),
-        payload.get("jitsi_token"),
-        payload.get("jitsiToken"),
-        payload.get("video_jwt"),
-        payload.get("videoJwt"),
-    )
-    jwt = (jwt_from_payload or jwt_from_url or "").strip()
-    return {"domain": host, "room": room, "jwt": jwt}
-
-
 def lesson_video_context_from_jwt(payload: dict, lesson_type: str = "teacher") -> dict:
     """
     Ссылка на видеозвонок из ЛК (JWT). В iframe только https (или localhost) — иначе только внешняя ссылка.
@@ -2221,7 +2189,6 @@ def lesson_video_context_from_jwt(payload: dict, lesson_type: str = "teacher") -
             direct = "https://meet.jit.si/" + quote(slug, safe="")
     embed_url = ""
     link_url = ""
-    jitsi_params = _parse_jitsi_meeting_params(direct, p) if direct else {"domain": "", "room": "", "jwt": ""}
     if direct:
         link_url = direct
         low = direct.lower()
@@ -2231,9 +2198,6 @@ def lesson_video_context_from_jwt(payload: dict, lesson_type: str = "teacher") -
     return {
         "lesson_video_embed_url": embed_url,
         "lesson_video_link_url": link_url,
-        "lesson_jitsi_domain": jitsi_params.get("domain") or "",
-        "lesson_jitsi_room": jitsi_params.get("room") or "",
-        "lesson_jitsi_jwt": jitsi_params.get("jwt") or "",
     }
 
 
@@ -2373,12 +2337,6 @@ def lesson_join(request):
 
     _persist_lesson_room(normalized["room_id"], payload)
     normalized["lesson_token"] = token
-    normalized["lesson_jitsi_props"] = {
-        "domain": (normalized.get("lesson_jitsi_domain") or "").strip(),
-        "roomName": (normalized.get("lesson_jitsi_room") or "").strip(),
-        "jwt": (normalized.get("lesson_jitsi_jwt") or "").strip(),
-        "displayName": (normalized.get("participant_name") or "").strip() or "Участник",
-    }
     normalized["lk_public_url"] = lk_user_nav_url()
     normalized["lk_nav_password_required"] = lk_nav_password_configured()
     normalized["lk_nav_unlocked"] = (not normalized["lk_nav_password_required"]) or lk_nav_cookie_is_valid(

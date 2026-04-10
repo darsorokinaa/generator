@@ -10,7 +10,6 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@jitsi/react-sdk": "^1.4.4",
     "@react-spring/web": "^10.0.3",
     "mathjax-full": "^3.2.1",
     "punycode": "^2.3.1",
