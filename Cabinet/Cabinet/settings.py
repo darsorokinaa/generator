@@ -38,7 +38,10 @@ if os.environ.get('FRONTEND_URL_FORCE_HTTP', '').lower() in ('1', 'true', 'yes')
     if FRONTEND_URL.lower().startswith('https://'):
         FRONTEND_URL = 'http://' + FRONTEND_URL[8:]
 
-GENURОК_URL   = os.environ.get('GENURОК_URL',   'https://genurok.tw1.ru')
+GENURОК_URL   = os.environ.get('GENURОК_URL',   'https://genurok.tw1.ru').rstrip('/')
+# После /logout/ — по умолчанию страница входа (`/login/` на хосте FRONTEND_URL). Иначе задайте LOGOUT_REDIRECT_URL.
+_logout_url = os.environ.get('LOGOUT_REDIRECT_URL', '').strip().rstrip('/')
+LOGOUT_REDIRECT_URL = _logout_url if _logout_url else f"{FRONTEND_URL}/login/"
 # Общий секрет с ГенУрок.рф для подписи JWT. В проде задайте через env-переменную.
 LESSON_SECRET = os.environ.get('LESSON_SECRET', SECRET_KEY)
 JITSI_BASE_URL = os.environ.get('JITSI_BASE_URL', 'https://meet.jit.si').rstrip('/')
@@ -173,8 +176,6 @@ admin.AdminSite.enable_nav_sidebar = True
 
 LOGIN_URL           = '/login/'
 LOGIN_REDIRECT_URL  = FRONTEND_URL
-# После выхода — на главную (генератор / публичный сайт), см. views.logout_view
-LOGOUT_REDIRECT_URL = GENURОК_URL.rstrip('/')
 
 # CORS — в проде список задаётся через env
 _cors_origins = os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:3000')

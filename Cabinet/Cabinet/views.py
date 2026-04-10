@@ -125,7 +125,7 @@ def register_view(request):
 
 def logout_view(request):
     logout(request)
-    return redirect(GENURОК_URL.rstrip('/'))
+    return redirect(settings.LOGOUT_REDIRECT_URL)
 
 
 def settings_view(request):
