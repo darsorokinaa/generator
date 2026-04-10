@@ -38,7 +38,8 @@ def react_app(request):
 def home_view(request):
     if request.user.is_authenticated:
         if user_can_use_lk(request.user):
-            return redirect(settings.FRONTEND_URL)
+            # Корень не отдаёт SPA — только /app/ (см. react_app)
+            return redirect('react-app')
         return redirect('/admin/')
     return redirect('login')
 

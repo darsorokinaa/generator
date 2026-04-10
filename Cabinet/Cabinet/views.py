@@ -48,8 +48,14 @@ def get_user_by_login(login_str):
 
 
 def _dashboard_url(request):
-    """Возвращает URL дашборда — всегда FRONTEND_URL."""
-    return FRONTEND_URL
+    """
+    URL дашборда (React SPA).
+    В проде SPA отдаётся Django с path /app/; отдельный CRA — http://localhost:3000.
+    """
+    fe = (FRONTEND_URL or '').rstrip('/')
+    if fe and (':3000' in fe or fe.rstrip('/').endswith('3000')):
+        return fe
+    return request.build_absolute_uri('/app/')
 
 
 def login_view(request):
@@ -85,7 +91,7 @@ def login_view(request):
 def register_view(request):
     if request.user.is_authenticated:
         if user_can_use_lk(request.user):
-            return redirect(FRONTEND_URL)
+            return redirect(_dashboard_url(request))
         return redirect('/admin/')
 
     subjects = Subject.objects.all().order_by('subject_name')
