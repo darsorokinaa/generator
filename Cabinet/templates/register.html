@@ -201,17 +201,17 @@
       <div class="row">
         <div class="field">
           <label for="name">Имя <span style="color:#EF4444">*</span></label>
-          <input id="name" name="name" type="text" placeholder="Иван" value="{{ request.POST.name }}" required />
+          <input id="name" name="name" type="text" placeholder="Иван" value="{{ request.POST.name }}" maxlength="100" autocomplete="given-name" required />
         </div>
         <div class="field">
           <label for="surname">Фамилия <span style="color:#EF4444">*</span></label>
-          <input id="surname" name="surname" type="text" placeholder="Петров" value="{{ request.POST.surname }}" required />
+          <input id="surname" name="surname" type="text" placeholder="Петров" value="{{ request.POST.surname }}" maxlength="100" autocomplete="family-name" required />
         </div>
       </div>
 
       <div class="field">
         <label for="email">Email <span style="color:#EF4444">*</span></label>
-        <input id="email" name="email" type="email" placeholder="ivan@example.com" value="{{ request.POST.email }}" autocomplete="email" required />
+        <input id="email" name="email" type="email" placeholder="ivan@example.com" value="{{ request.POST.email }}" maxlength="254" autocomplete="email" required />
       </div>
 
       <input type="hidden" name="role" value="teacher" />
@@ -241,7 +241,7 @@
         <div class="field">
           <label for="password1">Пароль <span style="color:#EF4444">*</span></label>
           <div class="pw-wrap">
-            <input id="password1" name="password1" type="password" placeholder="Минимум 6 символов" autocomplete="new-password" required />
+            <input id="password1" name="password1" type="password" placeholder="Минимум 8 символов" autocomplete="new-password" required minlength="8" maxlength="128" />
             <button type="button" class="pw-toggle" onclick="togglePw('password1', this)" tabindex="-1" aria-label="Показать пароль">
               <svg id="eye1" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
@@ -258,7 +258,7 @@
         <div class="field">
           <label for="password2">Повторите пароль <span style="color:#EF4444">*</span></label>
           <div class="pw-wrap">
-            <input id="password2" name="password2" type="password" placeholder="Повторите пароль" autocomplete="new-password" required />
+            <input id="password2" name="password2" type="password" placeholder="Повторите пароль" autocomplete="new-password" required minlength="8" maxlength="128" />
             <button type="button" class="pw-toggle" onclick="togglePw('password2', this)" tabindex="-1" aria-label="Показать пароль">
               <svg id="eye2" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
@@ -286,7 +286,7 @@
 
     function getStrength(pw) {
       let score = 0;
-      if (pw.length >= 6)  score++;
+      if (pw.length >= 8)  score++;
       if (pw.length >= 10) score++;
       if (/[A-Z]/.test(pw) || /[0-9]/.test(pw)) score++;
       if (/[^A-Za-z0-9]/.test(pw)) score++;
@@ -314,8 +314,8 @@
       });
       strengthLabel.textContent = LABELS[level];
       strengthLabel.className = `pw-strength-label ${level}`;
-      p1.classList.toggle('input--error', pw.length < 6);
-      p1.classList.toggle('input--ok', pw.length >= 6);
+      p1.classList.toggle('input--error', pw.length < 8);
+      p1.classList.toggle('input--ok', pw.length >= 8);
       checkMatch();
     });
 
@@ -348,7 +348,7 @@
         matchError.textContent = 'Пароли не совпадают';
         p2.classList.add('input--error');
         p2.focus();
-      } else if (p1.value.length < 6) {
+      } else if (p1.value.length < 8) {
         e.preventDefault();
         p1.classList.add('input--error');
         p1.focus();

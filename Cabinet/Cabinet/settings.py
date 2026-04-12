@@ -70,6 +70,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
+    'Cabinet.middleware.SecurityHeadersMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -189,4 +190,50 @@ CORS_ALLOW_CREDENTIALS = True
 
 _csrf_origins = os.environ.get('CSRF_TRUSTED_ORIGINS', 'http://localhost:3000')
 CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_origins.split(',') if o.strip()]
+
+# Общий объём тела запроса (JSON-API, формы)
+DATA_UPLOAD_MAX_MEMORY_SIZE = min(
+    int(os.environ.get('DATA_UPLOAD_MAX_MEMORY_MB', '3')) * 1024 * 1024,
+    10 * 1024 * 1024,
+)
+
+# Секрет вызова POST /api/lesson/teacher-joined/ со стороны генератора (заголовок X-Lesson-Webhook-Secret)
+LESSON_WEBHOOK_SECRET = os.environ.get('LESSON_WEBHOOK_SECRET', '').strip()
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.UserRateThrottle',
+        'rest_framework.throttling.AnonRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'user': os.environ.get('DRF_THROTTLE_USER', '400/minute'),
+        'anon': os.environ.get('DRF_THROTTLE_ANON', '60/minute'),
+    },
+    'DEFAULT_PARSER_CLASSES': [
+        'rest_framework.parsers.JSONParser',
+    ],
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+    ],
+}
+
+if not DEBUG:
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'
+    SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
+    _ssl = os.environ.get('SECURE_SSL_REDIRECT', 'True').lower() in ('1', 'true', 'yes')
+    SECURE_SSL_REDIRECT = _ssl
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = int(os.environ.get('SECURE_HSTS_SECONDS', '31536000'))
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = os.environ.get(
+        'SECURE_HSTS_INCLUDE_SUBDOMAINS', 'True'
+    ).lower() in ('1', 'true', 'yes')
+    SECURE_HSTS_PRELOAD = os.environ.get('SECURE_HSTS_PRELOAD', '0').lower() in ('1', 'true', 'yes')
 

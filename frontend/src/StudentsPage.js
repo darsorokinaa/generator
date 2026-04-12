@@ -331,13 +331,8 @@ export default function StudentsPage({ onOpenProfile }) {
             className={`filter-pill${levelFilter === f.id ? ' filter-pill--active' : ''}`}
             onClick={() => { setLevelFilter(f.id); setSubjectFilter('Все'); }}
           >
-            {f.label}
-            {f.id !== 'all' && (
-              <span className="filter-count">
-                {students.filter(s => s.level_name === f.id).length}
-              </span>
-            )}
-          </button>
+                  {f.label}
+                </button>
         ))}
       </div>
 
@@ -370,7 +365,6 @@ export default function StudentsPage({ onOpenProfile }) {
         >
           <span className="chip-dot" style={{ background: '#93C5FD' }} />
           Индивидуальные
-          <span className="chip-count">{students.filter(s => s.lesson_type === 'individual').length}</span>
         </button>
         <button
           className={`filter-chip${lessonFilter === 'group' ? ' filter-chip--active' : ''}`}
@@ -378,15 +372,10 @@ export default function StudentsPage({ onOpenProfile }) {
         >
           <span className="chip-dot" style={{ background: '#b69eff' }} />
           Групповые
-          <span className="chip-count">{students.filter(s => s.lesson_type === 'group').length}</span>
         </button>
       </div>
 
       {/* Table */}
-      <div className="table-above-row">
-        <span className="table-count">{filtered.length} учеников</span>
-      </div>
-
       <div className="table-wrap">
         <table className="students-table">
           <thead>

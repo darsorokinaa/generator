@@ -17,24 +17,17 @@ const ALL_HW = [
 ];
 
 const TAB_FILTERS = [
-  { id: 'all',      label: 'Все задания',      count: ALL_HW.length },
-  { id: 'pending',  label: 'На проверке',      count: ALL_HW.filter(h => !h.reviewed).length },
-  { id: 'overdue',  label: 'Просрочено',       count: ALL_HW.filter(h => h.urgent && !h.reviewed).length },
-  { id: 'reviewed', label: 'Проверено',        count: ALL_HW.filter(h => h.reviewed).length },
+  { id: 'all',      label: 'Все задания' },
+  { id: 'pending',  label: 'На проверке' },
+  { id: 'overdue',  label: 'Просрочено' },
+  { id: 'reviewed', label: 'Проверено' },
 ];
 
 function initials(name) {
   return name.split(' ').map(w => w[0]).join('').slice(0, 2);
 }
 
-const STATS = [
-  { label: 'Всего заданий',    value: ALL_HW.length,                                   color: 'blue' },
-  { label: 'Ожидают проверки', value: ALL_HW.filter(h => !h.reviewed).length,          color: 'blue' },
-  { label: 'Просрочено',       value: ALL_HW.filter(h => h.urgent && !h.reviewed).length, color: 'red' },
-  { label: 'Проверено',        value: ALL_HW.filter(h => h.reviewed).length,           color: 'green' },
-];
-
-export default function HomeworkPage() {
+export default function HomeworkPage({ isStudent = false }) {
   const [tab, setTab]     = useState('pending');
   const [search, setSearch] = useState('');
 
@@ -44,8 +37,10 @@ export default function HomeworkPage() {
       tab === 'pending'  ? !h.reviewed :
       tab === 'overdue'  ? h.urgent && !h.reviewed :
       tab === 'reviewed' ? h.reviewed : true;
-    const bySearch = h.student.toLowerCase().includes(search.toLowerCase()) ||
-                     h.task.toLowerCase().includes(search.toLowerCase());
+    const bySearch = isStudent
+      ? h.task.toLowerCase().includes(search.toLowerCase())
+      : h.student.toLowerCase().includes(search.toLowerCase()) ||
+        h.task.toLowerCase().includes(search.toLowerCase());
     return byTab && bySearch;
   });
 
@@ -55,24 +50,18 @@ export default function HomeworkPage() {
       <div className="page-header">
         <div>
           <h2 className="page-title">Домашние задания</h2>
-          <p className="page-subtitle">Проверка и управление заданиями</p>
+          <p className="page-subtitle">
+            {isStudent ? 'Ваши задания' : 'Проверка и управление заданиями'}
+          </p>
         </div>
-        <button className="btn-page-primary">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-          Создать задание
-        </button>
-      </div>
-
-      {/* Stats */}
-      <div className="hw-stats-row">
-        {STATS.map(s => (
-          <div key={s.label} className={`hw-stat hw-stat--${s.color}`}>
-            <span className="hw-stat-value">{s.value}</span>
-            <span className="hw-stat-label">{s.label}</span>
-          </div>
-        ))}
+        {!isStudent && (
+          <button type="button" className="btn-page-primary">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            Создать задание
+          </button>
+        )}
       </div>
 
       {/* Tabs */}
@@ -80,11 +69,11 @@ export default function HomeworkPage() {
         {TAB_FILTERS.map(t => (
           <button
             key={t.id}
+            type="button"
             className={`page-tab${tab === t.id ? ' page-tab--active' : ''}`}
             onClick={() => setTab(t.id)}
           >
             {t.label}
-            <span className={`tab-count${tab === t.id ? ' tab-count--active' : ''}`}>{t.count}</span>
           </button>
         ))}
       </div>
@@ -98,19 +87,18 @@ export default function HomeworkPage() {
           <input
             className="search-input"
             type="text"
-            placeholder="Поиск по ученику или заданию…"
+            placeholder={isStudent ? 'Поиск по заданию…' : 'Поиск по ученику или заданию…'}
             value={search}
             onChange={e => setSearch(e.target.value)}
           />
           {search && (
-            <button className="search-clear" onClick={() => setSearch('')}>
+            <button type="button" className="search-clear" onClick={() => setSearch('')}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
               </svg>
             </button>
           )}
         </div>
-        <span className="table-count" style={{ marginLeft: 'auto' }}>{filtered.length} заданий</span>
       </div>
 
       {/* Table */}
@@ -118,26 +106,28 @@ export default function HomeworkPage() {
         <table className="students-table">
           <thead>
             <tr>
-              <th>Ученик</th>
+              {!isStudent && <th>Ученик</th>}
               <th>Задание</th>
               <th>Предмет</th>
               <th>Сдано</th>
               <th>Дедлайн</th>
               <th>Статус</th>
-              <th></th>
+              {!isStudent && <th></th>}
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
-              <tr><td colSpan={7} className="table-empty">Заданий не найдено</td></tr>
+              <tr><td colSpan={isStudent ? 5 : 7} className="table-empty">Заданий не найдено</td></tr>
             ) : filtered.map((hw, i) => (
               <tr key={i}>
-                <td>
-                  <div className="student-cell">
-                    <div className="hw-student-avatar">{initials(hw.student)}</div>
-                    <span className="student-name">{hw.student}</span>
-                  </div>
-                </td>
+                {!isStudent && (
+                  <td>
+                    <div className="student-cell">
+                      <div className="hw-student-avatar">{initials(hw.student)}</div>
+                      <span className="student-name">{hw.student}</span>
+                    </div>
+                  </td>
+                )}
                 <td><span className="hw-task-cell">{hw.task}</span></td>
                 <td>
                   <span className={`subject-badge subject-badge--${SUBJECT_COLOR[hw.subject] || 'default'}`}>
@@ -154,11 +144,13 @@ export default function HomeworkPage() {
                       : <span className="status-badge status-badge--warning">Ожидает</span>
                   }
                 </td>
-                <td>
-                  {!hw.reviewed && (
-                    <button className="hw-btn">Проверить</button>
-                  )}
-                </td>
+                {!isStudent && (
+                  <td>
+                    {!hw.reviewed && (
+                      <button type="button" className="hw-btn">Проверить</button>
+                    )}
+                  </td>
+                )}
               </tr>
             ))}
           </tbody>

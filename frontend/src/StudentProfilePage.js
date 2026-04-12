@@ -1,3 +1,6 @@
+import { useState } from 'react';
+import API from './api';
+
 const SUBJECT_COLOR = {
   'Математика': 'math', 'Алгебра': 'math', 'Геометрия': 'math',
   'Информатика': 'cs',  'Физика': 'physics',
@@ -28,30 +31,56 @@ function formatDate(str) {
   return `${d}.${m}.${y}`;
 }
 
-export default function StudentProfilePage({ student: s, onBack }) {
+function getCookie(name) {
+  return document.cookie.split(';').map(c => c.trim())
+    .find(c => c.startsWith(name + '='))?.split('=')[1] || '';
+}
+
+export default function StudentProfilePage({ student: s, onBack, backLabel = 'Назад к ученикам' }) {
+  const [resetBusy, setResetBusy] = useState(false);
+  const [resetCreds, setResetCreds] = useState(null);
+
   const av = initials(s.student_name, s.student_surname);
   const fullName = [s.student_name, s.student_surname].filter(Boolean).join(' ');
   const statusCls = STATUS_CLASS[s.status] || 'warning';
 
-  /* Mock stats — в реальности здесь будет fetch */
-  const stats = [
-    { label: 'Занятий проведено', value: '—', icon: '📅', color: 'blue' },
-    { label: 'Домашних заданий', value: '—', icon: '📝', color: 'purple' },
-    { label: 'Выполнено вовремя', value: '—', icon: '✅', color: 'green' },
-    { label: 'Средний балл', value: '—', icon: '⭐', color: 'yellow' },
-  ];
+  async function resetPassword() {
+    if (!window.confirm('Сгенерировать новый пароль для ученика? Старый перестанет действовать.')) return;
+    setResetBusy(true);
+    try {
+      let csrf = getCookie('csrftoken');
+      if (!csrf) {
+        await fetch(`${API}/api/me/`, { credentials: 'include' });
+        csrf = getCookie('csrftoken');
+      }
+      const r = await fetch(`${API}/api/students/${s.id}/`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+        body: JSON.stringify({ action: 'reset_password' }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        alert(data.error || 'Не удалось сбросить пароль');
+        return;
+      }
+      setResetCreds({ login: data.login, password: data.password });
+    } catch {
+      alert('Нет связи с сервером');
+    } finally {
+      setResetBusy(false);
+    }
+  }
 
   return (
     <div className="page-content">
-      {/* Back */}
-      <button className="profile-back-btn" onClick={onBack}>
+      <button type="button" className="profile-back-btn" onClick={onBack}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="15 18 9 12 15 6"/>
         </svg>
-        Назад к ученикам
+        {backLabel}
       </button>
 
-      {/* Hero */}
       <div className="sp-hero">
         <div className="sp-avatar">{av}</div>
         <div className="sp-hero-info">
@@ -68,20 +97,23 @@ export default function StudentProfilePage({ student: s, onBack }) {
         </div>
       </div>
 
-      {/* Stats row */}
-      <div className="sp-stats-row">
-        {stats.map(st => (
-          <div key={st.label} className={`sp-stat-card sp-stat-card--${st.color}`}>
-            <span className="sp-stat-icon">{st.icon}</span>
-            <span className="sp-stat-value">{st.value}</span>
-            <span className="sp-stat-label">{st.label}</span>
-          </div>
-        ))}
+      <div className="sp-actions-row" style={{ marginBottom: 20 }}>
+        <button
+          type="button"
+          className="btn-page-primary"
+          onClick={resetPassword}
+          disabled={resetBusy}
+        >
+          {resetBusy ? 'Сброс…' : 'Сбросить пароль'}
+        </button>
+        {s.student_username && (
+          <span style={{ marginLeft: 12, color: 'var(--text-3)', fontSize: 13, alignSelf: 'center' }}>
+            Логин: <strong style={{ color: 'var(--text-1)' }}>{s.student_username}</strong>
+          </span>
+        )}
       </div>
 
-      {/* Two-column info */}
       <div className="sp-grid">
-        {/* Personal */}
         <div className="sp-card">
           <div className="sp-card-title">Личные данные</div>
           <div className="sp-rows">
@@ -110,7 +142,6 @@ export default function StudentProfilePage({ student: s, onBack }) {
           </div>
         </div>
 
-        {/* Education */}
         <div className="sp-card">
           <div className="sp-card-title">Обучение</div>
           <div className="sp-rows">
@@ -141,7 +172,6 @@ export default function StudentProfilePage({ student: s, onBack }) {
         </div>
       </div>
 
-      {/* Goal */}
       {s.goal && (
         <div className="sp-card sp-card--full">
           <div className="sp-card-title">Цель обучения</div>
@@ -149,11 +179,46 @@ export default function StudentProfilePage({ student: s, onBack }) {
         </div>
       )}
 
-      {/* Placeholder for future homework/lesson history */}
       <div className="sp-card sp-card--full sp-card--placeholder">
         <div className="sp-card-title">История занятий</div>
         <p className="sp-placeholder-text">Здесь будет отображаться история занятий и домашних заданий ученика.</p>
       </div>
+
+      {resetCreds && (
+        <div className="modal-overlay" onClick={() => setResetCreds(null)}>
+          <div className="modal modal--credentials" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <span className="modal-title">Новый пароль</span>
+              <button type="button" className="modal-close" onClick={() => setResetCreds(null)}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
+            </div>
+            <div className="credentials-body">
+              <div className="credentials-hint">
+                <span className="credentials-hint-icon">⚠️</span>
+                <span>Сохраните пароль и передайте ученику — при закрытии окна он не отобразится снова.</span>
+              </div>
+              <div className="credentials-row">
+                <span className="credentials-label">Логин</span>
+                <span className="credentials-value">{resetCreds.login}</span>
+              </div>
+              <div className="credentials-row">
+                <span className="credentials-label">Пароль</span>
+                <span className="credentials-value credentials-value--password">{resetCreds.password}</span>
+              </div>
+              <button
+                type="button"
+                className="credentials-copy-all"
+                onClick={() => navigator.clipboard.writeText(`Логин: ${resetCreds.login}\nПароль: ${resetCreds.password}`)}
+              >
+                Скопировать логин и пароль
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

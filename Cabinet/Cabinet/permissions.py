@@ -30,3 +30,17 @@ class IsLKTeacher(permissions.BasePermission):
 
     def has_permission(self, request, view):
         return user_can_use_lk(request.user)
+
+
+class IsCabinetTeacher(permissions.BasePermission):
+    """Только учитель (не ученик): управление учениками, группами, уроками."""
+
+    message = 'Доступно только учителю.'
+
+    def has_permission(self, request, view):
+        if not user_can_use_lk(request.user):
+            return False
+        try:
+            return request.user.profile.role != 'student'
+        except UserProfile.DoesNotExist:
+            return False

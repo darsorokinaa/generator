@@ -25,6 +25,9 @@ class TeachersStudentSerializer(serializers.ModelSerializer):
     student_surname = serializers.CharField(source='student.surname', read_only=True)
     student_email   = serializers.CharField(source='student.email',   read_only=True)
     student_phone   = serializers.CharField(source='student.phone',   read_only=True)
+    student_username = serializers.CharField(source='student.username', read_only=True)
+    gender          = serializers.CharField(source='student.gender', read_only=True)
+    birth_date      = serializers.DateField(source='student.birth_date', read_only=True)
     subject_name    = serializers.CharField(source='subject.subject_name', read_only=True)
     level_name      = serializers.CharField(source='level.level',     read_only=True)
     group_name      = serializers.CharField(source='group.group_name', read_only=True, default=None)
@@ -33,8 +36,9 @@ class TeachersStudentSerializer(serializers.ModelSerializer):
         model = TeachersStudent
         fields = [
             'id',
-            'student', 'student_name', 'student_surname',
+            'student', 'student_name', 'student_surname', 'student_username',
             'student_email', 'student_phone',
+            'gender', 'birth_date',
             'subject', 'subject_name',
             'level', 'level_name',
             'grade', 'goal', 'status',

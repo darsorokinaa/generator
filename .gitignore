@@ -3,8 +3,17 @@ Cabinet/db.sqlite3
 Cabinet/staticfiles/
 Cabinet/**/__pycache__/
 *.py[cod]
-Cabinet/.env.local
+
+# Секреты и локальные env (в репозитории остаётся только Cabinet/.env.example)
+Cabinet/.env
+Cabinet/.env.*
+!Cabinet/.env.example
 
 # venv (если в корне репозитория)
 venv/
 .venv/
+
+# Корневой .env, если появится
+.env
+.env.*
+!.env.example

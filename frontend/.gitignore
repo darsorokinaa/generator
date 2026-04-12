@@ -13,6 +13,8 @@
 
 # misc
 .DS_Store
+# Локальные секреты CRA (без суффикса — не путать с закоммиченными .env.development / .env.production)
+.env
 .env.local
 .env.development.local
 .env.test.local

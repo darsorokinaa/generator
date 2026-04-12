@@ -119,11 +119,11 @@
       {% csrf_token %}
       <div class="field">
         <label for="username">Логин или Email</label>
-        <input id="username" name="username" type="text" placeholder="Логин или email" autocomplete="username" required />
+        <input id="username" name="username" type="text" placeholder="Логин или email" autocomplete="username" maxlength="254" required />
       </div>
       <div class="field">
         <label for="password">Пароль</label>
-        <input id="password" name="password" type="password" placeholder="Введите пароль" autocomplete="current-password" required />
+        <input id="password" name="password" type="password" placeholder="Введите пароль" autocomplete="current-password" maxlength="128" required />
       </div>
       <button class="btn" type="submit">Войти</button>
     </form>

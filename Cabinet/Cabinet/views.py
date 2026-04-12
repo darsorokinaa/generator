@@ -1,7 +1,8 @@
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from django.contrib import messages
 from django.conf import settings
 from django.core.cache import cache
@@ -14,10 +15,16 @@ from .models import UserProfile, FunnyWord, Subject, Level, TeacherSubject, Teac
 from rest_framework import viewsets, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .permissions import IsLKTeacher, user_can_use_lk
+from .permissions import IsLKTeacher, IsCabinetTeacher, user_can_use_lk
+from .security_utils import safe_redirect_target
 from .serializers import (
     UserProfileSerializer, SubjectSerializer,
     LevelSerializer, TeachersStudentSerializer, GroupSerializer,
+)
+from .serializers_input import (
+    StudentCreateSerializer,
+    GroupCreateSerializer,
+    LessonTokenSerializer,
 )
 
 
@@ -58,6 +65,10 @@ def _dashboard_url(request):
     return request.build_absolute_uri('/app/')
 
 
+def _login_rate_limit_key(request):
+    return f'cabinet:login_fail:{request.META.get("REMOTE_ADDR", "unknown")}'
+
+
 def login_view(request):
     if request.user.is_authenticated:
         if user_can_use_lk(request.user):
@@ -65,8 +76,16 @@ def login_view(request):
         return redirect('/admin/')
 
     if request.method == 'POST':
-        login_str = request.POST.get('username', '').strip()
-        password  = request.POST.get('password', '')
+        rl_key = _login_rate_limit_key(request)
+        if cache.get(rl_key, 0) >= 25:
+            messages.error(
+                request,
+                'Слишком много неудачных попыток входа с этого адреса. Подождите около 15 минут.',
+            )
+            return render(request, 'login.html')
+
+        login_str = (request.POST.get('username') or '').strip()[:254]
+        password  = (request.POST.get('password') or '')[:128]
 
         user_obj = get_user_by_login(login_str)
         user = authenticate(request, username=user_obj.username, password=password) if user_obj else None
@@ -79,10 +98,16 @@ def login_view(request):
                     'В личный кабинет учителя входите под отдельным логином (регистрация в кабинете).',
                 )
             else:
+                cache.delete(rl_key)
                 login(request, user)
-                next_url = request.GET.get('next')
-                return redirect(next_url if next_url else _dashboard_url(request))
+                next_raw = request.GET.get('next')
+                safe = safe_redirect_target(next_raw, request) if next_raw else None
+                return redirect(safe or _dashboard_url(request))
         else:
+            try:
+                cache.incr(rl_key)
+            except ValueError:
+                cache.set(rl_key, 1, timeout=900)
             messages.error(request, 'Неверный логин / email или пароль')
 
     return render(request, 'login.html')
@@ -97,24 +122,41 @@ def register_view(request):
     subjects = Subject.objects.all().order_by('subject_name')
 
     if request.method == 'POST':
-        name        = request.POST.get('name', '').strip()
-        surname     = request.POST.get('surname', '').strip()
-        email       = request.POST.get('email', '').strip()
-        password1   = request.POST.get('password1', '')
-        password2   = request.POST.get('password2', '')
+        name        = (request.POST.get('name') or '').strip()[:100]
+        surname     = (request.POST.get('surname') or '').strip()[:100]
+        email       = (request.POST.get('email') or '').strip()[:254]
+        password1   = (request.POST.get('password1') or '')[:128]
+        password2   = (request.POST.get('password2') or '')[:128]
         subject_ids = request.POST.getlist('subjects')
+
+        try:
+            subj_ints = [int(x) for x in subject_ids]
+        except (TypeError, ValueError):
+            messages.error(request, 'Некорректный выбор предметов')
+            return render(request, 'register.html', {'subjects': subjects})
 
         if not all([name, surname, email, password1]):
             messages.error(request, 'Заполните все обязательные поля')
-        elif not subject_ids:
+        elif not subj_ints:
             messages.error(request, 'Выберите хотя бы один предмет')
         elif password1 != password2:
             messages.error(request, 'Пароли не совпадают')
-        elif len(password1) < 6:
-            messages.error(request, 'Пароль должен быть не менее 6 символов')
+        elif len(password1) < 8:
+            messages.error(request, 'Пароль должен быть не менее 8 символов')
         elif email and User.objects.filter(email=email).exists():
             messages.error(request, 'Email уже используется')
         else:
+            try:
+                validate_password(password1, user=User(email=email, username=email[:30]))
+            except ValidationError as e:
+                for err in e.messages:
+                    messages.error(request, err)
+                return render(request, 'register.html', {'subjects': subjects})
+
+            valid_subject_ids = set(Subject.objects.filter(id__in=subj_ints).values_list('id', flat=True))
+            if valid_subject_ids != set(subj_ints):
+                messages.error(request, 'Выбран неизвестный предмет')
+                return render(request, 'register.html', {'subjects': subjects})
             username = generate_username()
             user = User.objects.create_user(
                 username=username,
@@ -133,7 +175,7 @@ def register_view(request):
                 email=email,
                 role='teacher',
             )
-            selected = Subject.objects.filter(id__in=subject_ids)
+            selected = Subject.objects.filter(id__in=subj_ints)
             TeacherSubject.objects.bulk_create([
                 TeacherSubject(teacher=profile, subject=s) for s in selected
             ])
@@ -156,14 +198,18 @@ def settings_view(request):
 
 # ── REST API ──────────────────────────────────────────────────────────────────
 
-class UserProfileViewSet(viewsets.ModelViewSet):
-    permission_classes = [IsLKTeacher]
-    queryset = UserProfile.objects.all()
+class UserProfileViewSet(viewsets.ReadOnlyModelViewSet):
+    """Только чтение собственного профиля (без массового CRUD по чужим записям)."""
+
+    permission_classes = [IsCabinetTeacher]
     serializer_class = UserProfileSerializer
+
+    def get_queryset(self):
+        return UserProfile.objects.filter(user_id=self.request.user.id)
 
 
 class SubjectListView(APIView):
-    permission_classes = [IsLKTeacher]
+    permission_classes = [IsCabinetTeacher]
 
     def get(self, request):
         try:
@@ -180,7 +226,7 @@ class SubjectListView(APIView):
 
 
 class LevelListView(APIView):
-    permission_classes = [IsLKTeacher]
+    permission_classes = [IsCabinetTeacher]
 
     def get(self, request):
         levels = Level.objects.all()
@@ -188,7 +234,7 @@ class LevelListView(APIView):
 
 
 class StudentsView(APIView):
-    permission_classes = [IsLKTeacher]
+    permission_classes = [IsCabinetTeacher]
 
     def _get_teacher_profile(self, request):
         try:
@@ -213,25 +259,26 @@ class StudentsView(APIView):
 
     def post(self, request):
         """Создаёт ученика (UserProfile) и связь с учителем (TeachersStudent)."""
-        data = request.data
+        ser = StudentCreateSerializer(data=request.data)
+        if not ser.is_valid():
+            return Response({'error': ser.errors}, status=status.HTTP_400_BAD_REQUEST)
 
-        name    = data.get('name', '').strip()
-        surname = data.get('surname', '').strip()
-        email   = data.get('email', '').strip()
-        phone   = data.get('phone', '').strip()
+        vd = ser.validated_data
+        name = vd['name']
+        surname = vd['surname']
+        email = vd['email']
+        phone = vd['phone']
+        subject_id = vd['subject']
+        level_id = vd['level']
+        grade = vd['grade']
+        goal = vd['goal']
+        st_status = vd['status']
+        lesson_type = vd['lesson_type']
+        group_id = vd.get('group')
+        gender = vd['gender']
+        birth_date = vd.get('birth_date')
 
-        if not name:
-            return Response({'error': 'Имя обязательно'}, status=status.HTTP_400_BAD_REQUEST)
-
-        subject_id   = data.get('subject')
-        level_id     = data.get('level')
-        grade        = data.get('grade', '')
-        goal         = data.get('goal', '')
-        st_status    = data.get('status', '1')
-        lesson_type  = data.get('lesson_type', 'individual')
-        group_id     = data.get('group')
-        gender       = data.get('gender', 'other')
-        birth_date   = data.get('birth_date') or None
+        teacher_profile = self._get_teacher_profile(request)
 
         try:
             subject = Subject.objects.get(id=subject_id)
@@ -242,7 +289,7 @@ class StudentsView(APIView):
         group = None
         if lesson_type == 'group' and group_id:
             try:
-                group = Group.objects.get(id=group_id)
+                group = Group.objects.get(id=group_id, teacher=teacher_profile)
             except Group.DoesNotExist:
                 return Response({'error': 'Группа не найдена'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -267,7 +314,6 @@ class StudentsView(APIView):
             role='student',
         )
 
-        teacher_profile = self._get_teacher_profile(request)
         ts = TeachersStudent.objects.create(
             teacher=teacher_profile,
             student=student_profile,
@@ -285,7 +331,35 @@ class StudentsView(APIView):
 
 
 class StudentDetailView(APIView):
-    permission_classes = [IsLKTeacher]
+    permission_classes = [IsCabinetTeacher]
+
+    def post(self, request, pk):
+        """Сброс пароля ученика: POST { \"action\": \"reset_password\" }"""
+        if request.data.get('action') != 'reset_password':
+            return Response(
+                {'error': 'Укажите action: reset_password'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        teacher_profile = self._get_teacher_profile(request)
+        try:
+            ts = TeachersStudent.objects.select_related('student__user').get(
+                pk=pk, teacher=teacher_profile
+            )
+        except TeachersStudent.DoesNotExist:
+            return Response({'error': 'Ученик не найден'}, status=status.HTTP_404_NOT_FOUND)
+
+        student_user = ts.student.user
+        if not student_user:
+            return Response({'error': 'У ученика нет учётной записи'}, status=status.HTTP_400_BAD_REQUEST)
+
+        new_password = ''.join(random.choices(string.ascii_letters + string.digits, k=10))
+        student_user.set_password(new_password)
+        student_user.save(update_fields=['password'])
+
+        return Response({
+            'login': ts.student.username,
+            'password': new_password,
+        })
 
     def delete(self, request, pk):
         teacher_profile = self._get_teacher_profile(request)
@@ -331,6 +405,15 @@ class MeProfile(APIView):
                 'role': 'teacher',
                 'subjects': [],
             })
+        if profile.role == 'student':
+            return Response({
+                'username': profile.username,
+                'name': profile.name,
+                'surname': profile.surname,
+                'email': profile.email,
+                'role': profile.role,
+                'subjects': [],
+            })
         return Response({
             'username': profile.username,
             'name': profile.name,
@@ -342,7 +425,7 @@ class MeProfile(APIView):
 
 
 class GroupView(APIView):
-    permission_classes = [IsLKTeacher]
+    permission_classes = [IsCabinetTeacher]
 
     def get(self, request):
         teacher_profile = self._teacher(request)
@@ -350,13 +433,14 @@ class GroupView(APIView):
         return Response(GroupSerializer(groups, many=True).data)
 
     def post(self, request):
-        data = request.data
-        group_name = data.get('group_name', '').strip()
-        if not group_name:
-            return Response({'error': 'Введите название группы'}, status=status.HTTP_400_BAD_REQUEST)
+        ser = GroupCreateSerializer(data=request.data)
+        if not ser.is_valid():
+            return Response({'error': ser.errors}, status=status.HTTP_400_BAD_REQUEST)
+        vd = ser.validated_data
+        group_name = vd['group_name']
         try:
-            subj  = Subject.objects.get(id=data.get('subject'))
-            level = Level.objects.get(id=data.get('level'))
+            subj  = Subject.objects.get(id=vd['subject'])
+            level = Level.objects.get(id=vd['level'])
         except (Subject.DoesNotExist, Level.DoesNotExist):
             return Response({'error': 'Предмет или уровень не найден'}, status=status.HTTP_400_BAD_REQUEST)
         teacher_profile = self._teacher(request)
@@ -388,26 +472,37 @@ class LessonTokenView(APIView):
     Тело: { room_id, type: 'student'|'group', target_id, target_name }
     Ответ: { url, token, expires_in }
     """
-    permission_classes = [IsLKTeacher]
+    permission_classes = [IsCabinetTeacher]
 
     def post(self, request):
-        data        = request.data
-        room_id     = data.get('room_id', '').strip()
-        lesson_type = data.get('type', 'student')
-        target_id   = data.get('target_id')
-        target_name = data.get('target_name', '').strip()
+        ser = LessonTokenSerializer(data=request.data)
+        if not ser.is_valid():
+            return Response({'error': ser.errors}, status=status.HTTP_400_BAD_REQUEST)
+        vd = ser.validated_data
+        room_id     = vd['room_id']
+        lesson_type = vd['type']
+        target_id   = vd['target_id']
+        target_name = vd['target_name']
 
-        if not room_id or not target_name:
+        try:
+            profile = request.user.profile
+            teacher_name = f'{profile.name} {profile.surname}'.strip()
+        except Exception:
             return Response(
-                {'error': 'room_id и target_name обязательны'},
+                {'error': 'Профиль учителя не найден'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        try:
-            profile      = request.user.profile
-            teacher_name = f'{profile.name} {profile.surname}'.strip()
-        except Exception:
-            teacher_name = request.user.get_full_name() or request.user.username
+        if lesson_type == 'student':
+            if not TeachersStudent.objects.filter(
+                id=target_id,
+                teacher=profile,
+                lesson_type='individual',
+            ).exists():
+                return Response({'error': 'Ученик не найден'}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            if not Group.objects.filter(id=target_id, teacher=profile).exists():
+                return Response({'error': 'Группа не найдена'}, status=status.HTTP_404_NOT_FOUND)
 
         from django.conf import settings as dj_settings
         import urllib.parse
@@ -471,18 +566,38 @@ class LessonTeacherJoinedView(APIView):
     """
     authentication_classes = []
     permission_classes = []
+    throttle_classes = []  # вызовы от генератора; лимит — секрет вебхука + проверка JWT
 
     def post(self, request):
+        webhook_secret = (getattr(settings, 'LESSON_WEBHOOK_SECRET', None) or '').strip()
+        if webhook_secret:
+            if (request.headers.get('X-Lesson-Webhook-Secret') or '').strip() != webhook_secret:
+                return Response({'error': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
+        elif not settings.DEBUG:
+            return Response(
+                {'error': 'LESSON_WEBHOOK_SECRET is not configured'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
         token = (request.data.get('token') or '').strip()
         if not token:
             return Response({'error': 'token required'}, status=status.HTTP_400_BAD_REQUEST)
         try:
-            payload = jwt.decode(token, LESSON_SECRET, algorithms=['HS256'])
+            payload = jwt.decode(
+                token,
+                LESSON_SECRET,
+                algorithms=['HS256'],
+                options={'require': ['exp']},
+            )
         except Exception:
             return Response({'error': 'invalid token'}, status=status.HTTP_401_UNAUTHORIZED)
 
+        if payload.get('iss') != 'cabinet':
+            return Response({'error': 'invalid token issuer'}, status=status.HTTP_401_UNAUTHORIZED)
+
         room_id = str(payload.get('room_id') or '').strip()
         target_id = payload.get('target_id')
+        teacher_uid = payload.get('teacher_id')
         teacher_name = str(payload.get('teacher') or '').strip() or 'Учитель'
         target_name = str(payload.get('target_name') or '').strip() or 'Ученик'
         lesson_type = str(payload.get('lesson_format') or payload.get('type') or 'student').strip() or 'student'
@@ -506,11 +621,16 @@ class LessonTeacherJoinedView(APIView):
         student_user_id = None
         if target_id:
             try:
-                ts = TeachersStudent.objects.select_related('student__user').get(pk=target_id)
+                ts = TeachersStudent.objects.select_related(
+                    'student__user', 'teacher__user'
+                ).get(pk=target_id)
+            except TeachersStudent.DoesNotExist:
+                ts = None
+            if ts:
+                if teacher_uid is not None and int(teacher_uid) != ts.teacher.user_id:
+                    return Response({'error': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
                 if ts.student and ts.student.user_id:
                     student_user_id = ts.student.user_id
-            except TeachersStudent.DoesNotExist:
-                pass
 
         # Резерв: сохраняем pending invite, чтобы ученик получил его даже если WS-сообщение было пропущено.
         if student_user_id:
