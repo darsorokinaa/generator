@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { readPersistedTheme } from "../utils/themeStorage";
+import { sanitizeClientPath } from "../utils/sanitizeClientPath";
 
 function AnnouncementCta({ url, label }) {
   const href = (url || "").trim();
@@ -15,7 +16,7 @@ function AnnouncementCta({ url, label }) {
       </a>
     );
   }
-  const to = href.startsWith("/") ? href : `/${href}`;
+  const to = sanitizeClientPath(href.startsWith("/") ? href : `/${href}`);
   return (
     <Link className={className} to={to}>
       {text}
@@ -274,7 +275,7 @@ function IndexPage() {
                     window.open(href, "_blank", "noopener,noreferrer");
                     return;
                   }
-                  navigate(href.startsWith("/") ? href : `/${href}`);
+                  navigate(sanitizeClientPath(href.startsWith("/") ? href : `/${href}`));
                 }}
               >
                 {slide.cta}

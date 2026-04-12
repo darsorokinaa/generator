@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect } from "react";
-import { BrowserRouter, Routes, Route, useLocation, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation, Navigate, useNavigate } from "react-router-dom";
 
 import Layout from "./pages/Layout";
 import IndexPage from "./pages/IndexPage";
@@ -26,6 +26,18 @@ function scrollDocumentToTop() {
   if (shell && shell.scrollTop > 0) {
     shell.scrollTop = 0;
   }
+}
+
+/** Редирект с «битых» путей (например /дщпшт вместо /login — русская раскладка в админке). */
+function CyrillicPathRedirect() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  useEffect(() => {
+    if (/[\u0400-\u04FF]/.test(location.pathname)) {
+      navigate("/", { replace: true });
+    }
+  }, [location.pathname, navigate]);
+  return null;
 }
 
 function ScrollToTop() {
@@ -67,6 +79,7 @@ function LessonJoinVariantRedirect() {
 function App() {
   return (
     <BrowserRouter>
+      <CyrillicPathRedirect />
       <ScrollToTop />
       <Routes>
 

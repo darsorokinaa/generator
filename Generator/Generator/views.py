@@ -2160,7 +2160,10 @@ def enhance_jitsi_iframe_url(url: str, *, as_organizer: bool = False) -> str:
     """
     Добавляет во fragment параметры Jitsi Meet для работы во встроенном iframe:
     отключает deep linking (редирект в приложение) и экран prejoin в узкой вставке.
-    Для учителя (as_organizer=True) — config.startAsModerator (в интерфейсе Jitsi — организатор комнаты).
+    Учитель: config.startAsModerator=true (модератор/организатор без отдельного входа в Jitsi),
+    config.hideLoginButton — скрыть кнопку входа в аккаунт Jitsi.
+    Ученик: config.startAsModerator=false — обычный участник.
+    Перечисленные config.* из additions подставляются поверх одноимённых ключей во fragment.
     Не трогает URL с JSON во fragment и неизвестные хосты.
     """
     raw = (url or "").strip()
@@ -2179,10 +2182,12 @@ def enhance_jitsi_iframe_url(url: str, *, as_organizer: bool = False) -> str:
     additions = [
         ("config.disableDeepLinking", "true"),
         ("config.prejoinConfig.enabled", "false"),
+        ("config.hideLoginButton", "true"),
     ]
-    if as_organizer:
-        additions.append(("config.startAsModerator", "true"))
-    existing_keys = set()
+    additions.append(
+        ("config.startAsModerator", "true" if as_organizer else "false"),
+    )
+    override_keys = {k for k, _ in additions}
     pairs = []
     if frag:
         for part in frag.split("&"):
@@ -2190,12 +2195,10 @@ def enhance_jitsi_iframe_url(url: str, *, as_organizer: bool = False) -> str:
             if not part or "=" not in part:
                 continue
             k, v = part.split("=", 1)
-            existing_keys.add(k)
+            if k in override_keys:
+                continue
             pairs.append((k, v))
-    for k, v in additions:
-        if k not in existing_keys:
-            pairs.append((k, v))
-            existing_keys.add(k)
+    pairs.extend(additions)
     new_frag = "&".join(f"{k}={v}" for k, v in pairs)
     return urlunparse(u._replace(fragment=new_frag))
 
