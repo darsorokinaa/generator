@@ -43,6 +43,9 @@ Environment="GENUROK_PUBLIC_HOME_URL=https://tes.genurok.ru"
 # Тестовый стенд часто без Redis — in-memory каналы (один процесс Daphne). С Redis — удалите эту строку.
 Environment="CHANNEL_LAYER_BACKEND=inmemory"
 Environment="LESSON_SECRET=eKPoaKBpV0QeRzYi3YWUV3gBNfWamBmGwK5MgLWvSoKmenpLVQGf7s0"
+# Если ЛК проверяет X-Lesson-Webhook-Secret: задайте тот же ключ, что в ЛК, или оставьте пустым —
+# тогда генератор отправит LESSON_SECRET (если в ЛК разрешён тот же секрет, что у JWT).
+# Environment="LESSON_WEBHOOK_SECRET=..."
 # Свой сервер Jitsi: lesson.genurok.ru — разрешаем встраивать iframe и добавлять config.*
 Environment="JITSI_EMBED_EXTRA_HOSTS=lesson.genurok.ru"
 

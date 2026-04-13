@@ -2442,6 +2442,7 @@ let inviteSentAfterOpen = false;
 let inviteSendInFlight = false;
 let inviteRetryTimer = null;
 let inviteAttemptCount = 0;
+let inviteFailureNotified = false;
 const INVITE_MAX_ATTEMPTS = 28;
 
 // ── STATE ──
@@ -4741,6 +4742,13 @@ async function notifyTeacherJoinedOnce() {
         clearTimeout(inviteRetryTimer);
         inviteRetryTimer = null;
       }
+    } else if (!inviteFailureNotified) {
+      inviteFailureNotified = true;
+      let msg = "Не удалось уведомить личный кабинет — ученик может не получить звонок.";
+      if (resp.status === 502) {
+        msg += " На сервере генератора проверьте LK_PUBLIC_URL и секрет вебхука (LESSON_WEBHOOK_SECRET или LESSON_SECRET) как в ЛК.";
+      }
+      showToast(msg.slice(0, 260), "error");
     }
   } catch (_) {
     // повтор ниже

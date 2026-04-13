@@ -31,6 +31,9 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-)&u-i%%%7kr6y6kx11pcr
 
 # Общий секрет с ЛК для JWT входа в урок (/lesson/join/). В .env: LESSON_SECRET=...
 LESSON_SECRET = os.environ.get("LESSON_SECRET", "").strip()
+# Тот же секрет, что LESSON_WEBHOOK_SECRET в ЛК — заголовок X-Lesson-Webhook-Secret при POST /api/lesson/teacher-joined/
+# Если пусто, при уведомлении ЛК подставляется LESSON_SECRET (удобно, когда в ЛК проверяют тот же ключ, что и у JWT).
+LESSON_WEBHOOK_SECRET = os.environ.get("LESSON_WEBHOOK_SECRET", "").strip()
 
 # Свой сервер Jitsi (meet.example.com) — через запятую, нижний регистр не обязателен.
 # Нужно, чтобы во встроенный iframe подставлялись параметры config.* (см. views.enhance_jitsi_iframe_url).

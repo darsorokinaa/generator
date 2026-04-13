@@ -1951,17 +1951,38 @@ def notify_lk_teacher_joined(token: str, extra: dict | None = None) -> bool:
                 continue
             payload[k] = v
     body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    headers = {"Content-Type": "application/json"}
+    # ЛК может требовать заголовок; часто тот же секрет, что и JWT (LESSON_SECRET), если отдельный не задан.
+    wh = (getattr(django_settings, "LESSON_WEBHOOK_SECRET", None) or "").strip()
+    if not wh:
+        wh = (getattr(django_settings, "LESSON_SECRET", None) or "").strip()
+    if wh:
+        headers["X-Lesson-Webhook-Secret"] = wh
     last_err: Exception | None = None
     for attempt in range(3):
         req = urlrequest.Request(
             endpoint,
             data=body,
             method="POST",
-            headers={"Content-Type": "application/json"},
+            headers=headers,
         )
         try:
             with urlrequest.urlopen(req, timeout=12):
                 return True
+        except urlerror.HTTPError as e:
+            last_err = e
+            detail = ""
+            try:
+                detail = (e.read() or b"").decode("utf-8", errors="replace")[:500]
+            except Exception:
+                pass
+            logger.warning(
+                "ЛК ответил HTTP %s на teacher-joined: %s",
+                getattr(e, "code", "?"),
+                detail or str(e),
+            )
+            if attempt < 2:
+                time.sleep(0.35 * (2**attempt))
         except (urlerror.URLError, TimeoutError, OSError, ValueError) as e:
             last_err = e
             if attempt < 2:
