@@ -1226,6 +1226,21 @@
     .sp-attach-item-icon { font-size: 1rem; flex-shrink: 0; }
     .sp-attach-item-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 500; }
     .sp-attach-item-type { font-size: 0.65rem; color: #64748b; flex-shrink: 0; }
+    .sp-attach-item--media {
+      flex-direction: column; align-items: stretch; cursor: default;
+    }
+    .sp-attach-item--media:hover { background: #f0f4ff; }
+    .sp-attach-item-row { display: flex; align-items: center; gap: 8px; }
+    .sp-attach-preview {
+      width: 100%; max-height: 200px; object-fit: contain; border-radius: 6px;
+      cursor: zoom-in; margin-bottom: 5px; background: #e2e8f0;
+    }
+    .sp-attach-audio { width: 100%; height: 36px; border-radius: 6px; margin-top: 5px; display: block; }
+    /* Student's own attach list — audio player row */
+    .task-attach-item--audio { flex-direction: column; align-items: stretch; }
+    .task-attach-item--audio .task-attach-item-row { display: flex; align-items: center; gap: 8px; width: 100%; }
+    .task-attach-audio { width: 100%; height: 32px; margin-top: 4px; border-radius: 6px; display: block; }
+    .task-attach-item-thumb--link { cursor: zoom-in; }
     .task-draw-tools {
       display: inline-flex;
       align-items: center;
@@ -2203,7 +2218,10 @@
       </button>
     </div>
     <div class="video-area">
-      {% if lesson_video_embed_url %}
+      {% if jitsi_domain and jitsi_room %}
+      {# Jitsi External API — полный контроль над UI и ролью #}
+      <div id="jitsi-container" class="video-iframe"></div>
+      {% elif lesson_video_embed_url %}
       <iframe
         class="video-iframe"
         src="{{ lesson_video_embed_url }}"
@@ -2214,15 +2232,7 @@
       ></iframe>
       {% if lesson_video_link_url %}
       <div class="video-external-fallback">
-        {% if lesson_type == "teacher" %}
-        <a href="{{ lesson_video_link_url }}" target="_blank" rel="noopener noreferrer" class="video-organizer-btn">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-          Войти как организатор (новая вкладка)
-        </a>
-        <p class="video-organizer-hint">Если видите «нет модератора» — откройте как организатор и войдите в аккаунт Jitsi</p>
-        {% else %}
-        <a href="{{ lesson_video_link_url }}" target="_blank" rel="noopener noreferrer">Если встроенное окно не подключается — открыть звонок в отдельной вкладке</a>
-        {% endif %}
+        <a href="{{ lesson_video_link_url }}" target="_blank" rel="noopener noreferrer">Открыть звонок в отдельной вкладке</a>
       </div>
       {% endif %}
       {% elif lesson_video_link_url %}
@@ -2438,6 +2448,13 @@ const LESSON_TOKEN = "{{ lesson_token|default:''|escapejs }}";
 const LK_PUBLIC_URL_FOR_NAV = "{{ lk_public_url|escapejs }}";
 const LESSON_VIDEO_COLLAPSED_LABEL = "{{ lesson_video_collapsed_label|default:''|escapejs }}";
 const LESSON_VIDEO_COLLAPSED_HINT = "{{ lesson_video_collapsed_hint|default:''|escapejs }}";
+// Jitsi External API
+const JITSI_DOMAIN = "{{ jitsi_domain|default:''|escapejs }}";
+const JITSI_ROOM   = "{{ jitsi_room|default:''|escapejs }}";
+const JITSI_JWT    = "{{ jitsi_jwt|default:''|escapejs }}";
+const JITSI_IS_MODERATOR = {% if lesson_type == "teacher" %}true{% else %}false{% endif %};
+let jitsiApi = null;
+let jitsiApiLoading = false;
 let inviteSentAfterOpen = false;
 let inviteSendInFlight = false;
 let inviteRetryTimer = null;
@@ -3629,7 +3646,9 @@ function applyVideoMode(showVideo) {
   if (showVideo) {
     restoreVideoPanelCollapseState();
   }
-  if (iframe) {
+  if (JITSI_DOMAIN && JITSI_ROOM) {
+    if (showVideo) jitsiStart(); else jitsiStop();
+  } else if (iframe) {
     const originalSrc = iframe.dataset.originalSrc || iframe.getAttribute("src") || "";
     if (!iframe.dataset.originalSrc) iframe.dataset.originalSrc = originalSrc;
     if (showVideo) {
@@ -3657,18 +3676,32 @@ function chooseVideoMode(showVideo) {
 }
 
 function initLessonEntryGate() {
-  if (getLessonVideoGatePassed()) {
-    document.body.classList.remove("lesson-gate-pending");
+  if (ROLE === "teacher") {
+    // Учитель: диалог выбора режима, если ещё не выбирал для этой комнаты
+    if (getLessonVideoGatePassed()) {
+      document.body.classList.remove("lesson-gate-pending");
+      const mode = getLessonVideoMode();
+      applyVideoMode(mode !== "off");
+      connectWS();
+      restoreVideoPanelCollapseState();
+      scheduleTeacherInviteAfterGate();
+    } else {
+      document.body.classList.add("lesson-gate-pending");
+      document.getElementById("video-mode-prompt")?.classList.add("show");
+    }
+  } else {
+    // Ученик: стартует сразу, видео по последнему выбору (по умолчанию "on")
     const mode = getLessonVideoMode();
-    if (mode === "off") applyVideoMode(false);
-    else applyVideoMode(true);
+    const showVideo = mode !== "off";
+    setLessonVideoGatePassed();
+    setLessonVideoMode(showVideo ? "on" : "off");
+    document.body.classList.remove("lesson-gate-pending");
+    document.getElementById("video-mode-prompt")?.classList.remove("show");
+    applyVideoMode(showVideo);
     connectWS();
     restoreVideoPanelCollapseState();
     scheduleTeacherInviteAfterGate();
-    return;
   }
-  document.body.classList.add("lesson-gate-pending");
-  document.getElementById("video-mode-prompt")?.classList.add("show");
 }
 
 function getDrawCanvasElement(taskNumber, surface = "board") {
@@ -3846,48 +3879,32 @@ function eraseStrokeAtPoint(taskNumber, surface, p, emit = true) {
   const key = drawSurfaceKey(taskNumber, surface);
   const st = drawStateByTask[key];
   if (!st || !Array.isArray(st.strokes) || !st.strokes.length) return false;
-  const hitRadius = 0.02;
-  for (let i = st.strokes.length - 1; i >= 0; i -= 1) {
-    const s = st.strokes[i];
-    let hit = false;
-    if (s?.type === "text") {
-      const tx = Number(s.x || 0);
-      const ty = Number(s.y || 0);
-      hit = Math.hypot(p.x - tx, p.y - ty) <= 0.03;
-    } else if (Array.isArray(s?.points) && s.points.length >= 1) {
-      if (s.points.length === 1) {
-        const q = s.points[0];
-        hit = Math.hypot(p.x - Number(q.x || 0), p.y - Number(q.y || 0)) <= hitRadius;
-      } else {
-        for (let j = 1; j < s.points.length; j += 1) {
-          const a = s.points[j - 1];
-          const b = s.points[j];
-          const d = pointToSegmentDistance(
-            p.x, p.y,
-            Number(a.x || 0), Number(a.y || 0),
-            Number(b.x || 0), Number(b.y || 0)
-          );
-          if (d <= hitRadius) {
-            hit = true;
-            break;
-          }
-        }
-      }
-    }
-    if (!hit) continue;
-    st.strokes.splice(i, 1);
-    renderDrawingBoard(taskNumber, surface);
-    if (emit) {
+
+  const canvas = getDrawCanvasElement(taskNumber, surface);
+  // Используем ту же логику попадания что и move (с учётом толщины и размера холста)
+  const i = findStrokeIndexAtPoint(taskNumber, surface, p, canvas);
+  if (i < 0) return false;
+
+  // Стираем весь нарисованный жест (все связанные сегменты, как в move)
+  const indices = findConnectedStrokeGroupIndices(taskNumber, surface, i, canvas);
+  // Удаляем от большего индекса к меньшему — чтобы splice не сдвигал оставшиеся
+  const sorted = [...indices].sort((a, b) => b - a);
+  for (const idx of sorted) {
+    st.strokes.splice(idx, 1);
+  }
+  renderDrawingBoard(taskNumber, surface);
+  if (emit) {
+    // Отправляем в убывающем порядке — на приёмнике индексы тоже останутся корректными
+    for (const idx of sorted) {
       send({
         type: "draw_erase",
         task_number: Number(taskNumber),
         surface,
-        erase_index: i,
+        erase_index: idx,
       });
     }
-    return true;
   }
-  return false;
+  return true;
 }
 
 function getDrawPanLayer(taskNumber, surface = "board") {
@@ -4319,9 +4336,13 @@ function endLessonSession(reason) {
     if (ws && ws.readyState <= 1) ws.close();
   } catch (_) {}
 
-  // Останавливаем встроенную видеосвязь (если была в iframe)
-  const iframe = document.querySelector("iframe.video-iframe");
-  if (iframe) iframe.src = "about:blank";
+  // Останавливаем видеосвязь
+  if (JITSI_DOMAIN && JITSI_ROOM) {
+    jitsiStop();
+  } else {
+    const iframe = document.querySelector("iframe.video-iframe");
+    if (iframe) iframe.src = "about:blank";
+  }
 
   let text = ROLE === "teacher"
     ? "Ученик вышел из урока. Урок завершён."
@@ -4575,16 +4596,30 @@ function renderAttachList(num) {
   if (!list) return;
   list.innerHTML = items.map(item => {
     const statusLabel = item.status === "uploading" ? "Загрузка…" : item.status === "done" ? "✓" : `Ошибка: ${item.error || ""}`;
-    const thumb = item.thumb
-      ? `<img class="task-attach-item-thumb" src="${escapeHtml(item.thumb)}" alt="">`
+    const isAudio = (item.type || "").startsWith("audio/");
+    const isImage = (item.type || "").startsWith("image/");
+    const thumbEl = item.thumb
+      ? (item.url && item.status === "done"
+        ? `<a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" title="Открыть полный размер">
+            <img class="task-attach-item-thumb task-attach-item-thumb--link" src="${escapeHtml(item.thumb)}" alt="">
+          </a>`
+        : `<img class="task-attach-item-thumb" src="${escapeHtml(item.thumb)}" alt="">`)
       : `<span class="task-attach-item-icon">${item.icon}</span>`;
-    return `<div class="task-attach-item" id="attach-item-${escapeHtml(item.id)}">
-      ${thumb}
-      <span class="task-attach-item-name" title="${escapeHtml(item.filename)}">${escapeHtml(item.filename)}</span>
-      <span class="task-attach-item-status ${item.status}">${statusLabel}</span>
-      <button type="button" class="task-attach-item-del" onclick="removeAttachment(${num}, ${JSON.stringify(item.id)})" title="Удалить">
+    const audioEl = isAudio && item.url && item.status === "done"
+      ? `<audio class="task-attach-audio" controls src="${escapeHtml(item.url)}" preload="metadata"></audio>`
+      : "";
+    const itemClass = audioEl ? "task-attach-item task-attach-item--audio" : "task-attach-item";
+    const delBtn = `<button type="button" class="task-attach-item-del" onclick="removeAttachment(${num}, ${JSON.stringify(item.id)})" title="Удалить">
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-      </button>
+      </button>`;
+    return `<div class="${itemClass}" id="attach-item-${escapeHtml(item.id)}">
+      <div class="task-attach-item-row" style="display:flex;align-items:center;gap:8px;width:100%">
+        ${thumbEl}
+        <span class="task-attach-item-name" title="${escapeHtml(item.filename)}">${escapeHtml(item.filename)}</span>
+        <span class="task-attach-item-status ${item.status}">${statusLabel}</span>
+        ${delBtn}
+      </div>
+      ${audioEl}
     </div>`;
   }).join("");
 }
@@ -4689,10 +4724,28 @@ function openStudentProfileModal(name, studentIdx) {
         const isAudio = (a.filetype || "").startsWith("audio/");
         const typeLabel = isImage ? "Изображение" : isAudio ? "Голосовое" : "Файл";
         const taskLabel = a.task_number ? `Задание ${a.task_number}` : "";
-        return `<a class="sp-attach-item" href="${escapeHtml(a.url)}" target="_blank" rel="noopener noreferrer">
-          <span class="sp-attach-item-icon">${a.icon || "📎"}</span>
+        const nameRow = `<div class="sp-attach-item-row">
+            <span class="sp-attach-item-icon">${a.icon || (isImage ? "🖼️" : isAudio ? "🎙️" : "📎")}</span>
+            <span class="sp-attach-item-name">${escapeHtml(a.filename)}${taskLabel ? ` · ${taskLabel}` : ""}</span>
+            <span class="sp-attach-item-type">${typeLabel}</span>
+          </div>`;
+        if (isImage) {
+          return `<div class="sp-attach-item sp-attach-item--media">
+            <img class="sp-attach-preview" src="${escapeHtml(a.url)}" alt="${escapeHtml(a.filename)}"
+              onclick="window.open(this.src,'_blank')" title="Нажмите чтобы открыть полный размер">
+            ${nameRow}
+          </div>`;
+        }
+        if (isAudio) {
+          return `<div class="sp-attach-item sp-attach-item--media">
+            ${nameRow}
+            <audio class="sp-attach-audio" controls src="${escapeHtml(a.url)}" preload="metadata"></audio>
+          </div>`;
+        }
+        return `<a class="sp-attach-item" href="${escapeHtml(a.url)}" download="${escapeHtml(a.filename)}" rel="noopener noreferrer">
+          <span class="sp-attach-item-icon">📎</span>
           <span class="sp-attach-item-name">${escapeHtml(a.filename)}${taskLabel ? ` · ${taskLabel}` : ""}</span>
-          <span class="sp-attach-item-type">${typeLabel}</span>
+          <span class="sp-attach-item-type">${typeLabel} · Скачать</span>
         </a>`;
       }).join("");
     }
@@ -4716,12 +4769,15 @@ function closeStudentProfileModal() {
 function scheduleTeacherInviteAfterGate() {
   if (ROLE !== "teacher") return;
   notifyTeacherJoinedOnce();
-  const iframe = document.querySelector("iframe.video-iframe");
-  if (!iframe || iframe.dataset.lessonInviteHook) return;
-  iframe.dataset.lessonInviteHook = "1";
-  iframe.addEventListener("load", () => {
-    notifyTeacherJoinedOnce();
-  }, { once: true });
+  // Для iframe-режима — дополнительный вызов при загрузке iframe
+  if (!JITSI_DOMAIN) {
+    const iframe = document.querySelector("iframe.video-iframe");
+    if (iframe && !iframe.dataset.lessonInviteHook) {
+      iframe.dataset.lessonInviteHook = "1";
+      iframe.addEventListener("load", () => { notifyTeacherJoinedOnce(); }, { once: true });
+    }
+  }
+  // Для External API вызов из videoConferenceJoined (см. jitsiStart)
 }
 
 async function notifyTeacherJoinedOnce() {
@@ -4744,11 +4800,21 @@ async function notifyTeacherJoinedOnce() {
       }
     } else if (!inviteFailureNotified) {
       inviteFailureNotified = true;
-      let msg = "Не удалось уведомить личный кабинет — ученик может не получить звонок.";
-      if (resp.status === 502) {
-        msg += " На сервере генератора проверьте LK_PUBLIC_URL и секрет вебхука (LESSON_WEBHOOK_SECRET или LESSON_SECRET) как в ЛК.";
+      let detail = "";
+      try { detail = (await resp.clone().json()).detail || ""; } catch (_) {}
+      let msg = "Звонок ученику не доставлен. ";
+      if (detail) {
+        msg += detail;
+      } else if (resp.status === 502) {
+        msg += "ЛК вернул ошибку — смотрите journalctl на сервере генератора.";
+      } else if (resp.status === 404) {
+        msg += "Эндпоинт /api/lesson/teacher-joined/ не найден в ЛК (404).";
+      } else if (resp.status === 403) {
+        msg += "ЛК вернул 403 — проверьте LESSON_WEBHOOK_SECRET/LESSON_SECRET.";
+      } else {
+        msg += `HTTP ${resp.status} от ЛК.`;
       }
-      showToast(msg.slice(0, 260), "error");
+      showToast(msg.slice(0, 300), "error");
     }
   } catch (_) {
     // повтор ниже
@@ -4937,6 +5003,91 @@ document.addEventListener("click", (e) => {
     notifyTeacherJoinedOnce();
   }
 });
+
+// ── JITSI EXTERNAL API ──────────────────────────────────────────────────────
+function jitsiStart() {
+  if (!JITSI_DOMAIN || !JITSI_ROOM) return;
+  const container = document.getElementById("jitsi-container");
+  if (!container) return;
+  if (jitsiApi || jitsiApiLoading) return;
+  jitsiApiLoading = true;
+
+  function _init() {
+    if (jitsiApi) return;
+    jitsiApi = new JitsiMeetExternalAPI(JITSI_DOMAIN, {
+      roomName: JITSI_ROOM,
+      parentNode: container,
+      jwt: JITSI_JWT || undefined,
+      width: "100%",
+      height: "100%",
+        configOverwrite: {
+        disableDeepLinking: true,
+        disableLobbyMode: true,
+        lobby: { enabled: false },
+        autoKnockLobby: false,
+        prejoinConfig: { enabled: false },
+        prejoinPageEnabled: false,
+        requireDisplayName: false,
+        startAsModerator: JITSI_IS_MODERATOR,
+        enableUserRolesBasedOnToken: true,
+        // Ученик не может кикать участников и менять настройки конференции
+        disableRemoteMute: !JITSI_IS_MODERATOR,
+        disableKick: !JITSI_IS_MODERATOR,
+        // Только нужные кнопки (у ученика нет кнопки управления участниками)
+        toolbarButtons: JITSI_IS_MODERATOR
+          ? ["microphone", "camera", "desktop", "chat", "participants-pane", "hangup"]
+          : ["microphone", "camera", "chat", "hangup"],
+      },
+      interfaceConfigOverwrite: {
+        TOOLBAR_BUTTONS: ["microphone", "camera", "desktop", "chat", "hangup"],
+        SHOW_JITSI_WATERMARK: false,
+        SHOW_WATERMARK_FOR_GUESTS: false,
+        SHOW_BRAND_WATERMARK: false,
+        SHOW_POWERED_BY: false,
+        DISPLAY_WELCOME_FOOTER: false,
+        DISPLAY_WELCOME_PAGE_CONTENT: false,
+        MOBILE_APP_PROMO: false,
+      },
+      userInfo: { displayName: MY_NAME || (JITSI_IS_MODERATOR ? "Учитель" : "Ученик") },
+    });
+    jitsiApiLoading = false;
+
+    jitsiApi.addEventListener("videoConferenceJoined", () => {
+      if (ROLE === "teacher") notifyTeacherJoinedOnce();
+    });
+    jitsiApi.addEventListener("videoConferenceLeft", () => {
+      if (ROLE === "teacher") {
+        reportLessonSessionCloseFetch("video_hangup");
+        showEndLessonBanner();
+      }
+    });
+    jitsiApi.addEventListener("readyToClose", () => {
+      if (ROLE === "teacher") {
+        reportLessonSessionCloseFetch("video_hangup");
+        showEndLessonBanner();
+      }
+    });
+  }
+
+  if (window.JitsiMeetExternalAPI) {
+    _init();
+  } else {
+    const s = document.createElement("script");
+    s.src = `https://${JITSI_DOMAIN}/external_api.js`;
+    s.onload = _init;
+    s.onerror = () => { jitsiApiLoading = false; };
+    document.head.appendChild(s);
+  }
+}
+
+function jitsiStop() {
+  if (jitsiApi) {
+    try { jitsiApi.dispose(); } catch (_) {}
+    jitsiApi = null;
+  }
+  jitsiApiLoading = false;
+}
+// ────────────────────────────────────────────────────────────────────────────
 
 window.addEventListener("load", () => {
   scheduleTeacherInviteAfterGate();

@@ -55,8 +55,8 @@ Environment="JITSI_EMBED_EXTRA_HOSTS=lesson.genurok.ru"
 # Значения берутся из prosody-конфига Jitsi-сервера (/etc/prosody/conf.d/lesson.genurok.ru.cfg.lua):
 #   VirtualHost "lesson.genurok.ru" → authentication = "token" → app_id, app_secret.
 # Без этих переменных учитель НЕ станет модератором и увидит "no moderators have arrived".
-Environment="JITSI_APP_ID=meet_app"
-Environment="JITSI_APP_SECRET=замените_на_значение_app_secret_из_prosody"
+Environment="JITSI_APP_ID=generator_test"
+Environment="JITSI_APP_SECRET=y4vz0t7pmGM8uppejoQwhGxIZv1vtWF3"
 
 Restart=always
 RestartSec=5

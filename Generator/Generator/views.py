@@ -1928,12 +1928,11 @@ def _broadcast_lesson_session_closed(room_id: str) -> None:
         logger.exception("WS broadcast session_closed failed for %s", room_id)
 
 
-def notify_lk_teacher_joined(token: str, extra: dict | None = None) -> bool:
+def notify_lk_teacher_joined(token: str, extra: dict | None = None) -> tuple[bool, str]:
     """
     Сообщает ЛК, что учитель реально вошёл в урок.
     ЛК рассылает ученику приглашение (WS / push на все устройства — реализуется в ЛК).
-    В extra передаются room_id и target_id, чтобы ЛК не парсил JWT повторно и мог
-    адресно отправить web-push на все токены ученика.
+    Возвращает (success, error_detail) — error_detail не пустой только при неудаче.
     """
     endpoint = (getattr(django_settings, "LK_LESSON_NOTIFY_URL", "") or "").strip()
     if not endpoint:
@@ -1943,7 +1942,7 @@ def notify_lk_teacher_joined(token: str, extra: dict | None = None) -> bool:
     if not endpoint and bool(getattr(django_settings, "DEBUG", False)):
         endpoint = "http://127.0.0.1:8001/api/lesson/teacher-joined/"
     if not endpoint:
-        return False
+        return False, "LK_PUBLIC_URL не задан — неизвестно куда отправить уведомление"
     payload: dict = {"token": token}
     if extra:
         for k, v in extra.items():
@@ -1958,58 +1957,63 @@ def notify_lk_teacher_joined(token: str, extra: dict | None = None) -> bool:
         wh = (getattr(django_settings, "LESSON_SECRET", None) or "").strip()
     if wh:
         headers["X-Lesson-Webhook-Secret"] = wh
-    # Если endpoint — HTTPS с самоподписанным/недоверенным сертификатом (типично для тестового стенда),
-    # Python urllib падает с SSL-ошибкой. Формируем fallback-адрес по HTTP (127.0.0.1 → без TLS).
     import ssl as _ssl
     http_fallback: str | None = None
     if endpoint.startswith("https://"):
         http_fallback = endpoint.replace("https://", "http://", 1)
 
-    def _do_request(url: str) -> bool:
+    # Возвращает (ok, http_status_or_none, detail)
+    def _do_request(url: str) -> tuple[bool, int | None, str]:
         req = urlrequest.Request(url, data=body, method="POST", headers=headers)
         try:
             with urlrequest.urlopen(req, timeout=12):
-                return True
+                return True, None, ""
         except urlerror.HTTPError as e:
             detail = ""
             try:
-                detail = (e.read() or b"").decode("utf-8", errors="replace")[:500]
+                detail = (e.read() or b"").decode("utf-8", errors="replace")[:300]
             except Exception:
                 pass
-            logger.warning("ЛК ответил HTTP %s на teacher-joined (%s): %s", getattr(e, "code", "?"), url, detail or str(e))
-            return False
+            code = getattr(e, "code", None)
+            logger.warning("ЛК ответил HTTP %s на teacher-joined (%s): %s", code, url, detail or str(e))
+            return False, code, detail or str(e)
         except Exception as exc:
             raise exc
 
     last_err: Exception | None = None
+    last_detail = ""
     for attempt in range(3):
         try:
-            if _do_request(endpoint):
-                return True
+            ok, http_code, detail = _do_request(endpoint)
+            if ok:
+                return True, ""
+            last_detail = f"HTTP {http_code} от {endpoint}: {detail[:120]}" if http_code else detail
         except (_ssl.SSLError, _ssl.CertificateError, urlerror.URLError) as e:
             last_err = e
             ssl_reason = str(e)
-            # Пробуем HTTP-fallback (генератор и ЛК на одном сервере — безопасно)
+            last_detail = f"Ошибка соединения с {endpoint}: {ssl_reason[:120]}"
             if http_fallback and http_fallback != endpoint:
-                logger.warning("SSL-ошибка при обращении к %s (%s), пробуем HTTP: %s", endpoint, ssl_reason, http_fallback)
+                logger.warning("SSL/URL-ошибка при обращении к %s (%s), пробуем HTTP: %s", endpoint, ssl_reason, http_fallback)
                 try:
-                    if _do_request(http_fallback):
+                    ok2, http_code2, detail2 = _do_request(http_fallback)
+                    if ok2:
                         logger.info("Уведомление ЛК доставлено по HTTP-fallback: %s", http_fallback)
-                        return True
+                        return True, ""
+                    last_detail = f"HTTP {http_code2} от {http_fallback}: {detail2[:120]}" if http_code2 else detail2
                 except Exception as e2:
                     last_err = e2
-            if attempt < 2:
-                time.sleep(0.35 * (2**attempt))
+                    last_detail = f"Ошибка соединения с {http_fallback}: {str(e2)[:120]}"
         except (TimeoutError, OSError, ValueError) as e:
             last_err = e
-            if attempt < 2:
-                time.sleep(0.35 * (2**attempt))
+            last_detail = f"Ошибка соединения с {endpoint}: {str(e)[:120]}"
+        if attempt < 2:
+            time.sleep(0.35 * (2**attempt))
     logger.warning(
         "Не удалось уведомить ЛК о входе учителя после 3 попыток: %s (%s)",
         endpoint,
-        last_err,
+        last_err or last_detail,
     )
-    return False
+    return False, last_detail
 
 
 def verify_lesson_token(token: str) -> dict:
@@ -2351,6 +2355,17 @@ def lesson_video_context_from_jwt(payload: dict, lesson_type: str = "teacher") -
             if gen_jwt:
                 qs_direct["jwt"] = [gen_jwt]
                 direct = urlunparse(parsed_direct._replace(query=urlencode(qs_direct, doseq=True)))
+    # Извлекаем поля для Jitsi External API (домен, комната, JWT) из URL с уже добавленным токеном.
+    jitsi_domain = ""
+    jitsi_room_name = ""
+    jitsi_ext_jwt = ""
+    if direct:
+        _pu = urlparse(direct)
+        if _jitsi_embed_host_allowed(_pu.hostname or ""):
+            jitsi_domain = _pu.hostname or ""
+            jitsi_room_name = (_pu.path or "").lstrip("/").split("/")[0]
+            jitsi_ext_jwt = parse_qs(_pu.query, keep_blank_values=True).get("jwt", [""])[0]
+
     embed_url = ""
     link_url = ""
     if direct:
@@ -2359,7 +2374,6 @@ def lesson_video_context_from_jwt(payload: dict, lesson_type: str = "teacher") -
         if low.startswith("https://") or low.startswith("http://localhost") or low.startswith("http://127.0.0.1"):
             enhanced = enhance_jitsi_iframe_url(direct, as_organizer=as_organizer)
             embed_url = enhanced
-            # Та же ссылка, что в iframe — в т.ч. «открыть в отдельной вкладке» с ролью организатора у учителя
             link_url = enhanced
         else:
             link_url = direct
@@ -2367,6 +2381,9 @@ def lesson_video_context_from_jwt(payload: dict, lesson_type: str = "teacher") -
     return {
         "lesson_video_embed_url": embed_url,
         "lesson_video_link_url": link_url,
+        "jitsi_domain": jitsi_domain,
+        "jitsi_room": jitsi_room_name,
+        "jitsi_jwt": jitsi_ext_jwt,
     }
 
 
@@ -2445,9 +2462,9 @@ def api_lesson_teacher_joined(request):
         "target_id": payload.get("target_id") or payload.get("targetId"),
         "teacher_id": payload.get("teacher_id") or payload.get("teacherId"),
     }
-    delivered = notify_lk_teacher_joined(token, extra=lk_extra)
+    delivered, notify_detail = notify_lk_teacher_joined(token, extra=lk_extra)
     if not delivered:
-        return JsonResponse({"ok": False, "error": "notify failed"}, status=502)
+        return JsonResponse({"ok": False, "error": "notify failed", "detail": notify_detail}, status=502)
     return JsonResponse({"ok": True})
 
 
@@ -2456,12 +2473,17 @@ def api_lesson_teacher_joined(request):
 def api_lesson_session_close(request):
     """
     Завершение сессии урока: после вызова повторный вход в ту же комнату по JWT запрещён.
-    Вызывается со страницы урока (закрытие вкладки, выход из Jitsi, кнопка «Завершить урок»).
+    Вызывается со страницы урока (выход из Jitsi, кнопка «Завершить урок»).
+    Причина page_unload (обновление/закрытие вкладки) игнорируется — учитель может вернуться.
     """
     try:
         data = json.loads(request.body or b"{}")
     except (json.JSONDecodeError, TypeError):
         return JsonResponse({"ok": False, "error": "invalid json"}, status=400)
+    reason = str((data or {}).get("reason") or "").strip()
+    # Обновление страницы не завершает урок — только явное действие учителя
+    if reason == "page_unload":
+        return JsonResponse({"ok": True, "closed": False, "skipped": True})
     token = str((data or {}).get("token") or "").strip()
     if not token:
         return JsonResponse({"ok": False, "error": "token required"}, status=400)
