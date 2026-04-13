@@ -6,10 +6,16 @@ from django.core.exceptions import ValidationError
 from django.contrib import messages
 from django.conf import settings
 from django.core.cache import cache
+from django.utils import timezone
+from django.utils.dateparse import parse_date
+import os
 import random
 import string
 import time
 import re
+import json
+import urllib.request
+import urllib.error
 import jwt
 from .models import (
     UserProfile,
@@ -20,6 +26,11 @@ from .models import (
     TeachersStudent,
     TeachersGroup,
     Group,
+    Homework,
+    HomeworkAttachment,
+    HomeworkAssignment,
+    HomeworkAnswerFile,
+    Notification,
 )
 from rest_framework import viewsets, status
 from rest_framework.views import APIView
@@ -31,6 +42,9 @@ from .security_utils import safe_redirect_target
 from .serializers import (
     UserProfileSerializer, SubjectSerializer,
     LevelSerializer, TeachersStudentSerializer, GroupSerializer,
+    HomeworkSerializer, HomeworkAttachmentSerializer,
+    HomeworkAssignmentSerializer, HomeworkAssignmentDetailSerializer,
+    HomeworkAnswerFileSerializer, NotificationSerializer,
 )
 from .serializers_input import (
     StudentCreateSerializer,
@@ -394,6 +408,134 @@ class StudentDetailView(APIView):
             'password': new_password,
         })
 
+    def patch(self, request, pk):
+        """
+        PATCH полей ученика и связи TeachersStudent.
+        Профиль: student_name, student_surname, student_email, student_phone, gender, birth_date
+        Обучение: subject, level, grade, goal, status
+        Группа: group_id (null — без группы) или lesson_type individual/group
+        """
+        teacher_profile = self._get_teacher_profile(request)
+        try:
+            ts = TeachersStudent.objects.select_related(
+                'student', 'student__user', 'group', 'subject', 'level',
+            ).get(pk=pk, teacher=teacher_profile)
+        except TeachersStudent.DoesNotExist:
+            return Response({'error': 'Ученик не найден'}, status=status.HTTP_404_NOT_FOUND)
+
+        profile = ts.student
+        user = profile.user
+        data = request.data
+
+        profile_field_keys = {
+            'student_name', 'student_surname', 'student_email', 'student_phone',
+            'gender', 'birth_date',
+        }
+        if profile_field_keys & data.keys():
+            if 'student_name' in data:
+                profile.name = str(data.get('student_name') or '')[:100]
+            if 'student_surname' in data:
+                profile.surname = str(data.get('student_surname') or '')[:100]
+            if 'student_email' in data:
+                em = str(data.get('student_email') or '').strip()[:254]
+                if em:
+                    profile.email = em
+                    if user:
+                        user.email = em
+            if 'student_phone' in data:
+                ph = data.get('student_phone')
+                profile.phone = (str(ph).strip() if ph else '') or None
+            if 'gender' in data:
+                g = data.get('gender')
+                if g in ('female', 'male', 'other'):
+                    profile.gender = g
+            if 'birth_date' in data:
+                bd = data.get('birth_date')
+                if bd in (None, '', 'null'):
+                    profile.birth_date = None
+                elif isinstance(bd, str):
+                    parsed = parse_date(bd[:10])
+                    if parsed is None:
+                        return Response({'error': 'Неверная дата рождения'}, status=status.HTTP_400_BAD_REQUEST)
+                    profile.birth_date = parsed
+                else:
+                    profile.birth_date = bd
+
+            profile.save()
+
+            if user and any(k in data for k in ('student_name', 'student_surname', 'student_email')):
+                user.first_name = (profile.name or '')[:150]
+                user.last_name = (profile.surname or '')[:150]
+                user.save(update_fields=['first_name', 'last_name', 'email'])
+
+        ts_fields = []
+
+        if 'subject' in data:
+            try:
+                ts.subject = Subject.objects.get(id=int(data['subject']))
+                ts_fields.append('subject')
+            except (Subject.DoesNotExist, ValueError, TypeError):
+                return Response({'error': 'Предмет не найден'}, status=status.HTTP_400_BAD_REQUEST)
+        if 'level' in data:
+            try:
+                ts.level = Level.objects.get(id=int(data['level']))
+                ts_fields.append('level')
+            except (Level.DoesNotExist, ValueError, TypeError):
+                return Response({'error': 'Уровень не найден'}, status=status.HTTP_400_BAD_REQUEST)
+        if 'grade' in data:
+            g = str(data['grade'])
+            valid_g = {c[0] for c in TeachersStudent.GRADE_CHOICES}
+            if g not in valid_g:
+                return Response({'error': 'Неверный класс'}, status=status.HTTP_400_BAD_REQUEST)
+            ts.grade = g
+            ts_fields.append('grade')
+        if 'goal' in data:
+            raw = data.get('goal')
+            ts.goal = (str(raw)[:200] if raw else '') or None
+            ts_fields.append('goal')
+        if 'status' in data:
+            st = str(data['status'])
+            valid_s = {c[0] for c in TeachersStudent.STUDENTS_STATUS_CHOICES}
+            if st not in valid_s:
+                return Response({'error': 'Неверный статус'}, status=status.HTTP_400_BAD_REQUEST)
+            ts.status = st
+            ts_fields.append('status')
+
+        if 'group_id' in data:
+            group_id = data.get('group_id')
+            if group_id:
+                try:
+                    group = Group.objects.get(id=int(group_id), teacher=teacher_profile)
+                except (Group.DoesNotExist, ValueError, TypeError):
+                    return Response({'error': 'Группа не найдена'}, status=status.HTTP_404_NOT_FOUND)
+                ts.group = group
+                ts.lesson_type = 'group'
+            else:
+                ts.group = None
+                ts.lesson_type = 'individual'
+            ts_fields.extend(['group', 'lesson_type'])
+        elif 'lesson_type' in data:
+            lt = str(data.get('lesson_type') or '')
+            if lt == 'individual':
+                ts.group = None
+                ts.lesson_type = 'individual'
+                ts_fields.extend(['group', 'lesson_type'])
+            elif lt == 'group' and ts.group_id:
+                ts.lesson_type = 'group'
+                ts_fields.append('lesson_type')
+
+        if ts_fields:
+            ts.save(update_fields=list(dict.fromkeys(ts_fields)))
+
+        ts.refresh_from_db()
+        return Response(
+            TeachersStudentSerializer(
+                TeachersStudent.objects.select_related(
+                    'student', 'subject', 'level', 'group',
+                ).get(pk=ts.pk),
+            ).data,
+        )
+
     def delete(self, request, pk):
         teacher_profile = self._get_teacher_profile(request)
         try:
@@ -755,3 +897,560 @@ class LessonPendingInviteView(APIView):
             cache.delete(cache_key)
             return Response({'ok': True, 'invite': invite})
         return Response({'ok': True, 'invite': None})
+
+
+# ── Homework API ───────────────────────────────────────────────────────────────
+
+def _detect_file_type(filename: str) -> str:
+    ext = os.path.splitext(filename)[1].lower()
+    if ext in {'.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'}:
+        return 'image'
+    if ext in {'.mp4', '.mov', '.avi', '.mkv', '.webm'}:
+        return 'video'
+    if ext in {'.mp3', '.wav', '.ogg', '.m4a', '.flac'}:
+        return 'audio'
+    return 'file'
+
+
+def _notify(user_profile, text, notification_type, assignment=None):
+    Notification.objects.create(
+        user=user_profile,
+        text=text,
+        notification_type=notification_type,
+        read=False,
+        homework_assignment=assignment,
+    )
+
+
+class HomeworkListView(APIView):
+    """
+    GET  /api/homework/        — список ДЗ учителя
+    POST /api/homework/        — создать ДЗ (учитель)
+    """
+    permission_classes = [IsCabinetTeacher]
+
+    def _teacher(self, request):
+        return request.user.profile
+
+    def get(self, request):
+        teacher = self._teacher(request)
+        qs = Homework.objects.filter(teacher=teacher).prefetch_related('attachments', 'assignments')
+        return Response(HomeworkSerializer(qs, many=True, context={'request': request}).data)
+
+    def post(self, request):
+        teacher = self._teacher(request)
+        variant_id = request.data.get('variant_id')
+        if not variant_id:
+            return Response({'error': 'variant_id обязателен'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            variant_id = int(variant_id)
+        except (TypeError, ValueError):
+            return Response({'error': 'variant_id должен быть числом'}, status=status.HTTP_400_BAD_REQUEST)
+
+        hw = Homework.objects.create(
+            variant_id=variant_id,
+            title=request.data.get('title', ''),
+            text=request.data.get('text', ''),
+            subject=request.data.get('subject', ''),
+            teacher=teacher,
+            deadline=request.data.get('deadline') or timezone.now() + timezone.timedelta(days=1),
+        )
+        return Response(HomeworkSerializer(hw, context={'request': request}).data, status=status.HTTP_201_CREATED)
+
+
+class HomeworkDetailView(APIView):
+    """
+    GET    /api/homework/<id>/  — детали ДЗ
+    PATCH  /api/homework/<id>/  — обновить
+    DELETE /api/homework/<id>/  — удалить
+    """
+    permission_classes = [IsCabinetTeacher]
+
+    def _get_hw(self, request, pk):
+        teacher = request.user.profile
+        try:
+            return Homework.objects.prefetch_related('attachments', 'assignments').get(pk=pk, teacher=teacher)
+        except Homework.DoesNotExist:
+            return None
+
+    def get(self, request, pk):
+        hw = self._get_hw(request, pk)
+        if not hw:
+            return Response({'error': 'Не найдено'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(HomeworkSerializer(hw, context={'request': request}).data)
+
+    def patch(self, request, pk):
+        hw = self._get_hw(request, pk)
+        if not hw:
+            return Response({'error': 'Не найдено'}, status=status.HTTP_404_NOT_FOUND)
+        for field in ('title', 'text', 'subject', 'deadline', 'variant_id'):
+            if field in request.data:
+                setattr(hw, field, request.data[field])
+        hw.save()
+        return Response(HomeworkSerializer(hw, context={'request': request}).data)
+
+    def delete(self, request, pk):
+        hw = self._get_hw(request, pk)
+        if not hw:
+            return Response({'error': 'Не найдено'}, status=status.HTTP_404_NOT_FOUND)
+        hw.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class HomeworkAssignView(APIView):
+    """
+    POST /api/homework/<id>/assign/
+    Тело: { student_ids: [1,2,3] } и/или { group_id: 5 }
+    Назначает ДЗ ученикам.
+    """
+    permission_classes = [IsCabinetTeacher]
+
+    def post(self, request, pk):
+        teacher = request.user.profile
+        try:
+            hw = Homework.objects.get(pk=pk, teacher=teacher)
+        except Homework.DoesNotExist:
+            return Response({'error': 'Не найдено'}, status=status.HTTP_404_NOT_FOUND)
+
+        student_ids = request.data.get('student_ids') or []
+        group_id    = request.data.get('group_id')
+
+        if group_id:
+            from .models import TeachersGroup
+            group_student_ids = TeachersGroup.objects.filter(
+                group_id=group_id, group__teacher=teacher,
+            ).values_list('student_id', flat=True)
+            student_ids = list(student_ids) + list(group_student_ids)
+
+        if not student_ids:
+            return Response({'error': 'Укажите student_ids или group_id'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Only teacher's students
+        valid_ids = set(
+            TeachersStudent.objects.filter(
+                teacher=teacher, student_id__in=student_ids,
+            ).values_list('student_id', flat=True)
+        )
+
+        created, skipped = 0, 0
+        for sid in set(student_ids):
+            if sid not in valid_ids:
+                skipped += 1
+                continue
+            try:
+                student = UserProfile.objects.get(pk=sid)
+            except UserProfile.DoesNotExist:
+                skipped += 1
+                continue
+            assignment, is_new = HomeworkAssignment.objects.get_or_create(
+                homework=hw, student=student,
+                defaults={'status': 'sent'},
+            )
+            if is_new:
+                created += 1
+                title = hw.title or f'Вариант {hw.variant_id}'
+                _notify(
+                    student,
+                    f'Новое домашнее задание: {title}',
+                    'homework_assigned',
+                    assignment=assignment,
+                )
+
+        return Response({'created': created, 'skipped': skipped})
+
+
+class HomeworkUploadAttachmentView(APIView):
+    """
+    POST /api/homework/upload-attachment/
+    Тело: multipart { homework_id, file }
+    """
+    permission_classes = [IsCabinetTeacher]
+
+    def post(self, request):
+        teacher = request.user.profile
+        hw_id   = request.data.get('homework_id')
+        f       = request.FILES.get('file')
+        if not hw_id or not f:
+            return Response({'error': 'homework_id и file обязательны'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            hw = Homework.objects.get(pk=hw_id, teacher=teacher)
+        except Homework.DoesNotExist:
+            return Response({'error': 'ДЗ не найдено'}, status=status.HTTP_404_NOT_FOUND)
+        filename  = f.name
+        file_type = _detect_file_type(filename)
+        att = HomeworkAttachment.objects.create(
+            homework=hw, file=f, filename=filename, file_type=file_type,
+        )
+        return Response(
+            HomeworkAttachmentSerializer(att, context={'request': request}).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class HomeworkMyView(APIView):
+    """
+    GET /api/homework/my/
+    ДЗ текущего ученика.
+    """
+    permission_classes = [IsLKTeacher]
+
+    def get(self, request):
+        try:
+            profile = request.user.profile
+        except Exception:
+            return Response([], status=status.HTTP_200_OK)
+        qs = (
+            HomeworkAssignment.objects
+            .filter(student=profile)
+            .select_related('homework', 'homework__teacher')
+            .prefetch_related('answer_files', 'homework__attachments')
+        )
+        return Response(
+            HomeworkAssignmentDetailSerializer(qs, many=True, context={'request': request}).data,
+        )
+
+
+class HomeworkAssignmentDetailView(APIView):
+    """
+    GET /api/homework/assignment/<id>/
+    Детали назначения ДЗ (учитель или ученик-владелец).
+    """
+    permission_classes = [IsLKTeacher]
+
+    def _get_assignment(self, request, pk):
+        try:
+            profile = request.user.profile
+        except Exception:
+            return None
+        qs = HomeworkAssignment.objects.select_related(
+            'homework', 'homework__teacher', 'student',
+        ).prefetch_related('answer_files', 'homework__attachments')
+        try:
+            obj = qs.get(pk=pk)
+        except HomeworkAssignment.DoesNotExist:
+            return None
+        # Teacher can see assignments of their homeworks; student only their own
+        if profile.role == 'student' and obj.student_id != profile.pk:
+            return None
+        if profile.role != 'student' and obj.homework.teacher_id != profile.pk:
+            return None
+        return obj
+
+    def get(self, request, pk):
+        obj = self._get_assignment(request, pk)
+        if not obj:
+            return Response({'error': 'Не найдено'}, status=status.HTTP_404_NOT_FOUND)
+        return Response(HomeworkAssignmentDetailSerializer(obj, context={'request': request}).data)
+
+
+class HomeworkVariantProxyView(APIView):
+    """
+    GET /api/homework/variant/<variant_id>/
+    Проксирует JSON варианта из Генератора, чтобы фронтенд ЛК не делал кросс-доменный запрос.
+    Доступно и учителям, и ученикам (любой авторизованный пользователь ЛК).
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, variant_id):
+        genurok_url = GENUROK_URL.rstrip('/')
+        url = f'{genurok_url}/api/lesson/variant/{variant_id}/'
+        try:
+            req = urllib.request.Request(url, headers={'Accept': 'application/json'})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                data = json.loads(resp.read().decode('utf-8'))
+            return Response(data)
+        except urllib.error.HTTPError as e:
+            return Response({'error': f'Генератор вернул {e.code}'}, status=e.code)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_502_BAD_GATEWAY)
+
+
+class HomeworkSubmitView(APIView):
+    """
+    POST /api/homework/assignment/<id>/submit/
+    Ученик сдаёт ДЗ. Тело: { result: {...}, score: N }
+    """
+    permission_classes = [IsLKTeacher]
+
+    def post(self, request, pk):
+        try:
+            profile = request.user.profile
+        except Exception:
+            return Response({'error': 'Профиль не найден'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            assignment = HomeworkAssignment.objects.select_related(
+                'homework__teacher', 'student',
+            ).get(pk=pk, student=profile)
+        except HomeworkAssignment.DoesNotExist:
+            return Response({'error': 'Не найдено'}, status=status.HTTP_404_NOT_FOUND)
+
+        if assignment.status not in ('sent', 'revision'):
+            return Response({'error': f'Нельзя сдать ДЗ со статусом "{assignment.status}"'}, status=status.HTTP_400_BAD_REQUEST)
+
+        result = request.data.get('result')
+        score  = request.data.get('score')
+
+        update_fields = ['status', 'submitted_at']
+        assignment.status       = 'submitted'
+        assignment.submitted_at = timezone.now()
+        if isinstance(result, dict):
+            assignment.result = result
+            update_fields.append('result')
+        if score is not None:
+            try:
+                assignment.score = int(score)
+                update_fields.append('score')
+            except (TypeError, ValueError):
+                pass
+        assignment.save(update_fields=update_fields)
+
+        title        = assignment.homework.title or f'Вариант {assignment.homework.variant_id}'
+        student_name = f'{profile.name} {profile.surname}'.strip()
+        score_str    = f' — {assignment.score} б' if assignment.score is not None else ''
+        _notify(
+            assignment.homework.teacher,
+            f'{student_name} сдал(а) ДЗ: {title}{score_str}',
+            'submitted',
+            assignment=assignment,
+        )
+        return Response(HomeworkAssignmentSerializer(assignment, context={'request': request}).data)
+
+
+class HomeworkUploadAnswerView(APIView):
+    """
+    POST /api/homework/assignment/<id>/upload-answer/
+    Ученик загружает файл ответа.
+    """
+    permission_classes = [IsLKTeacher]
+
+    def post(self, request, pk):
+        try:
+            profile = request.user.profile
+        except Exception:
+            return Response({'error': 'Профиль не найден'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            assignment = HomeworkAssignment.objects.get(pk=pk, student=profile)
+        except HomeworkAssignment.DoesNotExist:
+            return Response({'error': 'Не найдено'}, status=status.HTTP_404_NOT_FOUND)
+
+        f = request.FILES.get('file')
+        if not f:
+            return Response({'error': 'file обязателен'}, status=status.HTTP_400_BAD_REQUEST)
+
+        filename  = f.name
+        file_type = _detect_file_type(filename)
+        answer    = HomeworkAnswerFile.objects.create(
+            assignment=assignment,
+            file=f,
+            filename=filename,
+            file_type=file_type,
+        )
+        return Response(
+            HomeworkAnswerFileSerializer(answer, context={'request': request}).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class HomeworkReviewView(APIView):
+    """
+    POST /api/homework/assignment/<id>/review/
+    Учитель проверяет ДЗ или отправляет на доработку.
+    Тело: { action: 'reviewed'|'revision', comment: '...' }
+    """
+    permission_classes = [IsCabinetTeacher]
+
+    def post(self, request, pk):
+        teacher = request.user.profile
+        try:
+            assignment = HomeworkAssignment.objects.select_related(
+                'homework', 'student',
+            ).get(pk=pk, homework__teacher=teacher)
+        except HomeworkAssignment.DoesNotExist:
+            return Response({'error': 'Не найдено'}, status=status.HTTP_404_NOT_FOUND)
+
+        action  = request.data.get('action', 'reviewed')
+        comment = request.data.get('comment', '')
+
+        if action not in ('reviewed', 'revision'):
+            return Response({'error': 'action: reviewed или revision'}, status=status.HTTP_400_BAD_REQUEST)
+
+        assignment.status          = action
+        assignment.teacher_comment = comment
+        assignment.reviewed_at     = timezone.now()
+        assignment.save(update_fields=['status', 'teacher_comment', 'reviewed_at'])
+
+        title = assignment.homework.title or f'Вариант {assignment.homework.variant_id}'
+        if action == 'reviewed':
+            _notify(assignment.student, f'ДЗ проверено: {title}', 'reviewed', assignment=assignment)
+        else:
+            _notify(assignment.student, f'ДЗ направлено на доработку: {title}', 'revision_requested', assignment=assignment)
+
+        return Response(HomeworkAssignmentSerializer(assignment, context={'request': request}).data)
+
+
+class HomeworkAnnotateView(APIView):
+    """
+    PATCH /api/homework/answer/<file_id>/annotate/
+    Сохранить аннотации (canvas-штрихи) на файле-ответе.
+    Тело: { annotations: [...] }
+    """
+    permission_classes = [IsCabinetTeacher]
+
+    def patch(self, request, file_id):
+        teacher = request.user.profile
+        try:
+            answer = HomeworkAnswerFile.objects.select_related(
+                'assignment__homework__teacher',
+            ).get(pk=file_id, assignment__homework__teacher=teacher)
+        except HomeworkAnswerFile.DoesNotExist:
+            return Response({'error': 'Не найдено'}, status=status.HTTP_404_NOT_FOUND)
+
+        annotations = request.data.get('annotations')
+        if not isinstance(annotations, list):
+            return Response({'error': 'annotations должен быть массивом'}, status=status.HTTP_400_BAD_REQUEST)
+        answer.annotations = annotations
+        answer.save(update_fields=['annotations'])
+        return Response(HomeworkAnswerFileSerializer(answer, context={'request': request}).data)
+
+
+class NotificationListView(APIView):
+    """
+    GET /api/notifications/
+    Уведомления текущего пользователя (последние 50).
+    """
+    permission_classes = [IsLKTeacher]
+
+    def get(self, request):
+        try:
+            profile = request.user.profile
+        except Exception:
+            return Response([])
+        qs = (
+            Notification.objects
+            .filter(user=profile)
+            .select_related('homework_assignment')
+            .order_by('-created_at')[:50]
+        )
+        return Response(NotificationSerializer(qs, many=True).data)
+
+
+class NotificationReadView(APIView):
+    """
+    POST /api/notifications/<id>/read/
+    Отметить уведомление прочитанным.
+    """
+    permission_classes = [IsLKTeacher]
+
+    def post(self, request, pk):
+        try:
+            profile = request.user.profile
+        except Exception:
+            return Response({'error': 'Профиль не найден'}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            notif = Notification.objects.get(pk=pk, user=profile)
+        except Notification.DoesNotExist:
+            return Response({'error': 'Не найдено'}, status=status.HTTP_404_NOT_FOUND)
+        notif.read = True
+        notif.save(update_fields=['read'])
+        return Response({'ok': True})
+
+
+class NotificationReadAllView(APIView):
+    """
+    POST /api/notifications/read-all/
+    Отметить все уведомления прочитанными.
+    """
+    permission_classes = [IsLKTeacher]
+
+    def post(self, request):
+        try:
+            profile = request.user.profile
+        except Exception:
+            return Response({'error': 'Профиль не найден'}, status=status.HTTP_400_BAD_REQUEST)
+        Notification.objects.filter(user=profile, read=False).update(read=True)
+        return Response({'ok': True})
+
+
+class HomeworkCancelAssignmentView(APIView):
+    """
+    POST /api/homework/assignment/<id>/cancel/
+    Учитель отменяет назначение ДЗ ученику.
+    """
+    permission_classes = [IsCabinetTeacher]
+
+    def post(self, request, pk):
+        teacher = request.user.profile
+        try:
+            assignment = HomeworkAssignment.objects.select_related(
+                'homework', 'student',
+            ).get(pk=pk, homework__teacher=teacher)
+        except HomeworkAssignment.DoesNotExist:
+            return Response({'error': 'Не найдено'}, status=status.HTTP_404_NOT_FOUND)
+
+        assignment.status = 'cancelled'
+        assignment.save(update_fields=['status'])
+
+        title = assignment.homework.title or f'Вариант {assignment.homework.variant_id}'
+        _notify(
+            assignment.student,
+            f'ДЗ отменено учителем: {title}',
+            'homework_assigned',
+            assignment=assignment,
+        )
+        return Response(HomeworkAssignmentSerializer(assignment, context={'request': request}).data)
+
+
+class HomeworkCancelAllView(APIView):
+    """
+    POST /api/homework/<id>/cancel-all/
+    Учитель отменяет ДЗ для всех учеников сразу.
+    """
+    permission_classes = [IsCabinetTeacher]
+
+    def post(self, request, pk):
+        teacher = request.user.profile
+        try:
+            homework = Homework.objects.get(pk=pk, teacher=teacher)
+        except Homework.DoesNotExist:
+            return Response({'error': 'Не найдено'}, status=status.HTTP_404_NOT_FOUND)
+
+        assignments = HomeworkAssignment.objects.filter(
+            homework=homework,
+        ).exclude(status='cancelled').select_related('student')
+
+        title = homework.title or f'Вариант {homework.variant_id}'
+        for assignment in assignments:
+            assignment.status = 'cancelled'
+            assignment.save(update_fields=['status'])
+            _notify(
+                assignment.student,
+                f'ДЗ отменено учителем: {title}',
+                'homework_assigned',
+                assignment=assignment,
+            )
+
+        return Response({'cancelled': assignments.count()})
+
+
+class HomeworkTeacherAssignmentsView(APIView):
+    """
+    GET /api/homework/<id>/assignments/
+    Учитель: список всех назначений для конкретного ДЗ.
+    """
+    permission_classes = [IsCabinetTeacher]
+
+    def get(self, request, pk):
+        teacher = request.user.profile
+        try:
+            hw = Homework.objects.get(pk=pk, teacher=teacher)
+        except Homework.DoesNotExist:
+            return Response({'error': 'Не найдено'}, status=status.HTTP_404_NOT_FOUND)
+        qs = (
+            HomeworkAssignment.objects
+            .filter(homework=hw)
+            .select_related('student', 'homework')
+            .prefetch_related('answer_files')
+        )
+        return Response(
+            HomeworkAssignmentDetailSerializer(qs, many=True, context={'request': request}).data,
+        )

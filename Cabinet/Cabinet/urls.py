@@ -18,6 +18,23 @@ from .views import (
     LessonTokenView,
     LessonTeacherJoinedView,
     LessonPendingInviteView,
+    HomeworkListView,
+    HomeworkDetailView,
+    HomeworkAssignView,
+    HomeworkUploadAttachmentView,
+    HomeworkMyView,
+    HomeworkAssignmentDetailView,
+    HomeworkSubmitView,
+    HomeworkUploadAnswerView,
+    HomeworkReviewView,
+    HomeworkAnnotateView,
+    HomeworkTeacherAssignmentsView,
+    HomeworkCancelAssignmentView,
+    HomeworkCancelAllView,
+    HomeworkVariantProxyView,
+    NotificationListView,
+    NotificationReadView,
+    NotificationReadAllView,
 )
 
 router = DefaultRouter()
@@ -61,13 +78,35 @@ urlpatterns = [
     path('api/groups/',            GroupView.as_view(),          name='api-groups'),
     path('api/lesson/token/',      LessonTokenView.as_view(),    name='api-lesson-token'),
     path('api/lesson/teacher-joined/', LessonTeacherJoinedView.as_view(), name='api-lesson-teacher-joined'),
-    path('api/lesson/pending/', LessonPendingInviteView.as_view(), name='api-lesson-pending'),
+    path('api/lesson/pending/',        LessonPendingInviteView.as_view(),  name='api-lesson-pending'),
+
+    # Homework
+    path('api/homework/',                                        HomeworkListView.as_view(),             name='api-homework-list'),
+    path('api/homework/<int:pk>/',                               HomeworkDetailView.as_view(),           name='api-homework-detail'),
+    path('api/homework/<int:pk>/assign/',                        HomeworkAssignView.as_view(),           name='api-homework-assign'),
+    path('api/homework/<int:pk>/assignments/',                   HomeworkTeacherAssignmentsView.as_view(),name='api-homework-assignments'),
+    path('api/homework/<int:pk>/cancel-all/',                    HomeworkCancelAllView.as_view(),         name='api-homework-cancel-all'),
+    path('api/homework/upload-attachment/',                      HomeworkUploadAttachmentView.as_view(), name='api-homework-upload-attachment'),
+    path('api/homework/variant/<int:variant_id>/',               HomeworkVariantProxyView.as_view(),     name='api-homework-variant'),
+    path('api/homework/my/',                                     HomeworkMyView.as_view(),               name='api-homework-my'),
+    path('api/homework/assignment/<int:pk>/',                    HomeworkAssignmentDetailView.as_view(), name='api-homework-assignment-detail'),
+    path('api/homework/assignment/<int:pk>/submit/',             HomeworkSubmitView.as_view(),           name='api-homework-submit'),
+    path('api/homework/assignment/<int:pk>/upload-answer/',      HomeworkUploadAnswerView.as_view(),     name='api-homework-upload-answer'),
+    path('api/homework/assignment/<int:pk>/review/',             HomeworkReviewView.as_view(),           name='api-homework-review'),
+    path('api/homework/assignment/<int:pk>/cancel/',             HomeworkCancelAssignmentView.as_view(), name='api-homework-cancel'),
+    path('api/homework/answer/<int:file_id>/annotate/',          HomeworkAnnotateView.as_view(),         name='api-homework-annotate'),
+
+    # Notifications
+    path('api/notifications/',                                   NotificationListView.as_view(),         name='api-notifications'),
+    path('api/notifications/read-all/',                          NotificationReadAllView.as_view(),      name='api-notifications-read-all'),
+    path('api/notifications/<int:pk>/read/',                     NotificationReadView.as_view(),         name='api-notification-read'),
 
     # React SPA (prod) — ловим все остальные пути
     path('app/', react_app, name='react-app'),
 ]
 
-# В dev-режиме Daphne не отдаёт статику — подключаем вручную
+# В dev-режиме отдаём статику и медиафайлы через Django
 if settings.DEBUG:
     from django.conf.urls.static import static
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
+    urlpatterns += static(settings.MEDIA_URL,  document_root=settings.MEDIA_ROOT)

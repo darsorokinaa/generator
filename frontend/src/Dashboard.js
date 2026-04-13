@@ -1,8 +1,10 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import './Dashboard.css';
 import StudentsPage from './StudentsPage';
 import HomeworkPage from './HomeworkPage';
 import StudentProfilePage from './StudentProfilePage';
+import GroupDetailPage from './GroupDetailPage';
+import NotificationBell from './NotificationBell';
 import API from './api';
 
 // В разработке ссылка ведёт на локальный генератор; в проде — на переменную окружения
@@ -58,20 +60,24 @@ const NAV_ITEMS = [
   },
 ];
 
-const HOMEWORKS = [
-  { student: 'Анна Козлова',   subject: 'Математика', task: 'Квадратные уравнения §5',   submitted: '2 ч назад',  urgent: false },
-  { student: 'Иван Петров',    subject: 'Физика',      task: 'Законы Ньютона',             submitted: '5 ч назад',  urgent: false },
-  { student: 'Дмитрий Волков', subject: 'Математика', task: 'Тригонометрия §12',          submitted: 'вчера',       urgent: true  },
-  { student: 'Елена Новикова', subject: 'Алгебра',    task: 'Степени и логарифмы',        submitted: '2 дня назад', urgent: true  },
-];
-
-const NOTIFICATIONS = [
-  { text: 'Анна Козлова сдала задание',       time: '10 мин', type: 'hw' },
-  { text: 'Иван Петров не сдал в срок',       time: '1 ч',    type: 'warn' },
-  { text: 'Новое сообщение от Марии',         time: '3 ч',    type: 'msg' },
-];
 
 const CALENDAR_DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
+
+function timeAgoShort(dateStr) {
+  if (!dateStr) return '';
+  const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
+  if (diff < 60) return 'только что';
+  if (diff < 3600) return `${Math.floor(diff / 60)} мин назад`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)} ч назад`;
+  return `${Math.floor(diff / 86400)} д назад`;
+}
+
+/** Точка слева: цвет по типу уведомления */
+function notifDotKind(notificationType) {
+  if (['missed', 'check_deadline_soon', 'low_result_alert'].includes(notificationType)) return 'warn';
+  if (['submitted', 'reviewing', 'homework_assigned', 'reviewed', 'revision_requested'].includes(notificationType)) return 'hw';
+  return 'msg';
+}
 
 const MONTH_NAMES = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
 const DAY_NAMES   = ['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'];
@@ -117,6 +123,7 @@ export default function Dashboard() {
   const [page, setPage] = useState('dashboard');
   const [profileBackPage, setProfileBackPage] = useState('students');
   const [selectedStudent, setSelectedStudent] = useState(null);
+  const [selectedGroup, setSelectedGroup] = useState(null);
   const [levelFilter, setLevelFilter] = useState('all');
   const [subjectFilter, setSubjectFilter] = useState('Все');
   const [search, setSearch] = useState('');
@@ -139,26 +146,55 @@ export default function Dashboard() {
   const [calYear, setCalYear] = useState(today.getFullYear());
   const [calMonth, setCalMonth] = useState(today.getMonth());
   const notifTimer = useRef(null);
-  const [subject, setSubject] = useState([]);
+  const [dashHomeworks, setDashHomeworks] = useState([]);
+  const [dashHwStats, setDashHwStats] = useState({ total: 0, needReview: 0, overdue: 0 });
+  const hwPollRef = useRef(null);
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [sidebarNotifs, setSidebarNotifs] = useState([]);
+  const unreadNotifs = useMemo(() => sidebarNotifs.filter(n => !n.read), [sidebarNotifs]);
+  const unreadNotifsRef = useRef(unreadNotifs);
+  unreadNotifsRef.current = unreadNotifs;
 
   function goNotif(dir) {
+    const len = unreadNotifsRef.current.length;
+    if (!len) return;
     setNotifDir(dir);
-    setNotifIdx(i =>
-      dir === 'next'
-        ? (i + 1) % NOTIFICATIONS.length
-        : (i - 1 + NOTIFICATIONS.length) % NOTIFICATIONS.length
-    );
+    setNotifIdx(i => (dir === 'next' ? (i + 1) % len : (i - 1 + len) % len));
   }
 
   function resetNotifTimer() {
     if (notifTimer.current) clearInterval(notifTimer.current);
-    notifTimer.current = setInterval(() => goNotif('next'), 10000);
+    notifTimer.current = setInterval(() => {
+      if (unreadNotifsRef.current.length > 1) goNotif('next');
+    }, 10000);
   }
 
   useEffect(() => {
+    if (unreadNotifs.length <= 1) {
+      if (notifTimer.current) clearInterval(notifTimer.current);
+      return;
+    }
     resetNotifTimer();
     return () => clearInterval(notifTimer.current);
-  }, []);
+  }, [unreadNotifs.length]);
+
+  useEffect(() => {
+    const len = unreadNotifs.length;
+    setNotifIdx(i => (len === 0 ? 0 : Math.min(Math.max(0, i), len - 1)));
+  }, [unreadNotifs.length]);
+
+  useEffect(() => {
+    if (!authChecked || !user || user.role === 'student') return;
+    const load = () => {
+      fetch(`${API}/api/notifications/`, { credentials: 'include' })
+        .then(r => (r.ok ? r.json() : []))
+        .then(data => setSidebarNotifs(Array.isArray(data) ? data : []))
+        .catch(() => {});
+    };
+    load();
+    const t = setInterval(load, 30_000);
+    return () => clearInterval(t);
+  }, [authChecked, user]);
 
   useEffect(() => {
     if (!authChecked || !user) return;
@@ -177,7 +213,55 @@ export default function Dashboard() {
       .then(r => (r.ok ? r.json() : []))
       .then(data => { setGroups(Array.isArray(data) ? data : []); })
       .catch(() => setGroups([]));
+
   }, [authChecked, user]);
+
+  // Фетч ДЗ-виджета
+  const fetchDashHomeworks = useCallback(async () => {
+    if (!authChecked || !user || user.role === 'student') return;
+    try {
+      const r1 = await fetch(`${API}/api/homework/`, { credentials: 'include' });
+      if (!r1.ok) return;
+      const hws = await r1.json();
+      const all = [];
+      for (const hw of (Array.isArray(hws) ? hws : [])) {
+        const r2 = await fetch(`${API}/api/homework/${hw.id}/assignments/`, { credentials: 'include' });
+        if (r2.ok) {
+          const asgns = await r2.json();
+          asgns.forEach(a => all.push({ ...a, hw_title: hw.title || `Вариант ${hw.variant_id}`, hw_subject: hw.subject, hw_deadline: hw.deadline }));
+        }
+      }
+      const active = all.filter(a => a.status !== 'cancelled');
+      const isOverdue = (a) => a.status === 'overdue' || (
+        a.hw_deadline
+        && new Date(a.hw_deadline) < new Date()
+        && !['reviewed', 'submitted', 'reviewing', 'cancelled'].includes(a.status)
+      );
+      setDashHwStats({
+        total: active.length,
+        needReview: active.filter(a => ['submitted', 'reviewing'].includes(a.status)).length,
+        overdue: active.filter(isOverdue).length,
+      });
+      setDashHomeworks(
+        active.sort((a, b) => {
+          const priority = { submitted: 0, reviewing: 1, revision: 2, overdue: 3, sent: 4, reviewed: 5 };
+          return (priority[a.status] ?? 9) - (priority[b.status] ?? 9);
+        }).slice(0, 6),
+      );
+    } catch {}
+  }, [authChecked, user]);
+
+  // Polling каждые 30 сек
+  useEffect(() => {
+    fetchDashHomeworks();
+    hwPollRef.current = setInterval(fetchDashHomeworks, 30_000);
+    return () => clearInterval(hwPollRef.current);
+  }, [fetchDashHomeworks]);
+
+  // Обновить при возврате на дашборд
+  useEffect(() => {
+    if (page === 'dashboard') fetchDashHomeworks();
+  }, [page, fetchDashHomeworks]);
 
   useEffect(() => {
     fetch(`${API}/api/me/`, { credentials: 'include' })
@@ -363,14 +447,7 @@ export default function Dashboard() {
             <span className="mobile-logo-text">Кабинет</span>
           </div>
           <div className="mobile-user">
-            {isTeacher && (
-              <button className="icon-btn notif-btn" type="button">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                </svg>
-                <span className="notif-dot" />
-              </button>
-            )}
+            <NotificationBell onGoToAssignment={(assignmentId) => { setPage('homework'); }} />
             <div className="user-avatar" style={{ width: 34, height: 34, fontSize: 12 }}>
               {user ? (user.name?.[0] || '') + (user.surname?.[0] || '') : '??'}
             </div>
@@ -394,7 +471,7 @@ export default function Dashboard() {
                 key={item.label}
                 href="#"
                 className={`nav-item${page === item.id ? ' nav-item--active' : ''}`}
-                onClick={e => { e.preventDefault(); setPage(item.id); }}
+                onClick={e => { e.preventDefault(); setSelectedGroup(null); setPage(item.id); }}
               >
                 <span className="nav-icon">{item.icon}</span>
                 <span className="nav-label">{item.label}</span>
@@ -409,8 +486,30 @@ export default function Dashboard() {
           {page === 'student-profile' && selectedStudent && isTeacher && (
             <StudentProfilePage
               student={selectedStudent}
-              backLabel={profileBackPage === 'dashboard' ? 'Назад к дашборду' : 'Назад к ученикам'}
+              groups={groups}
+              backLabel={
+                profileBackPage === 'dashboard'
+                  ? 'Назад к дашборду'
+                  : profileBackPage === 'group-detail'
+                    ? 'Назад к группе'
+                    : 'Назад к ученикам'
+              }
               onBack={() => { setPage(profileBackPage); setSelectedStudent(null); }}
+              onStudentUpdated={(updated) => {
+                setSelectedStudent(prev => (prev ? { ...prev, ...updated } : prev));
+                setStudents(prev => prev.map(st => (st.id === updated.id ? { ...st, ...updated } : st)));
+              }}
+            />
+          )}
+          {page === 'group-detail' && selectedGroup && isTeacher && (
+            <GroupDetailPage
+              group={selectedGroup}
+              onBack={() => { setPage('dashboard'); setSelectedGroup(null); }}
+              onOpenProfile={s => {
+                setProfileBackPage('group-detail');
+                setSelectedStudent(s);
+                setPage('student-profile');
+              }}
             />
           )}
           {page === 'students' && isTeacher && (
@@ -427,7 +526,7 @@ export default function Dashboard() {
 
           {/* Search at top */}
           <div className="topbar">
-            <div className="search-box">
+            <div className="search-box" style={{ position: 'relative' }}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
               </svg>
@@ -437,6 +536,8 @@ export default function Dashboard() {
                 placeholder="Поиск ученика по имени…"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setTimeout(() => setSearchFocused(false), 180)}
               />
               {search && (
                 <button className="search-clear" onClick={() => setSearch('')}>
@@ -445,6 +546,62 @@ export default function Dashboard() {
                   </svg>
                 </button>
               )}
+
+              {/* Дропдаун результатов */}
+              {searchFocused && search.trim().length > 0 && (() => {
+                const hits = students.filter(s =>
+                  `${s.student_name || ''} ${s.student_surname || ''}`.toLowerCase().includes(search.toLowerCase())
+                ).slice(0, 8);
+                return (
+                  <div style={{
+                    position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0,
+                    background: '#fff', borderRadius: 12,
+                    border: '1.5px solid var(--border)',
+                    boxShadow: '0 8px 24px rgba(102,126,234,.15)',
+                    zIndex: 200, overflow: 'hidden',
+                  }}>
+                    {hits.length === 0 ? (
+                      <div style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text-3)' }}>Ученики не найдены</div>
+                    ) : hits.map(s => {
+                      const name = `${s.student_name || ''} ${s.student_surname || ''}`.trim();
+                      const ini  = ((s.student_name?.[0] || '') + (s.student_surname?.[0] || '')).toUpperCase();
+                      return (
+                        <div
+                          key={s.id}
+                          onMouseDown={() => {
+                            setSearch('');
+                            setProfileBackPage('dashboard');
+                            setSelectedStudent(s);
+                            setPage('student-profile');
+                          }}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 10,
+                            padding: '9px 14px', cursor: 'pointer',
+                            borderBottom: '1px solid var(--border)',
+                            transition: 'background .12s',
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg)'; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                        >
+                          <div style={{
+                            width: 30, height: 30, borderRadius: '50%', flexShrink: 0,
+                            background: 'linear-gradient(135deg,#667eea,#586fd7)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            color: '#fff', fontWeight: 700, fontSize: 11,
+                          }}>{ini}</div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)' }}>{name}</div>
+                            <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{s.subject_name} · {s.grade} класс</div>
+                          </div>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="9 18 15 12 9 6"/>
+                          </svg>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </div>
 
           </div>
@@ -518,62 +675,128 @@ export default function Dashboard() {
             </div>
           </div>
 
-          {/* Homework pending */}
+          {/* Homework widget */}
           <div className="section-block">
             <div className="section-header">
-              <div className="section-title-wrap">
+              <div className="section-title-wrap" style={{ flexWrap: 'wrap', gap: 10 }}>
                 <h3 className="section-title">Домашние задания</h3>
+                <div className="dash-hw-counters" aria-label="Сводка по домашним заданиям">
+                  <span className="dash-hw-counter dash-hw-counter--total">Всего <strong>{dashHwStats.total}</strong></span>
+                  <span className="dash-hw-counter dash-hw-counter--review">На проверке <strong>{dashHwStats.needReview}</strong></span>
+                  <span className="dash-hw-counter dash-hw-counter--overdue">Просрочено <strong>{dashHwStats.overdue}</strong></span>
+                </div>
               </div>
               <a href="#" className="section-link" onClick={e => { e.preventDefault(); setPage('homework'); }}>Все задания →</a>
             </div>
-            <div className="table-wrap">
-              <table className="students-table">
-                <thead>
-                  <tr>
-                    <th>Ученик</th>
-                    <th>Задание</th>
-                    <th className="col-hide-sm">Предмет</th>
-                    <th className="col-hide-sm">Сдано</th>
-                    <th>Статус</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {HOMEWORKS.map((hw, i) => (
-                    <tr key={i}>
-                      <td>
-                        <div className="student-cell">
-                          <div className="hw-student-avatar">{initials(hw.student)}</div>
-                          <div className="student-info">
-                            <span className="student-name">{hw.student}</span>
-                            <span className="student-meta-sm">{hw.subject} · {hw.submitted}</span>
-                          </div>
-                        </div>
-                      </td>
-                      <td>
-                        <span className="hw-task-cell">{hw.task}</span>
-                      </td>
-                      <td className="col-hide-sm">
-                        <span className={`subject-badge subject-badge--${SUBJECT_COLOR[hw.subject] || 'default'}`}>
-                          {hw.subject}
-                        </span>
-                      </td>
-                      <td className="col-hide-sm">
-                        <span className="cell-plain">{hw.submitted}</span>
-                      </td>
-                      <td>
-                        {hw.urgent
-                          ? <span className="status-badge status-badge--danger">Просрочено</span>
-                          : <span className="status-badge status-badge--active">В срок</span>
-                        }
-                      </td>
-                      <td>
-                        <button className="hw-btn">Проверить</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0, background: '#fff', borderRadius: 14, border: '1.5px solid var(--border)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
+              {/* Шапка */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 0, padding: '10px 18px', borderBottom: '1.5px solid var(--border)', background: 'var(--bg)' }}>
+                {['УЧЕНИК', 'ЗАДАНИЕ', 'СТАТУС', 'ДЕЙСТВИЕ'].map((h, i) => (
+                  <span key={i} className="dash-hw-table-th">{h}</span>
+                ))}
+              </div>
+
+              {dashHomeworks.length === 0 ? (
+                <div style={{ padding: '32px 18px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>
+                  Нет активных домашних заданий
+                </div>
+              ) : dashHomeworks.map((a, i) => {
+                const isOverdue = a.status === 'overdue' || (a.hw_deadline && new Date(a.hw_deadline) < new Date() && !['reviewed','submitted','reviewing'].includes(a.status));
+                const needsReview = ['submitted', 'reviewing'].includes(a.status);
+                const statusCfg = {
+                  sent:      { label: 'В срок',        dot: '#22C55E', bg: '#F0FDF4', color: '#15803D' },
+                  submitted: { label: 'Сдано',          dot: '#667eea', bg: '#EEF0FE', color: '#4338CA' },
+                  reviewing: { label: 'На проверке',    dot: '#F59E0B', bg: '#FEF3C7', color: '#B45309' },
+                  reviewed:  { label: 'Проверено',      dot: '#22C55E', bg: '#F0FDF4', color: '#15803D' },
+                  revision:  { label: 'На доработке',   dot: '#F59E0B', bg: '#FEF3C7', color: '#B45309' },
+                  overdue:   { label: 'Просрочено',     dot: '#EF4444', bg: '#FEF2F2', color: '#B91C1C' },
+                }[isOverdue ? 'overdue' : a.status] || { label: a.status, dot: '#9ca3af', bg: '#F1F5F9', color: '#64748b' };
+
+                const name = `${a.student_name || ''} ${a.student_surname || ''}`.trim();
+                const ini  = ((a.student_name?.[0] || '') + (a.student_surname?.[0] || '')).toUpperCase();
+
+                return (
+                  <div
+                    key={a.id}
+                    style={{
+                      display: 'grid', gridTemplateColumns: '1fr 1fr auto auto',
+                      alignItems: 'center', gap: 0,
+                      padding: '13px 18px',
+                      borderBottom: i < dashHomeworks.length - 1 ? '1px solid var(--border)' : 'none',
+                      transition: 'background .15s', cursor: 'pointer',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                    onClick={() => setPage('homework')}
+                  >
+                    {/* Ученик */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingRight: 12 }}>
+                      <div style={{
+                        width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
+                        background: 'linear-gradient(135deg,#667eea,#586fd7)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        color: '#fff', fontWeight: 700, fontSize: 12,
+                      }}>{ini}</div>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
+                    </div>
+
+                    {/* Задание */}
+                    <div style={{ fontSize: 13, color: 'var(--text-2)', paddingRight: 16, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {a.hw_title}
+                    </div>
+
+                    {/* Статус */}
+                    <div style={{ paddingRight: 16 }}>
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 5,
+                        borderRadius: 20, padding: '4px 10px',
+                        background: statusCfg.bg, color: statusCfg.color,
+                        fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap',
+                      }}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: statusCfg.dot, flexShrink: 0 }} />
+                        {statusCfg.label}
+                      </span>
+                    </div>
+
+                    {/* Кнопка */}
+                    <div>
+                      {needsReview && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setPage('homework'); }}
+                          style={{
+                            padding: '6px 16px', borderRadius: 8, border: 'none',
+                            background: '#3e5bd4', color: '#fff',
+                            fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                            fontFamily: 'Montserrat, sans-serif', whiteSpace: 'nowrap',
+                            transition: 'background .15s',
+                          }}
+                          onMouseEnter={e => { e.currentTarget.style.background = '#2f4bbf'; }}
+                          onMouseLeave={e => { e.currentTarget.style.background = '#3e5bd4'; }}
+                        >
+                          Проверить
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Кнопка под таблицей ДЗ */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
+              <button
+                className="btn-page-primary"
+                style={{ minWidth: 180 }}
+                onClick={() => setPage('homework')}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                  <polyline points="14 2 14 8 20 8"/>
+                  <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+                </svg>
+                Создать задание
+              </button>
             </div>
           </div>
 
@@ -583,20 +806,29 @@ export default function Dashboard() {
               <h3 className="section-title">Мои ученики</h3>
             </div>
 
-            {/* Level filters */}
-            <div className="filter-bar">
+            {/* Level filters + ссылка «Все ученики» в одну строку */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <div className="filter-bar" style={{ margin: 0, flex: 1, flexWrap: 'wrap' }}>
                 {LEVEL_FILTERS.map(f => (
-                <button
-                  key={f.id}
-                  className={`filter-pill${levelFilter === f.id ? ' filter-pill--active' : ''}`}
-                  onClick={() => { setLevelFilter(f.id); setSubjectFilter('Все'); }}
-                >
-                  {f.label}
-                </button>
-              ))}
+                  <button
+                    key={f.id}
+                    className={`filter-pill${levelFilter === f.id ? ' filter-pill--active' : ''}`}
+                    onClick={() => { setLevelFilter(f.id); setSubjectFilter('Все'); }}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+              <button
+                className="section-link"
+                style={{ background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', padding: '4px 0' }}
+                onClick={() => setPage('students')}
+              >
+                Все ученики →
+              </button>
             </div>
 
-            {/* Subject filters — second level */}
+            {/* Subject filters */}
             <div className="filter-bar filter-bar--sub">
               {availableSubjects.map(subj => (
                 <button
@@ -612,73 +844,134 @@ export default function Dashboard() {
               ))}
             </div>
 
-            <div className="table-above-row">
-              <a href="#" className="section-link" onClick={e => { e.preventDefault(); setPage('students'); }}>Все ученики →</a>
-            </div>
-
             <div className="table-wrap">
               <table className="students-table">
                 <thead>
                   <tr>
-                    <th>Ученик</th>
-                    <th>Класс</th>
-                    <th className="col-hide-sm">Предмет</th>
-                    <th className="col-hide-sm">Уровень</th>
-                    <th>Статус</th>
-                    <th></th>
+                    <th className="students-table-col--student">УЧЕНИК</th>
+                    <th className="students-table-col--subject">ПРЕДМЕТ</th>
+                    <th className="students-table-col--level">УРОВЕНЬ</th>
+                    <th className="students-table-col--lesson">ТИП ЗАНЯТИЙ</th>
+                    <th className="students-table-col--status">СТАТУС</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filtered.length === 0 ? (
                     <tr>
-                      <td colSpan={6} className="table-empty">Ученики не найдены</td>
+                      <td colSpan={5} className="table-empty">Ученики не найдены</td>
                     </tr>
                   ) : filtered.map((s) => (
-                    <tr key={s.id}>
-                      <td>
+                    <tr
+                      key={s.id}
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => {
+                        setProfileBackPage('dashboard');
+                        setSelectedStudent(s);
+                        setPage('student-profile');
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent-lt)'; }}
+                      onMouseLeave={e => { e.currentTarget.style.background = ''; }}
+                    >
+                      <td className="students-table-col--student">
                         <div className="student-cell">
                           <div className="student-avatar-sm">{initials(`${s.student_name || '?'} ${s.student_surname || ''}`)}</div>
                           <div className="student-info">
                             <span className="student-name">{s.student_name} {s.student_surname}</span>
-                            <span className="student-meta-sm">{s.subject_name} · {s.grade} класс</span>
+                            <span className="student-meta-sm">{s.grade} класс</span>
                           </div>
                         </div>
                       </td>
-                      <td className="col-hide-sm">
-                        <span className="cell-plain">{s.grade} класс</span>
-                      </td>
-                      <td className="col-hide-sm">
+                      <td className="students-table-col--subject">
                         <span className={`subject-badge subject-badge--${SUBJECT_COLOR[s.subject_name] || 'default'}`}>
                           {s.subject_name}
                         </span>
                       </td>
-                      <td className="col-hide-sm">
+                      <td className="students-table-col--level">
                         <span className={`level-badge level-badge--${LEVEL_COLOR[s.level_name] || 'default'}`}>
                           {s.level_name}
                         </span>
                       </td>
-                      <td>
+                      <td className="students-table-col--lesson">
+                        {s.lesson_type === 'group' ? (
+                          <div className="lesson-type-cell lesson-type-cell--group" title={s.group_name || ''}>
+                            <span className="lesson-type-badge lesson-type-badge--group">Группа</span>
+                            <span className="lesson-type-group-name">{s.group_name || '—'}</span>
+                          </div>
+                        ) : (
+                          <div className="lesson-type-cell lesson-type-cell--ind">
+                            <span className="lesson-type-badge lesson-type-badge--individual">Инд.</span>
+                          </div>
+                        )}
+                      </td>
+                      <td className="students-table-col--status">
                         <span className={`status-badge status-badge--${s.status === '1' ? 'active' : s.status === '3' ? 'danger' : 'warning'}`}>
                           {{'1':'Активный','2':'На паузе','3':'Завершил','4':'Пробный'}[s.status] || s.status}
                         </span>
-                      </td>
-                      <td>
-                        <button
-                          type="button"
-                          className="row-btn"
-                          onClick={() => {
-                            setProfileBackPage('dashboard');
-                            setSelectedStudent(s);
-                            setPage('student-profile');
-                          }}
-                        >
-                          Профиль
-                        </button>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Кнопка под таблицей учеников */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
+              <button
+                className="btn-page-primary"
+                style={{ minWidth: 180 }}
+                onClick={() => setPage('students')}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+                </svg>
+                Добавить ученика
+              </button>
+            </div>
+
+            {/* Мои группы */}
+            <div style={{ marginTop: 22, paddingTop: 20, borderTop: '1.5px solid var(--border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
+                <h3 className="section-title" style={{ margin: 0 }}>Мои группы</h3>
+                <button
+                  type="button"
+                  className="section-link"
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0', whiteSpace: 'nowrap' }}
+                  onClick={() => setPage('students')}
+                >
+                  Управление группами →
+                </button>
+              </div>
+              {groups.length === 0 ? (
+                <p className="table-empty" style={{ margin: 0, borderRadius: 'var(--radius-md)', border: '1.5px solid var(--border)', background: 'var(--surface)' }}>
+                  Пока нет групп. Создайте группу на странице «Ученики».
+                </p>
+              ) : (
+                <div className="dash-groups-grid">
+                  {groups.map(g => (
+                    <div
+                      key={g.id}
+                      role="button"
+                      tabIndex={0}
+                      className="dash-group-card dash-group-card--clickable"
+                      onClick={() => { setSelectedGroup(g); setPage('group-detail'); }}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          setSelectedGroup(g);
+                          setPage('group-detail');
+                        }
+                      }}
+                    >
+                      <div className="dash-group-card-title">{g.group_name}</div>
+                      <div className="dash-group-card-meta">
+                        <span className={`subject-badge subject-badge--${SUBJECT_COLOR[g.subject_name] || 'default'}`}>{g.subject_name}</span>
+                        <span className={`level-badge level-badge--${LEVEL_COLOR[g.level_name] || 'default'}`}>{g.level_name}</span>
+                      </div>
+                      <span className="dash-group-card-hint">Открыть →</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
           </div>
@@ -690,14 +983,7 @@ export default function Dashboard() {
           {/* User + actions */}
           <div className="user-block">
             <div className="user-actions">
-              {isTeacher && (
-              <button type="button" className="icon-btn notif-btn" title="Уведомления">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" />
-                </svg>
-                <span className="notif-dot" />
-              </button>
-              )}
+              <NotificationBell onGoToAssignment={() => setPage('homework')} />
               <a href={`${API}/settings/`} className="icon-btn" title="Настройки">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
@@ -725,7 +1011,7 @@ export default function Dashboard() {
             <>
               <div className="divider" />
 
-              {/* Notifications */}
+              {/* Непрочитанные уведомления (API) */}
               <div className="notif-section">
                 <div className="notif-header">
                   <span className="notif-label">Уведомления</span>
@@ -734,18 +1020,20 @@ export default function Dashboard() {
                       type="button"
                       className="notif-arrow"
                       onClick={() => { goNotif('prev'); resetNotifTimer(); }}
-                      disabled={notifIdx === 0}
+                      disabled={unreadNotifs.length === 0}
                     >
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                         <polyline points="15 18 9 12 15 6" />
                       </svg>
                     </button>
-                    <span className="notif-counter">{notifIdx + 1}/{NOTIFICATIONS.length}</span>
+                    <span className="notif-counter">
+                      {unreadNotifs.length ? `${notifIdx + 1}/${unreadNotifs.length}` : '0'}
+                    </span>
                     <button
                       type="button"
                       className="notif-arrow"
                       onClick={() => { goNotif('next'); resetNotifTimer(); }}
-                      disabled={notifIdx === NOTIFICATIONS.length - 1}
+                      disabled={unreadNotifs.length === 0}
                     >
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                         <polyline points="9 18 15 12 9 6" />
@@ -754,14 +1042,41 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <div className="notif-slide-wrap">
-                  {(() => {
-                    const n = NOTIFICATIONS[notifIdx];
+                  {unreadNotifs.length === 0 ? (
+                    <div className="notif-empty">Нет непрочитанных уведомлений</div>
+                  ) : (() => {
+                    const n = unreadNotifs[notifIdx];
+                    if (!n) return null;
+                    const dot = notifDotKind(n.notification_type);
                     return (
-                      <div key={notifIdx} className={`notif-item notif-item--${notifDir}`}>
-                        <div className={`notif-dot-type notif-dot-type--${n.type}`} />
+                      <div
+                        key={n.id}
+                        role="button"
+                        tabIndex={0}
+                        className={`notif-item notif-item--${notifDir}${n.assignment_id ? ' notif-item--clickable' : ''}`}
+                        onClick={() => {
+                          if (!n.read) {
+                            fetch(`${API}/api/notifications/${n.id}/read/`, {
+                              method: 'POST',
+                              credentials: 'include',
+                              headers: { 'X-CSRFToken': getCookie('csrftoken') },
+                            }).then(() => {
+                              setSidebarNotifs(prev => prev.map(x => (x.id === n.id ? { ...x, read: true } : x)));
+                            });
+                          }
+                          if (n.assignment_id) setPage('homework');
+                        }}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            e.currentTarget.click();
+                          }
+                        }}
+                      >
+                        <div className={`notif-dot-type notif-dot-type--${dot}`} />
                         <div className="notif-body">
                           <span className="notif-text">{n.text}</span>
-                          <span className="notif-time">{n.time} назад</span>
+                          <span className="notif-time">{timeAgoShort(n.created_at)}</span>
                         </div>
                       </div>
                     );
@@ -841,7 +1156,7 @@ export default function Dashboard() {
               key={item.label}
               href="#"
               className={`bottom-nav-item${page === item.id ? ' bottom-nav-item--active' : ''}`}
-              onClick={e => { e.preventDefault(); setPage(item.id); }}
+              onClick={e => { e.preventDefault(); setSelectedGroup(null); setPage(item.id); }}
             >
               {isTeacher && item.badge && <span className="bottom-nav-badge">{item.badge}</span>}
               {item.icon}

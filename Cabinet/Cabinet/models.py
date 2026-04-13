@@ -163,19 +163,102 @@ class TeachersGroup(models.Model):
         verbose_name_plural = "Ученики в группе"
 
 
+FILE_TYPE_CHOICES = [
+    ('image', 'Изображение'),
+    ('video', 'Видео'),
+    ('audio', 'Аудио'),
+    ('file',  'Файл'),
+]
+
+
 class Homework(models.Model):
     variant_id = models.IntegerField()
-    text = models.TextField(null=True, blank=True)
-    teacher = models.ForeignKey(UserProfile, on_delete=models.CASCADE)
+    title      = models.CharField(max_length=200, blank=True)
+    text       = models.TextField(null=True, blank=True)
+    subject    = models.CharField(max_length=100, blank=True)
+    teacher    = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='homeworks')
     created_at = models.DateTimeField(auto_now_add=True)
-    deadline = models.DateTimeField(default=tomorrow)
+    deadline   = models.DateTimeField(default=tomorrow)
 
     def __str__(self):
-        return f'{self.id}: {self.text[:20]}... {self.variant_id}'
+        label = self.title or (self.text[:20] if self.text else '')
+        return f'{self.id}: {label} (вариант {self.variant_id})'
 
     class Meta:
         verbose_name = "Домашнее задание"
         verbose_name_plural = "Домашние задания"
+        ordering = ['-created_at']
+
+
+class HomeworkAttachment(models.Model):
+    """Файлы учителя, прикреплённые к ДЗ (дополнительные материалы)."""
+    homework  = models.ForeignKey(Homework, on_delete=models.CASCADE, related_name='attachments')
+    file      = models.FileField(upload_to='homework_attachments/')
+    filename  = models.CharField(max_length=255)
+    file_type = models.CharField(max_length=10, choices=FILE_TYPE_CHOICES, default='file')
+
+    def __str__(self):
+        return self.filename
+
+    class Meta:
+        verbose_name = "Вложение к ДЗ"
+        verbose_name_plural = "Вложения к ДЗ"
+
+
+ASSIGNMENT_STATUS_CHOICES = [
+    ('sent',      'Задано'),
+    ('submitted', 'Сдано на проверку'),
+    ('reviewing', 'На проверке'),
+    ('reviewed',  'Проверено'),
+    ('revision',  'На доработке'),
+    ('overdue',   'Просрочено'),
+    ('cancelled', 'Отменено'),
+]
+
+
+class HomeworkAssignment(models.Model):
+    """Назначение ДЗ конкретному ученику + статус выполнения."""
+    homework        = models.ForeignKey(Homework, on_delete=models.CASCADE, related_name='assignments')
+    student         = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='hw_assignments')
+    status          = models.CharField(max_length=20, choices=ASSIGNMENT_STATUS_CHOICES, default='sent')
+    teacher_comment = models.TextField(blank=True)
+    submitted_at    = models.DateTimeField(null=True, blank=True)
+    reviewed_at     = models.DateTimeField(null=True, blank=True)
+    created_at      = models.DateTimeField(auto_now_add=True)
+    # Результаты выполнения варианта: {task_number: {answer, state, score}}
+    result          = models.JSONField(default=dict, blank=True)
+    # Набранный балл за часть 1 (подсчитывается на фронте и сохраняется при сдаче)
+    score           = models.IntegerField(null=True, blank=True)
+
+    def __str__(self):
+        return f'ДЗ #{self.homework_id} → {self.student} [{self.status}]'
+
+    class Meta:
+        verbose_name = "Назначение ДЗ"
+        verbose_name_plural = "Назначения ДЗ"
+        unique_together = [('homework', 'student')]
+        ordering = ['-created_at']
+
+
+class HomeworkAnswerFile(models.Model):
+    """Файлы ответа ученика на ДЗ (с опциональными аннотациями учителя)."""
+    assignment  = models.ForeignKey(HomeworkAssignment, on_delete=models.CASCADE, related_name='answer_files')
+    file        = models.FileField(upload_to='homework_answers/')
+    filename    = models.CharField(max_length=255)
+    file_type   = models.CharField(max_length=10, choices=FILE_TYPE_CHOICES, default='file')
+    annotations = models.JSONField(default=list, blank=True)
+    uploaded_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.filename
+
+    class Meta:
+        verbose_name = "Файл ответа на ДЗ"
+        verbose_name_plural = "Файлы ответов на ДЗ"
+        ordering = ['uploaded_at']
+
+
+# ── Старые модели оставлены для совместимости с существующими данными ──────────
 
 class StudentsHomework(models.Model):
     HOMEWORK_STATUS_CHOICES = [
@@ -183,31 +266,39 @@ class StudentsHomework(models.Model):
         ('2', 'Ждёт проверки'),
         ('3', 'Просрочено'),
     ]
-    student = models.ForeignKey(UserProfile, on_delete=models.CASCADE)
+    student  = models.ForeignKey(UserProfile, on_delete=models.CASCADE)
     homework = models.ForeignKey(Homework, on_delete=models.CASCADE)
-    status = models.CharField(max_length=100, choices=HOMEWORK_STATUS_CHOICES, default='2')
-    
+    status   = models.CharField(max_length=100, choices=HOMEWORK_STATUS_CHOICES, default='2')
 
     class Meta:
-        verbose_name = "ДЗ заданное"
-        verbose_name_plural = "ДЗ заданное"
+        verbose_name = "ДЗ заданное (старое)"
+        verbose_name_plural = "ДЗ заданные (старые)"
+
 
 class StudentsAnswerImg(models.Model):
-    student = models.ForeignKey(UserProfile, on_delete=models.CASCADE)
+    student  = models.ForeignKey(UserProfile, on_delete=models.CASCADE)
     homework = models.ForeignKey(Homework, on_delete=models.CASCADE)
-    img = models.ImageField(null=True, blank=True)
+    img      = models.ImageField(null=True, blank=True)
 
 
 class Notification(models.Model):
     NOTIFICATION_TYPES = [
-        ('submitted', 'Отправил на проверку'),
-        ('check_deadline_soon', 'Подходит срок проверки'),
-        ('low_result_alert', 'Низкие результаты'),
-        ('missed', 'Не сдал в срок'),
+        ('submitted',          'Сдал на проверку'),
+        ('check_deadline_soon','Подходит срок проверки'),
+        ('low_result_alert',   'Низкие результаты'),
+        ('missed',             'Не сдал в срок'),
+        ('homework_assigned',  'Новое домашнее задание'),
+        ('reviewed',           'ДЗ проверено'),
+        ('revision_requested', 'ДЗ направлено на доработку'),
     ]
-    text = models.CharField(max_length=200)
-    user = models.ForeignKey(UserProfile, on_delete = models.CASCADE)
-    notification_type = models.CharField(max_length=20, choices = NOTIFICATION_TYPES)
-    read = models.BooleanField()
+    text                = models.CharField(max_length=500)
+    user                = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='notifications')
+    notification_type   = models.CharField(max_length=25, choices=NOTIFICATION_TYPES)
+    read                = models.BooleanField(default=False)
+    homework_assignment = models.ForeignKey(
+        HomeworkAssignment, on_delete=models.SET_NULL,
+        null=True, blank=True, related_name='notifications',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
 
 

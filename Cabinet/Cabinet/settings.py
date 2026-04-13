@@ -126,17 +126,26 @@ else:
         }
     }
 
-# Database — PostgreSQL
-DATABASES = {
-    'default': {
-        'ENGINE':   'django.db.backends.postgresql',
-        'NAME':     os.environ.get('DB_NAME', 'lk_cabinet'),
-        'USER':     os.environ.get('DB_USER', 'lk_user'),
-        'PASSWORD': os.environ.get('DB_PASSWORD', ''),
-        'HOST':     os.environ.get('DB_HOST', 'localhost'),
-        'PORT':     os.environ.get('DB_PORT', '5432'),
+# Database — PostgreSQL в проде, SQLite локально (если DB_PASSWORD не задан)
+_db_password = os.environ.get('DB_PASSWORD', '')
+if _db_password:
+    DATABASES = {
+        'default': {
+            'ENGINE':   'django.db.backends.postgresql',
+            'NAME':     os.environ.get('DB_NAME', 'lk_cabinet'),
+            'USER':     os.environ.get('DB_USER', 'lk_user'),
+            'PASSWORD': _db_password,
+            'HOST':     os.environ.get('DB_HOST', 'localhost'),
+            'PORT':     os.environ.get('DB_PORT', '5432'),
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME':   BASE_DIR / os.environ.get('SQLITE_NAME', 'db.sqlite3'),
+        }
+    }
 
 
 # Password validation
@@ -182,6 +191,10 @@ WHITENOISE_USE_FINDERS = True
 REACT_BUILD_DIR = BASE_DIR.parent / 'frontend' / 'build'
 STATICFILES_DIRS = [REACT_BUILD_DIR / 'static'] if (REACT_BUILD_DIR / 'static').exists() else []
 
+# Media files (uploads: homework attachments, answer files, avatars)
+MEDIA_URL  = '/media/'
+MEDIA_ROOT = Path(os.environ.get('MEDIA_ROOT', str(BASE_DIR / 'mediafiles')))
+
 # Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
@@ -225,11 +238,16 @@ REST_FRAMEWORK = {
     },
     'DEFAULT_PARSER_CLASSES': [
         'rest_framework.parsers.JSONParser',
+        'rest_framework.parsers.MultiPartParser',   # для загрузки файлов (ДЗ, ответы)
+        'rest_framework.parsers.FormParser',
     ],
     'DEFAULT_RENDERER_CLASSES': [
         'rest_framework.renderers.JSONRenderer',
     ],
 }
+
+# Лимит размера загружаемых файлов (по умолчанию 20 МБ, в .env — FILE_UPLOAD_MAX_MB)
+FILE_UPLOAD_MAX_MEMORY_SIZE = int(os.environ.get('FILE_UPLOAD_MAX_MB', '20')) * 1024 * 1024
 
 if not DEBUG:
     SECURE_CONTENT_TYPE_NOSNIFF = True
