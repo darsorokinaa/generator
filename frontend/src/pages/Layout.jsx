@@ -102,12 +102,19 @@ function Layout() {
   const cabinetHref =
     typeof lkHref === "string" && lkHref.trim() ? lkHref.trim() : LK_PUBLIC_URL;
 
-  function handleLkNavClick(e) {
-    if (!lkNavGateRequired || lkNavUnlocked) return;
-    e.preventDefault();
-    setLkModalError("");
-    setLkModalPassword("");
-    setLkModalOpen(true);
+  const openCabinetInNewTab = useCallback(() => {
+    window.open(cabinetHref, "_blank", "noopener,noreferrer");
+  }, [cabinetHref]);
+
+  /** Без `<a href>` — иначе браузер может предзагрузить ЛК (страница входа) при открытии главной. */
+  function handleCabinetClick() {
+    if (lkNavGateRequired && !lkNavUnlocked) {
+      setLkModalError("");
+      setLkModalPassword("");
+      setLkModalOpen(true);
+      return;
+    }
+    openCabinetInNewTab();
   }
 
   async function submitLkNavUnlock() {
@@ -127,7 +134,7 @@ function Layout() {
       setLkNavUnlocked(true);
       setLkModalOpen(false);
       setLkModalPassword("");
-      window.open(cabinetHref, "_blank", "noopener,noreferrer");
+      openCabinetInNewTab();
     } catch {
       setLkModalError("Не удалось проверить пароль");
     }
@@ -282,12 +289,10 @@ function Layout() {
           </button>
         )}
         <Link to="/about" className="header-nav-link">От авторов</Link>
-        <a
-          href={cabinetHref}
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          type="button"
           className="header-nav-cabinet"
-          onClick={handleLkNavClick}
+          onClick={handleCabinetClick}
           style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -295,7 +300,7 @@ function Layout() {
             <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
           </svg>
           Личный кабинет
-        </a>
+        </button>
       </nav>
     </div>
 </header>
@@ -313,15 +318,9 @@ function Layout() {
         <div className="site-footer-inner">
           <span className="site-footer-copy">© 2026 ГенУрок</span>
           <div className="site-footer-links">
-            <a
-              href={cabinetHref}
-              className="site-footer-link"
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={handleLkNavClick}
-            >
+            <button type="button" className="site-footer-link" onClick={handleCabinetClick}>
               Личный кабинет
-            </a>
+            </button>
             <span className="site-footer-sep" aria-hidden="true">·</span>
             <Link to="/privacy" className="site-footer-link">Политика конфиденциальности</Link>
             <span className="site-footer-sep" aria-hidden="true">·</span>

@@ -6685,6 +6685,12 @@ body.index .exam-grid .exam-card {
     transform: translateY(-1px);
 }
 
+button.header-nav-cabinet {
+    appearance: none;
+    cursor: pointer;
+    font-family: inherit;
+}
+
 .about-page {
     padding: 2rem 0 3rem;
     max-width: 1000px;
@@ -7214,6 +7220,16 @@ header.header--themed .theme-toggle > span {
 .site-footer-link:hover {
     color: #4c51bf;
     text-decoration: underline;
+}
+
+button.site-footer-link {
+    appearance: none;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font: inherit;
+    text-align: inherit;
 }
 
 .site-footer-sep {
