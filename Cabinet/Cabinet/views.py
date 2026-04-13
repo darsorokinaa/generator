@@ -11,10 +11,21 @@ import string
 import time
 import re
 import jwt
-from .models import UserProfile, FunnyWord, Subject, Level, TeacherSubject, TeachersStudent, Group
+from .models import (
+    UserProfile,
+    FunnyWord,
+    Subject,
+    Level,
+    TeacherSubject,
+    TeachersStudent,
+    TeachersGroup,
+    Group,
+)
 from rest_framework import viewsets, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated
+
 from .permissions import IsLKTeacher, IsCabinetTeacher, user_can_use_lk
 from .security_utils import safe_redirect_target
 from .serializers import (
@@ -555,10 +566,7 @@ class LessonTokenView(APIView):
                 target_name, room_slug, False, jitsi_app_id, jitsi_jwt_secret, jitsi_hostname
             )
             teacher_video_url = f"{jitsi_base}/{room_path}?jwt={teacher_jitsi_tok}"
-            student_video_url = (
-                f"{jitsi_base}/{room_path}?jwt={student_jitsi_tok}"
-                f"#config.prejoinPageEnabled=false&config.prejoinConfig.enabled=false"
-            )
+            student_video_url = f"{jitsi_base}/{room_path}?jwt={student_jitsi_tok}"
         else:
             # Fallback: meet.jit.si без JWT — только отображаемое имя
             teacher_jitsi_tok = ''
@@ -670,8 +678,9 @@ class LessonTeacherJoinedView(APIView):
             "student_url": student_url,
         }
 
-        student_user_id = None
-        if target_id:
+        # Список Django user_id учеников для WS + pending (индивидуально или вся группа)
+        notify_user_ids: list[int] = []
+        if target_id is not None and lesson_type == 'student':
             try:
                 ts = TeachersStudent.objects.select_related(
                     'student__user', 'teacher__user'
@@ -682,26 +691,40 @@ class LessonTeacherJoinedView(APIView):
                 if teacher_uid is not None and int(teacher_uid) != ts.teacher.user_id:
                     return Response({'error': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
                 if ts.student and ts.student.user_id:
-                    student_user_id = ts.student.user_id
+                    notify_user_ids.append(int(ts.student.user_id))
+        elif target_id is not None and lesson_type == 'group':
+            try:
+                grp = Group.objects.select_related('teacher', 'teacher__user').get(pk=target_id)
+            except Group.DoesNotExist:
+                grp = None
+            if grp:
+                if teacher_uid is not None and int(teacher_uid) != grp.teacher.user_id:
+                    return Response({'error': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
+                for row in TeachersGroup.objects.filter(group_id=target_id).select_related(
+                    'student', 'student__user'
+                ):
+                    uid = getattr(row.student, 'user_id', None)
+                    if uid:
+                        notify_user_ids.append(int(uid))
 
         # Резерв: сохраняем pending invite, чтобы ученик получил его даже если WS-сообщение было пропущено.
-        if student_user_id:
-            cache.set(f'lesson_pending_invite:{student_user_id}', invite_payload, timeout=LESSON_TTL)
+        for uid in notify_user_ids:
+            cache.set(f'lesson_pending_invite:{uid}', invite_payload, timeout=LESSON_TTL)
 
         ws_sent = False
-        if target_id:
+        if notify_user_ids:
             try:
                 from channels.layers import get_channel_layer
                 from asgiref.sync import async_to_sync
                 channel_layer = get_channel_layer()
-                notify_channel = f"user_{student_user_id}" if student_user_id else f"user_{target_id}"
-                async_to_sync(channel_layer.group_send)(
-                    notify_channel,
-                    {
-                        "type": "notify_message",
-                        "data": invite_payload,
-                    },
-                )
+                for uid in notify_user_ids:
+                    async_to_sync(channel_layer.group_send)(
+                        f"user_{uid}",
+                        {
+                            "type": "notify_message",
+                            "data": invite_payload,
+                        },
+                    )
                 ws_sent = True
             except Exception:
                 ws_sent = False
@@ -718,8 +741,9 @@ class LessonPendingInviteView(APIView):
     """
     GET /api/lesson/pending/
     Возвращает pending invite для текущего пользователя (если есть) и очищает его.
+    Нужен ученику (fallback, если WS не доставил).
     """
-    permission_classes = [IsLKTeacher]
+    permission_classes = [IsAuthenticated]
 
     def get(self, request):
         user_id = getattr(request.user, 'id', None)
