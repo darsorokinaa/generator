@@ -320,6 +320,20 @@
       text-decoration: underline;
       text-underline-offset: 2px;
     }
+    .video-organizer-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: #6366f1; color: #fff !important;
+      text-decoration: none !important;
+      padding: 7px 14px; border-radius: 10px;
+      font-size: 0.75rem; font-weight: 700;
+      margin-bottom: 6px;
+      transition: background .15s;
+    }
+    .video-organizer-btn:hover { background: #4f46e5; }
+    .video-organizer-hint {
+      font-size: 0.68rem; color: #94a3b8;
+      margin: 0; line-height: 1.4;
+    }
     .room-id-box {
       padding: 8px 12px;
       font-size: 0.65rem;
@@ -2200,7 +2214,15 @@
       ></iframe>
       {% if lesson_video_link_url %}
       <div class="video-external-fallback">
+        {% if lesson_type == "teacher" %}
+        <a href="{{ lesson_video_link_url }}" target="_blank" rel="noopener noreferrer" class="video-organizer-btn">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+          Войти как организатор (новая вкладка)
+        </a>
+        <p class="video-organizer-hint">Если видите «нет модератора» — откройте как организатор и войдите в аккаунт Jitsi</p>
+        {% else %}
         <a href="{{ lesson_video_link_url }}" target="_blank" rel="noopener noreferrer">Если встроенное окно не подключается — открыть звонок в отдельной вкладке</a>
+        {% endif %}
       </div>
       {% endif %}
       {% elif lesson_video_link_url %}

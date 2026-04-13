@@ -2113,17 +2113,23 @@ def _lesson_first_url(*candidates) -> str:
 
 def _merge_jitsi_jwt_query(url: str, payload: dict, lesson_type: str) -> str:
     """
-    Для учителя подставляет ?jwt= из payload ЛК (если ещё нет в ссылке).
-    На своём Jitsi / JaaS в токене задаётся роль организатора; meet.jit.si чужие JWT не примет.
+    Подставляет ?jwt= из payload ЛК (если токен есть и ещё не задан в URL).
+    Учитель: берёт jitsi_jwt / jitsiJwt.
+    Ученик:  берёт student_jitsi_jwt / studentJitsiJwt.
+    На своём Jitsi / JaaS токен несёт роль (moderator=true/false); meet.jit.si JWT не принимает.
     """
-    if lesson_type != "teacher":
-        return url
-    tok = _lesson_first_url(
-        payload.get("jitsi_jwt"),
-        payload.get("jitsiJwt"),
-        payload.get("jitsi_token"),
-        payload.get("jitsiToken"),
-    )
+    if lesson_type == "teacher":
+        tok = _lesson_first_url(
+            payload.get("jitsi_jwt"),
+            payload.get("jitsiJwt"),
+            payload.get("jitsi_token"),
+            payload.get("jitsiToken"),
+        )
+    else:
+        tok = _lesson_first_url(
+            payload.get("student_jitsi_jwt"),
+            payload.get("studentJitsiJwt"),
+        )
     tok = (tok or "").strip()
     if not tok:
         return url
@@ -2134,7 +2140,7 @@ def _merge_jitsi_jwt_query(url: str, payload: dict, lesson_type: str) -> str:
         return url
     qs = parse_qs(u.query, keep_blank_values=True)
     if qs.get("jwt"):
-        return url
+        return url  # JWT уже встроен в URL из ЛК — не перезаписываем
     qs["jwt"] = [tok]
     new_query = urlencode(qs, doseq=True)
     return urlunparse(u._replace(query=new_query))
@@ -2181,12 +2187,27 @@ def enhance_jitsi_iframe_url(url: str, *, as_organizer: bool = False) -> str:
         return raw
     additions = [
         ("config.disableDeepLinking", "true"),
+        # Отключаем lobby/waiting-room (meet.jit.si требует это явно)
+        ("config.disableLobbyMode", "true"),
+        ("config.lobby.enabled", "false"),
+        ("config.autoKnockLobby", "false"),
+        # Отключаем экран «перед звонком»
         ("config.prejoinConfig.enabled", "false"),
+        ("config.prejoinPageEnabled", "false"),
+        ("config.requireDisplayName", "false"),
+        # Прячем кнопку входа и прочие отвлекающие элементы
         ("config.hideLoginButton", "true"),
+        ("config.enableInsecureRoomNameWarning", "false"),
     ]
     additions.append(
         ("config.startAsModerator", "true" if as_organizer else "false"),
     )
+    if as_organizer:
+        # Дополнительные привилегии организатора
+        additions += [
+            ("config.enableUserRolesBasedOnToken", "false"),
+            ("config.disableRemoteMute", "false"),
+        ]
     override_keys = {k for k, _ in additions}
     pairs = []
     if frag:
