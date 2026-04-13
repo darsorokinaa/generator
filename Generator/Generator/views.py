@@ -2368,6 +2368,118 @@ def api_lesson_session_close(request):
     return JsonResponse({"ok": True, "closed": True})
 
 
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_lesson_attachment_upload(request):
+    """
+    Загрузка файла-решения от ученика (изображение, файл, голосовое).
+    POST multipart: поля lesson_token, task_number, file.
+    Файл хранится в MEDIA_ROOT/lesson_attachments/<safe_room>/<file_token><ext>.
+    """
+    lesson_token = (
+        request.POST.get("lesson_token")
+        or request.META.get("HTTP_X_LESSON_TOKEN", "")
+    ).strip()
+    if not lesson_token:
+        return JsonResponse({"ok": False, "error": "lesson_token required"}, status=400)
+    try:
+        payload = verify_lesson_token(lesson_token)
+        normalized = normalize_lesson_jwt_payload(payload)
+    except ValueError as exc:
+        return JsonResponse({"ok": False, "error": str(exc)}, status=401)
+
+    uploaded = request.FILES.get("file")
+    if not uploaded:
+        return JsonResponse({"ok": False, "error": "field 'file' required"}, status=400)
+
+    max_bytes = 20 * 1024 * 1024  # 20 MB
+    if uploaded.size > max_bytes:
+        return JsonResponse({"ok": False, "error": "Файл слишком большой (макс. 20 МБ)"}, status=400)
+
+    room_id = normalized["room_id"]
+    safe_room = re.sub(r"[^a-zA-Z0-9_-]", "_", room_id)[:64]
+    file_token = secrets.token_urlsafe(32)
+    orig_ext = os.path.splitext(uploaded.name)[1][:10].lower()
+    filename = f"{file_token}{orig_ext}"
+
+    attach_dir = os.path.join(django_settings.MEDIA_ROOT, "lesson_attachments", safe_room)
+    os.makedirs(attach_dir, exist_ok=True)
+
+    filepath = os.path.join(attach_dir, filename)
+    with open(filepath, "wb") as f:
+        for chunk in uploaded.chunks():
+            f.write(chunk)
+
+    meta = {
+        "original_name": uploaded.name[:200],
+        "content_type": uploaded.content_type or "application/octet-stream",
+        "room_id": room_id,
+        "safe_room": safe_room,
+        "participant": normalized.get("participant_name", ""),
+        "task_number": request.POST.get("task_number", ""),
+        "created_at": time.time(),
+    }
+    with open(filepath + ".meta.json", "w", encoding="utf-8") as f:
+        json.dump(meta, f, ensure_ascii=False)
+
+    serve_url = f"/api/lesson/attachment/{safe_room}/{filename}"
+    return JsonResponse({"ok": True, "url": serve_url, "filename": uploaded.name[:200]})
+
+
+def api_lesson_attachment_serve(request, safe_room, filename):
+    """
+    Отдача файла вложения. Доступ только участникам урока (валидный lesson_token).
+    lesson_token передаётся query-параметром ?t=...
+    """
+    # Проверяем токен
+    lesson_token = (request.GET.get("t") or "").strip()
+    if not lesson_token:
+        return HttpResponse("Нет доступа: передайте ?t=<lesson_token>", status=403, content_type="text/plain")
+    try:
+        payload = verify_lesson_token(lesson_token)
+        normalized = normalize_lesson_jwt_payload(payload)
+    except ValueError:
+        return HttpResponse("Токен недействителен", status=403, content_type="text/plain")
+
+    # safe_room в URL должен совпадать с room_id из токена
+    expected_safe_room = re.sub(r"[^a-zA-Z0-9_-]", "_", normalized["room_id"])[:64]
+    if safe_room != expected_safe_room:
+        return HttpResponse("Доступ запрещён", status=403, content_type="text/plain")
+
+    # Защита от path traversal
+    if ".." in filename or "/" in filename or "\\" in filename:
+        return HttpResponse("Недопустимое имя файла", status=400, content_type="text/plain")
+
+    attach_dir = os.path.join(django_settings.MEDIA_ROOT, "lesson_attachments", safe_room)
+    filepath = os.path.join(attach_dir, filename)
+    if not os.path.isfile(filepath):
+        return HttpResponse("Файл не найден", status=404, content_type="text/plain")
+
+    # Читаем метаданные для content-type
+    content_type = "application/octet-stream"
+    original_name = filename
+    meta_path = filepath + ".meta.json"
+    if os.path.isfile(meta_path):
+        try:
+            with open(meta_path, encoding="utf-8") as mf:
+                meta = json.load(mf)
+            content_type = meta.get("content_type") or content_type
+            original_name = meta.get("original_name") or filename
+        except Exception:
+            pass
+
+    response = FileResponse(open(filepath, "rb"), content_type=content_type)
+    # Для изображений — показываем inline; для остальных — скачиваем
+    safe_name = re.sub(r'[^\w.\-]', '_', original_name)
+    is_image = content_type.startswith("image/")
+    is_audio = content_type.startswith("audio/")
+    if is_image or is_audio:
+        response["Content-Disposition"] = f'inline; filename="{safe_name}"'
+    else:
+        response["Content-Disposition"] = f'attachment; filename="{safe_name}"'
+    return response
+
+
 def lesson_join_redirect(request):
     """Без завершающего слэша запрос иначе попадает в react_app — сохраняем query (?token=…)."""
     q = request.META.get("QUERY_STRING", "").strip()

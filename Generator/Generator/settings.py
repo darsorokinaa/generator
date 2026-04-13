@@ -40,7 +40,7 @@ JITSI_EMBED_EXTRA_HOSTS = tuple(
     if h.strip()
 )
 
-LK_PUBLIC_URL = os.environ.get("LK_PUBLIC_URL", "http://lk.genurok.tw1.ru").rstrip("/")
+LK_PUBLIC_URL = os.environ.get("LK_PUBLIC_URL", "https://lk.genurok.tw1.ru").rstrip("/")
 # Полный URL страницы после входа (дашборд). Если пусто — кнопка «Личный кабинет» ведёт на LK_PUBLIC_URL.
 # Пример: http://lk.example.com/dashboard или http://lk.example.com/app/
 LK_DASHBOARD_URL = os.environ.get("LK_DASHBOARD_URL", "").strip().rstrip("/")
@@ -55,7 +55,8 @@ else:
     LK_NAVIGATION_PASSWORD = _lk_nav_env.strip()
 
 DEBUG = os.environ.get('DEBUG', 'true').lower() == 'true'
-ALLOWED_HOSTS = ["*"]
+_allowed_hosts_env = os.environ.get('DJANGO_ALLOWED_HOSTS', '')
+ALLOWED_HOSTS = [h.strip() for h in _allowed_hosts_env.split(',') if h.strip()] or ["*"]
 
 
 # Application definition
@@ -108,7 +109,19 @@ CORS_ALLOW_ALL_ORIGINS = True
 
 CORS_ALLOW_CREDENTIALS = True
 
-_extra_origins = os.environ.get('CSRF_TRUSTED_ORIGINS', '')
+_extra_origins_raw = os.environ.get('CSRF_TRUSTED_ORIGINS', '')
+_extra_origins = [o.strip() for o in _extra_origins_raw.split(',') if o.strip()]
+
+# Если CSRF_TRUSTED_ORIGINS не задан — строим доверенные origins из DJANGO_ALLOWED_HOSTS автоматически.
+# Это позволяет не дублировать домен: достаточно задать только DJANGO_ALLOWED_HOSTS=tes.genurok.ru,...
+if not _extra_origins:
+    _allowed_hosts_raw = os.environ.get('DJANGO_ALLOWED_HOSTS', '')
+    for _h in _allowed_hosts_raw.split(','):
+        _h = _h.strip()
+        if _h and _h != '*' and not _h.startswith('.'):
+            _extra_origins.append(f"https://{_h}")
+            _extra_origins.append(f"http://{_h}")
+
 CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5000",
     "http://127.0.0.1:5000",
@@ -121,11 +134,14 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:8001",
     "https://*.replit.dev",
     "https://*.repl.co",
-] + [o.strip() for o in _extra_origins.split(',') if o.strip()]
+] + _extra_origins
 
 CSRF_COOKIE_SAMESITE = 'Lax'
 CSRF_COOKIE_HTTPONLY = False  # React должен читать cookie
 SESSION_COOKIE_SAMESITE = 'Lax'
+
+# Django за nginx: сообщаем, что оригинальный запрос — HTTPS (X-Forwarded-Proto пробрасывает nginx)
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 ROOT_URLCONF = 'Generator.urls'
 

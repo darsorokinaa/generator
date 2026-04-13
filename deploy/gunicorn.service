@@ -29,10 +29,12 @@ Environment="PGPORT=5432"
 Environment="DJANGO_SETTINGS_MODULE=Generator.settings"
 Environment="DEBUG=false"
 Environment="SECRET_KEY=WNbG1HzC4_lta5i_vvh6TPK3_G33Xlhzlr167fDXCFd_CVc0fS72WcaWvtLXwHreDpo"
-Environment="CSRF_TRUSTED_ORIGINS=http://genurok.tw1.ru,http://lk.genurok.tw1.ru"
-Environment="LK_PUBLIC_URL=http://lk.genurok.tw1.ru"
+# CSRF_TRUSTED_ORIGINS задавать не нужно: они строятся автоматически из DJANGO_ALLOWED_HOSTS.
+# Если нужны дополнительные origins — добавьте: Environment="CSRF_TRUSTED_ORIGINS=https://extra.domain.ru"
+Environment="DJANGO_ALLOWED_HOSTS=tes.genurok.ru,lk.tes.genurok.ru,localhost,127.0.0.1"
+Environment="LK_PUBLIC_URL=https://lk.tes.genurok.ru"
 # Куда редирект после /admin/logout/ (публичный сайт, не localhost)
-Environment="GENUROK_PUBLIC_HOME_URL=http://genurok.ru"
+Environment="GENUROK_PUBLIC_HOME_URL=https://tes.genurok.ru"
 # Куда открывать ЛК по кнопке (дашборд). Пример: http://lk.genurok.tw1.ru/dashboard
 # Environment="LK_DASHBOARD_URL=http://lk.genurok.tw1.ru/dashboard"
 # Пароль для кнопки «Личный кабинет»: если не задать — в коде по умолчанию 100326.
