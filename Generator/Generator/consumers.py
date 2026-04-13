@@ -11,6 +11,9 @@ class LessonConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.room_id = self.scope["url_route"]["kwargs"]["room_id"]
         self.group_name = f"lesson_{self.room_id}"
+        # Имя и роль сохраняются после первого join-сообщения
+        self._participant_name = ""
+        self._participant_role = ""
         if await self._is_lesson_session_closed():
             await self.accept()
             await self.send(
@@ -40,8 +43,19 @@ class LessonConsumer(AsyncWebsocketConsumer):
             )
 
     async def disconnect(self, close_code):
-        # Обычное закрытие вкладки не завершает урок для остальных.
-        # Завершение отправляет только учитель вручную (type=lesson_ended).
+        # Уведомляем остальных участников о выходе
+        if self._participant_name:
+            await self.channel_layer.group_send(
+                self.group_name,
+                {
+                    "type": "lesson_message",
+                    "payload": {
+                        "type": "leave",
+                        "name": self._participant_name,
+                        "role": self._participant_role,
+                    },
+                },
+            )
         await self.channel_layer.group_discard(self.group_name, self.channel_name)
 
     async def receive(self, text_data):
@@ -49,6 +63,14 @@ class LessonConsumer(AsyncWebsocketConsumer):
             data = json.loads(text_data)
         except (json.JSONDecodeError, TypeError):
             return
+        # Запоминаем имя/роль из первого join-сообщения
+        if (
+            isinstance(data, dict)
+            and data.get("type") == "join"
+            and not self._participant_name
+        ):
+            self._participant_name = str(data.get("name") or "").strip()
+            self._participant_role = str(data.get("role") or "").strip()
         normalized_variant = self._normalize_variant_message(data)
         if normalized_variant:
             await self._save_variant(normalized_variant)

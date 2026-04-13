@@ -615,6 +615,38 @@
     .btn-critical:hover {
       box-shadow: 0 10px 20px rgba(220, 38, 38, 0.16);
     }
+    /* ── PRESENCE / ONLINE STATUS ── */
+    .presence-bar {
+      display: flex; align-items: center; gap: 8px;
+      padding: 7px 12px; border-radius: 10px;
+      background: #f0fdf4; border: 1px solid #bbf7d0;
+      font-size: 0.75rem; font-weight: 600; color: #15803d;
+      margin-bottom: 6px;
+    }
+    .presence-bar.waiting {
+      background: #fff7ed; border-color: #fed7aa; color: #9a3412;
+    }
+    .presence-bar-dot {
+      width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+      background: #22c55e;
+    }
+    .presence-bar.waiting .presence-bar-dot { background: #fb923c; }
+    .presence-bar-text { flex: 1; }
+    /* Student count chip in teacher panel header */
+    .students-online-chip {
+      display: inline-flex; align-items: center; gap: 4px;
+      background: #dcfce7; color: #15803d;
+      border: 1px solid #86efac;
+      border-radius: 999px; font-size: 0.65rem; font-weight: 800;
+      padding: 1px 7px; margin-left: 6px;
+    }
+    /* Attachment badge on student row */
+    .student-row-attach-badge {
+      display: inline-flex; align-items: center; gap: 3px;
+      font-size: 0.68rem; font-weight: 700; color: #6366f1;
+      background: #eef2ff; border: 1px solid #c7d2fe;
+      border-radius: 8px; padding: 1px 6px; flex-shrink: 0;
+    }
     /* ── TEACHER: STUDENT ANSWERS PANEL ── */
     .students-grid { display: flex; flex-direction: column; gap: 10px; }
     .student-row {
@@ -1342,7 +1374,25 @@
       outline: none; transition: border-color .2s, box-shadow .2s;
     }
     .task-answer-input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(93,131,243,0.14); }
-    .task-answer-input.saved { border-color: var(--green); background: #f0fdf4; }
+    .task-answer-input.saved   { border-color: var(--green); background: #f0fdf4; }
+    .task-answer-input.correct {
+      border-color: #16a34a; background: #f0fdf4;
+      box-shadow: 0 0 0 3px rgba(22,163,74,.15);
+      animation: flash-correct .4s ease;
+    }
+    .task-answer-input.wrong {
+      border-color: #dc2626; background: #fef2f2;
+      box-shadow: 0 0 0 3px rgba(220,38,38,.15);
+      animation: flash-wrong .4s ease;
+    }
+    @keyframes flash-correct {
+      0% { box-shadow: 0 0 0 6px rgba(22,163,74,.35); }
+      100% { box-shadow: 0 0 0 3px rgba(22,163,74,.15); }
+    }
+    @keyframes flash-wrong {
+      0%  { box-shadow: 0 0 0 6px rgba(220,38,38,.35); }
+      100% { box-shadow: 0 0 0 3px rgba(220,38,38,.15); }
+    }
 
     /* ── WAITING STATE ── */
     .waiting-state {
@@ -1395,6 +1445,48 @@
     }
     #video-mode-prompt.show {
       display: flex;
+    }
+    /* ── END-LESSON CONFIRM BANNER ── */
+    #end-lesson-banner {
+      position: fixed;
+      bottom: 24px; left: 50%; transform: translateX(-50%);
+      z-index: 12000;
+      display: none;
+      align-items: center; gap: 14px;
+      background: #fff;
+      border: 1.5px solid #fca5a5;
+      border-radius: 18px;
+      box-shadow: 0 8px 32px rgba(220,38,38,.18);
+      padding: 14px 20px;
+      min-width: 280px;
+      max-width: min(90vw, 460px);
+    }
+    #end-lesson-banner.show { display: flex; }
+    .elb-icon { font-size: 1.4rem; flex-shrink: 0; }
+    .elb-text { flex: 1; }
+    .elb-title { font-weight: 700; font-size: 0.88rem; color: #0f172a; }
+    .elb-sub { font-size: 0.76rem; color: #64748b; margin-top: 2px; }
+    .elb-countdown {
+      font-weight: 800; font-size: 1.15rem;
+      color: #dc2626; min-width: 24px; text-align: center;
+    }
+    .elb-actions { display: flex; gap: 8px; flex-shrink: 0; }
+    .elb-btn-end {
+      padding: 7px 14px; border-radius: 10px; border: none; cursor: pointer;
+      background: #dc2626; color: #fff; font-weight: 700; font-size: 0.8rem;
+    }
+    .elb-btn-end:hover { background: #b91c1c; }
+    .elb-btn-cancel {
+      padding: 7px 14px; border-radius: 10px; border: 1.5px solid #e2e8f0; cursor: pointer;
+      background: #fff; color: #334155; font-weight: 600; font-size: 0.8rem;
+    }
+    .elb-btn-cancel:hover { background: #f8fafc; }
+    @media (max-width: 640px) {
+      #end-lesson-banner {
+        flex-wrap: wrap;
+        bottom: 80px;
+        left: 12px; right: 12px; transform: none;
+      }
     }
     /* ── STUDENT PROFILE MODAL ── */
     #student-profile-modal {
@@ -1837,6 +1929,17 @@
       }
       #teacher-students-card {
         position: static;
+        max-height: 55vh;
+        overflow-y: auto;
+      }
+      /* Attachment buttons stack on tablet */
+      .task-attach-btns {
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .task-attach-btn {
+        flex: 1 1 calc(50% - 4px);
+        justify-content: center;
       }
     }
 
@@ -1953,6 +2056,91 @@
         top: 10px;
         max-width: 96vw;
         font-size: 0.8rem;
+      }
+
+      /* ── MOBILE: teacher two-column → single column ── */
+      .main-content.main-content-teacher {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto;
+      }
+      #teacher-students-card {
+        max-height: 60vh;
+        overflow-y: auto;
+      }
+
+      /* ── MOBILE: student row compact ── */
+      .student-row {
+        padding: 10px 10px 10px 10px;
+        gap: 8px;
+      }
+      .student-avatar {
+        width: 34px !important;
+        height: 34px !important;
+        font-size: 0.75rem !important;
+        flex-shrink: 0;
+      }
+      .student-name {
+        font-size: 0.8rem;
+      }
+      .student-score-badge {
+        font-size: 0.65rem !important;
+        padding: 1px 6px !important;
+      }
+      .answers-chips {
+        gap: 4px;
+      }
+      .chip {
+        font-size: 0.62rem;
+        padding: 2px 6px;
+      }
+
+      /* ── MOBILE: attachment panel ── */
+      .task-attach-btns {
+        gap: 6px;
+      }
+      .task-attach-btn {
+        padding: 7px 10px;
+        font-size: 0.72rem;
+        flex: 1 1 auto;
+        justify-content: center;
+      }
+
+      /* ── MOBILE: student profile modal ── */
+      #student-profile-modal {
+        align-items: flex-end;
+        padding: 0;
+      }
+      .sp-modal-card {
+        width: 100% !important;
+        max-width: 100% !important;
+        border-radius: 20px 20px 0 0 !important;
+        max-height: 88vh !important;
+        padding-bottom: max(16px, env(safe-area-inset-bottom, 0px)) !important;
+      }
+      .sp-modal-header {
+        padding: 14px 14px 10px !important;
+      }
+      .sp-modal-avatar {
+        width: 44px !important;
+        height: 44px !important;
+        font-size: 1rem !important;
+      }
+      .sp-modal-name {
+        font-size: 1rem !important;
+      }
+      .sp-modal-score {
+        width: 44px !important;
+        height: 44px !important;
+        font-size: 0.72rem !important;
+      }
+      .sp-modal-body {
+        padding: 0 14px 0 !important;
+      }
+
+      /* ── MOBILE: presence bar ── */
+      .presence-bar {
+        font-size: 0.7rem;
+        padding: 6px 10px;
       }
     }
   </style>
@@ -2107,8 +2295,13 @@
       <div class="card-header">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
         Ответы учеников
+        <span id="students-online-chip" class="students-online-chip" style="display:none">0</span>
       </div>
       <div class="card-body">
+        <div id="teacher-presence-bar" class="presence-bar waiting" style="display:none">
+          <div class="presence-bar-dot"></div>
+          <span class="presence-bar-text">Ждём учеников…</span>
+        </div>
         <div class="students-grid" id="students-panel">
           <div class="waiting-state">
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
@@ -2128,6 +2321,10 @@
         <span id="student-score-live" style="margin-left:8px;font-weight:700;font-size:.78rem;color:#166534"></span>
       </div>
       <div class="card-body">
+        <div id="student-presence-bar" class="presence-bar waiting">
+          <div class="presence-bar-dot"></div>
+          <span class="presence-bar-text">Ожидаем учителя…</span>
+        </div>
         <div id="tasks-container">
           <div class="waiting-state" id="tasks-waiting">
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
@@ -2143,6 +2340,21 @@
 </div><!-- #lesson-app-root -->
 
 <div id="status-toast"></div>
+
+<!-- Баннер: учитель вышел из видеозвонка — завершить урок? -->
+<div id="end-lesson-banner" role="alertdialog" aria-live="assertive">
+  <span class="elb-icon">📵</span>
+  <div class="elb-text">
+    <div class="elb-title">Вы вышли из звонка</div>
+    <div class="elb-sub">Завершить урок для всех участников?</div>
+  </div>
+  <span class="elb-countdown" id="elb-count">10</span>
+  <div class="elb-actions">
+    <button class="elb-btn-end" onclick="confirmEndLessonFromCall()">Завершить</button>
+    <button class="elb-btn-cancel" onclick="cancelEndLessonBanner()">Отмена</button>
+  </div>
+</div>
+
 <div id="video-mode-prompt">
   <div class="video-mode-card">
     <div class="video-mode-title">Видеосвязь на экране</div>
@@ -2220,6 +2432,8 @@ let myAnswers = {};         // {task_number: value}
 let myCheckedTasks = {};    // {task_number: true}
 let studentAnswers = {};     // {name: {task_number: value}}
 let studentAttachments = {}; // {name: [{task_number, url, filename, filetype, icon}]}
+// Участники онлайн: {name → role}
+let connectedParticipants = {};
 let answerKeyByTaskNumber = {}; // {task_number: answer_text}
 let taskMetaByNumber = {}; // {task_number: {is_part2, max_score, part, task_id}}
 let currentTasks = [];
@@ -2345,9 +2559,33 @@ function handleMessage(msg) {
       }
       break;
 
-    case "join":
-      if (ROLE === "teacher") showToast(`Ученик ${msg.name} присоединился к уроку`, "success");
+    case "join": {
+      const joinName = msg.name || "";
+      const joinRole = msg.role || "student";
+      if (joinName) connectedParticipants[joinName] = joinRole;
+      updatePresenceUI();
+      // Показываем тост только если это НЕ мы сами
+      if (joinName && joinName !== MY_NAME) {
+        if (ROLE === "teacher" && joinRole === "student")
+          showToast(`${joinName} присоединился к уроку`, "success");
+        else if (ROLE === "student" && joinRole === "teacher")
+          showToast(`Учитель ${joinName} в сети`, "success");
+      }
       break;
+    }
+
+    case "leave": {
+      const leaveName = msg.name || "";
+      if (leaveName) delete connectedParticipants[leaveName];
+      updatePresenceUI();
+      if (leaveName && leaveName !== MY_NAME) {
+        if (ROLE === "teacher" && (msg.role === "student"))
+          showToast(`${leaveName} покинул урок`, "info");
+        else if (ROLE === "student" && msg.role === "teacher")
+          showToast(`Учитель отключился`, "warning");
+      }
+      break;
+    }
 
     case "variant": {
       const vid = msg.variant_id ?? msg.variantId;
@@ -2844,10 +3082,36 @@ function submitAnswer(num, value) {
   if (input) { input.classList.toggle("saved", !!value); input.value = value; }
   if (card)  { card.classList.toggle("answered", !!value); }
 
+  // Подсвечиваем поле ответа по правильности
+  if (input && value) {
+    const evalState = evaluateAnswerState(num, value);
+    input.classList.remove("correct", "wrong");
+    if (evalState === "correct") {
+      input.classList.add("correct");
+    } else if (evalState === "wrong") {
+      input.classList.add("wrong");
+    }
+  }
+
   send({ type: "answer", task_number: num, taskNumber: num, value, name: MY_NAME });
   showToast(`Ответ на задание ${num} отправлен`);
   if (ROLE === "student") {
     refreshStudentTaskStates();
+    // После перерендера карточек — прокрутить к нужной
+    requestAnimationFrame(() => {
+      const cardAfter = document.getElementById(`task-card-${num}`);
+      if (cardAfter) {
+        cardAfter.scrollIntoView({ behavior: "smooth", block: "nearest" });
+        // Обновляем класс подсветки на новом input (renderTasks пересоздаёт DOM)
+        const inputAfter = document.getElementById(`answer-${num}`);
+        if (inputAfter && value) {
+          const evalState = evaluateAnswerState(num, value);
+          inputAfter.classList.remove("correct", "wrong");
+          if (evalState === "correct") inputAfter.classList.add("correct");
+          else if (evalState === "wrong") inputAfter.classList.add("wrong");
+        }
+      }
+    });
   }
 }
 
@@ -2889,6 +3153,14 @@ function renderStudentAnswers() {
     const scoreTotals = getTeacherStudentTotal(name);
     const colorIdx = studentIdx % 8;
     const scoreZero = scoreTotals.current === 0 && scoreTotals.max === 0;
+    const attCount = (studentAttachments[name] || []).length;
+    const attBadge = attCount > 0
+      ? `<span class="student-row-attach-badge" title="${attCount} вложений">📎 ${attCount}</span>`
+      : "";
+    const isOnline = name in connectedParticipants;
+    const onlineDot = isOnline
+      ? `<span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0;margin-left:2px" title="В сети"></span>`
+      : "";
     return `
       <div class="student-row" role="button" tabindex="0"
            onclick="openStudentProfileModal(${JSON.stringify(name)}, ${studentIdx})"
@@ -2898,7 +3170,9 @@ function renderStudentAnswers() {
         <div class="student-info">
           <div class="student-name-row">
             <span class="student-name">${escapeHtml(name)}</span>
-            <span class="student-score-badge${scoreZero ? " score-zero" : ""}">
+            ${onlineDot}
+            ${attBadge}
+            <span class="student-score-badge${scoreZero ? " score-zero" : ""}" style="margin-left:auto">
               ${scoreTotals.current}&#x202F;/&#x202F;${scoreTotals.max} б
             </span>
           </div>
@@ -2907,6 +3181,52 @@ function renderStudentAnswers() {
       </div>`;
   }).join("");
   void typesetMath(panel);
+}
+
+function updatePresenceUI() {
+  const students = Object.entries(connectedParticipants).filter(([, r]) => r === "student");
+  const teacherOnline = Object.values(connectedParticipants).includes("teacher");
+
+  // Teacher side: chip + presence bar
+  const chip = document.getElementById("students-online-chip");
+  const teacherBar = document.getElementById("teacher-presence-bar");
+  if (chip) {
+    if (students.length > 0) {
+      chip.textContent = students.length;
+      chip.style.display = "";
+    } else {
+      chip.style.display = "none";
+    }
+  }
+  if (teacherBar) {
+    if (students.length > 0) {
+      teacherBar.className = "presence-bar";
+      teacherBar.querySelector(".presence-bar-text").textContent =
+        students.length === 1
+          ? `${students[0][0]} в сети`
+          : `${students.length} учеников в сети`;
+      teacherBar.style.display = "";
+    } else {
+      teacherBar.className = "presence-bar waiting";
+      teacherBar.querySelector(".presence-bar-text").textContent = "Ждём учеников…";
+      teacherBar.style.display = "";
+    }
+  }
+
+  // Student side: teacher presence bar
+  const studentBar = document.getElementById("student-presence-bar");
+  if (studentBar) {
+    if (teacherOnline) {
+      studentBar.className = "presence-bar";
+      studentBar.querySelector(".presence-bar-text").textContent = `Учитель ${TEACHER} в сети`;
+    } else {
+      studentBar.className = "presence-bar waiting";
+      studentBar.querySelector(".presence-bar-text").textContent = "Ожидаем учителя…";
+    }
+  }
+
+  // Also refresh student list to update online dots
+  if (ROLE === "teacher") renderStudentAnswers();
 }
 
 function toggleLessonCriteriaSection(btn) {
@@ -3060,7 +3380,11 @@ function getStudentTaskState(taskNumber, value) {
 
 function refreshStudentTaskStates() {
   if (ROLE !== "student") return;
+  // Сохраняем позицию скролла чтобы не прыгало при перерендере
+  const scrollEl = document.getElementById("tasks-container");
+  const savedScroll = scrollEl ? scrollEl.scrollTop : 0;
   renderTasks(currentTasks || [], currentVariant?.variant_id || "", {allowAnswers: true});
+  if (scrollEl) scrollEl.scrollTop = savedScroll;
   refreshStudentScoreBadge();
   const { container } = getVariantUIRefs();
   typesetMath(container);
@@ -3073,18 +3397,7 @@ function initDrawBoards(tasks) {
     ["board", "task"].forEach((surface) => {
       const key = drawSurfaceKey(num, surface);
       if (!drawStateByTask[key]) drawStateByTask[key] = { strokes: [], cursors: {} };
-      const canvasId = surface === "task" ? `draw-overlay-canvas-${num}` : `draw-canvas-${num}`;
-      const canvas = document.getElementById(canvasId);
-      if (!canvas) return;
-      const dpr = window.devicePixelRatio || 1;
-      const rect = canvas.getBoundingClientRect();
-      const w = Math.max(10, Math.round(rect.width));
-      const h = Math.max(10, Math.round(rect.height));
-      canvas.width = Math.floor(w * dpr);
-      canvas.height = Math.floor(h * dpr);
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      // renderDrawingBoard сам обновляет размер холста и DPR-трансформ
       renderDrawingBoard(num, surface);
     });
   });
@@ -3740,8 +4053,26 @@ function renderDrawingBoard(taskNumber, surface = "board") {
   if (!canvas) return;
   const ctx = canvas.getContext("2d");
   if (!ctx) return;
+
+  const dpr = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
-  ctx.clearRect(0, 0, rect.width, rect.height);
+  // Если элемент скрыт — ничего не делаем
+  if (!rect.width || !rect.height) return;
+  const cssW = Math.round(rect.width);
+  const cssH = Math.round(rect.height);
+  const physW = Math.floor(cssW * dpr);
+  const physH = Math.floor(cssH * dpr);
+
+  // Если физические размеры изменились — обновляем canvas (это сбрасывает transform)
+  if (canvas.width !== physW || canvas.height !== physH) {
+    canvas.width  = physW;
+    canvas.height = physH;
+  }
+
+  // Всегда устанавливаем DPR-трансформ, работаем в CSS-пикселях
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, cssW, cssH);
+
   const st = drawStateByTask[drawSurfaceKey(taskNumber, surface)] || { strokes: [], cursors: {} };
   for (const s of st.strokes || []) {
     if (s.type === "text") {
@@ -3750,11 +4081,8 @@ function renderDrawingBoard(taskNumber, surface = "board") {
       ctx.fillStyle = s.color || "#0f172a";
       ctx.font = "700 15px Montserrat, sans-serif";
       ctx.textBaseline = "top";
-      const tx = (Number(s.x || 0) * rect.width);
-      const ty = (Number(s.y || 0) * rect.height);
-      const lines = String(s.text || "").split("\n");
-      lines.forEach((line, i) => {
-        ctx.fillText(line, tx, ty + i * 18);
+      ctx.fillText && String(s.text || "").split("\n").forEach((line, i) => {
+        ctx.fillText(line, Number(s.x || 0) * cssW, Number(s.y || 0) * cssH + i * 18);
       });
       ctx.restore();
       continue;
@@ -3768,11 +4096,9 @@ function renderDrawingBoard(taskNumber, surface = "board") {
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
     ctx.beginPath();
-    const p0 = s.points[0];
-    ctx.moveTo((p0.x || 0) * rect.width, (p0.y || 0) * rect.height);
-    for (let i = 1; i < s.points.length; i += 1) {
-      const p = s.points[i];
-      ctx.lineTo((p.x || 0) * rect.width, (p.y || 0) * rect.height);
+    ctx.moveTo((s.points[0].x || 0) * cssW, (s.points[0].y || 0) * cssH);
+    for (let i = 1; i < s.points.length; i++) {
+      ctx.lineTo((s.points[i].x || 0) * cssW, (s.points[i].y || 0) * cssH);
     }
     ctx.stroke();
     ctx.restore();
@@ -3784,6 +4110,27 @@ function renderDrawingBoard(taskNumber, surface = "board") {
 window.addEventListener("resize", () => {
   scheduleDrawBoardsRelayout();
 });
+
+// Перерисовываем канвасы при любом изменении их CSS-размера
+// (смена ориентации, раскрытие панели и т.д.)
+if (typeof ResizeObserver !== "undefined") {
+  const _canvasResizeObs = new ResizeObserver(() => {
+    scheduleDrawBoardsRelayout();
+  });
+  document.querySelectorAll(".task-draw-canvas, .task-draw-overlay-canvas").forEach(c => {
+    _canvasResizeObs.observe(c);
+  });
+  // Наблюдаем за контейнером задач — новые канвасы появляются после renderTasks
+  const _taskContainerObs = new MutationObserver(() => {
+    document.querySelectorAll(".task-draw-canvas, .task-draw-overlay-canvas").forEach(c => {
+      try { _canvasResizeObs.observe(c); } catch(_) {}
+    });
+  });
+  ["tasks-container", "teacher-tasks-container"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) _taskContainerObs.observe(el, { childList: true, subtree: false });
+  });
+}
 
 function renderDrawingOverlay(taskNumber, surface = "board") {
   if (surface === "task") return;
@@ -4043,7 +4390,46 @@ function onLessonVideoFrameMessage(event) {
   if (!name && typeof o.event === "string") name = o.event;
   if (name === "videoConferenceLeft" || name === "readyToClose") {
     reportLessonSessionCloseFetch("video_hangup");
+    // Учитель закончил звонок → предлагаем завершить урок
+    if (ROLE === "teacher") {
+      showEndLessonBanner();
+    }
   }
+}
+
+let _elbTimer = null;
+
+function showEndLessonBanner() {
+  if (lessonEnded) return;
+  const banner = document.getElementById("end-lesson-banner");
+  const countEl = document.getElementById("elb-count");
+  if (!banner) return;
+  let secs = 10;
+  if (countEl) countEl.textContent = secs;
+  banner.classList.add("show");
+  clearInterval(_elbTimer);
+  _elbTimer = setInterval(() => {
+    secs--;
+    if (countEl) countEl.textContent = secs;
+    if (secs <= 0) {
+      clearInterval(_elbTimer);
+      _elbTimer = null;
+      banner.classList.remove("show");
+      if (!lessonEnded) terminateLessonManually();
+    }
+  }, 1000);
+}
+
+function cancelEndLessonBanner() {
+  clearInterval(_elbTimer);
+  _elbTimer = null;
+  const banner = document.getElementById("end-lesson-banner");
+  if (banner) banner.classList.remove("show");
+}
+
+function confirmEndLessonFromCall() {
+  cancelEndLessonBanner();
+  terminateLessonManually();
 }
 
 let lessonSessionCloseHooksBound = false;
