@@ -17,3 +17,9 @@ venv/
 .env
 .env.*
 !.env.example
+
+# Nginx (конфиги содержат пути, пароли и серверную специфику)
+nginx.conf
+nginx.conf.*
+nginx/
+*.nginx

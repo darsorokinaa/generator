@@ -34,6 +34,28 @@ LESSON_SECRET  = getattr(settings, 'LESSON_SECRET',  settings.SECRET_KEY)
 LESSON_TTL     = 60 * 60 * 2  # токен живёт 2 часа
 
 
+def _make_jitsi_jwt(name: str, room: str, is_moderator: bool, app_id: str, secret: str, hostname: str) -> str:
+    """
+    Генерирует Jitsi JWT для своего сервера.
+    is_moderator=True → учитель становится организатором без входа в Jitsi.
+    Формат токена соответствует стандарту Jitsi Meet (prosody token_verification).
+    """
+    payload = {
+        "context": {
+            "user": {
+                "name": name,
+                "moderator": is_moderator,
+            }
+        },
+        "aud": "jitsi",
+        "iss": app_id,
+        "sub": hostname,
+        "room": room,
+        "exp": int(time.time()) + LESSON_TTL,
+    }
+    return jwt.encode(payload, secret, algorithm="HS256")
+
+
 def generate_username():
     """Случайное слово + 4 цифры, гарантированно уникальное."""
     words = list(FunnyWord.objects.values_list('word', flat=True))
@@ -506,6 +528,7 @@ class LessonTokenView(APIView):
 
         from django.conf import settings as dj_settings
         import urllib.parse
+        from urllib.parse import urlparse as _urlparse
 
         genurok_url = GENUROK_URL.rstrip('/')
 
@@ -515,17 +538,43 @@ class LessonTokenView(APIView):
         room_slug = re.sub(r'[^A-Za-z0-9_-]+', '-', room_id).strip('-') or f"lesson-{now}"
         room_path = urllib.parse.quote(room_slug, safe='-_')
 
-        def jitsi_url(display_name):
-            safe_display = urllib.parse.quote((display_name or '').strip() or 'Участник', safe='')
-            return (
-                f"{jitsi_base}/{room_path}"
-                f"#userInfo.displayName=%22{safe_display}%22"
-                f"&config.prejoinPageEnabled=false"
-                f"&config.prejoinConfig.enabled=false"
-            )
+        # JWT-аутентификация для своего сервера Jitsi
+        jitsi_app_id     = getattr(dj_settings, 'JITSI_APP_ID', '').strip()
+        jitsi_jwt_secret = getattr(dj_settings, 'JITSI_JWT_SECRET', '').strip()
+        jitsi_hostname   = _urlparse(jitsi_base).hostname or 'meet.jit.si'
 
-        teacher_video_url = jitsi_url(teacher_name)
-        student_video_url = jitsi_url(target_name)
+        use_jitsi_jwt = bool(jitsi_app_id and jitsi_jwt_secret)
+
+        if use_jitsi_jwt:
+            # Токен учителя: moderator=True → Jitsi выдаёт роль организатора автоматически
+            teacher_jitsi_tok = _make_jitsi_jwt(
+                teacher_name, room_slug, True, jitsi_app_id, jitsi_jwt_secret, jitsi_hostname
+            )
+            # Токен ученика: moderator=False → обычный участник
+            student_jitsi_tok = _make_jitsi_jwt(
+                target_name, room_slug, False, jitsi_app_id, jitsi_jwt_secret, jitsi_hostname
+            )
+            teacher_video_url = f"{jitsi_base}/{room_path}?jwt={teacher_jitsi_tok}"
+            student_video_url = (
+                f"{jitsi_base}/{room_path}?jwt={student_jitsi_tok}"
+                f"#config.prejoinPageEnabled=false&config.prejoinConfig.enabled=false"
+            )
+        else:
+            # Fallback: meet.jit.si без JWT — только отображаемое имя
+            teacher_jitsi_tok = ''
+            student_jitsi_tok = ''
+
+            def jitsi_url(display_name):
+                safe_display = urllib.parse.quote((display_name or '').strip() or 'Участник', safe='')
+                return (
+                    f"{jitsi_base}/{room_path}"
+                    f"#userInfo.displayName=%22{safe_display}%22"
+                    f"&config.prejoinPageEnabled=false"
+                    f"&config.prejoinConfig.enabled=false"
+                )
+
+            teacher_video_url = jitsi_url(teacher_name)
+            student_video_url = jitsi_url(target_name)
 
         payload = {
             'iss':               'cabinet',
@@ -544,6 +593,9 @@ class LessonTokenView(APIView):
             'video_url':          teacher_video_url,   # legacy поле
             'teacher_video_url':  teacher_video_url,
             'student_video_url':  student_video_url,
+            # Jitsi JWT-токены (для своего сервера). Генератор добавляет ?jwt= к URL если не задан.
+            'jitsi_jwt':         teacher_jitsi_tok,
+            'student_jitsi_jwt': student_jitsi_tok,
         }
 
         token       = jwt.encode(payload, LESSON_SECRET, algorithm='HS256')

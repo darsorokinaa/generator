@@ -21,8 +21,7 @@ from .views import (
 )
 
 router = DefaultRouter()
-router.register(r'users', UserProfileViewSet)
-
+router.register(r'users', UserProfileViewSet, basename='users')
 # React SPA — отдаём index.html для всех фронтовых маршрутов в проде
 import os
 REACT_INDEX = os.path.join(

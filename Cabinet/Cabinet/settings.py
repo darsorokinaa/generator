@@ -47,8 +47,16 @@ _logout_url = os.environ.get('LOGOUT_REDIRECT_URL', '').strip().rstrip('/')
 LOGOUT_REDIRECT_URL = _logout_url if _logout_url else f"{FRONTEND_URL}/login/"
 # Общий секрет с ГенУрок.рф для подписи JWT. В проде задайте через env-переменную.
 LESSON_SECRET = os.environ.get('LESSON_SECRET', SECRET_KEY)
-# Видео в JWT: локально часто http://localhost:8088; на проде — https://meet.jit.si или свой домен Jitsi
-JITSI_BASE_URL = os.environ.get('JITSI_BASE_URL', 'https://meet.jit.si').rstrip('/')
+# Видео в JWT: свой сервер Jitsi. Переопределяется через JITSI_BASE_URL в .env.
+JITSI_BASE_URL = os.environ.get('JITSI_BASE_URL', 'https://lesson.genurok.ru').rstrip('/')
+
+# JWT-аутентификация на своём сервере Jitsi.
+# JITSI_APP_ID  — значение поля "Application ID" в настройках Jitsi (prosody/config.lua, ключ appId).
+# JITSI_JWT_SECRET — общий секрет между ЛК и Jitsi-сервером (jitsi.cfg.lua: appSecret).
+# Если оба заданы — учитель получает роль moderator автоматически через JWT.
+# Для meet.jit.si оставьте пустыми (JWT встроенный не поддерживается).
+JITSI_APP_ID     = os.environ.get('JITSI_APP_ID', '').strip()
+JITSI_JWT_SECRET = os.environ.get('JITSI_JWT_SECRET', '').strip()
 
 
 # Application definition

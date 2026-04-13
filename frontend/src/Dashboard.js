@@ -133,9 +133,8 @@ export default function Dashboard() {
   // Входящий звонок от учителя { teacher, studentUrl, lessonType }
   const [incomingLesson, setIncomingLesson] = useState(null);
   const notifyWsRef = useRef(null);
-  const incomingAudioRef = useRef(null);
+  const audioCtxRef = useRef(null);
   const incomingRingTimerRef = useRef(null);
-  const audioUnlockedRef = useRef(false);
   const today = new Date();
   const [calYear, setCalYear] = useState(today.getFullYear());
   const [calMonth, setCalMonth] = useState(today.getMonth());
@@ -201,7 +200,10 @@ export default function Dashboard() {
   // Личный WS-канал уведомлений — для входящих уроков (только ученик)
   useEffect(() => {
     if (!user || user.role !== 'student') return undefined;
-    const wsBase = API.replace(/^http/, 'ws');
+    // Строим абсолютный WS-URL: если API пустой (prod, same-origin) — берём текущий host
+    const wsBase = API
+      ? API.replace(/^https?/, (p) => (p === 'https' ? 'wss' : 'ws'))
+      : `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}`;
     const ws = new WebSocket(`${wsBase}/ws/notify/`);
     notifyWsRef.current = ws;
     ws.onmessage = (e) => {
@@ -239,31 +241,14 @@ export default function Dashboard() {
     };
   }, [user]);
 
-  // Разблокировка аудио после первого пользовательского жеста
+  // Создаём AudioContext после первого пользовательского жеста (требование браузеров)
   useEffect(() => {
     const unlockAudio = () => {
-      if (audioUnlockedRef.current) return;
-      if (!incomingAudioRef.current) {
-        incomingAudioRef.current = new Audio('/sounds/incomingMessage.mp3');
-        incomingAudioRef.current.preload = 'auto';
-      }
-      const a = incomingAudioRef.current;
-      a.muted = true;
-      a.play()
-        .then(() => {
-          a.pause();
-          a.currentTime = 0;
-          a.muted = false;
-          audioUnlockedRef.current = true;
-        })
-        .catch(() => {
-          a.muted = false;
-        });
+      if (audioCtxRef.current) return;
+      audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
     };
-
     window.addEventListener('pointerdown', unlockAudio, { passive: true });
     window.addEventListener('keydown', unlockAudio);
-
     return () => {
       window.removeEventListener('pointerdown', unlockAudio);
       window.removeEventListener('keydown', unlockAudio);
@@ -277,10 +262,32 @@ export default function Dashboard() {
         clearInterval(incomingRingTimerRef.current);
         incomingRingTimerRef.current = null;
       }
-      if (incomingAudioRef.current) {
-        incomingAudioRef.current.pause();
-        incomingAudioRef.current.currentTime = 0;
-      }
+    };
+
+    const playRing = () => {
+      try {
+        if (!audioCtxRef.current) {
+          audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        const ctx = audioCtxRef.current;
+        if (ctx.state === 'suspended') ctx.resume();
+        const now = ctx.currentTime;
+        // Двухтональный телефонный звонок: две пары тонов 440/480 Гц
+        [[0, 440], [0, 480], [0.35, 440], [0.35, 480]].forEach(([offset, freq]) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0, now + offset);
+          gain.gain.linearRampToValueAtTime(0.22, now + offset + 0.02);
+          gain.gain.setValueAtTime(0.22, now + offset + 0.27);
+          gain.gain.linearRampToValueAtTime(0, now + offset + 0.3);
+          osc.start(now + offset);
+          osc.stop(now + offset + 0.3);
+        });
+      } catch {}
     };
 
     if (!incomingLesson) {
@@ -288,25 +295,10 @@ export default function Dashboard() {
       return;
     }
 
-    if (!incomingAudioRef.current) {
-      incomingAudioRef.current = new Audio('/sounds/incomingMessage.mp3');
-      incomingAudioRef.current.preload = 'auto';
-    }
-
-    const playRing = () => {
-      const a = incomingAudioRef.current;
-      if (!a) return;
-      a.currentTime = 0;
-      a.play().catch(() => {});
-    };
-
     playRing();
-    stopRing();
     incomingRingTimerRef.current = setInterval(playRing, 3000);
 
-    return () => {
-      stopRing();
-    };
+    return stopRing;
   }, [incomingLesson]);
 
   const filtered = students.filter(s => {
@@ -357,7 +349,7 @@ export default function Dashboard() {
   );
 
   return (
-    <div className="page-bg">
+    <div className={`page-bg${isStudent ? " student-theme" : ""}`}>
       <div className="dashboard-card">
 
         {/* ── MOBILE TOPBAR ── */}
