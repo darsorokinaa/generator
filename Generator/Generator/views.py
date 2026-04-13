@@ -1958,32 +1958,49 @@ def notify_lk_teacher_joined(token: str, extra: dict | None = None) -> bool:
         wh = (getattr(django_settings, "LESSON_SECRET", None) or "").strip()
     if wh:
         headers["X-Lesson-Webhook-Secret"] = wh
-    last_err: Exception | None = None
-    for attempt in range(3):
-        req = urlrequest.Request(
-            endpoint,
-            data=body,
-            method="POST",
-            headers=headers,
-        )
+    # Если endpoint — HTTPS с самоподписанным/недоверенным сертификатом (типично для тестового стенда),
+    # Python urllib падает с SSL-ошибкой. Формируем fallback-адрес по HTTP (127.0.0.1 → без TLS).
+    import ssl as _ssl
+    http_fallback: str | None = None
+    if endpoint.startswith("https://"):
+        http_fallback = endpoint.replace("https://", "http://", 1)
+
+    def _do_request(url: str) -> bool:
+        req = urlrequest.Request(url, data=body, method="POST", headers=headers)
         try:
             with urlrequest.urlopen(req, timeout=12):
                 return True
         except urlerror.HTTPError as e:
-            last_err = e
             detail = ""
             try:
                 detail = (e.read() or b"").decode("utf-8", errors="replace")[:500]
             except Exception:
                 pass
-            logger.warning(
-                "ЛК ответил HTTP %s на teacher-joined: %s",
-                getattr(e, "code", "?"),
-                detail or str(e),
-            )
+            logger.warning("ЛК ответил HTTP %s на teacher-joined (%s): %s", getattr(e, "code", "?"), url, detail or str(e))
+            return False
+        except Exception as exc:
+            raise exc
+
+    last_err: Exception | None = None
+    for attempt in range(3):
+        try:
+            if _do_request(endpoint):
+                return True
+        except (_ssl.SSLError, _ssl.CertificateError, urlerror.URLError) as e:
+            last_err = e
+            ssl_reason = str(e)
+            # Пробуем HTTP-fallback (генератор и ЛК на одном сервере — безопасно)
+            if http_fallback and http_fallback != endpoint:
+                logger.warning("SSL-ошибка при обращении к %s (%s), пробуем HTTP: %s", endpoint, ssl_reason, http_fallback)
+                try:
+                    if _do_request(http_fallback):
+                        logger.info("Уведомление ЛК доставлено по HTTP-fallback: %s", http_fallback)
+                        return True
+                except Exception as e2:
+                    last_err = e2
             if attempt < 2:
                 time.sleep(0.35 * (2**attempt))
-        except (urlerror.URLError, TimeoutError, OSError, ValueError) as e:
+        except (TimeoutError, OSError, ValueError) as e:
             last_err = e
             if attempt < 2:
                 time.sleep(0.35 * (2**attempt))
@@ -2167,6 +2184,39 @@ def _merge_jitsi_jwt_query(url: str, payload: dict, lesson_type: str) -> str:
     return urlunparse(u._replace(query=new_query))
 
 
+def _generate_jitsi_jwt(room_name: str, hostname: str, *, moderator: bool, display_name: str = "") -> str:
+    """
+    Генерирует Jitsi JWT (HS256) для собственного сервера (lesson.genurok.ru и т.п.).
+    Требует JITSI_APP_ID и JITSI_APP_SECRET в settings (из prosody-конфига Jitsi).
+    moderator=True  → учитель/организатор.
+    moderator=False → ученик/участник.
+    """
+    app_id = (getattr(django_settings, "JITSI_APP_ID", "") or "").strip()
+    app_secret = (getattr(django_settings, "JITSI_APP_SECRET", "") or "").strip()
+    if not app_id or not app_secret:
+        return ""
+    now = int(time.time())
+    payload = {
+        "context": {
+            "user": {
+                "name": display_name or ("Teacher" if moderator else "Student"),
+                "moderator": moderator,
+            },
+        },
+        "aud": "jitsi",
+        "iss": app_id,
+        "sub": hostname,
+        "room": room_name,
+        "iat": now,
+        "exp": now + 7200,
+    }
+    try:
+        return pyjwt.encode(payload, app_secret, algorithm="HS256")
+    except Exception:
+        logger.exception("Не удалось сгенерировать Jitsi JWT для комнаты %s", room_name)
+        return ""
+
+
 def _jitsi_embed_host_allowed(hostname: str) -> bool:
     """Хосты, для которых дополняем URL параметрами встраивания во фрейм."""
     h = (hostname or "").lower().rstrip(".")
@@ -2284,6 +2334,23 @@ def lesson_video_context_from_jwt(payload: dict, lesson_type: str = "teacher") -
             direct = "https://meet.jit.si/" + quote(slug, safe="")
     if direct:
         direct = _merge_jitsi_jwt_query(direct, p, lesson_type)
+    # Если ЛК не передал Jitsi JWT, но у нас есть JITSI_APP_ID+SECRET — генерируем сами.
+    if direct and _jitsi_embed_host_allowed(urlparse(direct).hostname or ""):
+        parsed_direct = urlparse(direct)
+        qs_direct = parse_qs(parsed_direct.query, keep_blank_values=True)
+        if not qs_direct.get("jwt"):
+            room_name = parsed_direct.path.lstrip("/").split("/")[0]
+            hostname = parsed_direct.hostname or ""
+            is_moderator = lesson_type == "teacher"
+            display_name = (
+                p.get("teacher_name") or p.get("teacherName") or ""
+                if is_moderator
+                else p.get("target_name") or p.get("targetName") or p.get("student_name") or p.get("studentName") or ""
+            )
+            gen_jwt = _generate_jitsi_jwt(room_name, hostname, moderator=is_moderator, display_name=display_name)
+            if gen_jwt:
+                qs_direct["jwt"] = [gen_jwt]
+                direct = urlunparse(parsed_direct._replace(query=urlencode(qs_direct, doseq=True)))
     embed_url = ""
     link_url = ""
     if direct:

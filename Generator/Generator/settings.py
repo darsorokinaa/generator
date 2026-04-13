@@ -42,6 +42,10 @@ JITSI_EMBED_EXTRA_HOSTS = tuple(
     for h in os.environ.get("JITSI_EMBED_EXTRA_HOSTS", "").split(",")
     if h.strip()
 )
+# Для генерации Jitsi JWT (moderator=true для учителя) на своём сервере:
+# значения берутся из prosody config — luaModules/lib-jitsi-meet/token/prosody.cfg.lua (app_id / app_secret).
+JITSI_APP_ID = os.environ.get("JITSI_APP_ID", "").strip()
+JITSI_APP_SECRET = os.environ.get("JITSI_APP_SECRET", "").strip()
 
 LK_PUBLIC_URL = os.environ.get("LK_PUBLIC_URL", "https://lk.genurok.tw1.ru").rstrip("/")
 # Полный URL страницы после входа (дашборд). Если пусто — кнопка «Личный кабинет» ведёт на LK_PUBLIC_URL.

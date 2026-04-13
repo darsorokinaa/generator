@@ -46,8 +46,17 @@ Environment="LESSON_SECRET=eKPoaKBpV0QeRzYi3YWUV3gBNfWamBmGwK5MgLWvSoKmenpLVQGf7
 # Если ЛК проверяет X-Lesson-Webhook-Secret: задайте тот же ключ, что в ЛК, или оставьте пустым —
 # тогда генератор отправит LESSON_SECRET (если в ЛК разрешён тот же секрет, что у JWT).
 # Environment="LESSON_WEBHOOK_SECRET=..."
+# Прямой HTTP к ЛК (порт 8003) — минует nginx и самоподписанный SSL-сертификат.
+# Генератор и ЛК на одном сервере, поэтому http://127.0.0.1:8003 работает без TLS.
+Environment="LK_LESSON_NOTIFY_URL=http://127.0.0.1:8003/api/lesson/teacher-joined/"
 # Свой сервер Jitsi: lesson.genurok.ru — разрешаем встраивать iframe и добавлять config.*
 Environment="JITSI_EMBED_EXTRA_HOSTS=lesson.genurok.ru"
+# Jitsi JWT для роли модератора (учитель) и участника (ученик).
+# Значения берутся из prosody-конфига Jitsi-сервера (/etc/prosody/conf.d/lesson.genurok.ru.cfg.lua):
+#   VirtualHost "lesson.genurok.ru" → authentication = "token" → app_id, app_secret.
+# Без этих переменных учитель НЕ станет модератором и увидит "no moderators have arrived".
+Environment="JITSI_APP_ID=meet_app"
+Environment="JITSI_APP_SECRET=замените_на_значение_app_secret_из_prosody"
 
 Restart=always
 RestartSec=5
