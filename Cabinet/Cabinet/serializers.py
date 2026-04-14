@@ -1,3 +1,4 @@
+from django.db import DatabaseError
 from rest_framework import serializers
 from .models import (
     UserProfile, Subject, Level, TeachersStudent, Group,
@@ -165,7 +166,7 @@ class HomeworkAssignmentSerializer(serializers.ModelSerializer):
 class HomeworkAssignmentDetailSerializer(HomeworkAssignmentSerializer):
     """Full detail — includes answer files and homework attachments."""
     answer_files        = HomeworkAnswerFileSerializer(many=True, read_only=True)
-    teacher_feedback_files = HomeworkTeacherFeedbackFileSerializer(many=True, read_only=True)
+    teacher_feedback_files = serializers.SerializerMethodField()
     homework_attachments = HomeworkAttachmentSerializer(
         source='homework.attachments', many=True, read_only=True,
     )
@@ -176,6 +177,15 @@ class HomeworkAssignmentDetailSerializer(HomeworkAssignmentSerializer):
         fields = HomeworkAssignmentSerializer.Meta.fields + [
             'answer_files', 'teacher_feedback_files', 'homework_attachments', 'homework_text', 'subject',
         ]
+
+    def get_teacher_feedback_files(self, obj):
+        """Без падения API, если миграция вложений учителя ещё не применена на сервере."""
+        try:
+            return HomeworkTeacherFeedbackFileSerializer(
+                obj.teacher_feedback_files.all(), many=True, context=self.context,
+            ).data
+        except DatabaseError:
+            return []
 
 
 class NotificationSerializer(serializers.ModelSerializer):

@@ -1106,7 +1106,7 @@ class HomeworkMyView(APIView):
             HomeworkAssignment.objects
             .filter(student=profile)
             .select_related('homework', 'homework__teacher')
-            .prefetch_related('answer_files', 'teacher_feedback_files', 'homework__attachments')
+            .prefetch_related('answer_files', 'homework__attachments')
         )
         return Response(
             HomeworkAssignmentDetailSerializer(qs, many=True, context={'request': request}).data,
@@ -1127,7 +1127,7 @@ class HomeworkAssignmentDetailView(APIView):
             return None
         qs = HomeworkAssignment.objects.select_related(
             'homework', 'homework__teacher', 'student',
-        ).prefetch_related('answer_files', 'teacher_feedback_files', 'homework__attachments')
+        ).prefetch_related('answer_files', 'homework__attachments')
         try:
             obj = qs.get(pk=pk)
         except HomeworkAssignment.DoesNotExist:
@@ -1375,7 +1375,7 @@ class HomeworkReviewView(APIView):
         obj = (
             HomeworkAssignment.objects
             .select_related('homework', 'homework__teacher', 'student')
-            .prefetch_related('answer_files', 'teacher_feedback_files', 'homework__attachments')
+            .prefetch_related('answer_files', 'homework__attachments')
             .get(pk=assignment.pk)
         )
         return Response(HomeworkAssignmentDetailSerializer(obj, context={'request': request}).data)
@@ -1422,7 +1422,7 @@ class HomeworkTeacherCommentView(APIView):
         obj = (
             HomeworkAssignment.objects
             .select_related('homework', 'homework__teacher', 'student')
-            .prefetch_related('answer_files', 'teacher_feedback_files', 'homework__attachments')
+            .prefetch_related('answer_files', 'homework__attachments')
             .get(pk=assignment.pk)
         )
         return Response(HomeworkAssignmentDetailSerializer(obj, context={'request': request}).data)
@@ -1634,7 +1634,7 @@ class HomeworkTeacherAssignmentsView(APIView):
             HomeworkAssignment.objects
             .filter(homework=hw)
             .select_related('student', 'homework')
-            .prefetch_related('answer_files', 'teacher_feedback_files')
+            .prefetch_related('answer_files')
         )
         return Response(
             HomeworkAssignmentDetailSerializer(qs, many=True, context={'request': request}).data,
