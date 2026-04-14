@@ -61,6 +61,38 @@ GENUROK_URL = getattr(settings, 'GENUROK_URL', 'https://genurok.tw1.ru')
 LESSON_SECRET  = getattr(settings, 'LESSON_SECRET',  settings.SECRET_KEY)
 LESSON_TTL     = 60 * 60 * 2  # токен живёт 2 часа
 
+# Кэш: в БД есть колонки миграции 0016 (task_teacher_comments, whiteboard_strokes).
+_HOMEWORK_ASSIGNMENT_META_COLUMNS_READY = None
+
+
+def _homework_assignment_meta_columns_ready():
+    """
+    Без этих колонок ORM делает SELECT … task_teacher_comments … и падает на проде до migrate.
+    """
+    global _HOMEWORK_ASSIGNMENT_META_COLUMNS_READY
+    if _HOMEWORK_ASSIGNMENT_META_COLUMNS_READY is not None:
+        return _HOMEWORK_ASSIGNMENT_META_COLUMNS_READY
+    try:
+        from django.db import connection
+
+        table = HomeworkAssignment._meta.db_table
+        with connection.cursor() as cursor:
+            desc = connection.introspection.get_table_description(cursor, table)
+        names = {row.name for row in desc}
+        _HOMEWORK_ASSIGNMENT_META_COLUMNS_READY = (
+            'task_teacher_comments' in names and 'whiteboard_strokes' in names
+        )
+    except Exception:
+        _HOMEWORK_ASSIGNMENT_META_COLUMNS_READY = True
+    return _HOMEWORK_ASSIGNMENT_META_COLUMNS_READY
+
+
+def homework_assignment_select_qs():
+    """Менеджер: при отсутствии колонок 0016 — defer, чтобы SELECT не ломался."""
+    if _homework_assignment_meta_columns_ready():
+        return HomeworkAssignment.objects
+    return HomeworkAssignment.objects.defer('task_teacher_comments', 'whiteboard_strokes')
+
 
 def _make_jitsi_jwt(name: str, room: str, is_moderator: bool, app_id: str, secret: str, hostname: str) -> str:
     """
@@ -1103,7 +1135,7 @@ class HomeworkMyView(APIView):
         except Exception:
             return Response([], status=status.HTTP_200_OK)
         qs = (
-            HomeworkAssignment.objects
+            homework_assignment_select_qs()
             .filter(student=profile)
             .select_related('homework', 'homework__teacher')
             .prefetch_related('answer_files', 'homework__attachments')
@@ -1119,9 +1151,11 @@ def homework_assignment_accessible(request, pk):
         profile = request.user.profile
     except Exception:
         return None
-    qs = HomeworkAssignment.objects.select_related(
-        'homework', 'homework__teacher', 'student',
-    ).prefetch_related('answer_files', 'homework__attachments')
+    qs = (
+        homework_assignment_select_qs()
+        .select_related('homework', 'homework__teacher', 'student')
+        .prefetch_related('answer_files', 'homework__attachments')
+    )
     try:
         obj = qs.get(pk=pk)
     except HomeworkAssignment.DoesNotExist:
@@ -1156,6 +1190,11 @@ class HomeworkAssignmentMetaPatchView(APIView):
     permission_classes = [IsLKTeacher]
 
     def patch(self, request, pk):
+        if not _homework_assignment_meta_columns_ready():
+            return Response(
+                {'error': 'Обновите сервер: выполните миграции БД (0016_homeworkassignment_board_comments).'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
         obj = homework_assignment_accessible(request, pk)
         if not obj:
             return Response({'error': 'Не найдено'}, status=status.HTTP_404_NOT_FOUND)
@@ -1688,7 +1727,7 @@ class HomeworkTeacherAssignmentsView(APIView):
         except Homework.DoesNotExist:
             return Response({'error': 'Не найдено'}, status=status.HTTP_404_NOT_FOUND)
         qs = (
-            HomeworkAssignment.objects
+            homework_assignment_select_qs()
             .filter(homework=hw)
             .select_related('student', 'homework')
             .prefetch_related('answer_files')

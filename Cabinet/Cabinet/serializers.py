@@ -141,6 +141,8 @@ class HomeworkAssignmentSerializer(serializers.ModelSerializer):
     deadline        = serializers.DateTimeField(source='homework.deadline',  read_only=True)
     teacher_name    = serializers.SerializerMethodField()
     answer_count    = serializers.SerializerMethodField()
+    task_teacher_comments = serializers.SerializerMethodField()
+    whiteboard_strokes = serializers.SerializerMethodField()
 
     class Meta:
         model = HomeworkAssignment
@@ -152,6 +154,20 @@ class HomeworkAssignmentSerializer(serializers.ModelSerializer):
             'answer_count', 'result', 'score',
             'task_teacher_comments', 'whiteboard_strokes',
         ]
+
+    def get_task_teacher_comments(self, obj):
+        try:
+            v = obj.task_teacher_comments
+            return dict(v) if isinstance(v, dict) else {}
+        except Exception:
+            return {}
+
+    def get_whiteboard_strokes(self, obj):
+        try:
+            v = obj.whiteboard_strokes
+            return list(v) if isinstance(v, list) else []
+        except Exception:
+            return []
 
     def get_homework_title(self, obj):
         return obj.homework.title or f'Вариант {obj.homework.variant_id}'
