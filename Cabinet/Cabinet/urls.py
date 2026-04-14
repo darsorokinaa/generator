@@ -27,6 +27,8 @@ from .views import (
     HomeworkSubmitView,
     HomeworkUploadAnswerView,
     HomeworkReviewView,
+    HomeworkTeacherCommentView,
+    HomeworkUploadTeacherFeedbackView,
     HomeworkAnnotateView,
     HomeworkTeacherAssignmentsView,
     HomeworkCancelAssignmentView,
@@ -93,6 +95,8 @@ urlpatterns = [
     path('api/homework/assignment/<int:pk>/submit/',             HomeworkSubmitView.as_view(),           name='api-homework-submit'),
     path('api/homework/assignment/<int:pk>/upload-answer/',      HomeworkUploadAnswerView.as_view(),     name='api-homework-upload-answer'),
     path('api/homework/assignment/<int:pk>/review/',             HomeworkReviewView.as_view(),           name='api-homework-review'),
+    path('api/homework/assignment/<int:pk>/teacher-comment/',    HomeworkTeacherCommentView.as_view(),   name='api-homework-teacher-comment'),
+    path('api/homework/assignment/<int:pk>/upload-teacher-feedback/', HomeworkUploadTeacherFeedbackView.as_view(), name='api-homework-upload-teacher-feedback'),
     path('api/homework/assignment/<int:pk>/cancel/',             HomeworkCancelAssignmentView.as_view(), name='api-homework-cancel'),
     path('api/homework/answer/<int:file_id>/annotate/',          HomeworkAnnotateView.as_view(),         name='api-homework-annotate'),
 

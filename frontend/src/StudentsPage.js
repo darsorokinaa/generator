@@ -137,16 +137,26 @@ export default function StudentsPage({ onOpenProfile }) {
         await fetch(`${API}/api/students/`, { credentials: 'include' });
         csrf = getCookie('csrftoken');
       }
+      const payload = {
+        name: form.name.trim(),
+        surname: (form.surname || '').trim(),
+        email: (form.email || '').trim(),
+        phone: (form.phone || '').trim(),
+        subject: Number(form.subject),
+        level: Number(form.level),
+        grade: form.grade,
+        goal: (form.goal || '').trim(),
+        status: form.status,
+        lesson_type: form.lesson_type,
+        group: form.lesson_type === 'group' && form.group ? Number(form.group) : null,
+        gender: form.gender,
+      };
+      if (form.birth_date) payload.birth_date = form.birth_date;
       const r = await fetch(`${API}/api/students/`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
-        body: JSON.stringify({
-          ...form,
-          subject: Number(form.subject),
-          level: Number(form.level),
-          group: form.lesson_type === 'group' && form.group ? Number(form.group) : null,
-        }),
+        body: JSON.stringify(payload),
       });
       if (r.ok) {
         const created = await r.json();
@@ -155,8 +165,19 @@ export default function StudentsPage({ onOpenProfile }) {
         loadStudents();
         if (created.credentials) setCredentials(created.credentials);
       } else {
-        const err = await r.json();
-        setFormError(err.error || 'Ошибка при сохранении');
+        let err = {};
+        try { err = await r.json(); } catch { /* ignore */ }
+        const msg =
+          (typeof err.detail === 'string' && err.detail)
+          || (typeof err.error === 'string' && err.error)
+          || (err.error && typeof err.error === 'object' && (() => {
+            const [k, v] = Object.entries(err.error)[0] || [];
+            if (!k) return '';
+            const bit = Array.isArray(v) ? v.join(', ') : String(v);
+            return `${k}: ${bit}`;
+          })())
+          || `Ошибка при сохранении (${r.status})`;
+        setFormError(msg);
       }
     } catch {
       setFormError('Нет связи с сервером');

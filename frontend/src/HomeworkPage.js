@@ -10,6 +10,23 @@ function getCookie(name) {
   return '';
 }
 
+/** Текст ошибки из ответа DRF (detail / error / поля формы). */
+async function parseApiErrorResponse(res, fallback) {
+  try {
+    const data = await res.json();
+    if (typeof data.detail === 'string') return data.detail;
+    if (Array.isArray(data.detail)) {
+      return data.detail.map((x) => (typeof x === 'string' ? x : x?.string || String(x))).join(' ');
+    }
+    if (typeof data.error === 'string') return data.error;
+    for (const v of Object.values(data)) {
+      if (Array.isArray(v) && v.length) return v.map(String).join(' ');
+      if (typeof v === 'string') return v;
+    }
+  } catch { /* empty */ }
+  return fallback || `Ошибка (${res.status})`;
+}
+
 const STATUS_LABEL = {
   sent:      'Задано',
   submitted: 'Сдано',
@@ -67,9 +84,17 @@ function StatusBadge({ status }) {
 }
 
 // ── FileList (teacher attachments or student answers) ─────────────────────────
-function FileList({ files, showAnnotations, assignmentId, onAnnotationsSaved }) {
+function FileList({
+  files,
+  showAnnotations,
+  assignmentId,
+  onAnnotationsSaved,
+  teacherCanAttachAnnotationToComment,
+  onTeacherFeedbackUploaded,
+}) {
   const [annotating, setAnnotating] = useState(null);
   const [pendingAnnotations, setPending] = useState({});
+  const annotateCanvasRef = useRef(null);
 
   const saveAnnotations = async (fileId, data) => {
     try {
@@ -100,6 +125,7 @@ function FileList({ files, showAnnotations, assignmentId, onAnnotationsSaved }) 
               style={{ fontSize: 12, color: '#4F6EF7', textDecoration: 'none', wordBreak: 'break-all' }}
               download
             >
+              {f.task_number != null && f.task_number !== '' ? `[Зад. ${f.task_number}] ` : ''}
               {f.filename}
             </a>
             {showAnnotations && f.file_type === 'image' && (
@@ -119,6 +145,7 @@ function FileList({ files, showAnnotations, assignmentId, onAnnotationsSaved }) 
           {annotating === f.id && f.file_type === 'image' && (
             <div style={{ marginTop: 8 }}>
               <ImageAnnotationCanvas
+                ref={annotateCanvasRef}
                 imageUrl={f.url}
                 annotations={pendingAnnotations[f.id] ?? f.annotations ?? []}
                 readOnly={!showAnnotations}
@@ -127,16 +154,53 @@ function FileList({ files, showAnnotations, assignmentId, onAnnotationsSaved }) 
                 }}
               />
               {showAnnotations && (
-                <button
-                  onClick={() => saveAnnotations(f.id, pendingAnnotations[f.id] ?? f.annotations ?? [])}
-                  style={{
-                    marginTop: 8, padding: '6px 16px', borderRadius: 8,
-                    background: '#4F6EF7', color: '#fff', border: 'none',
-                    cursor: 'pointer', fontWeight: 700, fontSize: 12,
-                  }}
-                >
-                  Сохранить аннотации
-                </button>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 8, alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    onClick={() => saveAnnotations(f.id, pendingAnnotations[f.id] ?? f.annotations ?? [])}
+                    style={{
+                      padding: '6px 16px', borderRadius: 8,
+                      background: '#4F6EF7', color: '#fff', border: 'none',
+                      cursor: 'pointer', fontWeight: 700, fontSize: 12,
+                    }}
+                  >
+                    Сохранить аннотации
+                  </button>
+                  {teacherCanAttachAnnotationToComment && assignmentId && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        const blob = await annotateCanvasRef.current?.exportPng();
+                        if (!blob || !assignmentId) return;
+                        const base = (f.filename || 'image').replace(/\.[^.]+$/i, '');
+                        const fd = new FormData();
+                        fd.append('file', blob, `разметка_${base}.png`);
+                        fd.append('source_answer_file_id', String(f.id));
+                        try {
+                          const res = await fetch(
+                            `${API}/api/homework/assignment/${assignmentId}/upload-teacher-feedback/`,
+                            {
+                              method: 'POST',
+                              credentials: 'include',
+                              headers: { 'X-CSRFToken': getCookie('csrftoken') },
+                              body: fd,
+                            },
+                          );
+                          if (res.ok && onTeacherFeedbackUploaded) {
+                            onTeacherFeedbackUploaded(await res.json());
+                          }
+                        } catch { /* ignore */ }
+                      }}
+                      style={{
+                        padding: '6px 16px', borderRadius: 8,
+                        background: '#15803d', color: '#fff', border: 'none',
+                        cursor: 'pointer', fontWeight: 700, fontSize: 12,
+                      }}
+                    >
+                      Прикрепить к комментарию
+                    </button>
+                  )}
+                </div>
               )}
             </div>
           )}
@@ -161,15 +225,21 @@ function CreateHomeworkModal({ students, onClose, onCreated }) {
 
   const submit = async () => {
     if (!variantId) { setError('Укажите номер варианта'); return; }
+    const vid = parseInt(String(variantId), 10);
+    if (!Number.isFinite(vid) || vid < 1) { setError('Укажите корректный номер варианта (целое число ≥ 1)'); return; }
     setSaving(true); setError('');
     try {
       const res = await fetch(`${API}/api/homework/`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
-        body: JSON.stringify({ variant_id: parseInt(variantId), title, subject, text, deadline: deadline || undefined }),
+        body: JSON.stringify({ variant_id: vid, title, subject, text, deadline: deadline || undefined }),
       });
-      if (!res.ok) { setError('Ошибка создания ДЗ'); setSaving(false); return; }
+      if (!res.ok) {
+        setError(await parseApiErrorResponse(res, 'Не удалось создать задание'));
+        setSaving(false);
+        return;
+      }
       const hw = await res.json();
 
       // Upload attachments
@@ -320,7 +390,22 @@ function AssignmentDetailModal({ assignment, isTeacher, onClose, onUpdated }) {
   const [files,   setFiles]     = useState([]);
   const [uploading, setUploading] = useState(false);
   const [localFiles, setLocalFiles] = useState(assignment.answer_files || []);
+  const [feedbackFiles, setFeedbackFiles] = useState(assignment.teacher_feedback_files || []);
+  const [fbPick, setFbPick]     = useState([]);
+  const [fbUploading, setFbUploading] = useState(false);
   const fileRef = useRef(null);
+  const fbRef = useRef(null);
+
+  const teacherCanComment = isTeacher && ['submitted', 'reviewing', 'reviewed', 'revision'].includes(assignment.status);
+  const teacherCanFinalize = isTeacher && ['submitted', 'reviewing'].includes(assignment.status);
+
+  useEffect(() => {
+    setFeedbackFiles(assignment.teacher_feedback_files || []);
+  }, [assignment.id, assignment.teacher_feedback_files]);
+
+  useEffect(() => {
+    setComment(assignment.teacher_comment || '');
+  }, [assignment.id, assignment.teacher_comment]);
 
   const uploadFiles = async () => {
     if (!files.length) return;
@@ -364,6 +449,41 @@ function AssignmentDetailModal({ assignment, isTeacher, onClose, onUpdated }) {
     });
     setSaving(false);
     if (res.ok) onUpdated(await res.json());
+  };
+
+  const sendTeacherComment = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch(`${API}/api/homework/assignment/${assignment.id}/teacher-comment/`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+        body: JSON.stringify({ comment }),
+      });
+      if (res.ok) onUpdated(await res.json());
+    } catch { /* ignore */ }
+    setSaving(false);
+  };
+
+  const uploadTeacherFeedback = async () => {
+    if (!fbPick.length) return;
+    setFbUploading(true);
+    for (const f of fbPick) {
+      const fd = new FormData();
+      fd.append('file', f);
+      try {
+        const res = await fetch(
+          `${API}/api/homework/assignment/${assignment.id}/upload-teacher-feedback/`,
+          { method: 'POST', credentials: 'include', headers: { 'X-CSRFToken': getCookie('csrftoken') }, body: fd },
+        );
+        if (res.ok) {
+          const row = await res.json();
+          setFeedbackFiles(prev => [...prev, row]);
+        }
+      } catch { /* ignore */ }
+    }
+    setFbPick([]);
+    setFbUploading(false);
   };
 
   const title = assignment.homework_title || `Вариант ${assignment.variant_id}`;
@@ -422,8 +542,58 @@ function AssignmentDetailModal({ assignment, isTeacher, onClose, onUpdated }) {
               onAnnotationsSaved={(updated) => {
                 setLocalFiles(prev => prev.map(f => f.id === updated.id ? updated : f));
               }}
+              teacherCanAttachAnnotationToComment={teacherCanComment}
+              onTeacherFeedbackUploaded={(row) => setFeedbackFiles(prev => [...prev, row])}
             />
           </div>
+
+          {(isTeacher && teacherCanComment) || (feedbackFiles && feedbackFiles.length > 0) ? (
+            <div>
+              <div style={sectionLabelStyle}>Материалы учителя к проверке</div>
+              {feedbackFiles && feedbackFiles.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+                  {feedbackFiles.map(ff => (
+                    <a
+                      key={ff.id}
+                      href={ff.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ fontSize: 12, color: '#4F6EF7', textDecoration: 'none', wordBreak: 'break-all' }}
+                    >
+                      {FILE_ICONS[ff.file_type] || '📄'}{' '}
+                      {ff.source_answer_file ? 'Разметка: ' : ''}{ff.filename}
+                    </a>
+                  ))}
+                </div>
+              ) : (
+                <span style={{ color: '#9ca3af', fontSize: 12 }}>—</span>
+              )}
+              {isTeacher && teacherCanComment && (
+                <div style={{ marginTop: 8 }}>
+                  <input
+                    ref={fbRef}
+                    type="file"
+                    multiple
+                    style={{ display: 'none' }}
+                    onChange={e => setFbPick(Array.from(e.target.files || []))}
+                  />
+                  <button type="button" onClick={() => fbRef.current?.click()} style={{ ...outlineBtn, marginRight: 8 }}>
+                    Прикрепить файлы
+                  </button>
+                  {fbPick.length > 0 && (
+                    <button
+                      type="button"
+                      disabled={fbUploading}
+                      onClick={uploadTeacherFeedback}
+                      style={{ ...primaryBtn, opacity: fbUploading ? 0.7 : 1 }}
+                    >
+                      {fbUploading ? 'Загрузка…' : 'Загрузить'}
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : null}
 
           {/* Upload for student */}
           {!isTeacher && ['sent', 'revision'].includes(assignment.status) && (
@@ -455,13 +625,13 @@ function AssignmentDetailModal({ assignment, isTeacher, onClose, onUpdated }) {
           )}
 
           {/* Teacher comment */}
-          {isTeacher && (
+          {isTeacher && teacherCanComment && (
             <div>
               <div style={sectionLabelStyle}>Комментарий учителя</div>
               <textarea
                 value={comment}
                 onChange={e => setComment(e.target.value)}
-                placeholder="Напишите комментарий к работе…"
+                placeholder="Текст комментария (можно отправить отдельно или вместе с «Принять» / «Вернуть на доработку»)…"
                 style={{ ...inputStyle, minHeight: 80, width: '100%', boxSizing: 'border-box', resize: 'vertical' }}
               />
             </div>
@@ -471,6 +641,25 @@ function AssignmentDetailModal({ assignment, isTeacher, onClose, onUpdated }) {
               <div style={sectionLabelStyle}>Комментарий учителя</div>
               <div style={{ background: '#fffbeb', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#374151', lineHeight: 1.6, borderLeft: '3px solid #f59e0b' }}>
                 {assignment.teacher_comment}
+              </div>
+            </div>
+          )}
+          {!isTeacher && feedbackFiles && feedbackFiles.length > 0 && (
+            <div>
+              <div style={sectionLabelStyle}>Материалы от учителя</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {feedbackFiles.map(ff => (
+                  <a
+                    key={ff.id}
+                    href={ff.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ fontSize: 12, color: '#4F6EF7', textDecoration: 'none', wordBreak: 'break-all' }}
+                  >
+                    {FILE_ICONS[ff.file_type] || '📄'}{' '}
+                    {ff.source_answer_file ? 'Разметка: ' : ''}{ff.filename}
+                  </a>
+                ))}
               </div>
             </div>
           )}
@@ -486,29 +675,45 @@ function AssignmentDetailModal({ assignment, isTeacher, onClose, onUpdated }) {
                 {saving ? 'Отправка…' : '📤 Сдать задание'}
               </button>
             )}
-            {isTeacher && ['submitted', 'reviewing'].includes(assignment.status) && (
+            {isTeacher && teacherCanComment && (
+              <button
+                type="button"
+                onClick={sendTeacherComment}
+                disabled={saving}
+                style={{
+                  ...primaryBtn,
+                  background: '#4338ca',
+                  opacity: saving ? 0.7 : 1,
+                }}
+              >
+                {saving ? '…' : 'Отправить комментарий ученику'}
+              </button>
+            )}
+            {isTeacher && teacherCanFinalize && (
               <>
                 <button
+                  type="button"
                   onClick={() => review('reviewed')}
                   disabled={saving}
                   style={{
                     ...primaryBtn,
-                    background: 'linear-gradient(135deg,#22c55e,#16a34a)',
+                    background: '#16a34a',
                     opacity: saving ? 0.7 : 1,
                   }}
                 >
-                  {saving ? '…' : '✅ Принять'}
+                  {saving ? '…' : 'Принять'}
                 </button>
                 <button
+                  type="button"
                   onClick={() => review('revision')}
                   disabled={saving}
                   style={{
                     ...primaryBtn,
-                    background: 'linear-gradient(135deg,#f59e0b,#d97706)',
+                    background: '#d97706',
                     opacity: saving ? 0.7 : 1,
                   }}
                 >
-                  {saving ? '…' : '🔁 На доработку'}
+                  {saving ? '…' : 'Вернуть на доработку'}
                 </button>
               </>
             )}
@@ -975,6 +1180,7 @@ export default function HomeworkPage({ isStudent = false }) {
                   result:       a.result || null,
                   score:        a.score ?? null,
                   status:       a.status,
+                  answerFiles:  a.answer_files || [],
                 })}
               />
             ))}
@@ -1056,6 +1262,7 @@ export default function HomeworkPage({ isStudent = false }) {
                             score:        a.score ?? null,
                             showCorrect:  true,
                             studentName:  `${a.student_name || ''} ${a.student_surname || ''}`.trim(),
+                            answerFiles:  a.answer_files || [],
                           });
                         } else {
                           setSelected(a);
@@ -1155,6 +1362,8 @@ export default function HomeworkPage({ isStudent = false }) {
           readOnly={playerAssignment.readOnly}
           savedResult={playerAssignment.result}
           showCorrectAnswers={!!playerAssignment.showCorrect}
+          assignmentId={playerAssignment.assignmentId}
+          answerFiles={playerAssignment.answerFiles || []}
           onClose={() => setPlayerAssignment(null)}
           onSubmit={playerAssignment.readOnly ? null : async (result, score) => {
             try {

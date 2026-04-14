@@ -38,9 +38,19 @@ class IsCabinetTeacher(permissions.BasePermission):
     message = 'Доступно только учителю.'
 
     def has_permission(self, request, view):
-        if not user_can_use_lk(request.user):
+        user = request.user
+        if not getattr(user, 'is_authenticated', False):
+            self.message = 'Войдите в систему.'
+            return False
+        if not user_can_use_lk(user):
+            # Суперпользователь / staff без профиля — не путать с «только учителю»
+            self.message = IsLKTeacher.message
             return False
         try:
-            return request.user.profile.role != 'student'
+            if user.profile.role == 'student':
+                self.message = 'Доступно только учителю.'
+                return False
         except UserProfile.DoesNotExist:
+            self.message = 'Профиль не найден.'
             return False
+        return True

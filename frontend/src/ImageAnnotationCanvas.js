@@ -1,4 +1,4 @@
-import { useRef, useEffect, useCallback, useState } from 'react';
+import { useRef, useEffect, useCallback, useState, forwardRef, useImperativeHandle } from 'react';
 
 const COLORS = ['#e53e3e', '#f6c90e', '#38a169', '#3182ce', '#805ad5', '#000000'];
 const WIDTHS  = [2, 4, 7];
@@ -20,12 +20,12 @@ function replayStrokes(ctx, strokes, scale) {
   }
 }
 
-export default function ImageAnnotationCanvas({
+const ImageAnnotationCanvas = forwardRef(function ImageAnnotationCanvas({
   imageUrl,
   annotations = [],
   readOnly = false,
   onChange,
-}) {
+}, ref) {
   const containerRef = useRef(null);
   const canvasRef    = useRef(null);
   const imgRef       = useRef(null);
@@ -59,6 +59,25 @@ export default function ImageAnnotationCanvas({
   useEffect(() => {
     setStrokes(annotations || []);
   }, [annotations]);
+
+  useImperativeHandle(ref, () => ({
+    exportPng() {
+      const img = imgRef.current;
+      if (!img?.naturalWidth) return Promise.resolve(null);
+      const natW = img.naturalWidth;
+      const natH = img.naturalHeight;
+      const off = document.createElement('canvas');
+      off.width = natW;
+      off.height = natH;
+      const ctx = off.getContext('2d');
+      if (!ctx) return Promise.resolve(null);
+      ctx.drawImage(img, 0, 0, natW, natH);
+      replayStrokes(ctx, strokesRef.current, 1);
+      return new Promise((resolve) => {
+        off.toBlob((blob) => resolve(blob), 'image/png', 0.92);
+      });
+    },
+  }), []);
 
   const fitCanvas = useCallback(() => {
     const img    = imgRef.current;
@@ -258,4 +277,6 @@ export default function ImageAnnotationCanvas({
       )}
     </div>
   );
-}
+});
+
+export default ImageAnnotationCanvas;

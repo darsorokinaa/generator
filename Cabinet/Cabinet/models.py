@@ -246,6 +246,8 @@ class HomeworkAnswerFile(models.Model):
     file        = models.FileField(upload_to='homework_answers/')
     filename    = models.CharField(max_length=255)
     file_type   = models.CharField(max_length=10, choices=FILE_TYPE_CHOICES, default='file')
+    # Номер задания в варианте (к какому пункту прикреплён файл); null — общий файл ответа
+    task_number = models.IntegerField(null=True, blank=True)
     annotations = models.JSONField(default=list, blank=True)
     uploaded_at = models.DateTimeField(auto_now_add=True)
 
@@ -256,6 +258,29 @@ class HomeworkAnswerFile(models.Model):
         verbose_name = "Файл ответа на ДЗ"
         verbose_name_plural = "Файлы ответов на ДЗ"
         ordering = ['uploaded_at']
+
+
+class HomeworkTeacherFeedbackFile(models.Model):
+    """Файлы учителя к проверке (комментарий к работе: разметка на фото, вложения)."""
+    assignment = models.ForeignKey(
+        HomeworkAssignment, on_delete=models.CASCADE, related_name='teacher_feedback_files',
+    )
+    file       = models.FileField(upload_to='homework_teacher_feedback/')
+    filename   = models.CharField(max_length=255)
+    file_type  = models.CharField(max_length=10, choices=FILE_TYPE_CHOICES, default='file')
+    source_answer_file = models.ForeignKey(
+        HomeworkAnswerFile, on_delete=models.SET_NULL, null=True, blank=True,
+        related_name='teacher_feedback_exports',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.filename
+
+    class Meta:
+        verbose_name = "Вложение учителя к проверке ДЗ"
+        verbose_name_plural = "Вложения учителя к проверке ДЗ"
+        ordering = ['created_at']
 
 
 # ── Старые модели оставлены для совместимости с существующими данными ──────────
@@ -290,6 +315,7 @@ class Notification(models.Model):
         ('homework_assigned',  'Новое домашнее задание'),
         ('reviewed',           'ДЗ проверено'),
         ('revision_requested', 'ДЗ направлено на доработку'),
+        ('teacher_comment',    'Комментарий учителя к ДЗ'),
     ]
     text                = models.CharField(max_length=500)
     user                = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='notifications')

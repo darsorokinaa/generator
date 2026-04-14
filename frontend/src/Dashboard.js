@@ -75,7 +75,7 @@ function timeAgoShort(dateStr) {
 /** Точка слева: цвет по типу уведомления */
 function notifDotKind(notificationType) {
   if (['missed', 'check_deadline_soon', 'low_result_alert'].includes(notificationType)) return 'warn';
-  if (['submitted', 'reviewing', 'homework_assigned', 'reviewed', 'revision_requested'].includes(notificationType)) return 'hw';
+  if (['submitted', 'reviewing', 'homework_assigned', 'reviewed', 'revision_requested', 'teacher_comment'].includes(notificationType)) return 'hw';
   return 'msg';
 }
 

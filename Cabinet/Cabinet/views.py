@@ -30,6 +30,7 @@ from .models import (
     HomeworkAttachment,
     HomeworkAssignment,
     HomeworkAnswerFile,
+    HomeworkTeacherFeedbackFile,
     Notification,
 )
 from rest_framework import viewsets, status
@@ -44,7 +45,9 @@ from .serializers import (
     LevelSerializer, TeachersStudentSerializer, GroupSerializer,
     HomeworkSerializer, HomeworkAttachmentSerializer,
     HomeworkAssignmentSerializer, HomeworkAssignmentDetailSerializer,
-    HomeworkAnswerFileSerializer, NotificationSerializer,
+    HomeworkAnswerFileSerializer,
+    HomeworkTeacherFeedbackFileSerializer,
+    NotificationSerializer,
 )
 from .serializers_input import (
     StudentCreateSerializer,
@@ -1103,7 +1106,7 @@ class HomeworkMyView(APIView):
             HomeworkAssignment.objects
             .filter(student=profile)
             .select_related('homework', 'homework__teacher')
-            .prefetch_related('answer_files', 'homework__attachments')
+            .prefetch_related('answer_files', 'teacher_feedback_files', 'homework__attachments')
         )
         return Response(
             HomeworkAssignmentDetailSerializer(qs, many=True, context={'request': request}).data,
@@ -1124,7 +1127,7 @@ class HomeworkAssignmentDetailView(APIView):
             return None
         qs = HomeworkAssignment.objects.select_related(
             'homework', 'homework__teacher', 'student',
-        ).prefetch_related('answer_files', 'homework__attachments')
+        ).prefetch_related('answer_files', 'teacher_feedback_files', 'homework__attachments')
         try:
             obj = qs.get(pk=pk)
         except HomeworkAssignment.DoesNotExist:
@@ -1143,6 +1146,57 @@ class HomeworkAssignmentDetailView(APIView):
         return Response(HomeworkAssignmentDetailSerializer(obj, context={'request': request}).data)
 
 
+def _absolutize_variant_html(html: str, base_url: str) -> str:
+    """Картинки/ссылки с путём /... в HTML варианта → абсолютные URL на домен генератора."""
+    if not html or not isinstance(html, str):
+        return html
+    base = base_url.rstrip('/')
+
+    def abs_path(path: str) -> str:
+        if not path:
+            return path
+        p = path.strip()
+        if p.startswith(('http://', 'https://', 'data:', 'blob:', 'mailto:')):
+            return path
+        if p.startswith('//'):
+            return path
+        if p.startswith('/'):
+            return f'{base}{p}'
+        return f'{base}/{p.lstrip("/")}'
+
+    def repl_attr(m):
+        attr, quote, path = m.group(1), m.group(2), m.group(3)
+        return f'{attr}={quote}{abs_path(path)}{quote}'
+
+    out = re.sub(r'(?is)(src|href)\s*=\s*(["\'])(/[^"\'>\\s]+)\2', repl_attr, html)
+    out = re.sub(
+        r'(?is)url\s*\(\s*(["\']?)(/[^)\'"]+)\1\s*\)',
+        lambda m: f'url({m.group(1)}{abs_path(m.group(2))}{m.group(1)})',
+        out,
+    )
+    return out
+
+
+def _rewrite_variant_media_urls(data, base_url: str):
+    """Рекурсивно правит HTML в полях заданий (картинки с /media/… на другом хосте)."""
+    html_keys = {
+        'text', 'task_template', 'hint', 'solution', 'description',
+        'condition', 'body', 'content', 'html',
+    }
+    base = base_url.rstrip('/')
+    if isinstance(data, dict):
+        for k, v in list(data.items()):
+            if k in html_keys and isinstance(v, str):
+                data[k] = _absolutize_variant_html(v, base_url)
+            elif k == 'file' and isinstance(v, str) and v.startswith('/') and not v.startswith('//'):
+                data[k] = f'{base}{v}'
+            else:
+                _rewrite_variant_media_urls(v, base_url)
+    elif isinstance(data, list):
+        for item in data:
+            _rewrite_variant_media_urls(item, base_url)
+
+
 class HomeworkVariantProxyView(APIView):
     """
     GET /api/homework/variant/<variant_id>/
@@ -1158,6 +1212,8 @@ class HomeworkVariantProxyView(APIView):
             req = urllib.request.Request(url, headers={'Accept': 'application/json'})
             with urllib.request.urlopen(req, timeout=10) as resp:
                 data = json.loads(resp.read().decode('utf-8'))
+            if isinstance(data, dict):
+                _rewrite_variant_media_urls(data, genurok_url)
             return Response(data)
         except urllib.error.HTTPError as e:
             return Response({'error': f'Генератор вернул {e.code}'}, status=e.code)
@@ -1237,6 +1293,14 @@ class HomeworkUploadAnswerView(APIView):
         if not f:
             return Response({'error': 'file обязателен'}, status=status.HTTP_400_BAD_REQUEST)
 
+        task_number = request.POST.get('task_number') or request.data.get('task_number')
+        tn = None
+        if task_number is not None and str(task_number).strip() != '':
+            try:
+                tn = int(task_number)
+            except (TypeError, ValueError):
+                return Response({'error': 'task_number должен быть числом'}, status=status.HTTP_400_BAD_REQUEST)
+
         filename  = f.name
         file_type = _detect_file_type(filename)
         answer    = HomeworkAnswerFile.objects.create(
@@ -1244,7 +1308,20 @@ class HomeworkUploadAnswerView(APIView):
             file=f,
             filename=filename,
             file_type=file_type,
+            task_number=tn,
         )
+        try:
+            title = assignment.homework.title or f'Вариант {assignment.homework.variant_id}'
+            sn = f'{profile.name} {profile.surname}'.strip()
+            extra = f' (задание {tn})' if tn is not None else ''
+            _notify(
+                assignment.homework.teacher,
+                f'{sn} добавил(а) вложение{extra} к «{title}»: {filename}',
+                'submitted',
+                assignment=assignment,
+            )
+        except Exception:
+            pass
         return Response(
             HomeworkAnswerFileSerializer(answer, context={'request': request}).data,
             status=status.HTTP_201_CREATED,
@@ -1275,17 +1352,125 @@ class HomeworkReviewView(APIView):
             return Response({'error': 'action: reviewed или revision'}, status=status.HTTP_400_BAD_REQUEST)
 
         assignment.status          = action
-        assignment.teacher_comment = comment
+        assignment.teacher_comment = str(comment) if comment is not None else ''
         assignment.reviewed_at     = timezone.now()
         assignment.save(update_fields=['status', 'teacher_comment', 'reviewed_at'])
 
         title = assignment.homework.title or f'Вариант {assignment.homework.variant_id}'
-        if action == 'reviewed':
-            _notify(assignment.student, f'ДЗ проверено: {title}', 'reviewed', assignment=assignment)
-        else:
-            _notify(assignment.student, f'ДЗ направлено на доработку: {title}', 'revision_requested', assignment=assignment)
+        snip = (assignment.teacher_comment or '').strip().replace('\n', ' ')
+        if len(snip) > 100:
+            snip = snip[:100] + '…'
 
-        return Response(HomeworkAssignmentSerializer(assignment, context={'request': request}).data)
+        if action == 'reviewed':
+            msg = f'ДЗ проверено: {title}'
+            if snip:
+                msg = f'{msg}. {snip}'
+            _notify(assignment.student, msg, 'reviewed', assignment=assignment)
+        else:
+            msg = f'ДЗ направлено на доработку: {title}'
+            if snip:
+                msg = f'{msg}. {snip}'
+            _notify(assignment.student, msg, 'revision_requested', assignment=assignment)
+
+        obj = (
+            HomeworkAssignment.objects
+            .select_related('homework', 'homework__teacher', 'student')
+            .prefetch_related('answer_files', 'teacher_feedback_files', 'homework__attachments')
+            .get(pk=assignment.pk)
+        )
+        return Response(HomeworkAssignmentDetailSerializer(obj, context={'request': request}).data)
+
+
+class HomeworkTeacherCommentView(APIView):
+    """
+    POST /api/homework/assignment/<id>/teacher-comment/
+    Сохранить комментарий учителя и уведомить ученика (без смены статуса «принято / доработка»).
+    Тело: { comment: '...' }
+    """
+    permission_classes = [IsCabinetTeacher]
+
+    def post(self, request, pk):
+        teacher = request.user.profile
+        try:
+            assignment = HomeworkAssignment.objects.select_related(
+                'homework', 'student',
+            ).get(pk=pk, homework__teacher=teacher)
+        except HomeworkAssignment.DoesNotExist:
+            return Response({'error': 'Не найдено'}, status=status.HTTP_404_NOT_FOUND)
+
+        if assignment.status not in ('submitted', 'reviewing', 'reviewed', 'revision'):
+            return Response(
+                {'error': 'Комментарий недоступен для этого статуса задания'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        comment = request.data.get('comment', '')
+        if comment is None:
+            comment = ''
+        assignment.teacher_comment = str(comment)
+        assignment.save(update_fields=['teacher_comment'])
+
+        title = assignment.homework.title or f'Вариант {assignment.homework.variant_id}'
+        snip = assignment.teacher_comment.strip().replace('\n', ' ')
+        if len(snip) > 120:
+            snip = snip[:120] + '…'
+        msg = f'Комментарий к ДЗ «{title}»'
+        if snip:
+            msg = f'{msg}: {snip}'
+        _notify(assignment.student, msg, 'teacher_comment', assignment=assignment)
+
+        obj = (
+            HomeworkAssignment.objects
+            .select_related('homework', 'homework__teacher', 'student')
+            .prefetch_related('answer_files', 'teacher_feedback_files', 'homework__attachments')
+            .get(pk=assignment.pk)
+        )
+        return Response(HomeworkAssignmentDetailSerializer(obj, context={'request': request}).data)
+
+
+class HomeworkUploadTeacherFeedbackView(APIView):
+    """
+    POST /api/homework/assignment/<id>/upload-teacher-feedback/
+    Учитель прикрепляет файл к проверке (multipart: file, опционально source_answer_file_id).
+    """
+    permission_classes = [IsCabinetTeacher]
+
+    def post(self, request, pk):
+        teacher = request.user.profile
+        try:
+            assignment = HomeworkAssignment.objects.get(pk=pk, homework__teacher=teacher)
+        except HomeworkAssignment.DoesNotExist:
+            return Response({'error': 'Не найдено'}, status=status.HTTP_404_NOT_FOUND)
+
+        if assignment.status not in ('submitted', 'reviewing', 'reviewed', 'revision'):
+            return Response({'error': 'Вложения недоступны для этого статуса'}, status=status.HTTP_400_BAD_REQUEST)
+
+        f = request.FILES.get('file')
+        if not f:
+            return Response({'error': 'file обязателен'}, status=status.HTTP_400_BAD_REQUEST)
+
+        src = None
+        raw_src = request.POST.get('source_answer_file_id') or request.data.get('source_answer_file_id')
+        if raw_src not in (None, ''):
+            try:
+                sid = int(raw_src)
+                src = HomeworkAnswerFile.objects.get(pk=sid, assignment=assignment)
+            except (ValueError, TypeError, HomeworkAnswerFile.DoesNotExist):
+                return Response({'error': 'Неверный source_answer_file_id'}, status=status.HTTP_400_BAD_REQUEST)
+
+        filename  = f.name
+        file_type = _detect_file_type(filename)
+        row = HomeworkTeacherFeedbackFile.objects.create(
+            assignment=assignment,
+            file=f,
+            filename=filename,
+            file_type=file_type,
+            source_answer_file=src,
+        )
+        return Response(
+            HomeworkTeacherFeedbackFileSerializer(row, context={'request': request}).data,
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class HomeworkAnnotateView(APIView):
@@ -1449,7 +1634,7 @@ class HomeworkTeacherAssignmentsView(APIView):
             HomeworkAssignment.objects
             .filter(homework=hw)
             .select_related('student', 'homework')
-            .prefetch_related('answer_files')
+            .prefetch_related('answer_files', 'teacher_feedback_files')
         )
         return Response(
             HomeworkAssignmentDetailSerializer(qs, many=True, context={'request': request}).data,

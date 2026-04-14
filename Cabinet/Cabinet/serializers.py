@@ -2,6 +2,7 @@ from rest_framework import serializers
 from .models import (
     UserProfile, Subject, Level, TeachersStudent, Group,
     Homework, HomeworkAttachment, HomeworkAssignment, HomeworkAnswerFile,
+    HomeworkTeacherFeedbackFile,
     Notification,
 )
 
@@ -107,7 +108,21 @@ class HomeworkAnswerFileSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = HomeworkAnswerFile
-        fields = ['id', 'filename', 'file_type', 'annotations', 'uploaded_at', 'url']
+        fields = ['id', 'filename', 'file_type', 'task_number', 'annotations', 'uploaded_at', 'url']
+
+    def get_url(self, obj):
+        request = self.context.get('request')
+        if obj.file and request:
+            return request.build_absolute_uri(obj.file.url)
+        return obj.file.url if obj.file else None
+
+
+class HomeworkTeacherFeedbackFileSerializer(serializers.ModelSerializer):
+    url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = HomeworkTeacherFeedbackFile
+        fields = ['id', 'filename', 'file_type', 'source_answer_file', 'created_at', 'url']
 
     def get_url(self, obj):
         request = self.context.get('request')
@@ -150,6 +165,7 @@ class HomeworkAssignmentSerializer(serializers.ModelSerializer):
 class HomeworkAssignmentDetailSerializer(HomeworkAssignmentSerializer):
     """Full detail — includes answer files and homework attachments."""
     answer_files        = HomeworkAnswerFileSerializer(many=True, read_only=True)
+    teacher_feedback_files = HomeworkTeacherFeedbackFileSerializer(many=True, read_only=True)
     homework_attachments = HomeworkAttachmentSerializer(
         source='homework.attachments', many=True, read_only=True,
     )
@@ -158,7 +174,7 @@ class HomeworkAssignmentDetailSerializer(HomeworkAssignmentSerializer):
 
     class Meta(HomeworkAssignmentSerializer.Meta):
         fields = HomeworkAssignmentSerializer.Meta.fields + [
-            'answer_files', 'homework_attachments', 'homework_text', 'subject',
+            'answer_files', 'teacher_feedback_files', 'homework_attachments', 'homework_text', 'subject',
         ]
 
 

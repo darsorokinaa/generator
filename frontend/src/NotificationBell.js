@@ -14,6 +14,7 @@ const TYPE_ICON = {
   homework_assigned:  '📋',
   reviewed:           '✅',
   revision_requested: '🔁',
+  teacher_comment:    '💬',
   check_deadline_soon:'⏰',
   missed:             '❌',
   low_result_alert:   '⚠️',
