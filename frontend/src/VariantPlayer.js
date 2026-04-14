@@ -9,9 +9,11 @@
  *   answerFiles  — уже загруженные файлы [{ id, url, filename, file_type, task_number }, …]
  *   onSubmit    — async (result, score) => void, при нажатии «Сохранить»
  *   onClose     — () => void
+ *   embedded    — встроенный режим (без полноэкранного оверлея), для карточки ДЗ у учителя
  */
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import API from './api';
+import { ensureMathJax, typesetContainer } from './mathJaxUtils';
 
 function getCookie(name) {
   const value = `; ${document.cookie}`;
@@ -53,45 +55,6 @@ function checkAnswer(task, userInput) {
   const variants = normalizeVariants(keyRaw);
   if (!variants.length) return 'pending';
   return variants.includes(userNorm) ? 'correct' : 'wrong';
-}
-
-// inject MathJax once; дождаться startup перед typeset (иначе LaTeX не везде)
-let mathJaxInjected = false;
-function ensureMathJax() {
-  if (document.getElementById('mathjax-script')) return;
-  if (mathJaxInjected) return;
-  mathJaxInjected = true;
-  window.MathJax = {
-    tex: { inlineMath: [['\\(', '\\)'], ['$', '$']], displayMath: [['\\[', '\\]'], ['$$', '$$']] },
-    options: { skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre'] },
-    startup: { typeset: false },
-  };
-  const s = document.createElement('script');
-  s.id = 'mathjax-script';
-  s.src = 'https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml.js';
-  s.async = true;
-  document.head.appendChild(s);
-}
-
-function typesetContainer(el) {
-  if (!el) return;
-  const run = () => {
-    if (!window.MathJax?.typesetPromise) return;
-    window.MathJax.typesetPromise([el]).catch(() => {});
-  };
-  if (window.MathJax?.startup?.promise) {
-    window.MathJax.startup.promise.then(run).catch(run);
-  } else {
-    run();
-    let n = 0;
-    const id = setInterval(() => {
-      n += 1;
-      if (window.MathJax?.startup?.promise) {
-        clearInterval(id);
-        window.MathJax.startup.promise.then(run).catch(run);
-      } else if (n > 200) clearInterval(id);
-    }, 50);
-  }
 }
 
 // ── Вложения к заданию (фото / голос / файл) ─────────────────────────────────
@@ -213,10 +176,14 @@ function TaskCard({
   const isPart2  = task.part === 2 || String(task.part) === '2';
   const content  = task.text || task.task_template || '';
   const contentRef = useRef(null);
+  const answerRef = useRef(null);
+  const ansRaw = savedEntry?.answer || '';
+  const answerLooksHtml = /<\s*[a-z]/i.test(String(ansRaw));
 
   useEffect(() => {
     const el = contentRef.current;
     if (!el) return;
+    ensureMathJax();
     typesetContainer(el);
     let cancelled = false;
     let id;
@@ -234,6 +201,29 @@ function TaskCard({
       if (id) clearInterval(id);
     };
   }, [content]);
+
+  useEffect(() => {
+    if (!readOnly || !ansRaw) return;
+    const el = answerRef.current;
+    if (!el) return;
+    ensureMathJax();
+    typesetContainer(el);
+    let cancelled = false;
+    let id;
+    if (!window.MathJax?.typesetPromise) {
+      id = setInterval(() => {
+        if (cancelled) return;
+        if (window.MathJax?.typesetPromise) {
+          clearInterval(id);
+          typesetContainer(el);
+        }
+      }, 80);
+    }
+    return () => {
+      cancelled = true;
+      if (id) clearInterval(id);
+    };
+  }, [readOnly, ansRaw]);
 
   useEffect(() => {
     if (savedEntry?.answer !== undefined) setValue(savedEntry.answer);
@@ -348,13 +338,29 @@ function TaskCard({
         />
       )}
 
-      {/* Readonly: show student answer with state */}
-      {readOnly && savedEntry?.answer && (
-        <div style={{ marginTop: 4 }}>
-          <span style={{ fontSize: 12, color: '#64748b' }}>Ответ: </span>
-          <span style={{ fontSize: 13, fontWeight: 600, color: '#1a1a2e' }}>
-            {savedEntry.answer}
-          </span>
+      {/* Readonly: ответ ученика (в т.ч. LaTeX) */}
+      {readOnly && ansRaw && (
+        <div style={{ marginTop: 10 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 6 }}>
+            Ответ ученика
+          </div>
+          {answerLooksHtml ? (
+            <div
+              ref={answerRef}
+              style={{ fontSize: 14, lineHeight: 1.6, color: '#1a1a2e', wordBreak: 'break-word' }}
+              dangerouslySetInnerHTML={{ __html: ansRaw }}
+            />
+          ) : (
+            <div
+              ref={answerRef}
+              style={{
+                fontSize: 14, fontWeight: 600, lineHeight: 1.6, color: '#1a1a2e',
+                whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+              }}
+            >
+              {ansRaw}
+            </div>
+          )}
         </div>
       )}
 
@@ -413,6 +419,7 @@ export default function VariantPlayer({
   answerFiles = null,
   onSubmit,
   onClose,
+  embedded = false,
 }) {
   const [variant,   setVariant]   = useState(null);
   const [loading,   setLoading]   = useState(true);
@@ -489,38 +496,50 @@ export default function VariantPlayer({
       }).length
     : 0;
 
-  return (
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)',
-      display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-      zIndex: 2000, padding: '20px 16px', overflowY: 'auto',
-      backdropFilter: 'blur(4px)',
-    }}>
+  const cardShell = {
+    background: '#f8fafc',
+    borderRadius: embedded ? 12 : 16,
+    width: '100%',
+    maxWidth: embedded ? '100%' : 760,
+    minHeight: 200,
+    position: 'relative',
+    fontFamily: 'Montserrat, sans-serif',
+    boxShadow: embedded ? 'inset 0 0 0 1px #e2e8f0' : '0 20px 60px rgba(0,0,0,.25)',
+    maxHeight: embedded ? 'min(68vh, 720px)' : undefined,
+    overflow: embedded ? 'hidden' : undefined,
+    display: embedded ? 'flex' : undefined,
+    flexDirection: embedded ? 'column' : undefined,
+  };
+
+  const bodyScroll = embedded ? { flex: 1, overflowY: 'auto', minHeight: 0 } : {};
+
+  const inner = (
+    <div style={cardShell}>
+      {/* Header */}
       <div style={{
-        background: '#f8fafc', borderRadius: 16, width: '100%', maxWidth: 760,
-        minHeight: 200, position: 'relative', fontFamily: 'Montserrat, sans-serif',
-        boxShadow: '0 20px 60px rgba(0,0,0,.25)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: embedded ? '14px 18px 12px' : '18px 24px 14px',
+        borderBottom: '1.5px solid #e2e8f0',
+        background: '#fff',
+        borderRadius: embedded ? '12px 12px 0 0' : '16px 16px 0 0',
+        position: 'sticky', top: 0, zIndex: 1, flexShrink: 0,
       }}>
-        {/* Header */}
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '18px 24px 14px', borderBottom: '1.5px solid #e2e8f0',
-          background: '#fff', borderRadius: '16px 16px 0 0', position: 'sticky', top: 0, zIndex: 1,
-        }}>
-          <div>
-            <div style={{ fontWeight: 800, fontSize: 16, color: '#1a1a2e' }}>
-              Вариант {variantId}
-            </div>
-            {variant && (
-              <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 2 }}>
-                {variant.tasks?.length} заданий
-                {!readOnly && variant.tasks?.length > 0 && (
-                  <> · Отвечено: {answeredCount}</>
-                )}
-              </div>
-            )}
+        <div>
+          <div style={{ fontWeight: 800, fontSize: embedded ? 15 : 16, color: '#1a1a2e' }}>
+            Вариант {variantId}
           </div>
+          {variant && (
+            <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 2 }}>
+              {variant.tasks?.length} заданий
+              {!readOnly && variant.tasks?.length > 0 && (
+                <> · Отвечено: {answeredCount}</>
+              )}
+            </div>
+          )}
+        </div>
+        {!embedded && onClose && (
           <button
+            type="button"
             onClick={onClose}
             style={{
               width: 32, height: 32, borderRadius: '50%', border: 'none',
@@ -532,10 +551,11 @@ export default function VariantPlayer({
               <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
             </svg>
           </button>
-        </div>
+        )}
+      </div>
 
-        {/* Body */}
-        <div style={{ padding: '20px 24px 24px' }}>
+      {/* Body */}
+      <div style={{ padding: embedded ? '16px 18px 18px' : '20px 24px 24px', ...bodyScroll }}>
           {loading && (
             <div style={{ textAlign: 'center', padding: '40px 0', color: '#9ca3af' }}>
               <div style={{
@@ -632,8 +652,26 @@ export default function VariantPlayer({
               )}
             </>
           )}
-        </div>
       </div>
+    </div>
+  );
+
+  if (embedded) {
+    return (
+      <div style={{ width: '100%', fontFamily: 'Montserrat, sans-serif' }}>
+        {inner}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,.5)',
+      display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
+      zIndex: 2000, padding: '20px 16px', overflowY: 'auto',
+      backdropFilter: 'blur(4px)',
+    }}>
+      {inner}
     </div>
   );
 }

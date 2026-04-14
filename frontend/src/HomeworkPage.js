@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import API from './api';
 import ImageAnnotationCanvas from './ImageAnnotationCanvas';
 import VariantPlayer from './VariantPlayer';
+import { MathHtmlBlock } from './mathJaxUtils';
 
 function getCookie(name) {
   const value = `; ${document.cookie}`;
@@ -84,9 +85,17 @@ function StatusBadge({ status }) {
 }
 
 // ── FileList (teacher attachments or student answers) ─────────────────────────
+const answerFileCard = {
+  border: '1px solid #e2e8f0',
+  borderRadius: 12,
+  overflow: 'hidden',
+  background: '#fff',
+};
+
 function FileList({
   files,
   showAnnotations,
+  layout = 'list',
   assignmentId,
   onAnnotationsSaved,
   teacherCanAttachAnnotationToComment,
@@ -95,6 +104,7 @@ function FileList({
   const [annotating, setAnnotating] = useState(null);
   const [pendingAnnotations, setPending] = useState({});
   const annotateCanvasRef = useRef(null);
+  const canvasRefsByFile = useRef({});
 
   const saveAnnotations = async (fileId, data) => {
     try {
@@ -108,8 +118,158 @@ function FileList({
     } catch {}
   };
 
+  const attachMarkupForFile = async (f) => {
+    const canvas = canvasRefsByFile.current[f.id] ?? annotateCanvasRef.current;
+    const blob = await canvas?.exportPng();
+    if (!blob || !assignmentId) return;
+    const base = (f.filename || 'image').replace(/\.[^.]+$/i, '');
+    const fd = new FormData();
+    fd.append('file', blob, `разметка_${base}.png`);
+    fd.append('source_answer_file_id', String(f.id));
+    try {
+      const res = await fetch(
+        `${API}/api/homework/assignment/${assignmentId}/upload-teacher-feedback/`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'X-CSRFToken': getCookie('csrftoken') },
+          body: fd,
+        },
+      );
+      if (res.ok && onTeacherFeedbackUploaded) {
+        onTeacherFeedbackUploaded(await res.json());
+      }
+    } catch { /* ignore */ }
+  };
+
   if (!files || files.length === 0) {
     return <span style={{ color: '#9ca3af', fontSize: 12 }}>—</span>;
+  }
+
+  const useCardLayout = layout === 'cards' && showAnnotations;
+
+  if (useCardLayout) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {files.map((f) => (
+          f.file_type === 'image' ? (
+            <div key={f.id} style={answerFileCard}>
+              <div style={{
+                padding: '12px 14px',
+                borderBottom: '1px solid #f1f5f9',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 10,
+                flexWrap: 'wrap',
+                background: '#fafbfc',
+              }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+                  <span style={{ fontSize: 18, flexShrink: 0 }}>{FILE_ICONS.image}</span>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', wordBreak: 'break-all' }}>
+                      {f.filename}
+                    </div>
+                    {f.task_number != null && f.task_number !== '' && (
+                      <span style={{
+                        display: 'inline-block', marginTop: 4, fontSize: 10, fontWeight: 700,
+                        color: '#4338ca', background: '#eef2ff', padding: '2px 8px', borderRadius: 20,
+                      }}
+                      >
+                        Задание {f.task_number}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <a
+                  href={f.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    fontSize: 12, fontWeight: 600, color: '#4F6EF7', textDecoration: 'none',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  Открыть оригинал
+                </a>
+              </div>
+              <div style={{ padding: 12, background: '#f8fafc' }}>
+                <ImageAnnotationCanvas
+                  ref={(el) => {
+                    if (el) canvasRefsByFile.current[f.id] = el;
+                    else delete canvasRefsByFile.current[f.id];
+                  }}
+                  imageUrl={f.url}
+                  annotations={pendingAnnotations[f.id] ?? f.annotations ?? []}
+                  readOnly={false}
+                  onChange={(data) => {
+                    setPending((prev) => ({ ...prev, [f.id]: data }));
+                  }}
+                />
+              </div>
+              <div style={{
+                padding: '10px 14px',
+                borderTop: '1px solid #f1f5f9',
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 8,
+                alignItems: 'center',
+                background: '#fff',
+              }}
+              >
+                <button
+                  type="button"
+                  onClick={() => saveAnnotations(f.id, pendingAnnotations[f.id] ?? f.annotations ?? [])}
+                  style={{
+                    padding: '8px 16px', borderRadius: 8,
+                    background: '#4F6EF7', color: '#fff', border: 'none',
+                    cursor: 'pointer', fontWeight: 700, fontSize: 12,
+                    fontFamily: 'Montserrat, sans-serif',
+                  }}
+                >
+                  Сохранить разметку
+                </button>
+                {teacherCanAttachAnnotationToComment && assignmentId && (
+                  <button
+                    type="button"
+                    onClick={() => attachMarkupForFile(f)}
+                    style={{
+                      padding: '8px 16px', borderRadius: 8,
+                      background: '#15803d', color: '#fff', border: 'none',
+                      cursor: 'pointer', fontWeight: 700, fontSize: 12,
+                      fontFamily: 'Montserrat, sans-serif',
+                    }}
+                  >
+                    Прикрепить к комментарию
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div
+              key={f.id}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                padding: '10px 14px', borderRadius: 10, border: '1px solid #e2e8f0', background: '#fff',
+              }}
+            >
+              <span style={{ fontSize: 16 }}>{FILE_ICONS[f.file_type] || '📄'}</span>
+              <a
+                href={f.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ fontSize: 13, color: '#4F6EF7', textDecoration: 'none', wordBreak: 'break-all', fontWeight: 600 }}
+                download
+              >
+                {f.task_number != null && f.task_number !== '' ? `[Зад. ${f.task_number}] ` : ''}
+                {f.filename}
+              </a>
+            </div>
+          )
+        ))}
+      </div>
+    );
   }
 
   return (
@@ -130,6 +290,7 @@ function FileList({
             </a>
             {showAnnotations && f.file_type === 'image' && (
               <button
+                type="button"
                 onClick={() => setAnnotating(annotating === f.id ? null : f.id)}
                 style={{
                   fontSize: 10, padding: '2px 8px', borderRadius: 6, border: '1px solid #e2e8f0',
@@ -169,28 +330,7 @@ function FileList({
                   {teacherCanAttachAnnotationToComment && assignmentId && (
                     <button
                       type="button"
-                      onClick={async () => {
-                        const blob = await annotateCanvasRef.current?.exportPng();
-                        if (!blob || !assignmentId) return;
-                        const base = (f.filename || 'image').replace(/\.[^.]+$/i, '');
-                        const fd = new FormData();
-                        fd.append('file', blob, `разметка_${base}.png`);
-                        fd.append('source_answer_file_id', String(f.id));
-                        try {
-                          const res = await fetch(
-                            `${API}/api/homework/assignment/${assignmentId}/upload-teacher-feedback/`,
-                            {
-                              method: 'POST',
-                              credentials: 'include',
-                              headers: { 'X-CSRFToken': getCookie('csrftoken') },
-                              body: fd,
-                            },
-                          );
-                          if (res.ok && onTeacherFeedbackUploaded) {
-                            onTeacherFeedbackUploaded(await res.json());
-                          }
-                        } catch { /* ignore */ }
-                      }}
+                      onClick={() => attachMarkupForFile(f)}
                       style={{
                         padding: '6px 16px', borderRadius: 8,
                         background: '#15803d', color: '#fff', border: 'none',
@@ -396,8 +536,14 @@ function AssignmentDetailModal({ assignment, isTeacher, onClose, onUpdated }) {
   const fileRef = useRef(null);
   const fbRef = useRef(null);
 
+  const wideTeacherModal = isTeacher && !!assignment.variant_id;
+
   const teacherCanComment = isTeacher && ['submitted', 'reviewing', 'reviewed', 'revision'].includes(assignment.status);
   const teacherCanFinalize = isTeacher && ['submitted', 'reviewing'].includes(assignment.status);
+
+  useEffect(() => {
+    setLocalFiles(assignment.answer_files || []);
+  }, [assignment.id, assignment.answer_files]);
 
   useEffect(() => {
     setFeedbackFiles(assignment.teacher_feedback_files || []);
@@ -492,7 +638,12 @@ function AssignmentDetailModal({ assignment, isTeacher, onClose, onUpdated }) {
     <div className="modal-overlay" onClick={onClose}>
       <div
         className="modal"
-        style={{ maxWidth: 600, maxHeight: '90vh', overflowY: 'auto' }}
+        style={{
+          maxWidth: wideTeacherModal ? 960 : 600,
+          width: wideTeacherModal ? 'min(96vw, 960px)' : undefined,
+          maxHeight: '90vh',
+          overflowY: 'auto',
+        }}
         onClick={e => e.stopPropagation()}
       >
         <div className="modal-header">
@@ -507,7 +658,7 @@ function AssignmentDetailModal({ assignment, isTeacher, onClose, onUpdated }) {
           </button>
         </div>
 
-        <div style={{ padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: 18 }}>
           {/* Info row */}
           <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', fontSize: 12, color: '#64748b' }}>
             {assignment.subject && <span>📚 {assignment.subject}</span>}
@@ -519,8 +670,14 @@ function AssignmentDetailModal({ assignment, isTeacher, onClose, onUpdated }) {
 
           {/* Homework text */}
           {assignment.homework_text && (
-            <div style={{ background: '#f8fafc', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#374151', lineHeight: 1.6 }}>
-              {assignment.homework_text}
+            <div style={{
+              background: '#f8fafc',
+              borderRadius: 10,
+              padding: '12px 16px',
+              border: '1px solid #e8edf5',
+            }}
+            >
+              <MathHtmlBlock html={assignment.homework_text} />
             </div>
           )}
 
@@ -532,12 +689,31 @@ function AssignmentDetailModal({ assignment, isTeacher, onClose, onUpdated }) {
             </div>
           )}
 
-          {/* Student answers */}
+          {/* Вариант + ответы (учитель) */}
+          {isTeacher && assignment.variant_id && (
+            <div>
+              <div style={sectionLabelStyle}>Вариант и ответы ученика</div>
+              <VariantPlayer
+                embedded
+                variantId={assignment.variant_id}
+                readOnly
+                savedResult={assignment.result || {}}
+                showCorrectAnswers
+                assignmentId={assignment.id}
+                answerFiles={localFiles}
+              />
+            </div>
+          )}
+
+          {/* Файлы / фото ученика */}
           <div>
-            <div style={sectionLabelStyle}>Ответы ученика</div>
+            <div style={sectionLabelStyle}>
+              {isTeacher ? 'Файлы и фото к работе' : 'Мои вложения'}
+            </div>
             <FileList
               files={localFiles}
               showAnnotations={isTeacher}
+              layout={isTeacher ? 'cards' : 'list'}
               assignmentId={assignment.id}
               onAnnotationsSaved={(updated) => {
                 setLocalFiles(prev => prev.map(f => f.id === updated.id ? updated : f));
@@ -639,8 +815,15 @@ function AssignmentDetailModal({ assignment, isTeacher, onClose, onUpdated }) {
           {!isTeacher && assignment.teacher_comment && (
             <div>
               <div style={sectionLabelStyle}>Комментарий учителя</div>
-              <div style={{ background: '#fffbeb', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#374151', lineHeight: 1.6, borderLeft: '3px solid #f59e0b' }}>
-                {assignment.teacher_comment}
+              <div style={{
+                background: '#fffbeb',
+                borderRadius: 10,
+                padding: '12px 16px',
+                border: '1px solid #fde68a',
+                borderLeft: '4px solid #f59e0b',
+              }}
+              >
+                <MathHtmlBlock html={assignment.teacher_comment} />
               </div>
             </div>
           )}
