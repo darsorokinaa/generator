@@ -229,6 +229,10 @@ class HomeworkAssignment(models.Model):
     result          = models.JSONField(default=dict, blank=True)
     # Набранный балл за часть 1 (подсчитывается на фронте и сохраняется при сдаче)
     score           = models.IntegerField(null=True, blank=True)
+    # Комментарии учителя к отдельным заданиям: {"13": "текст", ...}
+    task_teacher_comments = models.JSONField(default=dict, blank=True)
+    # Общая доска к варианту: [{ "type": "path", "color": "#000", "width": 2, "points": [[x,y],...] }, ...]
+    whiteboard_strokes = models.JSONField(default=list, blank=True)
 
     def __str__(self):
         return f'ДЗ #{self.homework_id} → {self.student} [{self.status}]'

@@ -10,10 +10,17 @@
  *   onSubmit    — async (result, score) => void, при нажатии «Сохранить»
  *   onClose     — () => void
  *   embedded    — встроенный режим (без полноэкранного оверлея), для карточки ДЗ у учителя
+ *   isTeacher   — комментарий к заданиям, доска (вместе с учеником)
+ *   taskTeacherComments — { "13": "…", … }
+ *   whiteboardStrokes — штрихи доски (с сервера)
+ *   onMetaUpdated — после PATCH /meta/ (обновить родителя)
+ *   openVariantPlayUrl — полный URL «открыть эту работу в новой вкладке»
  */
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import API from './api';
-import { ensureMathJax, typesetContainer } from './mathJaxUtils';
+import { ensureMathJax, escapeHtmlText } from './mathJaxUtils';
+import MathContent from './MathContent';
+import VariantWhiteboard from './VariantWhiteboard';
 
 function getCookie(name) {
   const value = `; ${document.cookie}`;
@@ -61,7 +68,7 @@ function checkAnswer(task, userInput) {
 
 const ATT_FILE_ICONS = { image: '🖼', video: '🎬', audio: '🎵', file: '📄' };
 
-function TaskAnswerUploads({ taskNum, assignmentId, readOnly, files, onFileAdded }) {
+function TaskAnswerUploads({ taskNum, assignmentId, readOnly, files, onFileAdded, onImageClick }) {
   const imgRef = useRef(null);
   const audRef = useRef(null);
   const anyRef = useRef(null);
@@ -104,18 +111,55 @@ function TaskAnswerUploads({ taskNum, assignmentId, readOnly, files, onFileAdded
     <div style={{ marginTop: 10, marginBottom: 4 }}>
       <div style={{ fontSize: 11, color: '#64748b', marginBottom: 6 }}>Материалы к ответу</div>
       {files && files.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
-          {files.map(f => (
-            <a
-              key={f.id}
-              href={f.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ fontSize: 12, color: '#4F6EF7', textDecoration: 'none', wordBreak: 'break-all' }}
-            >
-              <span style={{ marginRight: 6 }}>{ATT_FILE_ICONS[f.file_type] || '📄'}</span>
-              {f.filename}
-            </a>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 8 }}>
+          {files.map((f) => (
+            <div key={f.id}>
+              {f.file_type === 'image' && f.url && (
+                <button
+                  type="button"
+                  onClick={() => onImageClick && onImageClick(f.url)}
+                  style={{
+                    display: 'block', padding: 0, margin: 0, border: 'none', background: 'none',
+                    cursor: 'zoom-in', borderRadius: 10, overflow: 'hidden', maxWidth: '100%',
+                  }}
+                >
+                  <img
+                    src={f.url}
+                    alt={f.filename || ''}
+                    style={{ display: 'block', maxWidth: '100%', height: 'auto', verticalAlign: 'middle' }}
+                  />
+                </button>
+              )}
+              {f.file_type === 'audio' && f.url && (
+                <audio controls src={f.url} style={{ width: '100%', maxWidth: 420, height: 40 }} preload="metadata">
+                  <track kind="captions" />
+                </audio>
+              )}
+              {f.file_type === 'video' && f.url && (
+                <video controls src={f.url} style={{ width: '100%', maxWidth: 480, borderRadius: 10, background: '#000' }} preload="metadata" />
+              )}
+              {(f.file_type === 'file' || !f.file_type || (f.file_type !== 'image' && f.file_type !== 'audio' && f.file_type !== 'video')) && (
+                <a
+                  href={f.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ fontSize: 12, color: '#4F6EF7', textDecoration: 'none', wordBreak: 'break-all' }}
+                >
+                  <span style={{ marginRight: 6 }}>{ATT_FILE_ICONS[f.file_type] || '📄'}</span>
+                  {f.filename}
+                </a>
+              )}
+              {f.file_type === 'image' && (
+                <a
+                  href={f.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ fontSize: 11, color: '#94a3b8', display: 'inline-block', marginTop: 4 }}
+                >
+                  Открыть файл
+                </a>
+              )}
+            </div>
           ))}
         </div>
       )}
@@ -166,7 +210,8 @@ function StateBadge({ state, correctAnswer, showAnswer }) {
 
 function TaskCard({
   task, index, readOnly, savedEntry, showCorrectAnswers, onAnswer,
-  assignmentId, taskFiles, onAnswerFileAdded,
+  assignmentId, taskFiles, onAnswerFileAdded, onImageClick,
+  isTeacher, teacherCommentForTask, onSaveTeacherComment, teacherNoteForStudent,
 }) {
   const [value,   setValue]   = useState(savedEntry?.answer || '');
   const [checked, setChecked] = useState(!!savedEntry?.state && savedEntry.state !== 'empty');
@@ -175,55 +220,14 @@ function TaskCard({
   const num      = task.number ?? (index + 1);
   const isPart2  = task.part === 2 || String(task.part) === '2';
   const content  = task.text || task.task_template || '';
-  const contentRef = useRef(null);
-  const answerRef = useRef(null);
   const ansRaw = savedEntry?.answer || '';
   const answerLooksHtml = /<\s*[a-z]/i.test(String(ansRaw));
+  const [tcDraft, setTcDraft] = useState(teacherCommentForTask || '');
+  const [tcSaving, setTcSaving] = useState(false);
 
   useEffect(() => {
-    const el = contentRef.current;
-    if (!el) return;
-    ensureMathJax();
-    typesetContainer(el);
-    let cancelled = false;
-    let id;
-    if (!window.MathJax?.typesetPromise) {
-      id = setInterval(() => {
-        if (cancelled) return;
-        if (window.MathJax?.typesetPromise) {
-          clearInterval(id);
-          typesetContainer(el);
-        }
-      }, 80);
-    }
-    return () => {
-      cancelled = true;
-      if (id) clearInterval(id);
-    };
-  }, [content]);
-
-  useEffect(() => {
-    if (!readOnly || !ansRaw) return;
-    const el = answerRef.current;
-    if (!el) return;
-    ensureMathJax();
-    typesetContainer(el);
-    let cancelled = false;
-    let id;
-    if (!window.MathJax?.typesetPromise) {
-      id = setInterval(() => {
-        if (cancelled) return;
-        if (window.MathJax?.typesetPromise) {
-          clearInterval(id);
-          typesetContainer(el);
-        }
-      }, 80);
-    }
-    return () => {
-      cancelled = true;
-      if (id) clearInterval(id);
-    };
-  }, [readOnly, ansRaw]);
+    setTcDraft(teacherCommentForTask || '');
+  }, [teacherCommentForTask, num]);
 
   useEffect(() => {
     if (savedEntry?.answer !== undefined) setValue(savedEntry.answer);
@@ -284,10 +288,10 @@ function TaskCard({
         </div>
       )}
 
-      <div
-        ref={contentRef}
+      <MathContent
+        html={content}
         style={{ fontSize: 14, lineHeight: 1.7, color: '#1a1a2e', marginBottom: 12 }}
-        dangerouslySetInnerHTML={{ __html: content }}
+        onImageClick={onImageClick}
       />
 
       <TaskAnswerUploads
@@ -296,7 +300,20 @@ function TaskCard({
         readOnly={readOnly}
         files={taskFiles || []}
         onFileAdded={onAnswerFileAdded}
+        onImageClick={onImageClick}
       />
+
+      {teacherNoteForStudent && String(teacherNoteForStudent).trim() && (
+        <div style={{ marginTop: 10, padding: '10px 12px', background: '#fffbeb', borderRadius: 10, border: '1px solid #fde68a' }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: '#b45309', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '.04em' }}>
+            Комментарий учителя к заданию
+          </div>
+          <MathContent
+            html={escapeHtmlText(String(teacherNoteForStudent))}
+            style={{ fontSize: 13, lineHeight: 1.55, color: '#78350f' }}
+          />
+        </div>
+      )}
 
       {!readOnly && !isPart2 && (
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -344,23 +361,18 @@ function TaskCard({
           <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '.04em', marginBottom: 6 }}>
             Ответ ученика
           </div>
-          {answerLooksHtml ? (
-            <div
-              ref={answerRef}
-              style={{ fontSize: 14, lineHeight: 1.6, color: '#1a1a2e', wordBreak: 'break-word' }}
-              dangerouslySetInnerHTML={{ __html: ansRaw }}
-            />
-          ) : (
-            <div
-              ref={answerRef}
-              style={{
-                fontSize: 14, fontWeight: 600, lineHeight: 1.6, color: '#1a1a2e',
-                whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-              }}
-            >
-              {ansRaw}
-            </div>
-          )}
+          <MathContent
+            html={answerLooksHtml ? String(ansRaw) : escapeHtmlText(String(ansRaw))}
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              lineHeight: 1.6,
+              color: '#1a1a2e',
+              wordBreak: 'break-word',
+              whiteSpace: answerLooksHtml ? 'normal' : 'pre-wrap',
+            }}
+            onImageClick={onImageClick}
+          />
         </div>
       )}
 
@@ -374,6 +386,54 @@ function TaskCard({
       {readOnly && showCorrectAnswers && !isPart2 && (
         <div style={{ marginTop: 8, fontSize: 12, color: '#64748b' }}>
           Эталон: <strong>{stripHtml(task.answer || '—')}</strong>
+        </div>
+      )}
+
+      {isTeacher && assignmentId && onSaveTeacherComment && (
+        <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px dashed #e2e8f0' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 6 }}>Комментарий к заданию {num}</div>
+          <textarea
+            value={tcDraft}
+            onChange={(e) => setTcDraft(e.target.value)}
+            rows={3}
+            placeholder="Замечание ученику по этому пункту…"
+            style={{
+              width: '100%',
+              boxSizing: 'border-box',
+              padding: '8px 10px',
+              borderRadius: 8,
+              border: '1.5px solid #e2e8f0',
+              fontSize: 13,
+              resize: 'vertical',
+              fontFamily: 'Montserrat, sans-serif',
+            }}
+          />
+          <button
+            type="button"
+            disabled={tcSaving}
+            onClick={async () => {
+              setTcSaving(true);
+              try {
+                await onSaveTeacherComment(String(num), tcDraft);
+              } finally {
+                setTcSaving(false);
+              }
+            }}
+            style={{
+              marginTop: 8,
+              padding: '6px 14px',
+              borderRadius: 8,
+              border: 'none',
+              background: '#4338ca',
+              color: '#fff',
+              fontWeight: 700,
+              fontSize: 12,
+              cursor: tcSaving ? 'wait' : 'pointer',
+              fontFamily: 'Montserrat, sans-serif',
+            }}
+          >
+            {tcSaving ? 'Сохранение…' : 'Сохранить комментарий'}
+          </button>
         </div>
       )}
     </div>
@@ -420,6 +480,11 @@ export default function VariantPlayer({
   onSubmit,
   onClose,
   embedded = false,
+  isTeacher = false,
+  taskTeacherComments = null,
+  whiteboardStrokes: whiteboardStrokesProp = null,
+  onMetaUpdated = null,
+  openVariantPlayUrl = null,
 }) {
   const [variant,   setVariant]   = useState(null);
   const [loading,   setLoading]   = useState(true);
@@ -427,8 +492,59 @@ export default function VariantPlayer({
   const [answers,   setAnswers]   = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [answerFilesState, setAnswerFilesState] = useState(() => (Array.isArray(answerFiles) ? answerFiles : []));
+  const [lightboxSrc, setLightboxSrc] = useState(null);
+  const [wbOpen, setWbOpen] = useState(false);
+  const [wbStrokes, setWbStrokes] = useState(() => (Array.isArray(whiteboardStrokesProp) ? whiteboardStrokesProp : []));
+  const wbSaveTimer = useRef(null);
+
+  const taskComments = taskTeacherComments && typeof taskTeacherComments === 'object' ? taskTeacherComments : {};
 
   useEffect(() => { ensureMathJax(); }, []);
+
+  useEffect(() => {
+    setWbStrokes(Array.isArray(whiteboardStrokesProp) ? whiteboardStrokesProp : []);
+  }, [assignmentId, whiteboardStrokesProp]);
+
+  useEffect(() => () => {
+    if (wbSaveTimer.current) clearTimeout(wbSaveTimer.current);
+  }, []);
+
+  const persistMeta = useCallback(async (body) => {
+    if (!assignmentId) return null;
+    try {
+      const res = await fetch(`${API}/api/homework/assignment/${assignmentId}/meta/`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (onMetaUpdated) onMetaUpdated(data);
+        return data;
+      }
+    } catch { /* ignore */ }
+    return null;
+  }, [assignmentId, onMetaUpdated]);
+
+  const scheduleWbSave = useCallback((strokes) => {
+    if (wbSaveTimer.current) clearTimeout(wbSaveTimer.current);
+    wbSaveTimer.current = setTimeout(() => {
+      persistMeta({ whiteboard_strokes: strokes });
+    }, 850);
+  }, [persistMeta]);
+
+  const handleWbStrokesChange = useCallback((updater) => {
+    setWbStrokes((prev) => {
+      const next = typeof updater === 'function' ? updater(prev) : updater;
+      scheduleWbSave(next);
+      return next;
+    });
+  }, [scheduleWbSave]);
+
+  const saveTaskComment = useCallback(async (taskNum, text) => {
+    await persistMeta({ task_teacher_comments: { [String(taskNum)]: text } });
+  }, [persistMeta]);
 
   useEffect(() => {
     setAnswerFilesState(Array.isArray(answerFiles) ? answerFiles : []);
@@ -517,14 +633,15 @@ export default function VariantPlayer({
     <div style={cardShell}>
       {/* Header */}
       <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12,
         padding: embedded ? '14px 18px 12px' : '18px 24px 14px',
         borderBottom: '1.5px solid #e2e8f0',
         background: '#fff',
         borderRadius: embedded ? '12px 12px 0 0' : '16px 16px 0 0',
         position: 'sticky', top: 0, zIndex: 1, flexShrink: 0,
+        flexWrap: 'wrap',
       }}>
-        <div>
+        <div style={{ flex: '1 1 200px', minWidth: 0 }}>
           <div style={{ fontWeight: 800, fontSize: embedded ? 15 : 16, color: '#1a1a2e' }}>
             Вариант {variantId}
           </div>
@@ -537,21 +654,64 @@ export default function VariantPlayer({
             </div>
           )}
         </div>
-        {!embedded && onClose && (
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              width: 32, height: 32, borderRadius: '50%', border: 'none',
-              background: '#f1f5f9', cursor: 'pointer', display: 'flex',
-              alignItems: 'center', justifyContent: 'center', color: '#64748b',
-            }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', flexShrink: 0 }}>
+          {assignmentId && (
+            <>
+              <button
+                type="button"
+                onClick={() => setWbOpen(true)}
+                style={{
+                  padding: '7px 12px',
+                  borderRadius: 8,
+                  border: '1px solid #e2e8f0',
+                  background: '#fefce8',
+                  color: '#854d0e',
+                  fontWeight: 700,
+                  fontSize: 12,
+                  cursor: 'pointer',
+                  fontFamily: 'Montserrat, sans-serif',
+                }}
+              >
+                Доска
+              </button>
+              {openVariantPlayUrl && (
+                <a
+                  href={openVariantPlayUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    padding: '7px 12px',
+                    borderRadius: 8,
+                    border: '1px solid #c7d2fe',
+                    background: '#eef2ff',
+                    color: '#3730a3',
+                    fontWeight: 700,
+                    fontSize: 12,
+                    textDecoration: 'none',
+                    fontFamily: 'Montserrat, sans-serif',
+                  }}
+                >
+                  Новая вкладка
+                </a>
+              )}
+            </>
+          )}
+          {!embedded && onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                width: 32, height: 32, borderRadius: '50%', border: 'none',
+                background: '#f1f5f9', cursor: 'pointer', display: 'flex',
+                alignItems: 'center', justifyContent: 'center', color: '#64748b',
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Body */}
@@ -587,17 +747,35 @@ export default function VariantPlayer({
               {orphanFiles.length > 0 && (
                 <div style={{ marginBottom: 16, padding: 12, background: '#f1f5f9', borderRadius: 8 }}>
                   <div style={{ fontSize: 11, color: '#64748b', marginBottom: 6 }}>Вложения к работе</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    {orphanFiles.map(f => (
-                      <a
-                        key={f.id}
-                        href={f.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{ fontSize: 12, color: '#4F6EF7', textDecoration: 'none', wordBreak: 'break-all' }}
-                      >
-                        {ATT_FILE_ICONS[f.file_type] || '📄'} {f.filename}
-                      </a>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {orphanFiles.map((f) => (
+                      <div key={f.id}>
+                        {f.file_type === 'image' && f.url && (
+                          <button
+                            type="button"
+                            onClick={() => setLightboxSrc(f.url)}
+                            style={{ display: 'block', padding: 0, border: 'none', background: 'none', cursor: 'zoom-in', borderRadius: 8, overflow: 'hidden', maxWidth: 280 }}
+                          >
+                            <img src={f.url} alt="" style={{ display: 'block', maxWidth: '100%', height: 'auto' }} />
+                          </button>
+                        )}
+                        {f.file_type === 'audio' && f.url && (
+                          <audio controls src={f.url} style={{ width: '100%', maxWidth: 360 }} preload="metadata" />
+                        )}
+                        {f.file_type === 'video' && f.url && (
+                          <video controls src={f.url} style={{ width: '100%', maxWidth: 400, borderRadius: 8 }} preload="metadata" />
+                        )}
+                        {(!f.file_type || !['image', 'audio', 'video'].includes(f.file_type)) && (
+                          <a
+                            href={f.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ fontSize: 12, color: '#4F6EF7', textDecoration: 'none', wordBreak: 'break-all' }}
+                          >
+                            {ATT_FILE_ICONS[f.file_type] || '📄'} {f.filename}
+                          </a>
+                        )}
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -618,6 +796,11 @@ export default function VariantPlayer({
                     assignmentId={assignmentId}
                     taskFiles={filesByTask[num] || []}
                     onAnswerFileAdded={handleAnswerFileAdded}
+                    onImageClick={setLightboxSrc}
+                    isTeacher={isTeacher}
+                    teacherCommentForTask={taskComments[num] || ''}
+                    onSaveTeacherComment={isTeacher && assignmentId ? saveTaskComment : undefined}
+                    teacherNoteForStudent={!isTeacher ? (taskComments[num] || '') : ''}
                   />
                 );
               })}
@@ -656,10 +839,46 @@ export default function VariantPlayer({
     </div>
   );
 
+  const chrome = (
+    <>
+      {lightboxSrc && (
+        <div
+          role="presentation"
+          onClick={() => setLightboxSrc(null)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 2500,
+            background: 'rgba(0,0,0,.88)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 16,
+            cursor: 'zoom-out',
+          }}
+        >
+          <img
+            src={lightboxSrc}
+            alt=""
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: '96vw', maxHeight: '92vh', objectFit: 'contain', borderRadius: 4 }}
+          />
+        </div>
+      )}
+      <VariantWhiteboard
+        open={wbOpen}
+        onClose={() => setWbOpen(false)}
+        strokes={wbStrokes}
+        onStrokesChange={handleWbStrokesChange}
+      />
+    </>
+  );
+
   if (embedded) {
     return (
-      <div style={{ width: '100%', fontFamily: 'Montserrat, sans-serif' }}>
+      <div style={{ width: '100%', fontFamily: 'Montserrat, sans-serif', position: 'relative' }}>
         {inner}
+        {chrome}
       </div>
     );
   }
@@ -672,6 +891,7 @@ export default function VariantPlayer({
       backdropFilter: 'blur(4px)',
     }}>
       {inner}
+      {chrome}
     </div>
   );
 }

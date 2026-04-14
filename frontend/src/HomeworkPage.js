@@ -11,6 +11,14 @@ function getCookie(name) {
   return '';
 }
 
+/** URL текущей страницы с ?variant_play= — для открытия варианта в новой вкладке. */
+function buildVariantPlayUrl(assignmentId) {
+  if (typeof window === 'undefined') return '';
+  const u = new URL(window.location.href);
+  u.searchParams.set('variant_play', String(assignmentId));
+  return u.toString();
+}
+
 /** Текст ошибки из ответа DRF (detail / error / поля формы). */
 async function parseApiErrorResponse(res, fallback) {
   try {
@@ -701,6 +709,17 @@ function AssignmentDetailModal({ assignment, isTeacher, onClose, onUpdated }) {
                 showCorrectAnswers
                 assignmentId={assignment.id}
                 answerFiles={localFiles}
+                isTeacher={isTeacher}
+                taskTeacherComments={assignment.task_teacher_comments || {}}
+                whiteboardStrokes={assignment.whiteboard_strokes || []}
+                onMetaUpdated={(data) => {
+                  onUpdated({
+                    ...assignment,
+                    task_teacher_comments: data.task_teacher_comments,
+                    whiteboard_strokes: data.whiteboard_strokes,
+                  });
+                }}
+                openVariantPlayUrl={buildVariantPlayUrl(assignment.id)}
               />
             </div>
           )}
@@ -950,7 +969,7 @@ function CoverWaves({ gradient, cancelled }) {
 }
 
 // ── HomeworkCard ──────────────────────────────────────────────────────────────
-function HomeworkCard({ hw, onClick, isTeacher, onCancelAll, cardIndex = 0 }) {
+function HomeworkCard({ hw, onClick, isTeacher, onCancelAll, cardIndex = 0, showVariantNewTab = false }) {
   const isCancelled = hw.status === 'cancelled' || hw.all_cancelled === true;
   const title   = hw.homework_title || hw.title || `Вариант ${hw.variant_id}`;
   const subject = hw.subject || hw.homework?.subject || null;
@@ -1143,6 +1162,31 @@ function HomeworkCard({ hw, onClick, isTeacher, onCancelAll, cardIndex = 0 }) {
             </button>
           )}
         </div>
+
+        {showVariantNewTab && hw.id && hw.status !== 'cancelled' && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              window.open(buildVariantPlayUrl(hw.id), '_blank', 'noopener,noreferrer');
+            }}
+            style={{
+              width: '100%',
+              marginTop: 2,
+              padding: '7px 0',
+              borderRadius: 8,
+              border: '1px solid #e2e8f0',
+              background: '#f8fafc',
+              color: '#475569',
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: 'pointer',
+              fontFamily: 'Montserrat, sans-serif',
+            }}
+          >
+            Открыть вариант в новой вкладке
+          </button>
+        )}
       </div>
     </div>
   );
@@ -1184,7 +1228,7 @@ const TAB_STUDENT = [
   { id: 'cancelled', label: 'Отменённые' },
 ];
 
-export default function HomeworkPage({ isStudent = false }) {
+export default function HomeworkPage({ isStudent = false, variantPlayAssignmentId = null, onConsumedVariantPlay = () => {} }) {
   const [tab,          setTab]          = useState('all');
   const [homeworks,    setHomeworks]    = useState([]);
   const [assignments,  setAssignments]  = useState([]);
@@ -1195,7 +1239,44 @@ export default function HomeworkPage({ isStudent = false }) {
   const [selectedHwAssignments, setSelectedHwAssignments] = useState([]);
   const [assignView,   setAssignView]   = useState(null);
   // Variant player state
-  const [playerAssignment, setPlayerAssignment] = useState(null); // { variantId, assignmentId, readOnly, result, score }
+  const [playerAssignment, setPlayerAssignment] = useState(null);
+
+  const openVariantFromAssignment = useCallback(async (a, { isTeacherView = false } = {}) => {
+    const aid = a?.id;
+    if (!aid) return;
+    let full = a;
+    try {
+      const res = await fetch(`${API}/api/homework/assignment/${aid}/`, { credentials: 'include' });
+      if (res.ok) full = await res.json();
+    } catch { /* use a */ }
+    if (!full.variant_id) return;
+    const studentReadOnly = !isTeacherView && ['submitted', 'reviewing', 'reviewed'].includes(full.status);
+    setPlayerAssignment({
+      variantId: full.variant_id,
+      assignmentId: full.id,
+      readOnly: isTeacherView ? true : studentReadOnly,
+      result: full.result || {},
+      score: full.score ?? null,
+      showCorrect: isTeacherView || full.status === 'reviewed',
+      answerFiles: full.answer_files || [],
+      taskTeacherComments: full.task_teacher_comments || {},
+      whiteboardStrokes: full.whiteboard_strokes || [],
+      studentName: isTeacherView ? `${full.student_name || ''} ${full.student_surname || ''}`.trim() : undefined,
+      status: full.status,
+      openVariantPlayUrl: buildVariantPlayUrl(full.id),
+      isTeacher: !!isTeacherView,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!variantPlayAssignmentId) return;
+    let cancelled = false;
+    (async () => {
+      await openVariantFromAssignment({ id: variantPlayAssignmentId }, { isTeacherView: !isStudent });
+      if (!cancelled) onConsumedVariantPlay();
+    })();
+    return () => { cancelled = true; };
+  }, [variantPlayAssignmentId, isStudent, openVariantFromAssignment, onConsumedVariantPlay]);
 
   const fetchData = useCallback(() => {
     setLoading(true);
@@ -1356,15 +1437,8 @@ export default function HomeworkPage({ isStudent = false }) {
                 hw={a}
                 isTeacher={false}
                 cardIndex={i}
-                onClick={a.status === 'cancelled' ? undefined : () => setPlayerAssignment({
-                  variantId:    a.variant_id,
-                  assignmentId: a.id,
-                  readOnly:     ['submitted', 'reviewing', 'reviewed'].includes(a.status),
-                  result:       a.result || null,
-                  score:        a.score ?? null,
-                  status:       a.status,
-                  answerFiles:  a.answer_files || [],
-                })}
+                showVariantNewTab
+                onClick={a.status === 'cancelled' ? undefined : () => openVariantFromAssignment(a, { isTeacherView: false })}
               />
             ))}
           </div>
@@ -1434,19 +1508,10 @@ export default function HomeworkPage({ isStudent = false }) {
                     {/* left: avatar + name — clickable only if not cancelled */}
                     <div
                       style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0, cursor: isCancelled ? 'default' : 'pointer' }}
-                      onClick={() => {
+                      onClick={async () => {
                         if (isCancelled) return;
                         if (a.result && Object.keys(a.result).length > 0) {
-                          setPlayerAssignment({
-                            variantId:    a.variant_id,
-                            assignmentId: a.id,
-                            readOnly:     true,
-                            result:       a.result,
-                            score:        a.score ?? null,
-                            showCorrect:  true,
-                            studentName:  `${a.student_name || ''} ${a.student_surname || ''}`.trim(),
-                            answerFiles:  a.answer_files || [],
-                          });
+                          await openVariantFromAssignment(a, { isTeacherView: true });
                         } else {
                           setSelected(a);
                         }
@@ -1484,6 +1549,21 @@ export default function HomeworkPage({ isStudent = false }) {
                         <span style={{ fontSize: 11, color: '#9ca3af' }}>📎 {a.answer_count}</span>
                       )}
                       <StatusBadge status={a.status} />
+                      {!isCancelled && assignView?.variant_id && (
+                        <a
+                          href={buildVariantPlayUrl(a.id)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          style={{
+                            padding: '4px 10px', borderRadius: 8, border: '1px solid #c7d2fe',
+                            background: '#eef2ff', color: '#4338ca', fontSize: 11, fontWeight: 700,
+                            textDecoration: 'none', fontFamily: 'Montserrat, sans-serif', whiteSpace: 'nowrap',
+                          }}
+                        >
+                          Вариант в новой вкладке
+                        </a>
+                      )}
                       {!isCancelled && (
                         <button
                           onClick={(e) => { e.stopPropagation(); cancelAssignment(a.id); }}
@@ -1541,12 +1621,33 @@ export default function HomeworkPage({ isStudent = false }) {
       {/* Variant player — student takes test / teacher views results */}
       {playerAssignment && (
         <VariantPlayer
+          key={playerAssignment.assignmentId}
           variantId={playerAssignment.variantId}
           readOnly={playerAssignment.readOnly}
           savedResult={playerAssignment.result}
           showCorrectAnswers={!!playerAssignment.showCorrect}
           assignmentId={playerAssignment.assignmentId}
           answerFiles={playerAssignment.answerFiles || []}
+          isTeacher={!!playerAssignment.isTeacher}
+          taskTeacherComments={playerAssignment.taskTeacherComments || {}}
+          whiteboardStrokes={playerAssignment.whiteboardStrokes || []}
+          onMetaUpdated={(data) => {
+            setPlayerAssignment((pa) => {
+              if (!pa || pa.assignmentId !== data.id) return pa;
+              return {
+                ...pa,
+                taskTeacherComments: data.task_teacher_comments || {},
+                whiteboardStrokes: data.whiteboard_strokes || [],
+              };
+            });
+            if (isStudent) {
+              setAssignments((prev) => prev.map((x) => (x.id === data.id ? { ...x, ...data } : x)));
+            } else {
+              setSelectedHwAssignments((prev) => prev.map((x) => (x.id === data.id ? { ...x, ...data } : x)));
+              setSelected((sel) => (sel && sel.id === data.id ? { ...sel, ...data } : sel));
+            }
+          }}
+          openVariantPlayUrl={playerAssignment.openVariantPlayUrl}
           onClose={() => setPlayerAssignment(null)}
           onSubmit={playerAssignment.readOnly ? null : async (result, score) => {
             try {

@@ -150,6 +150,7 @@ class HomeworkAssignmentSerializer(serializers.ModelSerializer):
             'student_name', 'student_surname',
             'homework_title', 'variant_id', 'deadline', 'teacher_name',
             'answer_count', 'result', 'score',
+            'task_teacher_comments', 'whiteboard_strokes',
         ]
 
     def get_homework_title(self, obj):

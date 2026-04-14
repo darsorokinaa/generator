@@ -1113,6 +1113,26 @@ class HomeworkMyView(APIView):
         )
 
 
+def homework_assignment_accessible(request, pk):
+    """Назначение ДЗ, если текущий пользователь (ученик-владелец или учитель ДЗ) имеет к нему доступ."""
+    try:
+        profile = request.user.profile
+    except Exception:
+        return None
+    qs = HomeworkAssignment.objects.select_related(
+        'homework', 'homework__teacher', 'student',
+    ).prefetch_related('answer_files', 'homework__attachments')
+    try:
+        obj = qs.get(pk=pk)
+    except HomeworkAssignment.DoesNotExist:
+        return None
+    if profile.role == 'student' and obj.student_id != profile.pk:
+        return None
+    if profile.role != 'student' and obj.homework.teacher_id != profile.pk:
+        return None
+    return obj
+
+
 class HomeworkAssignmentDetailView(APIView):
     """
     GET /api/homework/assignment/<id>/
@@ -1120,30 +1140,67 @@ class HomeworkAssignmentDetailView(APIView):
     """
     permission_classes = [IsLKTeacher]
 
-    def _get_assignment(self, request, pk):
-        try:
-            profile = request.user.profile
-        except Exception:
-            return None
-        qs = HomeworkAssignment.objects.select_related(
-            'homework', 'homework__teacher', 'student',
-        ).prefetch_related('answer_files', 'homework__attachments')
-        try:
-            obj = qs.get(pk=pk)
-        except HomeworkAssignment.DoesNotExist:
-            return None
-        # Teacher can see assignments of their homeworks; student only their own
-        if profile.role == 'student' and obj.student_id != profile.pk:
-            return None
-        if profile.role != 'student' and obj.homework.teacher_id != profile.pk:
-            return None
-        return obj
-
     def get(self, request, pk):
-        obj = self._get_assignment(request, pk)
+        obj = homework_assignment_accessible(request, pk)
         if not obj:
             return Response({'error': 'Не найдено'}, status=status.HTTP_404_NOT_FOUND)
         return Response(HomeworkAssignmentDetailSerializer(obj, context={'request': request}).data)
+
+
+class HomeworkAssignmentMetaPatchView(APIView):
+    """
+    PATCH /api/homework/assignment/<id>/meta/
+    - whiteboard_strokes: полный список штрихов (ученик или учитель)
+    - task_teacher_comments: частичное обновление { "номер задания": "текст" } (только учитель)
+    """
+    permission_classes = [IsLKTeacher]
+
+    def patch(self, request, pk):
+        obj = homework_assignment_accessible(request, pk)
+        if not obj:
+            return Response({'error': 'Не найдено'}, status=status.HTTP_404_NOT_FOUND)
+        profile = request.user.profile
+        is_student_owner = profile.role == 'student' and obj.student_id == profile.pk
+        is_teacher_owner = profile.role != 'student' and obj.homework.teacher_id == profile.pk
+
+        update_fields = []
+
+        if 'whiteboard_strokes' in request.data:
+            if not (is_student_owner or is_teacher_owner):
+                return Response({'error': 'Нет прав'}, status=status.HTTP_403_FORBIDDEN)
+            strokes = request.data.get('whiteboard_strokes')
+            if not isinstance(strokes, list):
+                return Response({'error': 'whiteboard_strokes должен быть массивом'}, status=status.HTTP_400_BAD_REQUEST)
+            if len(strokes) > 800:
+                strokes = strokes[-800:]
+            obj.whiteboard_strokes = strokes
+            update_fields.append('whiteboard_strokes')
+
+        if 'task_teacher_comments' in request.data:
+            if not is_teacher_owner:
+                return Response({'error': 'Только учитель может сохранять комментарии к заданиям'}, status=status.HTTP_403_FORBIDDEN)
+            tc = request.data.get('task_teacher_comments')
+            if not isinstance(tc, dict):
+                return Response({'error': 'task_teacher_comments должен быть объектом'}, status=status.HTTP_400_BAD_REQUEST)
+            base = dict(obj.task_teacher_comments or {})
+            for k, v in tc.items():
+                key = str(k).strip()
+                if not key:
+                    continue
+                base[key] = '' if v is None else str(v)
+            obj.task_teacher_comments = base
+            update_fields.append('task_teacher_comments')
+
+        if not update_fields:
+            return Response(
+                {'error': 'Укажите whiteboard_strokes и/или task_teacher_comments'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        obj.save(update_fields=update_fields)
+        return Response(
+            HomeworkAssignmentDetailSerializer(obj, context={'request': request}).data,
+        )
 
 
 def _absolutize_variant_html(html: str, base_url: str) -> str:

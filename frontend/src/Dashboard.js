@@ -121,7 +121,23 @@ const LEVEL_FILTERS = [
 
 export default function Dashboard() {
   const [page, setPage] = useState('dashboard');
+  const [variantPlayAssignmentId, setVariantPlayAssignmentId] = useState(null);
   const [profileBackPage, setProfileBackPage] = useState('students');
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const u = new URL(window.location.href);
+    const v = u.searchParams.get('variant_play');
+    if (!v) return;
+    const n = parseInt(String(v), 10);
+    if (Number.isFinite(n) && n > 0) {
+      setPage('homework');
+      setVariantPlayAssignmentId(n);
+    }
+    u.searchParams.delete('variant_play');
+    const qs = u.searchParams.toString();
+    window.history.replaceState({}, '', `${u.pathname}${qs ? `?${qs}` : ''}${u.hash}`);
+  }, []);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [levelFilter, setLevelFilter] = useState('all');
@@ -521,7 +537,13 @@ export default function Dashboard() {
               }}
             />
           )}
-          {page === 'homework' && <HomeworkPage isStudent={isStudent} />}
+          {page === 'homework' && (
+            <HomeworkPage
+              isStudent={isStudent}
+              variantPlayAssignmentId={variantPlayAssignmentId}
+              onConsumedVariantPlay={() => setVariantPlayAssignmentId(null)}
+            />
+          )}
           {(page === 'dashboard' || page === 'generator') && isTeacher && <>
 
           {/* Search at top */}
