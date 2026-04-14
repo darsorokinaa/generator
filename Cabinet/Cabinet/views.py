@@ -1264,7 +1264,7 @@ def _absolutize_variant_html(html: str, base_url: str) -> str:
         attr, quote, path = m.group(1), m.group(2), m.group(3)
         return f'{attr}={quote}{abs_path(path)}{quote}'
 
-    out = re.sub(r'(?is)(src|href)\s*=\s*(["\'])(/[^"\'>\\s]+)\2', repl_attr, html)
+    out = re.sub(r"(?is)(src|href)\s*=\s*([\"'])(/[^\s\"'>]+)\2", repl_attr, html)
     out = re.sub(
         r'(?is)url\s*\(\s*(["\']?)(/[^)\'"]+)\1\s*\)',
         lambda m: f'url({m.group(1)}{abs_path(m.group(2))}{m.group(1)})',

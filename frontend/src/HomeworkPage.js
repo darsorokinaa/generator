@@ -1437,8 +1437,7 @@ export default function HomeworkPage({ isStudent = false, variantPlayAssignmentI
                 hw={a}
                 isTeacher={false}
                 cardIndex={i}
-                showVariantNewTab
-                onClick={a.status === 'cancelled' ? undefined : () => openVariantFromAssignment(a, { isTeacherView: false })}
+                onClick={a.status === 'cancelled' ? undefined : () => window.open(buildVariantPlayUrl(a.id), '_blank', 'noopener,noreferrer')}
               />
             ))}
           </div>

@@ -480,6 +480,7 @@ export default function VariantPlayer({
   onSubmit,
   onClose,
   embedded = false,
+  standalone = false,
   isTeacher = false,
   taskTeacherComments = null,
   whiteboardStrokes: whiteboardStrokesProp = null,
@@ -614,13 +615,13 @@ export default function VariantPlayer({
 
   const cardShell = {
     background: '#f8fafc',
-    borderRadius: embedded ? 12 : 16,
+    borderRadius: embedded ? 12 : (standalone ? 16 : 16),
     width: '100%',
     maxWidth: embedded ? '100%' : 760,
     minHeight: 200,
     position: 'relative',
     fontFamily: 'Montserrat, sans-serif',
-    boxShadow: embedded ? 'inset 0 0 0 1px #e2e8f0' : '0 20px 60px rgba(0,0,0,.25)',
+    boxShadow: (embedded || standalone) ? 'inset 0 0 0 1px #e2e8f0' : '0 20px 60px rgba(0,0,0,.25)',
     maxHeight: embedded ? 'min(68vh, 720px)' : undefined,
     overflow: embedded ? 'hidden' : undefined,
     display: embedded ? 'flex' : undefined,
@@ -656,45 +657,56 @@ export default function VariantPlayer({
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', flexShrink: 0 }}>
           {assignmentId && (
-            <>
-              <button
-                type="button"
-                onClick={() => setWbOpen(true)}
-                style={{
-                  padding: '7px 12px',
-                  borderRadius: 8,
-                  border: '1px solid #e2e8f0',
-                  background: '#fefce8',
-                  color: '#854d0e',
-                  fontWeight: 700,
-                  fontSize: 12,
-                  cursor: 'pointer',
-                  fontFamily: 'Montserrat, sans-serif',
-                }}
-              >
-                Доска
-              </button>
-              {openVariantPlayUrl && (
-                <a
-                  href={openVariantPlayUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    padding: '7px 12px',
-                    borderRadius: 8,
-                    border: '1px solid #c7d2fe',
-                    background: '#eef2ff',
-                    color: '#3730a3',
-                    fontWeight: 700,
-                    fontSize: 12,
-                    textDecoration: 'none',
-                    fontFamily: 'Montserrat, sans-serif',
-                  }}
-                >
-                  Новая вкладка
-                </a>
-              )}
-            </>
+            <button
+              type="button"
+              onClick={() => setWbOpen((v) => !v)}
+              style={{
+                padding: '7px 12px',
+                borderRadius: 8,
+                border: wbOpen ? '1.5px solid #ca8a04' : '1px solid #e2e8f0',
+                background: wbOpen ? '#fef9c3' : '#fefce8',
+                color: '#854d0e',
+                fontWeight: 700,
+                fontSize: 12,
+                cursor: 'pointer',
+                fontFamily: 'Montserrat, sans-serif',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+              }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+              </svg>
+              Доска
+            </button>
+          )}
+          {!standalone && openVariantPlayUrl && (
+            <a
+              href={openVariantPlayUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                padding: '7px 12px',
+                borderRadius: 8,
+                border: '1px solid #c7d2fe',
+                background: '#eef2ff',
+                color: '#3730a3',
+                fontWeight: 700,
+                fontSize: 12,
+                textDecoration: 'none',
+                fontFamily: 'Montserrat, sans-serif',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+              }}
+            >
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+                <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+              </svg>
+              Новая вкладка
+            </a>
           )}
           {!embedded && onClose && (
             <button
@@ -874,7 +886,7 @@ export default function VariantPlayer({
     </>
   );
 
-  if (embedded) {
+  if (embedded || standalone) {
     return (
       <div style={{ width: '100%', fontFamily: 'Montserrat, sans-serif', position: 'relative' }}>
         {inner}
