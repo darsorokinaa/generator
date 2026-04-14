@@ -497,6 +497,7 @@ export default function VariantPlayer({
   const [wbOpen, setWbOpen] = useState(false);
   const [wbStrokes, setWbStrokes] = useState(() => (Array.isArray(whiteboardStrokesProp) ? whiteboardStrokesProp : []));
   const wbSaveTimer = useRef(null);
+  const containerRef = useRef(null);
 
   const taskComments = taskTeacherComments && typeof taskTeacherComments === 'object' ? taskTeacherComments : {};
 
@@ -727,7 +728,7 @@ export default function VariantPlayer({
       </div>
 
       {/* Body */}
-      <div style={{ padding: embedded ? '16px 18px 18px' : '20px 24px 24px', ...bodyScroll }}>
+      <div ref={containerRef} style={{ padding: embedded ? '16px 18px 18px' : '20px 24px 24px', paddingBottom: wbOpen ? (embedded ? '82px' : '82px') : undefined, ...bodyScroll }}>
           {loading && (
             <div style={{ textAlign: 'center', padding: '40px 0', color: '#9ca3af' }}>
               <div style={{
@@ -882,6 +883,7 @@ export default function VariantPlayer({
         onClose={() => setWbOpen(false)}
         strokes={wbStrokes}
         onStrokesChange={handleWbStrokesChange}
+        containerRef={containerRef}
       />
     </>
   );

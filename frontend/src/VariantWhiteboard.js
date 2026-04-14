@@ -1,86 +1,157 @@
+/**
+ * Доска — прозрачный canvas поверх варианта (как в 01 generator / genu.ru).
+ *
+ * Canvas: position:fixed, full-viewport, z-index:10001, background:transparent.
+ * Координаты хранятся относительно containerRef (корень варианта).
+ * При скролле canvas перерисовывается с translate, сдвигая штрихи за содержимым.
+ * Тулбар — position:fixed bottom:0, как в 01 generator.
+ */
 import { useRef, useEffect, useCallback, useState } from 'react';
 
-const DEFAULT_COLOR = '#1e293b';
-const DEFAULT_WIDTH = 2.5;
+const COLORS = ['#000000', '#dc2626', '#2563eb', '#16a34a', '#ca8a04', '#9333ea', '#ffffff'];
+const PEN_WIDTH = 3;
 
-function drawStrokes(ctx, strokes, w, h) {
-  ctx.fillStyle = '#fffdf7';
-  ctx.fillRect(0, 0, w, h);
+function drawStrokes(ctx, strokes) {
   strokes.forEach((s) => {
     if (s.type !== 'path' || !Array.isArray(s.points) || s.points.length < 2) return;
-    ctx.strokeStyle = s.color || DEFAULT_COLOR;
-    ctx.lineWidth = s.width || DEFAULT_WIDTH;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
+    ctx.strokeStyle = s.color || '#000';
+    ctx.lineWidth   = s.width  || PEN_WIDTH;
+    ctx.lineCap     = 'round';
+    ctx.lineJoin    = 'round';
     ctx.beginPath();
     const [x0, y0] = s.points[0];
     ctx.moveTo(x0, y0);
-    for (let i = 1; i < s.points.length; i += 1) {
-      const [xi, yi] = s.points[i];
-      ctx.lineTo(xi, yi);
+    for (let i = 1; i < s.points.length; i++) {
+      ctx.lineTo(s.points[i][0], s.points[i][1]);
     }
     ctx.stroke();
   });
 }
 
-/**
- * Плавающая панель-доска поверх вариантa.
- * Появляется справа в виде прилипшей панели.
- */
-export default function VariantWhiteboard({ strokes, onStrokesChange, open, onClose }) {
-  const canvasRef = useRef(null);
-  const panelRef  = useRef(null);
-  const drawing   = useRef(null);
-  const [color, setColor] = useState(DEFAULT_COLOR);
-  const [width, setWidth] = useState(DEFAULT_WIDTH);
-  const [panelH, setPanelH] = useState(480);
+export default function VariantWhiteboard({
+  strokes,
+  onStrokesChange,
+  open,
+  onClose,
+  containerRef,   // ref to the scrollable variant root element
+}) {
+  const canvasRef  = useRef(null);
+  const drawing    = useRef(null);
+  const geomRef    = useRef({ vw: 1, vh: 1, dpr: 1 });
+  const rafRef     = useRef(null);
+  const [color, setColor] = useState('#000000');
+  const [width, setWidth] = useState(PEN_WIDTH);
+  const [erasing, setErasing] = useState(false);
+
+  /* ── coordinate helpers ─────────────────────────────────────── */
+
+  /** Client coords → logical coords relative to containerRef. */
+  const boardCoords = useCallback((clientX, clientY) => {
+    const root = containerRef?.current;
+    if (!root) {
+      // fallback: use page coords (works for full-page standalone)
+      return [clientX + window.scrollX, clientY + window.scrollY];
+    }
+    const mr = root.getBoundingClientRect();
+    const sw = root.scrollWidth  || mr.width  || 1;
+    const sh = root.scrollHeight || mr.height || 1;
+    const sx = mr.width  > 0 ? sw / mr.width  : 1;
+    const sy = mr.height > 0 ? sh / mr.height : 1;
+    return [(clientX - mr.left) * sx, (clientY - mr.top) * sy];
+  }, [containerRef]);
+
+  /* ── resize + redraw ─────────────────────────────────────────── */
 
   const redraw = useCallback(() => {
     const canvas = canvasRef.current;
-    const panel  = panelRef.current;
-    if (!canvas || !panel) return;
-    const dpr = window.devicePixelRatio || 1;
-    const cw = Math.max(260, Math.floor(panel.offsetWidth - 32));
-    const ch = Math.max(200, panelH - 148);
-    canvas.width  = Math.floor(cw * dpr);
-    canvas.height = Math.floor(ch * dpr);
-    canvas.style.width  = `${cw}px`;
-    canvas.style.height = `${ch}px`;
+    if (!canvas) return;
+    const { vw, vh, dpr } = geomRef.current;
+    const pw = canvas.width;
+    const ph = canvas.height;
+    if (pw < 1 || ph < 1) return;
+
+    const root = containerRef?.current;
+    const mr   = root ? root.getBoundingClientRect() : { left: 0, top: 0 };
+
     const ctx = canvas.getContext('2d');
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, pw, ph);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    drawStrokes(ctx, strokes, cw, ch);
-  }, [strokes, panelH]);
+    ctx.save();
+    ctx.translate(mr.left, mr.top);
+    ctx.beginPath();
+    ctx.rect(-mr.left, -mr.top, vw, vh);
+    ctx.clip();
+    drawStrokes(ctx, strokes);
+    ctx.restore();
+  }, [strokes, containerRef]);
+
+  const scheduleRedraw = useCallback(() => {
+    if (rafRef.current) return;
+    rafRef.current = requestAnimationFrame(() => { rafRef.current = null; redraw(); });
+  }, [redraw]);
+
+  const resizeCanvas = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const vw  = Math.max(1, Math.round(window.innerWidth  || 1));
+    const vh  = Math.max(1, Math.round(window.innerHeight || 1));
+    canvas.width  = Math.round(vw * dpr);
+    canvas.height = Math.round(vh * dpr);
+    canvas.style.width  = `${vw}px`;
+    canvas.style.height = `${vh}px`;
+    geomRef.current = { vw, vh, dpr };
+    redraw();
+  }, [redraw]);
+
+  /* ── mount / scroll / resize observers ──────────────────────── */
 
   useEffect(() => {
     if (!open) return;
-    redraw();
-    const ro = new ResizeObserver(() => redraw());
-    if (panelRef.current) ro.observe(panelRef.current);
-    return () => ro.disconnect();
-  }, [open, redraw]);
+    resizeCanvas();
+    const onResize = () => resizeCanvas();
+    const onScroll = () => scheduleRedraw();
+    window.addEventListener('resize', onResize);
+    window.addEventListener('scroll', onScroll, { passive: true });
+    // Also observe the container element for internal scrolling
+    const root = containerRef?.current;
+    if (root) root.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('scroll', onScroll);
+      if (root) root.removeEventListener('scroll', onScroll);
+    };
+  }, [open, resizeCanvas, scheduleRedraw, containerRef]);
 
-  const clientToCanvas = (clientX, clientY) => {
+  // Redraw whenever strokes change
+  useEffect(() => {
+    if (open) scheduleRedraw();
+  }, [open, strokes, scheduleRedraw]);
+
+  /* ── pointer events ──────────────────────────────────────────── */
+
+  const handlePointerDown = (e) => {
     const canvas = canvasRef.current;
-    if (!canvas) return [0, 0];
-    const r   = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    const x = ((clientX - r.left) / r.width)  * (canvas.width  / dpr);
-    const y = ((clientY - r.top)  / r.height) * (canvas.height / dpr);
-    return [x, y];
-  };
-
-  const onPointerDown = (e) => {
-    if (!canvasRef.current) return;
-    e.currentTarget.setPointerCapture(e.pointerId);
-    const [x, y] = clientToCanvas(e.clientX, e.clientY);
+    if (!canvas) return;
+    canvas.setPointerCapture(e.pointerId);
+    const [x, y] = boardCoords(e.clientX, e.clientY);
+    if (erasing) {
+      onStrokesChange((prev) => eraseAt(prev, x, y));
+      return;
+    }
     const path = { type: 'path', color, width, points: [[x, y]] };
     drawing.current = path;
     onStrokesChange((prev) => [...prev, path]);
   };
 
-  const onPointerMove = (e) => {
-    if (!drawing.current) return;
-    const [x, y] = clientToCanvas(e.clientX, e.clientY);
+  const handlePointerMove = (e) => {
+    if (!drawing.current && !erasing) return;
+    const [x, y] = boardCoords(e.clientX, e.clientY);
+    if (erasing) {
+      onStrokesChange((prev) => eraseAt(prev, x, y));
+      return;
+    }
     drawing.current.points.push([x, y]);
     onStrokesChange((prev) => {
       if (!prev.length) return prev;
@@ -89,158 +160,197 @@ export default function VariantWhiteboard({ strokes, onStrokesChange, open, onCl
     });
   };
 
-  const onPointerUp = (e) => {
-    try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+  const handlePointerUp = (e) => {
+    try { canvasRef.current?.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
     drawing.current = null;
   };
+
+  function eraseAt(strokes, x, y) {
+    const R = 16;
+    for (let i = strokes.length - 1; i >= 0; i--) {
+      const s = strokes[i];
+      if (s.type !== 'path') continue;
+      const hit = s.points.some(([px, py]) => Math.hypot(px - x, py - y) < R);
+      if (hit) {
+        const next = [...strokes];
+        next.splice(i, 1);
+        return next;
+      }
+    }
+    return strokes;
+  }
 
   const clearAll = () => { drawing.current = null; onStrokesChange(() => []); };
   const undo     = () => { drawing.current = null; onStrokesChange((prev) => prev.length ? prev.slice(0, -1) : prev); };
 
-  const COLORS = ['#1e293b', '#dc2626', '#2563eb', '#16a34a', '#ca8a04', '#9333ea'];
+  if (!open) return null;
+
+  const cursorStyle = erasing ? 'cell' : 'crosshair';
 
   return (
-    <div
-      ref={panelRef}
-      style={{
-        position: 'fixed',
-        top: 80,
-        right: open ? 0 : -400,
-        width: 'min(360px, 100vw)',
-        height: panelH,
-        zIndex: 2200,
-        background: '#fff',
-        borderRadius: '16px 0 0 16px',
-        boxShadow: '-4px 4px 32px rgba(0,0,0,.18)',
-        display: 'flex',
-        flexDirection: 'column',
-        transition: 'right .25s cubic-bezier(.4,0,.2,1)',
-        fontFamily: 'Montserrat, sans-serif',
-        overflow: 'hidden',
-        border: '1px solid #e2e8f0',
-        borderRight: 'none',
-        userSelect: 'none',
-      }}
-    >
-      {/* Header */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '10px 14px 8px',
-        borderBottom: '1px solid #f1f5f9',
-        background: '#fefce8',
-        flexShrink: 0,
-        gap: 8,
-      }}>
-        <div style={{ fontWeight: 800, fontSize: 13, color: '#713f12', display: 'flex', alignItems: 'center', gap: 6 }}>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-          </svg>
-          Доска
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          {/* resize height */}
-          <button type="button" onClick={() => setPanelH((h) => Math.max(320, h - 80))} style={iconBtn} title="Уменьшить">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M5 12h14"/></svg>
-          </button>
-          <button type="button" onClick={() => setPanelH((h) => Math.min(820, h + 80))} style={iconBtn} title="Увеличить">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 5v14M5 12h14"/></svg>
-          </button>
-          <button type="button" onClick={onClose} style={{ ...iconBtn, marginLeft: 4 }} title="Свернуть">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
-        </div>
-      </div>
+    <>
+      {/* Transparent drawing canvas — full viewport, fixed */}
+      <canvas
+        ref={canvasRef}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerLeave={handlePointerUp}
+        style={{
+          position: 'fixed',
+          inset: 0,
+          zIndex: 10001,
+          background: 'transparent',
+          touchAction: drawing.current || erasing ? 'none' : 'manipulation',
+          userSelect: 'none',
+          WebkitUserSelect: 'none',
+          cursor: cursorStyle,
+          pointerEvents: 'auto',
+        }}
+      />
 
-      {/* Toolbar */}
-      <div style={{
-        display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6,
-        padding: '8px 12px',
-        borderBottom: '1px solid #f1f5f9',
-        flexShrink: 0,
-        background: '#fafafa',
-      }}>
+      {/* Toolbar — fixed at bottom, like 01 generator */}
+      <div
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          zIndex: 10002,
+          background: '#fff',
+          borderTop: '1px solid #f3f4f6',
+          boxShadow: '0 -4px 20px rgba(0,0,0,.08)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexWrap: 'wrap',
+          gap: 8,
+          padding: '12px 20px',
+          fontFamily: 'Montserrat, sans-serif',
+          pointerEvents: 'auto',
+        }}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        {/* Pen */}
+        <ToolBtn active={!erasing} onClick={() => setErasing(false)} title="Карандаш">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 19l7-7 3 3-7 7-3-3z"/>
+            <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/>
+            <path d="M2 2l7.586 7.586"/>
+          </svg>
+        </ToolBtn>
+
+        {/* Eraser */}
+        <ToolBtn active={erasing} onClick={() => setErasing(true)} title="Ластик">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/>
+            <path d="M22 21H7"/><path d="m5 11 9 9"/>
+          </svg>
+        </ToolBtn>
+
+        <Divider />
+
+        {/* Colors */}
         {COLORS.map((c) => (
           <button
             key={c}
             type="button"
-            aria-label={c}
-            onClick={() => setColor(c)}
+            title={c}
+            onClick={() => { setColor(c); setErasing(false); }}
             style={{
-              width: 22, height: 22, borderRadius: 6, cursor: 'pointer',
+              width: 24, height: 24, borderRadius: 4, padding: 0,
               background: c,
-              border: color === c ? '2.5px solid #0f172a' : '2px solid transparent',
-              outline: color === c ? '1.5px solid #fff' : 'none',
-              outlineOffset: '-3px',
+              border: color === c && !erasing ? '2.5px solid #2563eb' : c === '#ffffff' ? '2px solid #e5e7eb' : '2px solid transparent',
+              cursor: 'pointer',
+              boxShadow: color === c && !erasing ? '0 0 0 2px rgba(37,99,235,.25)' : 'none',
+              flexShrink: 0,
+              transform: color === c && !erasing ? 'scale(1.1)' : 'scale(1)',
+              transition: 'transform .15s, border-color .15s',
             }}
           />
         ))}
-        <div style={{ width: 1, height: 18, background: '#e2e8f0', margin: '0 2px' }} />
-        {[1.5, 2.5, 5].map((w) => (
+
+        <Divider />
+
+        {/* Stroke width */}
+        {[2, 4, 7].map((w) => (
           <button
             key={w}
             type="button"
-            onClick={() => setWidth(w)}
+            title={`Толщина ${w}`}
+            onClick={() => { setWidth(w); setErasing(false); }}
             style={{
-              width: 28, height: 22, borderRadius: 6,
-              border: width === w ? '2px solid #4F6EF7' : '1px solid #e2e8f0',
-              background: width === w ? '#eef2ff' : '#fff',
-              cursor: 'pointer', fontSize: 10, fontWeight: 700, color: '#1e293b',
+              width: 36, height: 36, borderRadius: 8, padding: 0,
+              border: width === w && !erasing ? '2px solid #2563eb' : '1.5px solid #e5e7eb',
+              background: width === w && !erasing ? '#eff6ff' : '#fafafa',
+              cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
             }}
           >
-            {w}
+            <div style={{
+              width: Math.max(8, w * 3.5),
+              height: w,
+              borderRadius: w,
+              background: color === '#ffffff' ? '#94a3b8' : color,
+            }} />
           </button>
         ))}
-        <div style={{ flex: 1 }} />
-        <button type="button" onClick={undo} style={toolBtn} title="Отмена">↩</button>
-        <button type="button" onClick={clearAll} style={{ ...toolBtn, color: '#b91c1c', borderColor: '#fecaca', background: '#fef2f2' }}>✕</button>
-      </div>
 
-      {/* Canvas area */}
-      <div style={{ flex: 1, padding: '8px 12px 12px', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        <canvas
-          ref={canvasRef}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerLeave={onPointerUp}
-          style={{
-            display: 'block',
-            borderRadius: 10,
-            border: '1.5px solid #e2e8f0',
-            touchAction: 'none',
-            cursor: 'crosshair',
-            width: '100%',
-            flex: 1,
-            background: '#fffdf7',
-          }}
-        />
-        <p style={{ margin: '6px 0 0', fontSize: 10, color: '#94a3b8', lineHeight: 1.4 }}>
-          Автосохранение при паузе · Доска общая для ученика и учителя
-        </p>
+        <Divider />
+
+        {/* Undo */}
+        <ToolBtn onClick={undo} title="Отменить">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 10h10a5 5 0 0 1 5 5v2"/>
+            <path d="M3 10l4-4M3 10l4 4"/>
+          </svg>
+        </ToolBtn>
+
+        {/* Clear */}
+        <ToolBtn onClick={clearAll} title="Очистить всё" style={{ background: '#fef2f2', borderColor: '#fecaca', color: '#dc2626' }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+          </svg>
+        </ToolBtn>
+
+        <Divider />
+
+        {/* Close */}
+        <ToolBtn onClick={onClose} title="Закрыть доску" style={{ background: '#fef2f2', borderColor: '#fecaca', color: '#dc2626' }}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </ToolBtn>
       </div>
-    </div>
+    </>
   );
 }
 
-const iconBtn = {
-  width: 26, height: 26, borderRadius: 6,
-  border: '1px solid #e2e8f0',
-  background: '#fff',
-  cursor: 'pointer',
-  display: 'flex', alignItems: 'center', justifyContent: 'center',
-  padding: 0,
-  color: '#475569',
-};
+function ToolBtn({ children, onClick, title, active, style }) {
+  return (
+    <button
+      type="button"
+      title={title}
+      onClick={onClick}
+      style={{
+        width: 40, height: 40, borderRadius: 10, padding: 0,
+        border: active ? '1.5px solid #93c5fd' : '1.5px solid #e5e7eb',
+        background: active ? '#eff6ff' : '#fafafa',
+        color: active ? '#2563eb' : '#4b5563',
+        cursor: 'pointer',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        flexShrink: 0,
+        transition: 'background .15s, border-color .15s, color .15s',
+        ...style,
+      }}
+    >
+      {children}
+    </button>
+  );
+}
 
-const toolBtn = {
-  padding: '3px 8px',
-  borderRadius: 6,
-  border: '1px solid #e2e8f0',
-  background: '#fff',
-  cursor: 'pointer',
-  fontSize: 12,
-  fontWeight: 700,
-  color: '#475569',
-};
+function Divider() {
+  return <div style={{ width: 1, height: 24, background: '#e5e7eb', flexShrink: 0, margin: '0 4px' }} />;
+}
