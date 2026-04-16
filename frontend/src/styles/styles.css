@@ -699,33 +699,48 @@ header {
         max-width: none;
     }
 
+    body.subject-page .hero.hero--subject-welcome h1 {
+        font-size: clamp(1rem, 0.42rem + 1.5vw, 1.52rem);
+    }
+
+    body.subject-page .hero.hero--subject-welcome .hero-subject-platform-text {
+        font-size: 1.0625rem;
+        max-width: none;
+    }
+
     body.index .hero-owl {
         width: 286px;
         height: 286px;
         bottom: -53px;
     }
 
-    body.index .exam-grid {
+    body.index .exam-grid,
+    body.subject-page .exam-grid.exam-choice-pair {
         gap: 2rem;
     }
 
-    body.index .exam-card {
+    body.index .exam-card,
+    body.subject-page .exam-grid.exam-choice-pair .exam-card {
         padding: 1.85rem 1.75rem 1.55rem;
     }
 
-    body.index .exam-grid .exam-card {
+    body.index .exam-grid .exam-card,
+    body.subject-page .exam-grid.exam-choice-pair .exam-card {
         min-height: 190px;
     }
 
-    body.index .exam-title {
+    body.index .exam-title,
+    body.subject-page .exam-grid.exam-choice-pair .exam-title {
         font-size: 1.35rem;
     }
 
-    body.index .exam-description {
+    body.index .exam-description,
+    body.subject-page .exam-grid.exam-choice-pair .exam-description {
         font-size: 0.8125rem;
     }
 
-    body.index .exam-icon {
+    body.index .exam-icon,
+    body.subject-page .exam-grid.exam-choice-pair .exam-icon {
         width: 54px;
         height: 54px;
         font-size: 1.65rem;
@@ -768,27 +783,42 @@ header {
         max-width: none;
     }
 
-    body.index .exam-grid {
+    body.subject-page .hero.hero--subject-welcome h1 {
+        font-size: clamp(1.05rem, 0.45rem + 1.35vw, 1.58rem);
+    }
+
+    body.subject-page .hero.hero--subject-welcome .hero-subject-platform-text {
+        font-size: 1.125rem;
+        max-width: none;
+    }
+
+    body.index .exam-grid,
+    body.subject-page .exam-grid.exam-choice-pair {
         gap: 2.25rem;
     }
 
-    body.index .exam-card {
+    body.index .exam-card,
+    body.subject-page .exam-grid.exam-choice-pair .exam-card {
         padding: 2rem 1.85rem 1.65rem;
     }
 
-    body.index .exam-grid .exam-card {
+    body.index .exam-grid .exam-card,
+    body.subject-page .exam-grid.exam-choice-pair .exam-card {
         min-height: 200px;
     }
 
-    body.index .exam-title {
+    body.index .exam-title,
+    body.subject-page .exam-grid.exam-choice-pair .exam-title {
         font-size: 1.45rem;
     }
 
-    body.index .exam-description {
+    body.index .exam-description,
+    body.subject-page .exam-grid.exam-choice-pair .exam-description {
         font-size: 0.875rem;
     }
 
-    body.index .exam-icon {
+    body.index .exam-icon,
+    body.subject-page .exam-grid.exam-choice-pair .exam-icon {
         width: 58px;
         height: 58px;
         font-size: 1.75rem;
@@ -1115,6 +1145,86 @@ body.index .hero-index-cta:hover {
     transform: translateY(-1px);
 }
 
+/* Страница выбора предмета: те же кегли, что у баннера «Платформа…» на главной */
+body.subject-page .hero.hero--subject-welcome {
+    container-type: inline-size;
+    container-name: subject-welcome;
+}
+
+body.subject-page .hero-subject-welcome-inner {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+body.subject-page .hero.hero--subject-welcome h1 {
+    font-family: "Unbounded", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 700;
+    font-size: clamp(0.88rem, 0.32rem + 1.85vw, 1.38rem);
+    letter-spacing: -0.06em;
+    line-height: 1.2;
+    margin-bottom: 0.85rem;
+    color: #2563eb;
+    text-align: left;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    position: relative;
+    z-index: 2;
+}
+
+body.subject-page .hero.hero--subject-welcome .hero-subject-platform-text {
+    font-family: "Montserrat", system-ui, sans-serif;
+    color: rgba(37, 99, 235, 0.92);
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    text-align: left;
+    font-size: 1rem;
+    font-weight: 500;
+    line-height: 1.62;
+    position: relative;
+    z-index: 2;
+    min-width: 0;
+    text-wrap: pretty;
+    box-sizing: border-box;
+    opacity: 1;
+}
+
+@media (min-width: 720px) {
+    body.subject-page .hero.hero--subject-welcome h1 {
+        white-space: nowrap;
+    }
+}
+
+@container subject-welcome (max-width: 560px) {
+    body.subject-page .hero.hero--subject-welcome h1 {
+        font-size: clamp(0.78rem, 0.28rem + 2.4vw, 1.05rem);
+    }
+}
+
+@container subject-welcome (min-width: 900px) {
+    body.subject-page .hero.hero--subject-welcome h1 {
+        font-size: clamp(1rem, 0.38rem + 1.35vw, 1.48rem);
+    }
+}
+
+@media (max-width: 719px) {
+    body.subject-page .hero.hero--subject-welcome h1 {
+        font-size: clamp(0.92rem, 0.52rem + 2.1vw, 1.2rem);
+        white-space: normal;
+        letter-spacing: -0.045em;
+        margin-bottom: 1.05rem;
+    }
+
+    body.subject-page .hero.hero--subject-welcome .hero-subject-platform-text {
+        font-size: 0.8125rem;
+        line-height: 1.58;
+        color: rgba(37, 99, 235, 0.9);
+    }
+}
+
 /* Мобильный баннер: текст на всю ширину (без padding-inline-end под сову — сова absolute) */
 @media (max-width: 719px) {
     body.index .hero.hero--index-welcome {
@@ -1180,35 +1290,6 @@ body.index .hero-index-cta:hover {
         object-position: right bottom;
         pointer-events: none;
         z-index: 1;
-    }
-}
-
-/* Главная, мобильная сетка: ОГЭ/ЕГЭ — заголовок как «Платформа…», подпись как основной текст баннера */
-@media (max-width: 768px) {
-    body.index .exam-card.exam-card-oge .exam-title,
-    body.index .exam-card.exam-card-ege .exam-title {
-        font-family: "Unbounded", sans-serif;
-        font-optical-sizing: auto;
-        font-weight: 700;
-        font-size: clamp(0.92rem, 0.52rem + 2.1vw, 1.2rem);
-        letter-spacing: -0.045em;
-        line-height: 1.2;
-    }
-
-    body.index .exam-card.exam-card-oge .exam-description,
-    body.index .exam-card.exam-card-ege .exam-description {
-        font-family: "Montserrat", system-ui, sans-serif;
-        font-size: 0.8125rem;
-        line-height: 1.58;
-        font-weight: 400;
-        letter-spacing: 0;
-        opacity: 1;
-        text-wrap: pretty;
-    }
-
-    body.index .exam-card.exam-card-oge .exam-card-text,
-    body.index .exam-card.exam-card-ege .exam-card-text {
-        gap: 0.5rem;
     }
 }
 
@@ -1458,6 +1539,8 @@ body.index .hero-index-cta:hover {
 }
 
 .exam-title {
+    font-family: "Unbounded", sans-serif;
+    font-optical-sizing: auto;
     font-size: 1.2rem;
     font-weight: 700;
     margin: 0;
@@ -2732,6 +2815,97 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
     font-style: italic;
 }
 
+/* Таймеры: те же кегли, что у карточек ОГЭ/ЕГЭ на главной */
+body.subject-page .subject-exam-countdown-card__badge {
+    font-family: "Montserrat", system-ui, sans-serif;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+body.subject-page .subject-exam-countdown-card__title {
+    font-family: "Unbounded", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 700;
+    font-size: 1.2rem;
+    letter-spacing: -0.025em;
+    line-height: 1.25;
+    color: var(--text-primary, #0f172a);
+}
+
+body.subject-page .subject-exam-countdown-card__date {
+    font-family: "Montserrat", system-ui, sans-serif;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
+body.subject-page .subject-exam-countdown-card__value {
+    font-size: 1.2rem;
+}
+
+body.subject-page .subject-exam-countdown-card__unit {
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+body.subject-page .subject-exam-countdown-card__value,
+body.subject-page .subject-exam-countdown-card__unit,
+body.subject-page .subject-exam-countdown-card__footnote,
+body.subject-page .subject-exam-countdown-card__footnote-text {
+    font-family: "Montserrat", system-ui, sans-serif;
+}
+
+@media (min-width: 1440px) {
+    body.subject-page .subject-exam-countdown-card__title {
+        font-size: 1.35rem;
+    }
+
+    body.subject-page .subject-exam-countdown-card__date {
+        font-size: 0.8125rem;
+    }
+
+    body.subject-page .subject-exam-countdown-card__value {
+        font-size: 1.35rem;
+    }
+}
+
+@media (min-width: 1600px) {
+    body.subject-page .subject-exam-countdown-card__title {
+        font-size: 1.45rem;
+    }
+
+    body.subject-page .subject-exam-countdown-card__date {
+        font-size: 0.875rem;
+    }
+
+    body.subject-page .subject-exam-countdown-card__value {
+        font-size: 1.45rem;
+    }
+}
+
+@media (max-width: 768px) {
+    body.subject-page .subject-exam-countdown-card__title {
+        font-size: clamp(0.8rem, 0.32rem + 2.2vw, 0.98rem);
+        line-height: 1.12;
+        letter-spacing: -0.035em;
+    }
+
+    body.subject-page .subject-exam-countdown-card__date {
+        font-size: clamp(0.65rem, 0.1rem + 1.85vw, 0.74rem);
+        line-height: 1.32;
+    }
+
+    body.subject-page .subject-exam-countdown-card__value {
+        font-size: clamp(0.8rem, 0.32rem + 2.2vw, 0.98rem);
+    }
+
+    body.subject-page .subject-exam-countdown-card__unit {
+        font-size: clamp(0.55rem, 0.08rem + 1.5vw, 0.62rem);
+    }
+}
+
 @media (min-width: 1024px) {
     .subject-page-layout {
         flex-direction: row;
@@ -2872,6 +3046,17 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
     font-weight: 700;
     color: #1e293b;
     margin: 0 0 0.25rem 0;
+}
+
+body.subject-page .subject-sidebar-title {
+    font-family: "Unbounded", sans-serif;
+    font-optical-sizing: auto;
+}
+
+body.subject-page .subject-sidebar-label,
+body.subject-page .subject-sidebar-text,
+body.subject-page .subject-sidebar-input {
+    font-family: "Montserrat", system-ui, sans-serif;
 }
 
 .subject-sidebar-text {
@@ -4560,23 +4745,25 @@ body.index .exam-grid {
 }
 
 body.home .exam-card,
-body.index .exam-card {
+body.index .exam-card,
+body.subject-page .exam-grid.exam-choice-pair .exam-card {
     padding: 1.625rem 1.5rem 1.375rem;
 }
 
-/* На главной странице карточки экзаменов всегда одинаковой высоты */
-body.index .exam-grid .exam-card {
+/* На главной и на странице предметов карточки выбора — одинаковой высоты */
+body.index .exam-grid .exam-card,
+body.subject-page .exam-grid.exam-choice-pair .exam-card {
     height: 100%;
     min-height: 170px;
 }
 
 /* Главная — только ОГЭ/ЕГЭ (#exam-choice): спокойная глубина, ровные отступы, доступный фокус */
-body.index .exam-grid#exam-choice {
+.exam-grid.exam-choice-pair {
     gap: clamp(1rem, 2.2vw, 1.75rem);
 }
 
-body.index .exam-grid#exam-choice .exam-card.exam-card-oge,
-body.index .exam-grid#exam-choice .exam-card.exam-card-ege {
+.exam-grid.exam-choice-pair .exam-card.exam-card-oge,
+.exam-grid.exam-choice-pair .exam-card.exam-card-ege {
     border: 1px solid rgba(255, 255, 255, 0.2);
     box-shadow:
         0 1px 0 rgba(255, 255, 255, 0.2) inset,
@@ -4588,24 +4775,24 @@ body.index .exam-grid#exam-choice .exam-card.exam-card-ege {
         border-color 0.2s ease;
 }
 
-body.index .exam-grid#exam-choice .exam-card.exam-card-oge {
+.exam-grid.exam-choice-pair .exam-card.exam-card-oge {
     background: #ea8d3d;
 }
 
-body.index .exam-grid#exam-choice .exam-card.exam-card-ege {
+.exam-grid.exam-choice-pair .exam-card.exam-card-ege {
     background: #a99af7;
     border-color: rgba(255, 255, 255, 0.28);
 }
 
-body.index .exam-grid#exam-choice .exam-card-bg .exam-card-decor {
+.exam-grid.exam-choice-pair .exam-card-bg .exam-card-decor {
     opacity: 0.07;
 }
 
-body.index .exam-grid#exam-choice .exam-card:hover {
+.exam-grid.exam-choice-pair .exam-card:hover {
     transform: translateY(-2px);
 }
 
-body.index .exam-grid#exam-choice .exam-card.exam-card-oge:hover {
+.exam-grid.exam-choice-pair .exam-card.exam-card-oge:hover {
     border-color: rgba(255, 255, 255, 0.32);
     box-shadow:
         0 1px 0 rgba(255, 255, 255, 0.26) inset,
@@ -4613,7 +4800,7 @@ body.index .exam-grid#exam-choice .exam-card.exam-card-oge:hover {
         0 14px 36px rgba(180, 85, 30, 0.18);
 }
 
-body.index .exam-grid#exam-choice .exam-card.exam-card-ege:hover {
+.exam-grid.exam-choice-pair .exam-card.exam-card-ege:hover {
     border-color: rgba(255, 255, 255, 0.38);
     box-shadow:
         0 1px 0 rgba(255, 255, 255, 0.3) inset,
@@ -4621,29 +4808,29 @@ body.index .exam-grid#exam-choice .exam-card.exam-card-ege:hover {
         0 14px 36px rgba(91, 33, 182, 0.16);
 }
 
-body.index .exam-grid#exam-choice .exam-card:focus-visible {
+.exam-grid.exam-choice-pair .exam-card:focus-visible {
     outline: 2px solid rgba(255, 255, 255, 0.95);
     outline-offset: 3px;
 }
 
-body.index .exam-grid#exam-choice .exam-card.exam-card-ege:focus-visible {
+.exam-grid.exam-choice-pair .exam-card.exam-card-ege:focus-visible {
     outline-color: rgba(91, 33, 182, 0.55);
 }
 
-body.index .exam-grid#exam-choice .exam-card .exam-card-footer {
+.exam-grid.exam-choice-pair .exam-card .exam-card-footer {
     border-top-width: 1px;
     border-top-style: solid;
 }
 
-body.index .exam-grid#exam-choice .exam-card.exam-card-oge .exam-card-footer {
+.exam-grid.exam-choice-pair .exam-card.exam-card-oge .exam-card-footer {
     border-top-color: rgba(0, 0, 0, 0.1);
 }
 
-body.index .exam-grid#exam-choice .exam-card.exam-card-ege .exam-card-footer {
+.exam-grid.exam-choice-pair .exam-card.exam-card-ege .exam-card-footer {
     border-top-color: rgba(67, 27, 140, 0.14);
 }
 
-body.index .exam-grid#exam-choice .exam-card .exam-card-arrow-wrap {
+.exam-grid.exam-choice-pair .exam-card .exam-card-arrow-wrap {
     width: auto;
     height: auto;
     min-width: 2rem;
@@ -4654,23 +4841,23 @@ body.index .exam-grid#exam-choice .exam-card .exam-card-arrow-wrap {
     box-shadow: none;
 }
 
-body.index .exam-grid#exam-choice .exam-card.exam-card-ege .exam-card-arrow-wrap {
+.exam-grid.exam-choice-pair .exam-card.exam-card-ege .exam-card-arrow-wrap {
     background: transparent;
 }
 
-body.index .exam-grid#exam-choice .exam-card.exam-card-oge .exam-description {
+.exam-grid.exam-choice-pair .exam-card.exam-card-oge .exam-description {
     color: rgba(255, 250, 245, 0.92);
 }
 
-body.index .exam-grid#exam-choice .exam-card.exam-card-ege .exam-description {
+.exam-grid.exam-choice-pair .exam-card.exam-card-ege .exam-description {
     color: rgba(45, 15, 95, 0.88);
 }
 
-body.index .exam-grid#exam-choice .exam-card.exam-card-oge .exam-title {
+.exam-grid.exam-choice-pair .exam-card.exam-card-oge .exam-title {
     color: #fffbf7;
 }
 
-body.index .exam-grid#exam-choice .exam-card.exam-card-ege .exam-title {
+.exam-grid.exam-choice-pair .exam-card.exam-card-ege .exam-title {
     color: #3d1d6e;
 }
 
@@ -4837,15 +5024,17 @@ body.index .exam-grid#exam-choice .exam-card.exam-card-ege .exam-title {
     }
 
     /* Главная: ОГЭ и ЕГЭ — две колонки, иконка слева, ровные шрифты, без переноса по слогам */
-    body.index .exam-grid#exam-choice {
+    .exam-grid.exam-choice-pair {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: clamp(0.5rem, 2.5vw, 0.85rem);
         align-items: stretch;
         margin-top: clamp(0.35rem, 1.8vw, 0.65rem);
     }
 
-    body.index .exam-grid#exam-choice .exam-card.exam-card-oge,
-    body.index .exam-grid#exam-choice .exam-card.exam-card-ege {
+    .exam-grid.exam-choice-pair .exam-card.exam-card-oge,
+    .exam-grid.exam-choice-pair .exam-card.exam-card-ege,
+    .exam-grid.exam-choice-pair .exam-card.exam-card-math,
+    .exam-grid.exam-choice-pair .exam-card.exam-card-inf {
         min-height: 0;
         height: 100%;
         padding: clamp(0.55rem, 2vw, 0.75rem) clamp(0.5rem, 1.8vw, 0.7rem) clamp(0.5rem, 1.8vw, 0.65rem);
@@ -4854,7 +5043,7 @@ body.index .exam-grid#exam-choice .exam-card.exam-card-ege .exam-title {
         flex-direction: column;
     }
 
-    body.index .exam-grid#exam-choice .exam-card .exam-card-main {
+    .exam-grid.exam-choice-pair .exam-card .exam-card-main {
         flex: 1 1 auto;
         display: flex;
         flex-direction: column;
@@ -4862,7 +5051,7 @@ body.index .exam-grid#exam-choice .exam-card.exam-card-ege .exam-title {
         min-height: 0;
     }
 
-    body.index .exam-grid#exam-choice .exam-card .exam-card-left {
+    .exam-grid.exam-choice-pair .exam-card .exam-card-left {
         flex: 1 1 auto;
         display: flex;
         flex-direction: row;
@@ -4871,25 +5060,25 @@ body.index .exam-grid#exam-choice .exam-card.exam-card-ege .exam-title {
         min-width: 0;
     }
 
-    body.index .exam-grid#exam-choice .exam-card .exam-icon {
+    .exam-grid.exam-choice-pair .exam-card .exam-icon {
         flex-shrink: 0;
         width: clamp(2rem, 8.5vw, 2.45rem);
         height: clamp(2rem, 8.5vw, 2.45rem);
         font-size: clamp(1rem, 4.2vw, 1.2rem);
     }
 
-    body.index .exam-grid#exam-choice .exam-card .exam-card-text {
+    .exam-grid.exam-choice-pair .exam-card .exam-card-text {
         flex: 1 1 auto;
         min-width: 0;
         display: flex;
         flex-direction: column;
         align-items: stretch;
-        gap: 0.2rem;
+        gap: 0.5rem;
         text-align: left;
     }
 
-    body.index .exam-grid#exam-choice .exam-card .exam-title,
-    body.index .exam-grid#exam-choice .exam-card .exam-description {
+    .exam-grid.exam-choice-pair .exam-card .exam-title,
+    .exam-grid.exam-choice-pair .exam-card .exam-description {
         hyphens: none;
         -webkit-hyphens: none;
         overflow-wrap: normal;
@@ -4898,7 +5087,7 @@ body.index .exam-grid#exam-choice .exam-card.exam-card-ege .exam-title {
         text-align: left;
     }
 
-    body.index .exam-grid#exam-choice .exam-card .exam-title {
+    .exam-grid.exam-choice-pair .exam-card .exam-title {
         font-family: "Unbounded", sans-serif;
         font-optical-sizing: auto;
         font-weight: 700;
@@ -4908,7 +5097,7 @@ body.index .exam-grid#exam-choice .exam-card.exam-card-ege .exam-title {
         margin: 0;
     }
 
-    body.index .exam-grid#exam-choice .exam-card .exam-description {
+    .exam-grid.exam-choice-pair .exam-card .exam-description {
         font-family: "Montserrat", system-ui, sans-serif;
         font-size: clamp(0.65rem, 0.1rem + 1.85vw, 0.74rem);
         line-height: 1.32;
@@ -4918,7 +5107,7 @@ body.index .exam-grid#exam-choice .exam-card.exam-card-ege .exam-title {
         margin: 0;
     }
 
-    body.index .exam-grid#exam-choice .exam-card .exam-card-footer {
+    .exam-grid.exam-choice-pair .exam-card .exam-card-footer {
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -4928,13 +5117,13 @@ body.index .exam-grid#exam-choice .exam-card.exam-card-ege .exam-title {
         margin-bottom: 0;
     }
 
-    body.index .exam-grid#exam-choice .exam-card .exam-badge {
+    .exam-grid.exam-choice-pair .exam-card .exam-badge {
         font-size: 0.625rem;
         padding: 0.22rem 0.45rem;
         letter-spacing: 0.01em;
     }
 
-    body.index .exam-grid#exam-choice .exam-card .exam-card-arrow-wrap {
+    .exam-grid.exam-choice-pair .exam-card .exam-card-arrow-wrap {
         flex-shrink: 0;
     }
 
@@ -4944,6 +5133,23 @@ body.index .exam-grid#exam-choice .exam-card.exam-card-ege .exam-title {
 
     .hero p {
         font-size: 1rem;
+    }
+
+    body.subject-page .hero.hero--subject-welcome h1 {
+        font-size: clamp(0.92rem, 0.52rem + 2.1vw, 1.2rem);
+        letter-spacing: -0.045em;
+        margin-bottom: 1.05rem;
+        font-weight: 700;
+        font-family: "Unbounded", sans-serif;
+        font-optical-sizing: auto;
+        line-height: 1.2;
+        color: #2563eb;
+    }
+
+    body.subject-page .hero.hero--subject-welcome .hero-subject-platform-text {
+        font-size: 0.8125rem;
+        line-height: 1.58;
+        color: rgba(37, 99, 235, 0.9);
     }
 
     .exam-grid {

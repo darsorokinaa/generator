@@ -1,3 +1,4 @@
+import { useLayoutEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import SubjectExamCountdowns from "../components/SubjectExamCountdowns";
 import NotFoundPage from "./NotFoundPage";
@@ -7,6 +8,11 @@ const KNOWN_LEVELS = ["oge", "ege"];
 function SubjectPage() {
   const { level } = useParams();
   const navigate = useNavigate();
+
+  useLayoutEffect(() => {
+    document.body.classList.add("subject-page");
+    return () => document.body.classList.remove("subject-page");
+  }, []);
 
   if (!KNOWN_LEVELS.includes(level)) return <NotFoundPage />;
 
@@ -37,16 +43,18 @@ function SubjectPage() {
       <div className="container subject-page-container">
         <div className="subject-page-layout">
           <div className="subject-page-main">
-            <div className="hero">
-              <h1>Выбор предмета</h1>
-              <p>
-                Выберите предмет для работы с учениками. Готовые задания и варианты для уроков, контрольных и домашней работы.
-              </p>
+            <div className="hero hero--subject-welcome">
+              <div className="hero-subject-welcome-inner">
+                <h1>Выбор предмета</h1>
+                <p className="hero-subject-platform-text">
+                  {`Выберите предмет для работы с учениками. Готовые задания и варианты для уроков, контрольных и домашней работы.`}
+                </p>
+              </div>
             </div>
 
             <SubjectExamCountdowns level={level} />
 
-            <div className="exam-grid">
+            <div className="exam-grid exam-choice-pair">
 
         <Link
           to={`/${level}/math`}

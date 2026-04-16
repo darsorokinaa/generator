@@ -32,10 +32,13 @@ function IndexPage() {
 
           <div className="hero hero--index-welcome" aria-label="Добро пожаловать">
             <div className="hero-index-welcome-inner">
-              <h1>Платформа для подготовки к ОГЭ и ЕГЭ</h1>
-              
+              <h1>
+                Платформа для{"\u00A0"}подготовки к{"\u00A0"}ОГЭ и{"\u00A0"}ЕГЭ
+              </h1>
+
               <p className="hero-index-platform-text">
-              Удобные материалы&nbsp;и генератор заданий&nbsp;для уроков&nbsp;и домашней работы. Актуальная структура&nbsp;по предметам, готовые варианты&nbsp;и подборки по темам,&nbsp;чтобы готовить учеников&nbsp;к экзаменам системно&nbsp;и&nbsp;с меньшими затратами времени.              </p>
+                {`Удобные материалы и\u00A0генератор заданий для\u00A0уроков и\u00A0домашней работы. Актуальная структура по\u00A0предметам, готовые варианты и\u00A0подборки по\u00A0темам, чтобы\u00A0готовить учеников к\u00A0экзаменам системно и\u00A0с\u00A0меньшими затратами времени.`}
+              </p>
               <p className="hero-index-platform-title">Добро пожаловать!</p>
               {/* <button
                 type="button"
@@ -53,7 +56,7 @@ function IndexPage() {
             />
           </div>
 
-          <div id="exam-choice" className="exam-grid">
+          <div id="exam-choice" className="exam-grid exam-choice-pair">
 
             <div
               className="exam-card exam-card-oge"
