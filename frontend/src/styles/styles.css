@@ -3692,7 +3692,8 @@ mjx-container {
 }
 
 .report-error-hint {
-    font-size: 0.8rem;
+    font-size: 1rem;
+    font-weight: bold;
     line-height: 1.45;
     color: var(--text-secondary, #64748b);
     background: rgba(59, 130, 246, 0.06);

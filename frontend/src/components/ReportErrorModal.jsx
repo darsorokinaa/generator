@@ -59,7 +59,7 @@ export default function ReportErrorModal({ open, onClose, onSubmit, taskNumber }
         </div>
         <form onSubmit={handleSubmit} className="report-error-form">
           <p className="report-error-hint">
-            Используйте эту кнопку только если нашли ошибку в самом задании: опечатку, неверное условие или неправильный ответ в базе. Если вы не уверены в своём решении — попробуйте разобрать задание ещё раз.
+          Внимание! Это сообщение получат разработчики платформы. Используйте эту кнопку только если нашли ошибку в задании: опечатку в условии или ответе.
           </p>
 
           <div className="report-error-field">

@@ -173,11 +173,11 @@ function Layout() {
       <div className="logo-block">
         <Link to="/" className="logo-link">
           {themeData?.logo ? (
-            <img className="logo-theme-icon" src={themeData.logo} alt="Генератор" />
+            <img className="logo-theme-icon" src={themeData.logo} alt="ГенУрок" />
           ) : (
             <span className="logo-icon-sum" aria-hidden="true">∑</span>
           )}
-          <span className="logo-text">Генератор</span>
+          <span className="logo-text">ГенУрок</span>
         </Link>
       </div>
       <nav className="header-nav">
