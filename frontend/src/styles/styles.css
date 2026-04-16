@@ -665,6 +665,171 @@ header {
     }
 }
 
+/* Главная: широкие и очень широкие экраны */
+@media (min-width: 1440px) {
+    body.index .container {
+        max-width: 1320px;
+        padding: 2rem 2.25rem;
+        gap: 2.25rem;
+    }
+
+    body.index .index-desktop-wrap {
+        gap: 2rem;
+    }
+
+    body.index .index-main {
+        gap: 1.5rem;
+    }
+
+    body.index .index-updates-block {
+        width: 360px;
+    }
+
+    body.index .hero.hero--index-welcome {
+        padding: 2.65rem clamp(1.15rem, 2.8vw, 2.25rem);
+        --welcome-owl-reserve: max(0.75rem, calc(min(58vw, 302px, 286px) - var(--welcome-owl-outset) + 0.85rem));
+    }
+
+    body.index .hero.hero--index-welcome h1 {
+        font-size: clamp(1rem, 0.42rem + 1.5vw, 1.52rem);
+    }
+
+    body.index .hero.hero--index-welcome .hero-index-platform-text {
+        font-size: 1.0625rem;
+        max-width: none;
+    }
+
+    body.index .hero-owl {
+        width: 286px;
+        height: 286px;
+        bottom: -53px;
+    }
+
+    body.index .exam-grid {
+        gap: 2rem;
+    }
+
+    body.index .exam-card {
+        padding: 1.85rem 1.75rem 1.55rem;
+    }
+
+    body.index .exam-grid .exam-card {
+        min-height: 190px;
+    }
+
+    body.index .exam-title {
+        font-size: 1.35rem;
+    }
+
+    body.index .exam-description {
+        font-size: 0.8125rem;
+    }
+
+    body.index .exam-icon {
+        width: 54px;
+        height: 54px;
+        font-size: 1.65rem;
+    }
+
+    .steps-block {
+        padding: 1.2rem 1.35rem 1.2rem 1.45rem;
+    }
+}
+
+@media (min-width: 1600px) {
+    body.index .container {
+        max-width: 1440px;
+        padding: 2.25rem 2.5rem;
+        gap: 2.5rem;
+    }
+
+    body.index .index-desktop-wrap {
+        gap: 2.25rem;
+    }
+
+    body.index .index-main {
+        gap: 1.65rem;
+    }
+
+    body.index .index-updates-block {
+        width: 384px;
+    }
+
+    body.index .hero.hero--index-welcome {
+        padding: 2.85rem clamp(1.2rem, 2.8vw, 2.5rem);
+    }
+
+    body.index .hero.hero--index-welcome h1 {
+        font-size: clamp(1.05rem, 0.45rem + 1.35vw, 1.58rem);
+    }
+
+    body.index .hero.hero--index-welcome .hero-index-platform-text {
+        font-size: 1.125rem;
+        max-width: none;
+    }
+
+    body.index .exam-grid {
+        gap: 2.25rem;
+    }
+
+    body.index .exam-card {
+        padding: 2rem 1.85rem 1.65rem;
+    }
+
+    body.index .exam-grid .exam-card {
+        min-height: 200px;
+    }
+
+    body.index .exam-title {
+        font-size: 1.45rem;
+    }
+
+    body.index .exam-description {
+        font-size: 0.875rem;
+    }
+
+    body.index .exam-icon {
+        width: 58px;
+        height: 58px;
+        font-size: 1.75rem;
+    }
+
+    .steps-block {
+        padding: 1.35rem 1.5rem 1.35rem 1.65rem;
+    }
+}
+
+@media (min-width: 1920px) {
+    body.index .container {
+        max-width: 1560px;
+        padding: 2.5rem 3rem;
+        gap: 2.75rem;
+    }
+
+    body.index .index-desktop-wrap {
+        gap: 2.5rem;
+    }
+
+    body.index .index-main {
+        gap: 1.75rem;
+    }
+
+    body.index .index-updates-block {
+        width: 400px;
+    }
+
+    body.index .hero-owl {
+        width: 312px;
+        height: 312px;
+        bottom: -63px;
+    }
+
+    body.index .hero.hero--index-welcome {
+        padding: 2.95rem clamp(1.25rem, 2.8vw, 2.65rem);
+        --welcome-owl-reserve: max(0.75rem, calc(min(58vw, 320px, 312px) - var(--welcome-owl-outset) + 0.85rem));
+    }
+}
+
 /* ========================================
    ЭТАПЫ (STEPS)
 ======================================== */
@@ -678,7 +843,7 @@ header {
 }
 
 .steps-block-title {
-    font-size: 0.95rem;
+    font-size: var(--idx-section-title-size);
     font-weight: 700;
     color: #4169e1;
     margin: 0 0 0.75rem 0;
@@ -692,6 +857,9 @@ header {
     padding: 0;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    /* было по строкам: 1|2 / 3|4; теперь по столбцам: 1|3 / 2|4 */
+    grid-template-rows: repeat(2, minmax(0, auto));
+    grid-auto-flow: column;
     gap: 0.5rem 0.9rem;
 }
 
@@ -705,14 +873,14 @@ header {
 
 .steps-num {
     flex-shrink: 0;
-    width: 1.6rem;
-    height: 1.6rem;
+    width: 1.45rem;
+    height: 1.45rem;
     display: flex;
     align-items: center;
     justify-content: center;
     background: linear-gradient(135deg, #3e73ef 0%, #5b9cf7 100%);
     color: white;
-    font-size: 0.75rem;
+    font-size: 0.625rem;
     font-weight: 700;
     border-radius: 50%;
     box-shadow: 0 2px 8px rgba(62, 115, 239, 0.35);
@@ -724,17 +892,17 @@ header {
 }
 
 .steps-item-title {
-    font-size: 0.78rem;
-    font-weight: 600;
+    font-size: var(--idx-item-title-size);
+    font-weight: 700;
     color: #1e293b;
-    margin: 0 0 0.1rem 0;
-    line-height: 1.25;
+    margin: 0 0 0.28rem 0;
+    line-height: 1.35;
 }
 
 .steps-item-text {
-    font-size: 0.68rem;
-    line-height: 1.3;
-    color: #64748b;
+    font-size: var(--idx-body-size);
+    line-height: var(--idx-body-line-height);
+    color: #1e293b;
     margin: 0;
 }
 
@@ -781,6 +949,269 @@ header {
     z-index: 1;
 }
 
+/* Главная: приветствие — цвета/шрифты как у карточки «Выбор предмета» (синий акцент #3b66d6, Montserrat; блок инвертирован: заливка синим, текст белый) */
+body.index .hero.hero--index-welcome {
+    background: linear-gradient(90deg, #3e73ef 0%, #4b91f7 100%);
+    color: #ffffff;
+    font-family: "Montserrat", system-ui, sans-serif;
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    box-shadow: none;
+    border-radius: 28px;
+    overflow: visible;
+    text-align: left;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    align-self: stretch;
+    /* одинаковые поля сверху/снизу (над текстом и под кнопкой); сова выступает за счёт position + отрицательный bottom */
+    padding: 2.35rem clamp(1rem, 3.2vw, 1.9rem);
+    /* отступ до карточек ОГЭ/ЕГЭ — только gap у .index-main, без двойного margin */
+    margin-bottom: 0;
+    position: relative;
+    container-type: inline-size;
+    container-name: index-welcome;
+    /* запас под сову справа: ширина картинки минус выступ за край (right отрицательный) + зазор */
+    --welcome-owl-outset: 40px;
+    --welcome-owl-reserve: max(0.75rem, calc(min(58vw, 302px, 262px) - var(--welcome-owl-outset) + 0.85rem));
+}
+
+body.index .hero.hero--index-welcome p {
+    max-width: none;
+    width: 100%;
+}
+
+body.index .hero.hero--index-welcome::before {
+    display: none;
+}
+
+/* Главный заголовок блока — «Платформа…» в h1 */
+body.index .hero.hero--index-welcome h1 {
+    color: #ffffff;
+    font-family: "Unbounded", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 700;
+    font-size: clamp(0.88rem, 0.32rem + 1.85vw, 1.38rem);
+    letter-spacing: -0.06em;
+    line-height: 1.2;
+    margin-bottom: 0.85rem;
+    text-align: left;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    box-sizing: border-box;
+    position: relative;
+    z-index: 2;
+}
+
+@media (min-width: 720px) {
+    body.index .hero.hero--index-welcome h1 {
+        white-space: nowrap;
+    }
+}
+
+/* Заголовок по ширине карточки (container query) */
+@container index-welcome (max-width: 560px) {
+    body.index .hero.hero--index-welcome h1 {
+        font-size: clamp(0.78rem, 0.28rem + 2.4vw, 1.05rem);
+    }
+}
+
+@container index-welcome (min-width: 900px) {
+    body.index .hero.hero--index-welcome h1 {
+        font-size: clamp(1rem, 0.38rem + 1.35vw, 1.48rem);
+    }
+}
+
+body.index .hero.hero--index-welcome .hero-index-platform-title {
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.35;
+    letter-spacing: -0.02em;
+    color: rgba(255, 255, 255, 0.95);
+    margin: 0 0 0.35rem 0;
+    text-align: left;
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    max-width: none;
+    box-sizing: border-box;
+}
+
+body.index .hero.hero--index-welcome .hero-index-platform-text {
+    color: rgba(255, 255, 255, 0.96);
+    width: 100%;
+    max-width: none;
+    margin: 0 0 1.4rem 0;
+    text-align: left;
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.62;
+    position: relative;
+    z-index: 2;
+    min-width: 0;
+    text-wrap: pretty;
+    box-sizing: border-box;
+}
+
+body.index .hero-index-welcome-inner {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    box-sizing: border-box;
+    padding-inline-end: var(--welcome-owl-reserve);
+}
+
+body.index .hero-owl {
+    position: absolute;
+    left: auto;
+    top: auto;
+    right: -40px;
+    bottom: 0px;
+    width: 262px;
+    height: 262px;
+    max-width: min(58vw, 302px);
+    object-fit: contain;
+    object-position: right bottom;
+    pointer-events: none;
+    z-index: 1;
+}
+
+body.index .hero-index-cta {
+    position: relative;
+    z-index: 2;
+    align-self: flex-start;
+    width: auto;
+    max-width: 100%;
+    margin-top: 1.35rem;
+    display: inline-block;
+    appearance: none;
+    -webkit-appearance: none;
+    font-family: "Montserrat", system-ui, sans-serif;
+    text-transform: lowercase;
+    background: #ffffff;
+    color: #3b66d6;
+    border: 2px solid #ffffff;
+    outline: none;
+    padding: 0.5rem 1.1rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.25;
+    border-radius: 14px;
+    cursor: pointer;
+    box-sizing: border-box;
+    box-shadow: none;
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+body.index .hero-index-cta:hover {
+    background: rgba(255, 255, 255, 0.92);
+    color: #2f52ad;
+    border-color: rgba(255, 255, 255, 0.92);
+    transform: translateY(-1px);
+}
+
+/* Мобильный баннер: текст на всю ширину (без padding-inline-end под сову — сова absolute) */
+@media (max-width: 719px) {
+    body.index .hero.hero--index-welcome {
+        padding: 1.45rem 1.15rem 1.2rem;
+        border-radius: 22px;
+        overflow: visible;
+        --welcome-owl-outset: 0px;
+        --welcome-owl-reserve: 0px;
+    }
+
+    body.index .hero-index-welcome-inner {
+        padding-inline-end: 0;
+        width: 100%;
+        max-width: none;
+        box-sizing: border-box;
+    }
+
+    body.index .hero.hero--index-welcome h1 {
+        font-size: clamp(0.92rem, 0.52rem + 2.1vw, 1.2rem);
+        white-space: normal;
+        letter-spacing: -0.045em;
+        width: 100%;
+        max-width: none;
+        margin-bottom: 1.05rem;
+    }
+
+    body.index .hero.hero--index-welcome .hero-index-platform-title {
+        font-size: 0.9375rem;
+        line-height: 1.35;
+        margin-bottom: 0;
+        text-align: left;
+        width: 100%;
+        max-width: none;
+    }
+
+    body.index .hero.hero--index-welcome .hero-index-platform-text {
+        max-width: none;
+        width: 100%;
+        margin-bottom: 1.05rem;
+        font-size: 0.8125rem;
+        line-height: 1.58;
+        text-align: left;
+    }
+
+    body.index .hero-index-cta {
+        align-self: flex-start;
+        margin-top: 1.1rem;
+    }
+
+    body.index .hero-owl {
+        position: absolute;
+        left: auto;
+        top: auto;
+        right: -12px;
+        bottom: 18px;
+        transform: translateY(36%);
+        width: min(140px, 40vw);
+        height: auto;
+        aspect-ratio: 1;
+        max-width: none;
+        margin: 0;
+        object-fit: contain;
+        object-position: right bottom;
+        pointer-events: none;
+        z-index: 1;
+    }
+}
+
+/* Главная, мобильная сетка: ОГЭ/ЕГЭ — заголовок как «Платформа…», подпись как основной текст баннера */
+@media (max-width: 768px) {
+    body.index .exam-card.exam-card-oge .exam-title,
+    body.index .exam-card.exam-card-ege .exam-title {
+        font-family: "Unbounded", sans-serif;
+        font-optical-sizing: auto;
+        font-weight: 700;
+        font-size: clamp(0.92rem, 0.52rem + 2.1vw, 1.2rem);
+        letter-spacing: -0.045em;
+        line-height: 1.2;
+    }
+
+    body.index .exam-card.exam-card-oge .exam-description,
+    body.index .exam-card.exam-card-ege .exam-description {
+        font-family: "Montserrat", system-ui, sans-serif;
+        font-size: 0.8125rem;
+        line-height: 1.58;
+        font-weight: 400;
+        letter-spacing: 0;
+        opacity: 1;
+        text-wrap: pretty;
+    }
+
+    body.index .exam-card.exam-card-oge .exam-card-text,
+    body.index .exam-card.exam-card-ege .exam-card-text {
+        gap: 0.5rem;
+    }
+}
+
 /* Блок обновлений — стили как у блока "Инструкция" */
 .index-updates-block {
     margin-top: 0;
@@ -795,7 +1226,8 @@ header {
 
 @media (max-width: 1023px) {
     .index-updates-block {
-        margin-top: 1.5rem;
+        /* как вертикальный gap у .index-main между блоками (карточки → инструкция) — только gap у .index-desktop-wrap */
+        margin-top: 0;
         margin-left: 0;
         margin-right: 0;
         width: 100%;
@@ -804,13 +1236,20 @@ header {
         padding-left: 1.25rem;
         padding-right: 1.25rem;
     }
+
+    body.index .steps-block .steps-list {
+        grid-template-columns: 1fr;
+        grid-template-rows: none;
+        grid-auto-flow: row;
+        gap: 0.65rem;
+    }
 }
 
 .index-updates-block .index-updates-title {
-    font-size: 0.95rem;
+    font-size: var(--idx-section-title-size);
     font-weight: 700;
     color: #4169e1;
-    margin: 0 0 0.6rem 0;
+    margin: 0 0 0.75rem 0;
 }
 
 .index-updates-block .index-updates-item {
@@ -827,26 +1266,31 @@ header {
 }
 
 .index-updates-block .index-updates-date {
-    font-size: 0.7rem;
-    margin-bottom: 0.15rem;
+    font-size: var(--idx-meta-size);
+    font-weight: 600;
+    color: #64748b;
+    margin-bottom: 0.28rem;
 }
 
 .index-updates-block .index-updates-item-title {
-    font-size: 0.85rem;
-    margin: 0 0 0.2rem 0;
+    font-size: var(--idx-item-title-size);
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0 0 0.28rem 0;
 }
 
 .index-updates-block .index-updates-text {
-    font-size: 0.8rem;
-    line-height: 1.45;
+    font-size: var(--idx-body-size);
+    line-height: var(--idx-body-line-height);
+    color: #1e293b;
     margin: 0;
 }
 
 .index-updates-title {
-    font-size: 1.1rem;
+    font-size: var(--idx-section-title-size);
     font-weight: 700;
     color: #4169e1;
-    margin: 0 0 1rem 0;
+    margin: 0 0 0.75rem 0;
 }
 
 .index-updates-list {
@@ -870,22 +1314,22 @@ header {
 
 .index-updates-date {
     display: block;
-    font-size: 0.8rem;
+    font-size: var(--idx-meta-size);
     font-weight: 600;
     color: #64748b;
-    margin-bottom: 0.35rem;
+    margin-bottom: 0.28rem;
 }
 
 .index-updates-item-title {
-    font-size: 1rem;
+    font-size: var(--idx-item-title-size);
     font-weight: 700;
     color: #1e293b;
-    margin: 0 0 0.35rem 0;
+    margin: 0 0 0.28rem 0;
 }
 
 .index-updates-text {
-    font-size: 0.95rem;
-    line-height: 1.55;
+    font-size: var(--idx-body-size);
+    line-height: var(--idx-body-line-height);
     color: #1e293b;
     margin: 0;
 }
@@ -897,7 +1341,7 @@ header {
 .exam-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 2rem;
+    gap: 1rem;
 }
 
 .exam-card {
@@ -2309,7 +2753,7 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
     .subject-page .subject-page-main .exam-grid {
         grid-template-columns: repeat(2, 1fr);
         gap: 1.25rem;
-        margin-top: 1.5rem;
+        margin-top: 0.85rem;
         align-items: stretch;
     }
 
@@ -4004,12 +4448,38 @@ body {
     padding: 0;
 }
 
-body.home,
-body.index {
+body.home {
     display: flex;
     flex-direction: column;
     height: 100vh;
     overflow: hidden;
+}
+
+/* Главная длинная — страница должна прокручиваться целиком (не клипать main) */
+body.index {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    height: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    /* «Обновления» и «Инструкция»: одни кегли на всех ширинах экрана */
+    --idx-section-title-size: 0.9rem;
+    --idx-item-title-size: 0.875rem;
+    --idx-body-size: 0.8125rem;
+    --idx-body-line-height: 1.48;
+    --idx-meta-size: 0.72rem;
+}
+
+@media (max-width: 1023px) {
+    body.index {
+        /* «Инструкция» / «Обновления»: чуть меньше кегль на узких экранах */
+        --idx-section-title-size: 0.82rem;
+        --idx-item-title-size: 0.8125rem;
+        --idx-body-size: 0.75rem;
+        --idx-body-line-height: 1.45;
+        --idx-meta-size: 0.65rem;
+    }
 }
 
 body.home header,
@@ -4017,14 +4487,23 @@ body.index header {
     flex-shrink: 0;
 }
 
-body.home main,
-body.index main {
+body.home main {
     flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
     min-height: 0;
     overflow: hidden;
+}
+
+body.index main {
+    flex: 1 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    min-height: 0;
+    overflow: visible;
 }
 
 body.home footer,
@@ -4045,6 +4524,10 @@ body.index .container {
     flex-direction: column;
     gap: 2rem;
     max-height: 100%;
+}
+
+body.index .container {
+    max-height: none;
 }
 
 body.home .hero,
@@ -4085,6 +4568,110 @@ body.index .exam-card {
 body.index .exam-grid .exam-card {
     height: 100%;
     min-height: 170px;
+}
+
+/* Главная — только ОГЭ/ЕГЭ (#exam-choice): спокойная глубина, ровные отступы, доступный фокус */
+body.index .exam-grid#exam-choice {
+    gap: clamp(1rem, 2.2vw, 1.75rem);
+}
+
+body.index .exam-grid#exam-choice .exam-card.exam-card-oge,
+body.index .exam-grid#exam-choice .exam-card.exam-card-ege {
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.2) inset,
+        0 1px 2px rgba(15, 23, 42, 0.04),
+        0 8px 28px rgba(15, 23, 42, 0.08);
+    transition:
+        transform 0.22s cubic-bezier(0.33, 1, 0.68, 1),
+        box-shadow 0.22s cubic-bezier(0.33, 1, 0.68, 1),
+        border-color 0.2s ease;
+}
+
+body.index .exam-grid#exam-choice .exam-card.exam-card-oge {
+    background: #ea8d3d;
+}
+
+body.index .exam-grid#exam-choice .exam-card.exam-card-ege {
+    background: #a99af7;
+    border-color: rgba(255, 255, 255, 0.28);
+}
+
+body.index .exam-grid#exam-choice .exam-card-bg .exam-card-decor {
+    opacity: 0.07;
+}
+
+body.index .exam-grid#exam-choice .exam-card:hover {
+    transform: translateY(-2px);
+}
+
+body.index .exam-grid#exam-choice .exam-card.exam-card-oge:hover {
+    border-color: rgba(255, 255, 255, 0.32);
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.26) inset,
+        0 2px 6px rgba(15, 23, 42, 0.06),
+        0 14px 36px rgba(180, 85, 30, 0.18);
+}
+
+body.index .exam-grid#exam-choice .exam-card.exam-card-ege:hover {
+    border-color: rgba(255, 255, 255, 0.38);
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.3) inset,
+        0 2px 6px rgba(67, 27, 140, 0.08),
+        0 14px 36px rgba(91, 33, 182, 0.16);
+}
+
+body.index .exam-grid#exam-choice .exam-card:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.95);
+    outline-offset: 3px;
+}
+
+body.index .exam-grid#exam-choice .exam-card.exam-card-ege:focus-visible {
+    outline-color: rgba(91, 33, 182, 0.55);
+}
+
+body.index .exam-grid#exam-choice .exam-card .exam-card-footer {
+    border-top-width: 1px;
+    border-top-style: solid;
+}
+
+body.index .exam-grid#exam-choice .exam-card.exam-card-oge .exam-card-footer {
+    border-top-color: rgba(0, 0, 0, 0.1);
+}
+
+body.index .exam-grid#exam-choice .exam-card.exam-card-ege .exam-card-footer {
+    border-top-color: rgba(67, 27, 140, 0.14);
+}
+
+body.index .exam-grid#exam-choice .exam-card .exam-card-arrow-wrap {
+    width: auto;
+    height: auto;
+    min-width: 2rem;
+    min-height: 2rem;
+    padding: 0.2rem;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+body.index .exam-grid#exam-choice .exam-card.exam-card-ege .exam-card-arrow-wrap {
+    background: transparent;
+}
+
+body.index .exam-grid#exam-choice .exam-card.exam-card-oge .exam-description {
+    color: rgba(255, 250, 245, 0.92);
+}
+
+body.index .exam-grid#exam-choice .exam-card.exam-card-ege .exam-description {
+    color: rgba(45, 15, 95, 0.88);
+}
+
+body.index .exam-grid#exam-choice .exam-card.exam-card-oge .exam-title {
+    color: #fffbf7;
+}
+
+body.index .exam-grid#exam-choice .exam-card.exam-card-ege .exam-title {
+    color: #3d1d6e;
 }
 
 /* ========================================
@@ -4222,10 +4809,14 @@ body.index .exam-grid .exam-card {
         overflow-y: auto;
     }
 
-    body.home main,
-    body.index main {
+    body.home main {
         align-items: flex-start;
         overflow-y: auto;
+    }
+
+    body.index main {
+        align-items: stretch;
+        overflow: visible;
     }
 
     body.home .container,
@@ -4243,6 +4834,108 @@ body.index .exam-grid .exam-card {
     body.index .exam-grid {
         grid-template-columns: 1fr;
         gap: 1.5rem;
+    }
+
+    /* Главная: ОГЭ и ЕГЭ — две колонки, иконка слева, ровные шрифты, без переноса по слогам */
+    body.index .exam-grid#exam-choice {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: clamp(0.5rem, 2.5vw, 0.85rem);
+        align-items: stretch;
+        margin-top: clamp(0.35rem, 1.8vw, 0.65rem);
+    }
+
+    body.index .exam-grid#exam-choice .exam-card.exam-card-oge,
+    body.index .exam-grid#exam-choice .exam-card.exam-card-ege {
+        min-height: 0;
+        height: 100%;
+        padding: clamp(0.55rem, 2vw, 0.75rem) clamp(0.5rem, 1.8vw, 0.7rem) clamp(0.5rem, 1.8vw, 0.65rem);
+        border-radius: 18px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    body.index .exam-grid#exam-choice .exam-card .exam-card-main {
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+        min-height: 0;
+    }
+
+    body.index .exam-grid#exam-choice .exam-card .exam-card-left {
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start;
+        gap: clamp(0.35rem, 2vw, 0.55rem);
+        min-width: 0;
+    }
+
+    body.index .exam-grid#exam-choice .exam-card .exam-icon {
+        flex-shrink: 0;
+        width: clamp(2rem, 8.5vw, 2.45rem);
+        height: clamp(2rem, 8.5vw, 2.45rem);
+        font-size: clamp(1rem, 4.2vw, 1.2rem);
+    }
+
+    body.index .exam-grid#exam-choice .exam-card .exam-card-text {
+        flex: 1 1 auto;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.2rem;
+        text-align: left;
+    }
+
+    body.index .exam-grid#exam-choice .exam-card .exam-title,
+    body.index .exam-grid#exam-choice .exam-card .exam-description {
+        hyphens: none;
+        -webkit-hyphens: none;
+        overflow-wrap: normal;
+        word-break: normal;
+        text-wrap: auto;
+        text-align: left;
+    }
+
+    body.index .exam-grid#exam-choice .exam-card .exam-title {
+        font-family: "Unbounded", sans-serif;
+        font-optical-sizing: auto;
+        font-weight: 700;
+        font-size: clamp(0.8rem, 0.32rem + 2.2vw, 0.98rem);
+        line-height: 1.12;
+        letter-spacing: -0.035em;
+        margin: 0;
+    }
+
+    body.index .exam-grid#exam-choice .exam-card .exam-description {
+        font-family: "Montserrat", system-ui, sans-serif;
+        font-size: clamp(0.65rem, 0.1rem + 1.85vw, 0.74rem);
+        line-height: 1.32;
+        font-weight: 400;
+        letter-spacing: 0;
+        opacity: 1;
+        margin: 0;
+    }
+
+    body.index .exam-grid#exam-choice .exam-card .exam-card-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.35rem;
+        padding-top: 0.4rem;
+        margin-top: auto;
+        margin-bottom: 0;
+    }
+
+    body.index .exam-grid#exam-choice .exam-card .exam-badge {
+        font-size: 0.625rem;
+        padding: 0.22rem 0.45rem;
+        letter-spacing: 0.01em;
+    }
+
+    body.index .exam-grid#exam-choice .exam-card .exam-card-arrow-wrap {
+        flex-shrink: 0;
     }
 
     .hero h1 {
