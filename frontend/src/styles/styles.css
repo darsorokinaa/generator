@@ -714,33 +714,27 @@ header {
         bottom: -53px;
     }
 
-    body.index .exam-grid,
-    body.subject-page .exam-grid.exam-choice-pair {
+    body.index .exam-grid {
         gap: 2rem;
     }
 
-    body.index .exam-card,
-    body.subject-page .exam-grid.exam-choice-pair .exam-card {
+    body.index .exam-card {
         padding: 1.85rem 1.75rem 1.55rem;
     }
 
-    body.index .exam-grid .exam-card,
-    body.subject-page .exam-grid.exam-choice-pair .exam-card {
+    body.index .exam-grid .exam-card {
         min-height: 190px;
     }
 
-    body.index .exam-title,
-    body.subject-page .exam-grid.exam-choice-pair .exam-title {
+    body.index .exam-title {
         font-size: 1.35rem;
     }
 
-    body.index .exam-description,
-    body.subject-page .exam-grid.exam-choice-pair .exam-description {
+    body.index .exam-description {
         font-size: 0.8125rem;
     }
 
-    body.index .exam-icon,
-    body.subject-page .exam-grid.exam-choice-pair .exam-icon {
+    body.index .exam-icon {
         width: 54px;
         height: 54px;
         font-size: 1.65rem;
@@ -792,33 +786,27 @@ header {
         max-width: none;
     }
 
-    body.index .exam-grid,
-    body.subject-page .exam-grid.exam-choice-pair {
+    body.index .exam-grid {
         gap: 2.25rem;
     }
 
-    body.index .exam-card,
-    body.subject-page .exam-grid.exam-choice-pair .exam-card {
+    body.index .exam-card {
         padding: 2rem 1.85rem 1.65rem;
     }
 
-    body.index .exam-grid .exam-card,
-    body.subject-page .exam-grid.exam-choice-pair .exam-card {
+    body.index .exam-grid .exam-card {
         min-height: 200px;
     }
 
-    body.index .exam-title,
-    body.subject-page .exam-grid.exam-choice-pair .exam-title {
+    body.index .exam-title {
         font-size: 1.45rem;
     }
 
-    body.index .exam-description,
-    body.subject-page .exam-grid.exam-choice-pair .exam-description {
+    body.index .exam-description {
         font-size: 0.875rem;
     }
 
-    body.index .exam-icon,
-    body.subject-page .exam-grid.exam-choice-pair .exam-icon {
+    body.index .exam-icon {
         width: 58px;
         height: 58px;
         font-size: 1.75rem;
@@ -2925,15 +2913,15 @@ body.subject-page .subject-exam-countdown-card__footnote-text {
     }
 
     .subject-page .subject-page-main .exam-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 1.25rem;
+        grid-template-columns: 1fr;
+        gap: 1rem;
         margin-top: 0.85rem;
         align-items: stretch;
     }
 
     .subject-page .subject-page-main .exam-grid .exam-card {
-        height: 100%;
-        min-height: 0;
+        height: auto;
+        min-height: 160px;
     }
 
     .subject-page-sidebar {
@@ -4745,14 +4733,12 @@ body.index .exam-grid {
 }
 
 body.home .exam-card,
-body.index .exam-card,
-body.subject-page .exam-grid.exam-choice-pair .exam-card {
+body.index .exam-card {
     padding: 1.625rem 1.5rem 1.375rem;
 }
 
-/* На главной и на странице предметов карточки выбора — одинаковой высоты */
-body.index .exam-grid .exam-card,
-body.subject-page .exam-grid.exam-choice-pair .exam-card {
+/* На главной карточки ОГЭ/ЕГЭ — одинаковой высоты */
+body.index .exam-grid .exam-card {
     height: 100%;
     min-height: 170px;
 }
@@ -4760,6 +4746,17 @@ body.subject-page .exam-grid.exam-choice-pair .exam-card {
 /* Главная — только ОГЭ/ЕГЭ (#exam-choice): спокойная глубина, ровные отступы, доступный фокус */
 .exam-grid.exam-choice-pair {
     gap: clamp(1rem, 2.2vw, 1.75rem);
+}
+
+/* Страница предметов: одна карточка в строку, обычные отступы и высота */
+body.subject-page .exam-grid.exam-choice-pair {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+}
+
+body.subject-page .exam-grid.exam-choice-pair .exam-card {
+    height: auto;
+    min-height: 160px;
 }
 
 .exam-grid.exam-choice-pair .exam-card.exam-card-oge,
@@ -5024,17 +5021,15 @@ body.subject-page .exam-grid.exam-choice-pair .exam-card {
     }
 
     /* Главная: ОГЭ и ЕГЭ — две колонки, иконка слева, ровные шрифты, без переноса по слогам */
-    .exam-grid.exam-choice-pair {
+    body.index .exam-grid.exam-choice-pair {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: clamp(0.5rem, 2.5vw, 0.85rem);
         align-items: stretch;
         margin-top: clamp(0.35rem, 1.8vw, 0.65rem);
     }
 
-    .exam-grid.exam-choice-pair .exam-card.exam-card-oge,
-    .exam-grid.exam-choice-pair .exam-card.exam-card-ege,
-    .exam-grid.exam-choice-pair .exam-card.exam-card-math,
-    .exam-grid.exam-choice-pair .exam-card.exam-card-inf {
+    body.index .exam-grid.exam-choice-pair .exam-card.exam-card-oge,
+    body.index .exam-grid.exam-choice-pair .exam-card.exam-card-ege {
         min-height: 0;
         height: 100%;
         padding: clamp(0.55rem, 2vw, 0.75rem) clamp(0.5rem, 1.8vw, 0.7rem) clamp(0.5rem, 1.8vw, 0.65rem);
@@ -5043,7 +5038,7 @@ body.subject-page .exam-grid.exam-choice-pair .exam-card {
         flex-direction: column;
     }
 
-    .exam-grid.exam-choice-pair .exam-card .exam-card-main {
+    body.index .exam-grid.exam-choice-pair .exam-card .exam-card-main {
         flex: 1 1 auto;
         display: flex;
         flex-direction: column;
@@ -5051,7 +5046,7 @@ body.subject-page .exam-grid.exam-choice-pair .exam-card {
         min-height: 0;
     }
 
-    .exam-grid.exam-choice-pair .exam-card .exam-card-left {
+    body.index .exam-grid.exam-choice-pair .exam-card .exam-card-left {
         flex: 1 1 auto;
         display: flex;
         flex-direction: row;
@@ -5060,14 +5055,14 @@ body.subject-page .exam-grid.exam-choice-pair .exam-card {
         min-width: 0;
     }
 
-    .exam-grid.exam-choice-pair .exam-card .exam-icon {
+    body.index .exam-grid.exam-choice-pair .exam-card .exam-icon {
         flex-shrink: 0;
         width: clamp(2rem, 8.5vw, 2.45rem);
         height: clamp(2rem, 8.5vw, 2.45rem);
         font-size: clamp(1rem, 4.2vw, 1.2rem);
     }
 
-    .exam-grid.exam-choice-pair .exam-card .exam-card-text {
+    body.index .exam-grid.exam-choice-pair .exam-card .exam-card-text {
         flex: 1 1 auto;
         min-width: 0;
         display: flex;
@@ -5077,8 +5072,8 @@ body.subject-page .exam-grid.exam-choice-pair .exam-card {
         text-align: left;
     }
 
-    .exam-grid.exam-choice-pair .exam-card .exam-title,
-    .exam-grid.exam-choice-pair .exam-card .exam-description {
+    body.index .exam-grid.exam-choice-pair .exam-card .exam-title,
+    body.index .exam-grid.exam-choice-pair .exam-card .exam-description {
         hyphens: none;
         -webkit-hyphens: none;
         overflow-wrap: normal;
@@ -5087,7 +5082,7 @@ body.subject-page .exam-grid.exam-choice-pair .exam-card {
         text-align: left;
     }
 
-    .exam-grid.exam-choice-pair .exam-card .exam-title {
+    body.index .exam-grid.exam-choice-pair .exam-card .exam-title {
         font-family: "Unbounded", sans-serif;
         font-optical-sizing: auto;
         font-weight: 700;
@@ -5097,7 +5092,7 @@ body.subject-page .exam-grid.exam-choice-pair .exam-card {
         margin: 0;
     }
 
-    .exam-grid.exam-choice-pair .exam-card .exam-description {
+    body.index .exam-grid.exam-choice-pair .exam-card .exam-description {
         font-family: "Montserrat", system-ui, sans-serif;
         font-size: clamp(0.65rem, 0.1rem + 1.85vw, 0.74rem);
         line-height: 1.32;
@@ -5107,7 +5102,7 @@ body.subject-page .exam-grid.exam-choice-pair .exam-card {
         margin: 0;
     }
 
-    .exam-grid.exam-choice-pair .exam-card .exam-card-footer {
+    body.index .exam-grid.exam-choice-pair .exam-card .exam-card-footer {
         display: flex;
         align-items: center;
         justify-content: space-between;
@@ -5117,13 +5112,13 @@ body.subject-page .exam-grid.exam-choice-pair .exam-card {
         margin-bottom: 0;
     }
 
-    .exam-grid.exam-choice-pair .exam-card .exam-badge {
+    body.index .exam-grid.exam-choice-pair .exam-card .exam-badge {
         font-size: 0.625rem;
         padding: 0.22rem 0.45rem;
         letter-spacing: 0.01em;
     }
 
-    .exam-grid.exam-choice-pair .exam-card .exam-card-arrow-wrap {
+    body.index .exam-grid.exam-choice-pair .exam-card .exam-card-arrow-wrap {
         flex-shrink: 0;
     }
 
