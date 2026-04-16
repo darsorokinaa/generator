@@ -1021,6 +1021,17 @@ body.index .hero.hero--index-welcome h1 {
     z-index: 2;
 }
 
+/* Перенос перед «к» только на мобильных; на широких экранах — одна строка с nowrap */
+body.index .hero.hero--index-welcome h1 .hero-index-welcome-br-mobile {
+    display: none;
+}
+
+@media (max-width: 767px) {
+    body.index .hero.hero--index-welcome h1 .hero-index-welcome-br-mobile {
+        display: block;
+    }
+}
+
 @media (min-width: 720px) {
     body.index .hero.hero--index-welcome h1 {
         white-space: nowrap;
@@ -2912,14 +2923,16 @@ body.subject-page .subject-exam-countdown-card__footnote-text {
         margin-top: 2rem;
     }
 
-    .subject-page .subject-page-main .exam-grid {
-        grid-template-columns: 1fr;
-        gap: 1rem;
+    .subject-page .subject-page-main .exam-grid,
+    body.subject-page .subject-page-main .exam-grid.exam-choice-pair {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1.25rem;
         margin-top: 0.85rem;
         align-items: stretch;
     }
 
-    .subject-page .subject-page-main .exam-grid .exam-card {
+    .subject-page .subject-page-main .exam-grid .exam-card,
+    body.subject-page .subject-page-main .exam-grid.exam-choice-pair .exam-card {
         height: auto;
         min-height: 160px;
     }
@@ -4748,15 +4761,20 @@ body.index .exam-grid .exam-card {
     gap: clamp(1rem, 2.2vw, 1.75rem);
 }
 
-/* Страница предметов: одна карточка в строку, обычные отступы и высота */
-body.subject-page .exam-grid.exam-choice-pair {
-    grid-template-columns: 1fr;
+/* Страница предметов: сетка карточек — две колонки с min-width 1024 (см. .subject-page-layout); одна колонка только в max-width ниже */
+body.subject-page .subject-page-main .exam-grid.exam-choice-pair {
     gap: 1rem;
 }
 
-body.subject-page .exam-grid.exam-choice-pair .exam-card {
+body.subject-page .subject-page-main .exam-grid.exam-choice-pair .exam-card {
     height: auto;
     min-height: 160px;
+}
+
+@media (max-width: 1023px) {
+    body.subject-page .subject-page-main .exam-grid.exam-choice-pair {
+        grid-template-columns: 1fr;
+    }
 }
 
 .exam-grid.exam-choice-pair .exam-card.exam-card-oge,
@@ -5015,13 +5033,14 @@ body.subject-page .exam-grid.exam-choice-pair .exam-card {
     }
 
     body.home .exam-grid,
-    body.index .exam-grid {
+    body.index .exam-grid:not(.exam-choice-pair) {
         grid-template-columns: 1fr;
         gap: 1.5rem;
     }
 
-    /* Главная: ОГЭ и ЕГЭ — две колонки, иконка слева, ровные шрифты, без переноса по слогам */
-    body.index .exam-grid.exam-choice-pair {
+    /* Главная: ОГЭ и ЕГЭ — две колонки на телефонах тоже; иконка слева, ровные шрифты */
+    body.index .exam-grid.exam-choice-pair,
+    body.index #exam-choice.exam-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: clamp(0.5rem, 2.5vw, 0.85rem);
         align-items: stretch;
@@ -5147,7 +5166,7 @@ body.subject-page .exam-grid.exam-choice-pair .exam-card {
         color: rgba(37, 99, 235, 0.9);
     }
 
-    .exam-grid {
+    .exam-grid:not(.exam-choice-pair) {
         grid-template-columns: 1fr;
         gap: 1.5rem;
     }

@@ -33,8 +33,9 @@ function IndexPage() {
           <div className="hero hero--index-welcome" aria-label="Добро пожаловать">
             <div className="hero-index-welcome-inner">
               <h1>
-                Платформа для{"\u00A0"}подготовки к{"\u00A0"}ОГЭ и{"\u00A0"}ЕГЭ
-              </h1>
+                {`Платформа для\u00A0подготовки\u00A0`}
+                <br className="hero-index-welcome-br-mobile" aria-hidden="true" />{`к\u00A0ОГЭ и\u00A0ЕГЭ`}
+              </h1> 
 
               <p className="hero-index-platform-text">
                 {`Удобные материалы и\u00A0генератор заданий для\u00A0уроков и\u00A0домашней работы. Актуальная структура по\u00A0предметам, готовые варианты и\u00A0подборки по\u00A0темам, чтобы\u00A0готовить учеников к\u00A0экзаменам системно и\u00A0с\u00A0меньшими затратами времени.`}
