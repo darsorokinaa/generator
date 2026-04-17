@@ -32,14 +32,22 @@
   --task-image-slot-w: 48mm;
   --task-image-slot-h: 38mm;
   /* Алгебра (числовые прямые, графики): немного выше геометрии, но без лишних полей */
-  --task-image-slot-w-algebra: 72mm;
-  --task-image-slot-h-algebra: 44mm;
+  --task-image-slot-w-algebra: 75.6mm;
+  --task-image-slot-h-algebra: 46.2mm;
 }
 
 @page {
   size: A4;
-  /* Верхней шапки нет — обычный отступ */
   margin: 14mm 18mm 14mm 18mm;
+  @top-center {
+    content: string(variant-id);
+    font-family: "Montserrat", "Segoe UI", system-ui, sans-serif;
+    font-size: 8pt;
+    font-weight: 600;
+    color: #3e73ef;
+    letter-spacing: 0.03em;
+    vertical-align: bottom;
+  }
   @bottom-left {
     content: "ГенУрок.рф";
     font-family: "Montserrat", "Segoe UI", system-ui, sans-serif;
