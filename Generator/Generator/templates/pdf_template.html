@@ -147,15 +147,14 @@ html, body {
 .exam-instruction p:last-child { margin-bottom: 0; }
 
 .task {
-  /* avoid на всём блоке заставлял WeasyPrint переносить длинную задачу целиком на след. страницу
-     и оставлять первую страницу почти пустой под шапкой */
+  /* display: block (не flex!) — WeasyPrint умеет разрывать block между страницами,
+     flex-контейнер он переносит целиком, отчего шапка остаётся одна на первой странице */
+  display: block;
+  overflow: hidden; /* clearfix для float */
   page-break-inside: auto;
   break-inside: auto;
   margin-bottom: 6px;
   padding-bottom: 0;
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
   border: none;
   box-shadow: none;
 }
@@ -164,7 +163,9 @@ html, body {
 .task--long .task__text { page-break-after: avoid; }
 
 .task__num {
-  flex-shrink: 0;
+  float: left;       /* занимает место слева; body обтекает справа */
+  margin-right: 10px;
+  margin-top: 1px;
   width: 28px;
   height: 28px;
   display: flex;
@@ -177,13 +178,11 @@ html, body {
   border: 1.5px solid var(--accent);
   border-radius: 3px;
   line-height: 1;
-  margin-top: 1px;
   page-break-after: avoid;
 }
 
 .task__body {
-  flex: 1;
-  min-width: 0;
+  overflow: hidden; /* создаёт BFC — контент идёт справа от float */
 }
 
 .task__text {
