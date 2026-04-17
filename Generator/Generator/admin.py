@@ -299,7 +299,7 @@ class UpdateAdmin(admin.ModelAdmin):
 
 @admin.register(ErrorReport)
 class ErrorReportAdmin(admin.ModelAdmin):
-    list_display = ("id", "task_number", "subject", "level", "error_type", "variant_id", "comment_preview", "created_at", "is_fixed", "digest_sent")
+    list_display = ("id", "task_number", "task_id", "subject", "level", "error_type", "variant_id", "comment_preview", "created_at", "is_fixed", "digest_sent")
     list_filter = ("subject", "level", "error_type", "is_fixed", "digest_sent")
     list_editable = ("is_fixed",)
     search_fields = ("comment",)
