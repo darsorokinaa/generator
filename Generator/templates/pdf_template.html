@@ -89,51 +89,59 @@ html, body {
   print-color-adjust: exact;
 }
 
-/* Верхняя шапка скрыта — вся информация в нижнем колонтитуле (@bottom-*) */
+/* Красивая шапка — в потоке документа, только страница 1 */
 .exam-header {
-  display: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 11px 18px;
+  margin: 0 0 22px 0;
+  border-radius: 12px;
+  background: #3e73ef;
+  box-shadow: 0 3px 14px rgba(44, 92, 232, 0.28);
+  border-bottom: none;
 }
 
 .exam-header__brand {
   font-family: "Unbounded", "Montserrat", "Segoe UI", system-ui, sans-serif;
-  font-size: 8pt;
-  font-weight: 600;
-  letter-spacing: 0.06em;
+  font-size: 10.5pt;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   color: #ffffff;
   text-transform: uppercase;
+  padding-right: 16px;
+  margin-right: 16px;
+  border-right: 1.5px solid rgba(255, 255, 255, 0.35);
+  line-height: 1.2;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
 }
 
-/* subject и details — одна строка через flex */
 .exam-header__meta {
-  display: flex;
-  align-items: center;
-  gap: 0;
+  text-align: right;
+  line-height: 1.4;
 }
 
 .exam-header__subject {
   font-family: "Montserrat", "Segoe UI", system-ui, sans-serif;
-  font-size: 9pt;
-  font-weight: 600;
+  font-size: 11pt;
+  font-weight: 700;
   color: #ffffff;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
 }
 
 .exam-header__details {
   font-family: "Montserrat", "Segoe UI", system-ui, sans-serif;
   font-size: 9pt;
-  font-weight: 400;
-  color: rgba(255, 255, 255, 0.85);
-  margin-top: 0;
-}
-
-/* Разделитель между предметом и вариантом */
-.exam-header__details::before {
-  content: " · ";
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.88);
+  margin-top: 2px;
+  letter-spacing: 0.02em;
 }
 
 .exam-header-wrap {
-  /* Шапка fixed (вне потока) — обёртка нужна только для инструкции */
   display: block;
+  page-break-after: avoid;
+  break-after: avoid-page;
 }
 
 .exam-instruction {
@@ -197,11 +205,11 @@ html, body {
 
 /* LaTeX / MathJax в условии — крупнее базового текста */
 .task__text .math-inline {
-  font-size: 0.85em ;
+  font-size: 0.935em;
   vertical-align: middle;
 }
 .task__text .math-display {
-  font-size: 0.85em;
+  font-size: 0.935em;
   margin: 0.25em 0;
 }
 
@@ -301,7 +309,7 @@ html, body {
 
 .answers-columns-wrap--split .answer-cell-inner .math-inline,
 .answers-columns-wrap--split .answer-cell-inner .math-display {
-  font-size: 1.05em;
+  font-size: 1.155em;
 }
 
 .answers-page__title {
@@ -391,7 +399,7 @@ html, body {
   margin: 4px 0;
   text-align: left;
   max-width: 100%;
-  font-size: 1.12em;
+  font-size: 1.232em;
 }
 
 .answer-cell-inner svg {
