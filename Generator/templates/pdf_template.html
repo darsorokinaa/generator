@@ -38,9 +38,8 @@
 
 @page {
   size: A4;
-  /* Фиксированные значения — WeasyPrint может игнорировать var() внутри @page.
-     Верхний отступ 22mm: колонтитул ~9mm + 13mm зазора до текста */
-  margin: 22mm 18mm 14mm 18mm;
+  /* Верхней шапки нет — обычный отступ */
+  margin: 14mm 18mm 14mm 18mm;
   @bottom-left {
     content: "ГенУрок.рф";
     font-family: "Montserrat", "Segoe UI", system-ui, sans-serif;
@@ -63,7 +62,7 @@
 }
 
 @page :first {
-  margin-top: 22mm;
+  margin-top: 14mm;
 }
 
 * {
@@ -82,21 +81,9 @@ html, body {
   print-color-adjust: exact;
 }
 
-/* Колонтитул верхний: position:fixed → повторяется на каждой странице, не занимает место в потоке */
+/* Верхняя шапка скрыта — вся информация в нижнем колонтитуле (@bottom-*) */
 .exam-header {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 5pt var(--page-margin);
-  margin: 0;
-  border-radius: 0;
-  background: linear-gradient(90deg, var(--accent) 0%, var(--accent-end) 100%);
-  box-shadow: 0 1px 6px rgba(62, 115, 239, 0.2);
-  border-bottom: none;
+  display: none;
 }
 
 .exam-header__brand {
