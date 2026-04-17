@@ -404,8 +404,8 @@ def _convert_math_block(content: str, display: bool = False) -> str:
     return f'<{tag}>{content}</{close}>'
 
 
-# Под 10pt основной текст: ~1.0 совпадает по визуальному весу со строкой
-PDF_MATH_SCALE = 1.0
+# Масштаб SVG MathJax в PDF (условия варианта читаемее крупнее)
+PDF_MATH_SCALE = 1.2
 
 _RE_SVG_WIDTH = re.compile(r'(<svg\b[^>]*\s)width="([\d.]+)ex"')
 _RE_SVG_HEIGHT = re.compile(r'(<svg\b[^>]*\s)height="([\d.]+)ex"')
@@ -428,7 +428,11 @@ def _scale_svg(svg_html: str, scale: float) -> str:
     return svg_html
 
 
-_svg_cache: dict[tuple[str, bool], str] = {}
+_svg_cache: dict[tuple, str] = {}
+
+
+def _svg_cache_key(latex: str, display: bool) -> tuple:
+    return (latex, display, PDF_MATH_SCALE)
 
 
 def _postprocess_svg(svg_html: str) -> str:
@@ -442,7 +446,7 @@ def _postprocess_svg(svg_html: str) -> str:
 
 
 def _render_mathjax_svg(latex: str, display: bool) -> str:
-    key = (latex, display)
+    key = _svg_cache_key(latex, display)
     if key in _svg_cache:
         return _svg_cache[key]
     if not MATHJAX_AVAILABLE:
@@ -471,7 +475,8 @@ def batch_render_mathjax(formulas: list[tuple[str, bool]]) -> None:
     to_render = [
         (latex, display)
         for latex, display in formulas
-        if (latex, display) not in _svg_cache and not _RE_HAS_TABULAR_OR_ARRAY.search(latex or "")
+        if _svg_cache_key(latex, display) not in _svg_cache
+        and not _RE_HAS_TABULAR_OR_ARRAY.search(latex or "")
     ]
     if not to_render:
         return
@@ -487,7 +492,7 @@ def batch_render_mathjax(formulas: list[tuple[str, bool]]) -> None:
         )
         svgs = json.loads(result.stdout)
         for (latex, display), svg_html in zip(to_render, svgs):
-            _svg_cache[(latex, display)] = _postprocess_svg(svg_html)
+            _svg_cache[_svg_cache_key(latex, display)] = _postprocess_svg(svg_html)
     except Exception:
         logger.exception("Batch MathJax render failed, formulas will be rendered one by one")
 
