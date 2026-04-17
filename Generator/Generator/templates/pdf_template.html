@@ -26,7 +26,7 @@
   --font-size-part-label: 10pt;
   --line-height: 1.65;
   --page-margin: 18mm;
-  --page-margin-top: 20mm;
+  --page-margin-top: 16mm;
   --page-margin-bottom: 14mm;
   /* Слот рисунка: геометрия (task-geom); алгебра — крупнее */
   --task-image-slot-w: 48mm;
@@ -155,14 +155,14 @@ html, body {
 .exam-instruction p:last-child { margin-bottom: 0; }
 
 .task {
-  /* display: block (не flex!) — WeasyPrint умеет разрывать block между страницами,
-     flex-контейнер он переносит целиком, отчего шапка остаётся одна на первой странице */
+  /* position:relative + padding-left без overflow:hidden → WeasyPrint разрезает
+     такой блок между страницами (overflow:hidden/float создают BFC — неделимый блок) */
   display: block;
-  overflow: hidden; /* clearfix для float */
+  position: relative;
+  padding-left: 38px; /* 28px (номер) + 10px (зазор) */
   page-break-inside: auto;
   break-inside: auto;
   margin-bottom: 6px;
-  padding-bottom: 0;
   border: none;
   box-shadow: none;
 }
@@ -171,9 +171,10 @@ html, body {
 .task--long .task__text { page-break-after: avoid; }
 
 .task__num {
-  float: left;       /* занимает место слева; body обтекает справа */
-  margin-right: 10px;
-  margin-top: 1px;
+  /* absolute → не влияет на поток, рисуется на первой странице задания */
+  position: absolute;
+  left: 0;
+  top: 2px;
   width: 28px;
   height: 28px;
   display: flex;
@@ -186,11 +187,10 @@ html, body {
   border: 1.5px solid var(--accent);
   border-radius: 3px;
   line-height: 1;
-  page-break-after: avoid;
 }
 
 .task__body {
-  overflow: hidden; /* создаёт BFC — контент идёт справа от float */
+  display: block;
 }
 
 .task__text {
