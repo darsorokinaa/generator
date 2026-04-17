@@ -38,7 +38,9 @@
 
 @page {
   size: A4;
-  margin: var(--page-margin-top) var(--page-margin) var(--page-margin-bottom) var(--page-margin);
+  /* Фиксированные значения — WeasyPrint может игнорировать var() внутри @page.
+     Верхний отступ 22mm: колонтитул ~9mm + 13mm зазора до текста */
+  margin: 22mm 18mm 14mm 18mm;
   @bottom-left {
     content: "ГенУрок.рф";
     font-family: "Montserrat", "Segoe UI", system-ui, sans-serif;
@@ -56,12 +58,12 @@
     content: counter(page) " / " counter(pages);
     font-family: "Montserrat", "Segoe UI", system-ui, sans-serif;
     font-size: 8pt;
-    color: var(--text-muted);
+    color: #888888;
   }
 }
 
 @page :first {
-  margin-top: var(--page-margin-top);
+  margin-top: 22mm;
 }
 
 * {
