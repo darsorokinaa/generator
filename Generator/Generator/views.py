@@ -1665,8 +1665,26 @@ def _render_variant_pdf(request, level, subject, variant_id, background_url="", 
     try:
         pdf = WeasyHTML(string=html_string, base_url=base_url).write_pdf()
     except IndexError:
-        html_safe = re.sub(r'<div class="task-body">\s*</div>', '<div class="task-body"><p>&nbsp;</p></div>', html_string)
-        html_safe = re.sub(r'<span class="answer-field">\s*</span>', '<span class="answer-field">&nbsp;</span>', html_safe)
+        html_safe = re.sub(
+            r'<div class="task__text">\s*</div>',
+            '<div class="task__text"><p>&nbsp;</p></div>',
+            html_string,
+        )
+        html_safe = re.sub(
+            r'<div class="task-body">\s*</div>',
+            '<div class="task-body"><p>&nbsp;</p></div>',
+            html_safe,
+        )
+        html_safe = re.sub(
+            r'<div class="task__answer-field">\s*</div>',
+            '<div class="task__answer-field">&nbsp;</div>',
+            html_safe,
+        )
+        html_safe = re.sub(
+            r'<span class="answer-field">\s*</span>',
+            '<span class="answer-field">&nbsp;</span>',
+            html_safe,
+        )
         pdf = WeasyHTML(string=html_safe, base_url=base_url).write_pdf()
     except Exception as e:
         logger.exception("WeasyPrint PDF generation failed for variant %s: %s", variant_id, e)

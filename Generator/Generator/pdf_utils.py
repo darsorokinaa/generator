@@ -13,6 +13,21 @@ from .latex_utils import process_latex, batch_render_mathjax, extract_latex_form
 from .models import TaskPreview
 
 
+def _title_is_part_2(title: str) -> bool:
+    t = (title or "").lower()
+    return "часть" in t and "2" in t and "12" not in t and "21" not in t
+
+
+def _answers_columns_for_pdf(rows: list, split_after: int = 9) -> list[list]:
+    """Одна таблица или две колонки (поровну), если строк больше split_after — умещаем по высоте страницы."""
+    if not rows:
+        return []
+    if len(rows) <= split_after:
+        return [rows]
+    mid = (len(rows) + 1) // 2
+    return [rows[:mid], rows[mid:]]
+
+
 def get_pdf_css():
     css_path = finders.find('css/pdf.css')
     if not css_path:
@@ -25,9 +40,9 @@ def get_pdf_css():
 
 MATH_CSS = mark_safe("""<style>
 /* MathJax SVG output — color для WeasyPrint (currentColor заменяется в latex_utils) */
-.math-display { display: block; text-align: center; margin: .8em 0; font-size: 1.1em; color: #000; }
+.math-display { display: block; text-align: center; margin: .85em 0; font-size: 1.28em; color: #000; }
 .math-display svg { display: inline-block; vertical-align: middle; max-width: 100%; }
-.math-inline { display: inline; vertical-align: middle; color: #000; }
+.math-inline { display: inline; vertical-align: middle; color: #000; font-size: 1.12em; }
 .math-inline svg { display: inline-block; vertical-align: middle; }
 /* Fallback: HTML math (frac, sqrt, etc.) when MathJax unavailable */
 .frac { display: inline-block; vertical-align: middle; text-align: center; margin: 0 .15em; }
@@ -199,6 +214,9 @@ def build_pdf_context(request, variant, subject, author_filter=None):
                 rel = (media_url.rstrip("/") + "/" + f.name.lstrip("/")).replace("//", "/")
                 file_url = request.build_absolute_uri(rel)
 
+        part_title_for = part_obj.part_title if part_obj else ""
+        is_part_2 = _title_is_part_2(part_title_for or "")
+        max_score = int(item.task.max_score or 1)
         entry = {
             "type": "task",
             "order": item.order,
@@ -208,6 +226,10 @@ def build_pdf_context(request, variant, subject, author_filter=None):
             "part_id": part_id,
             "subject": subject,
             "file_url": file_url,
+            "is_part_2": is_part_2,
+            "max_score": max_score,
+            "subdivision": (item.task.task.subdivision or "") if item.task.task else "",
+            "is_long": is_part_2 or max_score > 1,
         }
         processed_contents.append(entry)
         answers_by_part.setdefault(part or "Без части", []).append(entry)
@@ -294,18 +316,13 @@ def build_pdf_context(request, variant, subject, author_filter=None):
     base_url = request.build_absolute_uri("/").rstrip("/") or "/"
     footer_left = mark_safe(f'© <a href="{base_url}" class="pdf-footer-link">Генератор</a>')
 
-    # Разбиваем ответы на блоки по 10 для переноса таблицы на несколько строк
-    chunk_size = 7
-    answers_chunks = [
-        processed_contents[i:i + chunk_size]
-        for i in range(0, len(processed_contents), chunk_size)
-    ]
+    # Таблица(ы) ответов: вертикальные строки; при большом числе — две колонки на одной странице
+    answers_columns = _answers_columns_for_pdf(list(processed_contents))
 
     # Инструкции — отдельно (одна колонка сверху), остальное — задачи и напоминания
     instruction_blocks = [b for b in merged_contents if b.get("type") == "preview" and b.get("is_instruction")]
     tasks_content = [b for b in merged_contents if b.get("type") != "preview" or not b.get("is_instruction")]
 
-    # Строим tasks_segments для pdf_template.html — один сегмент с колонками
     tasks_segments = [{"mode": "columns", "items": tasks_content}]
 
     return {
@@ -314,11 +331,13 @@ def build_pdf_context(request, variant, subject, author_filter=None):
         "tasks_content": tasks_content,
         "tasks_segments": tasks_segments,
         "contents": merged_contents,
-        "answers_chunks": answers_chunks,
+        "answers_columns": answers_columns,
         "answers_parts": answers_parts,
         "math_styles": MATH_CSS,
         "pdf_css": get_pdf_css(),
         "subject": subject,
+        "subject_label": subject_label,
+        "level_label": level_label,
         "header_subject_level": header_subject_level,
         "header_logo": header_logo,
         "header_variant": header_variant,

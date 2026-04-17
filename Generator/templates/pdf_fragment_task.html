@@ -1,26 +1,17 @@
-{# Один номер варианта для PDF. full_width=True — задание с большой таблицей (вне двух колонок). #}
-<div class="task{% if item.start_new_page %} pdf-start-new-page{% endif %}{% if item.subdivision == 'geom' %} task-geom{% endif %}{% if full_width %} task-pdf-full-width{% endif %}">
-
-    <div class="task-main">
-    <div class="ta">
-        <span class="ta-inner">{{ item.order }}</span>
+{# Один номер варианта для PDF (вёрстка ГенУрок / WeasyPrint A4). #}
+<div class="task{% if item.is_long %} task--long{% endif %}{% if item.start_new_page %} break-before{% endif %}{% if item.subdivision == 'geom' %} task-geom{% endif %}">
+  <div class="task__num">{{ item.order }}</div>
+  <div class="task__body">
+    <div class="task__text">
+      {% if item.text %}{{ item.text|safe }}{% else %}<p>&nbsp;</p>{% endif %}
+      {% if item.file_url %}
+      <div class="task__file">
+        <a href="{{ item.file_url }}" class="task__file-link" target="_blank">Скачать файл</a>
+      </div>
+      {% endif %}
     </div>
-
-    <div class="task-body">
-        <div class="task-with-answer">
-        {% if item.text %}{{ item.text|safe }}{% else %}<p>&nbsp;</p>{% endif %}
-
-        {% if item.file_url %}
-        <div class="task-file-download">
-            <a href="{{ item.file_url }}" class="pdf-file-link" target="_blank">Скачать файл</a>
-        </div>
-        {% endif %}
-
-        <div class="answer-line">
-            Ответ: <span class="answer-field">&nbsp;</span>
-        </div>
-        </div>
+    <div class="task__answer-line">
+      <div class="task__answer-field"></div>
     </div>
-    </div>
-
+  </div>
 </div>
