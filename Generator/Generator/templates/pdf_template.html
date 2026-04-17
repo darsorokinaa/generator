@@ -91,8 +91,6 @@ html, body {
   background: linear-gradient(90deg, var(--accent) 0%, var(--accent-end) 100%);
   box-shadow: 0 2px 10px rgba(62, 115, 239, 0.2);
   border-bottom: none;
-  page-break-after: avoid;
-  break-after: avoid-page;
 }
 
 .exam-header__brand {
@@ -126,6 +124,13 @@ html, body {
   margin-top: 3px;
 }
 
+.exam-header-wrap {
+  /* Единый блок (не flex!) — WeasyPrint надёжнее держит break-after на block, чем на flex */
+  display: block;
+  page-break-after: avoid;
+  break-after: avoid-page;
+}
+
 .exam-instruction {
   font-size: 9pt;
   color: var(--text-secondary);
@@ -133,6 +138,9 @@ html, body {
   line-height: 1.4;
   padding: 6px 0 14px 0;
   margin-bottom: 18px;
+  /* Цепочка: шапка → инструкция → первое задание — нельзя разрывать */
+  page-break-after: avoid;
+  break-after: avoid-page;
 }
 
 .exam-instruction p { margin-bottom: 6px; }
@@ -609,6 +617,7 @@ html, body {
 
 <span class="variant-id-anchor">Вариант №{{ variant.id }}</span>
 
+<div class="exam-header-wrap">
 <header class="exam-header">
   <div class="exam-header__brand">ГенУрок.рф</div>
   <div class="exam-header__meta">
@@ -624,6 +633,7 @@ html, body {
   {% endfor %}
 </div>
 {% endif %}
+</div>
 
 {% for item in tasks_content %}
   {% if item.type == "preview" %}
