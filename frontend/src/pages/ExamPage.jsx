@@ -2172,11 +2172,6 @@ function ExamPage() {
                               </div>
                             )}
                             {task.author && <div className="task-author">{task.author}</div>}
-                            <LessonSolutionUpload
-                              taskNumber={task.number}
-                              lessonToken={lessonEmbedParams.token}
-                              enabled={showLessonSolutionUpload}
-                            />
 
                             <div className="answer-section">
                               {useTableHere && rowsHere > 0 && colsHere > 0 ? (
@@ -2333,6 +2328,11 @@ function ExamPage() {
                                 </div>
                               )}
                             </div>
+                            <LessonSolutionUpload
+                              taskNumber={task.number}
+                              lessonToken={lessonEmbedParams.token}
+                              enabled={showLessonSolutionUpload}
+                            />
                             <div className="task-report-error-wrap">
                               <TaskReportErrorButton taskId={task.id} taskNumber={task.number} onClick={handleReportErrorClick} />
                             </div>
