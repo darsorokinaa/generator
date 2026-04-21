@@ -9,49 +9,6 @@
     #lesson-page-root { display: flex; width: 100%; height: 100%; min-height: 0; }
     #lesson-frame-wrapper { flex: 1; min-width: 0; min-height: 0; height: 100%; position: relative; }
     #variant-frame { width: 100%; height: 100%; border: 0; display: none; }
-    .lesson-matrix-sidebar {
-      display: none;
-      flex-direction: column;
-      flex: 0 0 auto;
-      width: min(420px, 40vw);
-      max-width: 100%;
-      height: 100%;
-      box-sizing: border-box;
-      padding: 10px 12px;
-      border-right: 1px solid #e2e8f0;
-      background: #f1f5f9;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-    }
-    #lesson-page-root.lesson--with-matrix .lesson-matrix-sidebar { display: flex; }
-    .lesson-matrix-header {
-      font-size: 0.8rem;
-      font-weight: 800;
-      color: #0f172a;
-      margin-bottom: 8px;
-      text-transform: uppercase;
-      letter-spacing: 0.02em;
-    }
-    #lesson-matrix-scroll { flex: 1; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch; }
-    .lesson-matrix-table { width: 100%; border-collapse: collapse; font-size: 0.76rem; table-layout: fixed; }
-    .lesson-matrix-table th,
-    .lesson-matrix-table td { border: 1px solid #cbd5e1; padding: 5px 6px; text-align: center; vertical-align: middle; word-break: break-word; }
-    .lesson-matrix-table th:first-child,
-    .lesson-matrix-table td.lesson-matrix-task-num {
-      text-align: left;
-      font-weight: 700;
-      color: #334155;
-      width: 2.5rem;
-      background: #f8fafc;
-      position: sticky;
-      left: 0;
-      z-index: 1;
-      box-shadow: 1px 0 0 #e2e8f0;
-    }
-    .lesson-matrix-table thead th { background: #e2e8f0; color: #0f172a; font-weight: 700; }
-    .lesson-matrix-cell-ok { color: #15803d; font-weight: 800; font-size: 0.95rem; }
-    .lesson-matrix-cell-bad { color: #b91c1c; font-weight: 800; font-size: 0.95rem; }
-    .lesson-matrix-cell-empty { color: #94a3b8; }
-    .lesson-matrix-placeholder { padding: 12px; font-size: 0.8rem; color: #64748b; line-height: 1.45; }
     #fallback {
       display: none; width: 100%; height: 100%; box-sizing: border-box; padding: 24px;
       align-items: center; justify-content: center; text-align: center; color: #334155;
@@ -199,15 +156,6 @@
 </head>
 <body>
   <div id="lesson-page-root">
-    <aside id="lesson-matrix-sidebar" class="lesson-matrix-sidebar" aria-label="Ответы учеников по задачам">
-      <div class="lesson-matrix-header">Ответы учеников</div>
-      <div id="lesson-matrix-scroll">
-        <table class="lesson-matrix-table" id="lesson-matrix-table">
-          <thead id="lesson-matrix-thead"></thead>
-          <tbody id="lesson-matrix-tbody"></tbody>
-        </table>
-      </div>
-    </aside>
     <div id="lesson-frame-wrapper">
       <iframe id="variant-frame" title="Вариант урока"></iframe>
       <div id="whiteboard-layer">
@@ -267,7 +215,6 @@
       }
 
       const lessonPageRoot = document.getElementById('lesson-page-root');
-      if (isTeacher && lessonPageRoot) lessonPageRoot.classList.add('lesson--with-matrix');
 
       const lessonPageToken = "{{ lesson_token|default:''|escapejs }}" || String(qs.get('token') || '').trim();
       const withLessonIframeParams = (urlStr) => {
@@ -1036,9 +983,6 @@
           <div class="lesson-participants-title">Участники онлайн: ${names.length}</div>
           <div class="lesson-participants-list">${names.map((n) => `<span class="lesson-participant-chip">${n}</span>`).join('')}</div>
         `;
-          if (isTeacher) {
-            renderTeacherAnswerMatrix();
-          }
         };
         if (isTeacher) withTeacherMutationsPaused(doc, apply);
         else apply();
@@ -1091,99 +1035,7 @@
         return changed;
       };
 
-      const collectMatrixStudents = () => {
-        const set = new Set();
-        Object.entries(participants).forEach(([name, roleVal]) => {
-          if (String(roleVal || '').toLowerCase() === 'student') set.add(name);
-        });
-        Object.values(answersByTask).forEach((list) => {
-          (list || []).forEach((r) => {
-            if (r && r.name) set.add(r.name);
-          });
-        });
-        return [...set].sort((a, b) => a.localeCompare(b, 'ru'));
-      };
-
-      const collectMatrixTaskNums = () => {
-        const s = new Set();
-        Object.keys(answerByTaskNum || {}).forEach((k) => {
-          const n = normalizeTaskNumber(k);
-          if (n) s.add(n);
-        });
-        Object.keys(answersByTask || {}).forEach((k) => {
-          const n = normalizeTaskNumber(k);
-          if (n) s.add(n);
-        });
-        if (!s.size && isTeacher) {
-          const doc = getDoc();
-          if (doc && doc.querySelectorAll) {
-            doc.querySelectorAll('.task .task-number').forEach((el) => {
-              const n = normalizeTaskNumber(el.textContent || '');
-              if (n) s.add(n);
-            });
-          }
-        }
-        const arr = [...s];
-        arr.sort((a, b) => {
-          const na = parseInt(a, 10);
-          const nb = parseInt(b, 10);
-          if (String(na) === a && String(nb) === b && !Number.isNaN(na) && !Number.isNaN(nb)) return na - nb;
-          return a.localeCompare(b, 'ru', { numeric: true });
-        });
-        return arr;
-      };
-
-      const renderTeacherAnswerMatrix = () => {
-        if (!isTeacher) return;
-        const thead = document.getElementById('lesson-matrix-thead');
-        const tbody = document.getElementById('lesson-matrix-tbody');
-        if (!thead || !tbody) return;
-        const students = collectMatrixStudents();
-        const tasks = collectMatrixTaskNums();
-        if (!students.length) {
-          thead.innerHTML = '';
-          tbody.innerHTML =
-            '<tr><td colspan="99" class="lesson-matrix-placeholder">Нет учеников в списке участников. После подключения и отправки ответов таблица заполнится.</td></tr>';
-          return;
-        }
-        if (!tasks.length) {
-          thead.innerHTML = '';
-          tbody.innerHTML =
-            '<tr><td colspan="99" class="lesson-matrix-placeholder">Номера задач появятся после загрузки варианта в окне справа.</td></tr>';
-          return;
-        }
-        thead.innerHTML =
-          '<tr><th scope="col">№</th>' +
-          students.map((name) => '<th scope="col">' + safeHtml(name) + '</th>').join('') +
-          '</tr>';
-        tbody.innerHTML = tasks
-          .map((taskNum) => {
-            const rowCells = students
-              .map((studentName) => {
-                const list = answersByTask[taskNum] || [];
-                const found = list.find((r) => r.name === studentName);
-                if (!found) {
-                  return '<td class="lesson-matrix-cell-empty">—</td>';
-                }
-                const tip = escAttr(found.answer || '');
-                if (found.ok) {
-                  return '<td><span class="lesson-matrix-cell-ok" title="' + tip + '">✓</span></td>';
-                }
-                return '<td><span class="lesson-matrix-cell-bad" title="' + tip + '">✗</span></td>';
-              })
-              .join('');
-            return (
-              '<tr><th scope="row" class="lesson-matrix-task-num">' +
-              safeHtml(taskNum) +
-              '</th>' +
-              rowCells +
-              '</tr>'
-            );
-          })
-          .join('');
-      };
-
-      const mergeAttachmentsFromApiItems = (items) => {
+      const mergeTaskAnswersFromApi = (rows) => {
         if (!Array.isArray(items) || !items.length) return;
         items.forEach((item) => {
           const taskNum = normalizeTaskNumber(item.task_number);
@@ -1237,7 +1089,6 @@
             removeLessonResultsPanel(doc);
           });
         }
-        renderTeacherAnswerMatrix();
       };
 
       const scheduleTeacherAnswerRefresh = (doc) => {
@@ -1280,7 +1131,6 @@
               removeLessonResultsPanel(doc);
             });
           }
-          renderTeacherAnswerMatrix();
         } catch (_) {}
       };
 
@@ -1362,6 +1212,7 @@
         doc.querySelectorAll('#finish-btn, .exam-finish-section, .exam-finish-btn').forEach((el) => { el.style.display = 'none'; });
 
         doc.querySelectorAll('.lesson-teacher-answer-block').forEach((el) => el.remove());
+        doc.querySelectorAll('.lesson-student-answers-block').forEach((el) => el.remove());
         doc.querySelectorAll('.lesson-attachments-teacher').forEach((el) => el.remove());
 
         doc.querySelectorAll('.task').forEach((task) => {
@@ -1376,6 +1227,20 @@
             '<div class="lesson-teacher-answer-title">Эталонный ответ</div>' +
             '<div class="lesson-teacher-answer-value">' + answerHtml + '</div>';
           task.appendChild(block);
+
+          const studentAnswers = answersByTask[taskNum] || [];
+          if (studentAnswers.length > 0) {
+            const studentsBlock = doc.createElement('div');
+            studentsBlock.className = 'lesson-student-answers-block';
+            let html = '<div class="lesson-student-answers-title">Ответы учеников</div><div class="lesson-student-answers-list">';
+            studentAnswers.forEach(sa => {
+              const icon = sa.ok ? '<span style="color:#15803d;font-weight:bold;margin-left:6px;">✓</span>' : '<span style="color:#b91c1c;font-weight:bold;margin-left:6px;">✗</span>';
+              html += `<div class="lesson-student-answer-item"><b>${safeHtml(sa.name)}</b>: ${safeHtml(sa.answer)} ${icon}</div>`;
+            });
+            html += '</div>';
+            studentsBlock.innerHTML = html;
+            task.appendChild(studentsBlock);
+          }
         });
       };
 
@@ -1392,7 +1257,6 @@
             });
           }
         } catch (_) {}
-        renderTeacherAnswerMatrix();
         const d = getDoc();
         if (d) {
           withTeacherMutationsPaused(d, () => {
@@ -1792,6 +1656,10 @@
           .lesson-teacher-answer-block{margin-top:10px;padding:10px 12px;border:1px solid #bfdbfe;background:#f0f9ff;border-radius:10px}
           .lesson-teacher-answer-title{font-size:.72rem;font-weight:800;color:#1d4ed8;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px}
           .lesson-teacher-answer-value{font-size:.88rem;line-height:1.5;color:#0f172a;word-break:break-word}
+          .lesson-student-answers-block{margin-top:10px;padding:10px 12px;border:1px solid #bbf7d0;background:#f0fdf4;border-radius:10px}
+          .lesson-student-answers-title{font-size:.72rem;font-weight:800;color:#15803d;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px}
+          .lesson-student-answer-item{font-size:.88rem;line-height:1.5;color:#0f172a;margin-bottom:4px;word-break:break-word}
+          .lesson-student-answer-item:last-child{margin-bottom:0}
           .lesson-attachments-teacher{margin-top:10px;padding:10px 12px;border:1px solid #d8b4fe;background:#faf5ff;border-radius:10px}
           .lesson-attachments-title{font-size:.72rem;font-weight:800;color:#7e22ce;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px}
           .lesson-attachments-grid{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start}
@@ -1842,7 +1710,6 @@
             renderLessonAttachments(doc);
             removeLessonResultsPanel(doc);
           });
-          renderTeacherAnswerMatrix();
           if (taskObserver) taskObserver.disconnect();
           taskObserver = new MutationObserver(() => {
             withTeacherMutationsPaused(doc, () => {
