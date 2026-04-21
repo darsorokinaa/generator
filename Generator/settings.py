@@ -11,10 +11,14 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-insecure-secret-key")
 
 # Тот же секрет, что в ЛК (02_lk_generator): POST /api/lesson/token/ → ссылка на /lesson/join/
 LESSON_SECRET = os.environ.get("LESSON_SECRET", "").strip()
-
+TASKS_GET_SECRET = os.environ.get("LINK_SECRET_FOR_TASKS").strip()
 # Ссылка «Личный кабинет» в шаблоне урока и согласованность с фронтом (VITE_LK_URL)
 LK_PUBLIC_URL = os.environ.get("LK_PUBLIC_URL", "http://lk.genurok.tw1.ru").rstrip("/")
 LK_DASHBOARD_URL = os.environ.get("LK_DASHBOARD_URL", "").strip().rstrip("/")
+# Опционально: явный URL вебхука ЛК при входе ученика в комнату (иначе LK_PUBLIC_URL + /api/lesson/student-joined/).
+LK_LESSON_STUDENT_NOTIFY_URL = os.environ.get("LK_LESSON_STUDENT_NOTIFY_URL", "").strip()
+LK_LESSON_NOTIFY_URL = os.environ.get("LK_LESSON_NOTIFY_URL", "").strip()
+LESSON_WEBHOOK_SECRET = os.environ.get("LESSON_WEBHOOK_SECRET", "").strip()
 _gen_home_outer = os.environ.get("GENUROK_PUBLIC_HOME_URL", "http://genurok.ru").strip().rstrip("/")
 GENUROK_PUBLIC_HOME_URL = f"{_gen_home_outer}/"
 LOGOUT_REDIRECT_URL = GENUROK_PUBLIC_HOME_URL
@@ -71,6 +75,9 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
+# Разрешаем iframe на том же origin (урок встраивает страницу варианта).
+X_FRAME_OPTIONS = "SAMEORIGIN"
+
 # Полные маршруты API (tasks/, subtopics/, lesson/join/, verify, …) — во вложенном приложении.
 ROOT_URLCONF = "Generator.Generator.urls"
 
@@ -101,16 +108,16 @@ CHANNEL_LAYERS = {
 }
 
 # # Database (те же параметры, что в Generator/Generator/settings.py — одна БД для дампа)
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.postgresql',
-#         'NAME': 'generatordb',
-#         'USER': os.environ.get('PGUSER', 'postgres'),
-#         'PASSWORD': os.environ.get('PGPASSWORD', 'postgres'),
-#         'HOST': os.environ.get('PGHOST', 'localhost'),
-#         'PORT': os.environ.get('PGPORT', ''),
-#     }
-# }
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'generatordb',
+        'USER': os.environ.get('PGUSER', 'postgres'),
+        'PASSWORD': os.environ.get('PGPASSWORD', 'postgres'),
+        'HOST': os.environ.get('PGHOST', 'localhost'),
+        'PORT': os.environ.get('PGPORT', ''),
+    }
+}
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [

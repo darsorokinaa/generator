@@ -14,12 +14,20 @@ urlpatterns = [
     path('admin/', admin.site.urls),
 
     path("api/csrf/", views.api_csrf, name="api_csrf"),
+    path("api/catalog/", views.api_catalog, name="api_catalog"),
     path("api/site-config/", views.api_site_config, name="api_site_config"),
     path("api/lk-nav-unlock/", views.api_lk_nav_unlock, name="api_lk_nav_unlock"),
     path("api/lesson/verify/", views.api_lesson_verify, name="api_lesson_verify"),
     path("api/lesson/teacher-joined/", views.api_lesson_teacher_joined, name="api_lesson_teacher_joined"),
     path("api/lesson/session-close/", views.api_lesson_session_close, name="api_lesson_session_close"),
+    path("api/lesson/finalize/", views.api_lesson_finalize, name="api_lesson_finalize"),
+    path("api/lesson/student-answer/", views.api_lesson_student_answer, name="api_lesson_student_answer"),
+    path("api/lesson/results/", views.api_lesson_results, name="api_lesson_results"),
+    path("api/lesson/task-answers/", views.api_lesson_task_answers, name="api_lesson_task_answers"),
+    path("api/lesson/student-comment/", views.api_lesson_student_comment, name="api_lesson_student_comment"),
+    path("api/lesson/report/download/", views.api_lesson_report_download, name="api_lesson_report_download"),
     path("api/lesson/attachment/", views.api_lesson_attachment_upload, name="api_lesson_attachment_upload"),
+    path("api/lesson/attachments/", views.api_lesson_attachments_list, name="api_lesson_attachments_list"),
     re_path(r"^api/lesson/attachment/(?P<safe_room>[a-zA-Z0-9_-]+)/(?P<filename>[a-zA-Z0-9_\-\.]+)$",
             views.api_lesson_attachment_serve, name="api_lesson_attachment_serve"),
     path("api/updates/", views.api_updates, name="api_updates"),
@@ -32,6 +40,8 @@ urlpatterns = [
     path("api/<str:level>/<str:subject>/subtopics/", views.api_subtopics),
     path("api/variant-lookup/<int:variant_id>/", views.api_variant_lookup),
     path("api/lesson/variant/<int:variant_id>/", views.api_lesson_variant_detail, name="api_lesson_variant_detail"),
+    path("api/<str:level>/<str:subject>/task-bank/", views.api_task_bank, name="api_task_bank"),
+    path("api/<str:level>/<str:subject>/variant-from-ids/", views.api_variant_from_ids, name="api_variant_from_ids"),
     path("api/<str:level>/<str:subject>/variant/", views.api_generate_variant),
     path("api/<str:level>/<str:subject>/variant/<int:variant_id>/", views.api_variant_detail),
     path("api/<str:level>/<str:subject>/support-info/", views.api_support_info),
@@ -46,6 +56,8 @@ urlpatterns = [
     ),
     # Совместимость со старым клиентом: /api/ege/math/ → тот же ответ, что tasks/
     path("api/<str:level>/<str:subject>/", views.api_tasks),
+
+    path("api/<str:level>/<str:subject>/group-instances/", views.api_group_instances, name="api_group_instances"),
 
     path("", include("Board.urls")),
     path("lesson/join", views.lesson_join_redirect),

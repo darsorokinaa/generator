@@ -54,8 +54,16 @@ LK_DASHBOARD_URL = os.environ.get("LK_DASHBOARD_URL", "").strip().rstrip("/")
 # Явный URL POST при входе учителя в звонок (иначе LK_PUBLIC_URL + /api/lesson/teacher-joined/).
 # ЛК по этому вызову шлёт ученику приглашение на все устройства (WS + web-push и т.д.).
 LK_LESSON_NOTIFY_URL = os.environ.get("LK_LESSON_NOTIFY_URL", "").strip()
+# POST при открытии комнаты учеником на генераторе (иначе LK_PUBLIC_URL + /api/lesson/student-joined/).
+# Тот же X-Lesson-Webhook-Secret, что для teacher-joined.
+LK_LESSON_STUDENT_NOTIFY_URL = os.environ.get("LK_LESSON_STUDENT_NOTIFY_URL", "").strip()
 # Кнопка «Личный кабинет»: если переменная не задана — пароль 100326; пустая строка LK_NAVIGATION_PASSWORD= — без пароля.
 _lk_nav_env = os.environ.get("LK_NAVIGATION_PASSWORD")
+
+TASKS_GET_SECRET = os.environ.get("LINK_SECRET_FOR_TASKS", "").strip()
+
+
+
 if _lk_nav_env is None:
     LK_NAVIGATION_PASSWORD = "100326"
 else:
@@ -111,6 +119,10 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+# Разрешаем встраивать страницы в iframe на том же origin
+# (нужно для /lesson/join/ -> iframe с /<level>/<subject>/variant/<id>/).
+X_FRAME_OPTIONS = "SAMEORIGIN"
 
 CORS_ALLOW_ALL_ORIGINS = True
 
@@ -192,27 +204,27 @@ else:
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 # В systemd задают PGDATABASE/PGUSER/... — обязательно читаем их (раньше были захардкожены generatordb).
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ.get("PGDATABASE", "generatordb"),
-        "USER": os.environ.get("PGUSER", "generator_user"),
-        "PASSWORD": os.environ.get("PGPASSWORD", "StrongPass123"),
-        "HOST": os.environ.get("PGHOST", "localhost"),
-        "PORT": os.environ.get("PGPORT", "5432"),
-    }
-}
-
 # DATABASES = {
 #     "default": {
 #         "ENGINE": "django.db.backends.postgresql",
 #         "NAME": os.environ.get("PGDATABASE", "generatordb"),
-#         "USER": os.environ.get("PGUSER", "postgres"),
-#         "PASSWORD": os.environ.get("PGPASSWORD", "postgres"),
+#         "USER": os.environ.get("PGUSER", "generator_user"),
+#         "PASSWORD": os.environ.get("PGPASSWORD", "StrongPass123"),
 #         "HOST": os.environ.get("PGHOST", "localhost"),
 #         "PORT": os.environ.get("PGPORT", "5432"),
 #     }
 # }
+
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.environ.get("PGDATABASE", "generatordb"),
+        "USER": os.environ.get("PGUSER", "postgres"),
+        "PASSWORD": os.environ.get("PGPASSWORD", "postgres"),
+        "HOST": os.environ.get("PGHOST", "localhost"),
+        "PORT": os.environ.get("PGPORT", "5432"),
+    }
+}
 
 
 # Password validation

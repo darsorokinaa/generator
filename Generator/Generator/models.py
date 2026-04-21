@@ -445,3 +445,69 @@ def username_for_created_by(request):
         if name:
             return name[:100]
     return "ADMIN"
+
+class LessonStudentsAnswer(models.Model):
+    room_id = models.CharField(max_length=200, db_index=True, blank=True, default="")
+    variant_id = models.PositiveIntegerField(default=0, db_index=True)
+    task_number = models.CharField(max_length=32, blank=True, default="")
+    teacher = models.CharField(max_length=200, blank=True, default="")
+    student = models.CharField(max_length=200, blank=True, default="")
+    answer = models.TextField(blank=True, default="")
+    is_correct = models.BooleanField(default=False)
+    is_empty = models.BooleanField(default=False)
+    payload = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Ответ ученика на уроке"
+        verbose_name_plural = "Ответы учеников на уроке"
+        indexes = [
+            models.Index(fields=["room_id", "variant_id"], name="lesson_answer_room_variant_idx"),
+            models.Index(fields=["variant_id", "task_number"], name="lesson_answer_variant_task_idx"),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["room_id", "variant_id", "task_number", "student"],
+                name="lesson_answer_unique_per_student_task",
+            )
+        ]
+
+    def __str__(self):
+        task = self.task_number or "?"
+        return f"room={self.room_id} variant={self.variant_id} task={task} student={self.student}"
+
+
+class LessonStudentResult(models.Model):
+    room_id = models.CharField(max_length=200, db_index=True, blank=True, default="")
+    variant_id = models.PositiveIntegerField(default=0, db_index=True)
+    teacher = models.CharField(max_length=200, blank=True, default="")
+    student = models.CharField(max_length=200, blank=True, default="")
+    total_tasks = models.PositiveIntegerField(default=0)
+    correct_count = models.PositiveIntegerField(default=0)
+    wrong_count = models.PositiveIntegerField(default=0)
+    empty_count = models.PositiveIntegerField(default=0)
+    teacher_comment = models.TextField(blank=True, default="")
+    payload = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Результат ученика в уроке"
+        verbose_name_plural = "Результаты учеников в уроке"
+        indexes = [
+            models.Index(fields=["room_id", "variant_id"], name="lesson_result_room_variant_idx"),
+            models.Index(fields=["room_id", "student"], name="lesson_result_room_student_idx"),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["room_id", "variant_id", "student"],
+                name="lesson_result_unique_per_student",
+            )
+        ]
+
+    def __str__(self):
+        return (
+            f"room={self.room_id} variant={self.variant_id} student={self.student} "
+            f"{self.correct_count}/{self.total_tasks}"
+        )

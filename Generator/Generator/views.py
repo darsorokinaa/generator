@@ -3,9 +3,13 @@ import json
 import logging
 import os
 import re
+import io
+import csv
+import zipfile
 from urllib.parse import parse_qs, quote, urlencode, urlparse, urlunparse
 from urllib import request as urlrequest, error as urlerror
 import secrets
+import threading
 import time
 from datetime import datetime
 
@@ -23,9 +27,12 @@ from django.http import (
 )
 from django.shortcuts import get_object_or_404, render
 from django.template.loader import render_to_string
+from django.utils.html import strip_tags
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
+from rest_framework.views import APIView
+from rest_framework.response import Response as DRFResponse
 try:
     from weasyprint import HTML as WeasyHTML
     _WEASYPRINT_OK = True
@@ -38,6 +45,8 @@ from .models import (
     Criteria,
     ErrorReport,
     LessonRoom,
+    LessonStudentResult,
+    LessonStudentsAnswer,
     Level,
     LinkedTaskGroup,
     Mark,
@@ -1247,6 +1256,306 @@ def api_generate_variant(request, level, subject):
         return JsonResponse({'error': str(e)}, status=400)
 
 
+# ── LK Variant Builder endpoints ──────────────────────────────────────────────
+
+@require_http_methods(["GET"])
+def api_catalog(request):
+    """GET /api/catalog/ — subjects grouped by level, for the LK variant picker."""
+    result = []
+    for level in Level.objects.all().order_by('level'):
+        subjects = (
+            Subject.objects
+            .filter(tasklist__level=level)
+            .distinct()
+            .order_by('subject_name')
+            .values('subject_short', 'subject_name')
+        )
+        subj_list = list(subjects)
+        if subj_list:
+            result.append({
+                'level': level.level,
+                'level_rus': level.level_rus,
+                'subjects': subj_list,
+            })
+    return JsonResponse({'catalog': result})
+
+
+@require_http_methods(["GET"])
+def api_task_bank(request, level, subject):
+    """GET /api/<level>/<subject>/task-bank/
+    Individual tasks from the bank for the LK manual variant builder.
+    Query params: task_list_id, subtopic_id, page (default 1), per_page (default 12, max 50).
+    """
+    subject_instance = get_subject_for_api(subject)
+    level_instance = get_object_or_404(Level, level=level)
+
+    qs = Task.objects.filter(
+        task__subject=subject_instance,
+        task__level=level_instance,
+    ).select_related('task', 'subtopic')
+
+    task_list_id = request.GET.get('task_list_id')
+    if task_list_id:
+        try:
+            qs = qs.filter(task_id=int(task_list_id))
+        except (TypeError, ValueError):
+            pass
+
+    subtopic_id = request.GET.get('subtopic_id')
+    if subtopic_id:
+        try:
+            qs = qs.filter(subtopic_id=int(subtopic_id))
+        except (TypeError, ValueError):
+            pass
+
+    try:
+        page = max(1, int(request.GET.get('page', 1)))
+        per_page = min(50, max(1, int(request.GET.get('per_page', 12))))
+    except (TypeError, ValueError):
+        page, per_page = 1, 12
+
+    total = qs.count()
+    offset = (page - 1) * per_page
+    tasks_qs = qs.order_by('id')[offset:offset + per_page]
+
+    result = []
+    for task in tasks_qs:
+        result.append({
+            'id': task.id,
+            'task_list_id': task.task_id,
+            'task_number': task.task.task_number if task.task else None,
+            'task_title': task.task.task_title if task.task else '',
+            'subtopic': task.subtopic.title if task.subtopic else None,
+            'text': process_latex(str(task.task_template or ''), for_browser=True),
+            'answer': str(task.answer or ''),
+            'added_at': task.added_at.strftime('%d.%m.%Y') if task.added_at else None,
+        })
+
+    return JsonResponse({
+        'total': total,
+        'page': page,
+        'per_page': per_page,
+        'tasks': result,
+    })
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_variant_from_ids(request, level, subject):
+    """POST /api/<level>/<subject>/variant-from-ids/
+    Body: {"task_ids": [1, 5, 12, ...]}  — ordered list of Task.id
+    Creates a Variant with VariantContent in that exact order.
+    Returns: {"variant_id": 123}
+    """
+    try:
+        data = json.loads(request.body)
+    except (json.JSONDecodeError, TypeError):
+        return JsonResponse({'error': 'Invalid JSON'}, status=400)
+
+    task_ids = data.get('task_ids') or []
+    if not task_ids:
+        return JsonResponse({'error': 'task_ids is required and must be non-empty'}, status=400)
+
+    subject_instance = get_subject_for_api(subject)
+    level_instance = get_object_or_404(Level, level=level)
+
+    # Verify tasks exist and belong to this subject+level
+    task_map = {
+        t.id: t
+        for t in Task.objects.filter(
+            id__in=[int(tid) for tid in task_ids],
+            task__subject=subject_instance,
+            task__level=level_instance,
+        )
+    }
+
+    variant = Variant.objects.create(
+        var_subject=subject_instance,
+        level=level_instance,
+        created_by='lk_teacher',
+    )
+
+    vc_objects = []
+    for order, tid in enumerate(task_ids, start=1):
+        task = task_map.get(int(tid))
+        if task:
+            vc_objects.append(VariantContent(variant=variant, task=task, order=order))
+
+    if not vc_objects:
+        variant.delete()
+        return JsonResponse({'error': 'No valid tasks found for this subject/level'}, status=400)
+
+    VariantContent.objects.bulk_create(vc_objects)
+    return JsonResponse({'variant_id': variant.id})
+
+
+# ── TaskListView (DRF) ────────────────────────────────────────────────────────
+
+class TaskListView(APIView):
+    """GET /api/tasks/?subject=math&level=oge&task=5&subtopic=12&page=1&per_page=20
+    Список заданий из банка — фильтрация по query-параметрам.
+    Используется кабинетом-прокси (X-Tasks-Get-Secret).
+    """
+
+    def get(self, request):
+        subject_param = (request.GET.get('subject') or '').strip()
+        level_param   = (request.GET.get('level')   or '').strip()
+        task_param    = (request.GET.get('task')     or '').strip()
+        subtopic_param = (request.GET.get('subtopic') or '').strip()
+
+        qs = Task.objects.select_related('task', 'subtopic')
+
+        if subject_param:
+            subj = Subject.objects.filter(subject_short__iexact=subject_param).first()
+            if subj:
+                qs = qs.filter(task__subject=subj)
+            else:
+                return DRFResponse({'total': 0, 'page': 1, 'per_page': 20, 'tasks': []})
+
+        if level_param:
+            lvl = Level.objects.filter(level__iexact=level_param).first()
+            if lvl:
+                qs = qs.filter(task__level=lvl)
+
+        if task_param:
+            try:
+                qs = qs.filter(task__task_number=int(task_param))
+            except (TypeError, ValueError):
+                pass
+
+        if subtopic_param:
+            try:
+                qs = qs.filter(subtopic_id=int(subtopic_param))
+            except (TypeError, ValueError):
+                qs = qs.filter(subtopic__title__icontains=subtopic_param)
+
+        try:
+            page     = max(1, int(request.GET.get('page', 1)))
+            per_page = min(100, max(1, int(request.GET.get('per_page', 20))))
+        except (TypeError, ValueError):
+            page, per_page = 1, 20
+
+        total  = qs.count()
+        offset = (page - 1) * per_page
+        items  = qs.order_by('id')[offset:offset + per_page]
+
+        result = []
+        for t in items:
+            result.append({
+                'id':           t.id,
+                'task_list_id': t.task_id,
+                'task_number':  t.task.task_number if t.task else None,
+                'task_title':   t.task.task_title  if t.task else '',
+                'subtopic':     t.subtopic.title   if t.subtopic else None,
+                'subtopic_id':  t.subtopic_id,
+                'text':         process_latex(str(t.task_template or ''), for_browser=True),
+                'answer':       str(t.answer or ''),
+                'max_score':    t.max_score,
+                'added_at':     t.added_at.strftime('%d.%m.%Y') if t.added_at else None,
+            })
+
+        return DRFResponse({
+            'total':    total,
+            'page':     page,
+            'per_page': per_page,
+            'tasks':    result,
+        })
+
+
+# ── end LK Variant Builder ────────────────────────────────────────────────────
+
+
+@require_http_methods(["GET"])
+def api_group_instances(request, level, subject):
+    """GET /api/<level>/<subject>/group-instances/
+    Полные экземпляры TaskGroup с текстом каждого задания.
+    Params:
+      group_id    — вернуть один конкретный TaskGroup по ID (type=group)
+      linked_key  — вернуть все TaskGroup, соответствующие набору номеров заданий
+                    (строка вида "19_20_21"; type=linked_group)
+      subtopic_id — опциональная фильтрация по подтеме TaskGroup.subtopic
+      page        — страница (default 1)
+      per_page    — размер (default 20, max 50)
+    """
+    subject_instance = get_subject_for_api(subject)
+    level_instance   = get_object_or_404(Level, level=level)
+
+    qs = (
+        TaskGroup.objects
+        .filter(subject=subject_instance, level=level_instance)
+        .prefetch_related(
+            Prefetch(
+                'taskgroupmember_set',
+                queryset=TaskGroupMember.objects.select_related('task', 'task__task').order_by('task_number'),
+            )
+        )
+    )
+
+    group_id_param   = request.GET.get('group_id', '').strip()
+    linked_key_param = request.GET.get('linked_key', '').strip()
+    subtopic_id_param = request.GET.get('subtopic_id', '').strip()
+
+    if group_id_param:
+        try:
+            qs = qs.filter(id=int(group_id_param))
+        except (TypeError, ValueError):
+            return JsonResponse({'total': 0, 'instances': []})
+
+    elif linked_key_param:
+        try:
+            task_numbers = [int(n) for n in linked_key_param.split('_') if n.strip().isdigit()]
+        except (ValueError, TypeError):
+            return JsonResponse({'total': 0, 'instances': []})
+        if not task_numbers:
+            return JsonResponse({'total': 0, 'instances': []})
+        # Группы, у которых есть ровно все нужные task_number
+        qs = (
+            qs
+            .filter(taskgroupmember__task_number__in=task_numbers)
+            .annotate(mcnt=Count('taskgroupmember', distinct=True))
+            .filter(mcnt=len(task_numbers))
+            .distinct()
+        )
+
+    if subtopic_id_param:
+        try:
+            qs = qs.filter(subtopic_id=int(subtopic_id_param))
+        except (TypeError, ValueError):
+            pass
+
+    try:
+        page     = max(1, int(request.GET.get('page', 1)))
+        per_page = min(50, max(1, int(request.GET.get('per_page', 20))))
+    except (TypeError, ValueError):
+        page, per_page = 1, 20
+
+    total  = qs.count()
+    offset = (page - 1) * per_page
+    groups = list(qs.order_by('id')[offset:offset + per_page])
+
+    instances = []
+    for grp in groups:
+        members = list(grp.taskgroupmember_set.all())
+        task_items = []
+        for m in members:
+            t  = m.task
+            tl = t.task if t else None
+            task_items.append({
+                'id':          t.id if t else None,
+                'task_number': m.task_number,
+                'task_title':  tl.task_title if tl else '',
+                'text':        process_latex(str(t.task_template or ''), for_browser=True) if t else '',
+                'answer':      str(t.answer or '') if t else '',
+                'max_score':   t.max_score if t else None,
+            })
+        instances.append({
+            'group_id':   grp.id,
+            'subtopic_id': grp.subtopic_id,
+            'tasks':      task_items,
+        })
+
+    return JsonResponse({'total': total, 'page': page, 'per_page': per_page, 'instances': instances})
+
 def api_variant_lookup(request, variant_id):
     variant = get_object_or_404(Variant.objects.select_related('level', 'var_subject'), id=variant_id)
     return JsonResponse({
@@ -1373,8 +1682,38 @@ def api_lesson_variant_detail(request, variant_id):
 
 @require_http_methods(["GET"])
 def variant_detail_short_url(request, level, subject, variant_id):
-    """Короткий URL без /api для получения JSON варианта в уроке и внешних интеграциях."""
-    return api_variant_detail(request, level, subject, variant_id)
+    """
+    Короткий URL варианта без /api.
+
+    В браузере должен открываться обычный интерфейс варианта (SPA),
+    а JSON оставляем только для явного запроса интеграций.
+    """
+    # Редирект в /lesson/join/ только для старых ссылок ЛК вида
+    # /level/subject/variant/N/?token=<jwt> (открыть комнату вместо варианта в окне браузера).
+    # Встроенный вариант в iframe комнаты передаёт lesson_embed=1 и lesson_token=…;
+    # иногда в URL дублируется legacy ?token= из lesson_variant_url — тогда редирект ломает iframe.
+    token_q = (request.GET.get("token") or "").strip()
+    lesson_embed = str(request.GET.get("lesson_embed") or "").strip().lower() in ("1", "true", "yes")
+    iframe_lesson_token = (request.GET.get("lesson_token") or "").strip()
+    if token_q and not lesson_embed and not iframe_lesson_token:
+        try:
+            verify_lesson_token(token_q)
+        except ValueError:
+            # Невалидный/чужой token не должен ломать обычное открытие варианта.
+            pass
+        else:
+            q = request.META.get("QUERY_STRING", "").strip()
+            target = "/lesson/join/" + ("?" + q if q else "")
+            return HttpResponseRedirect(target)
+
+    wants_json = (
+        request.GET.get("format") == "json"
+        or request.GET.get("raw") == "1"
+        or "application/json" in request.headers.get("Accept", "")
+    )
+    if wants_json:
+        return api_variant_detail(request, level, subject, variant_id)
+    return react_app(request)
 
 
 @require_http_methods(["GET"])
@@ -1946,21 +2285,20 @@ def _broadcast_lesson_session_closed(room_id: str) -> None:
         logger.exception("WS broadcast session_closed failed for %s", room_id)
 
 
-def notify_lk_teacher_joined(token: str, extra: dict | None = None) -> tuple[bool, str]:
+def _lk_lesson_webhook_headers() -> dict:
+    headers = {"Content-Type": "application/json"}
+    wh = (getattr(django_settings, "LESSON_WEBHOOK_SECRET", None) or "").strip()
+    if not wh:
+        wh = (getattr(django_settings, "LESSON_SECRET", None) or "").strip()
+    if wh:
+        headers["X-Lesson-Webhook-Secret"] = wh
+    return headers
+
+
+def _post_lk_lesson_webhook(endpoint: str, token: str, extra: dict | None = None) -> tuple[bool, str]:
     """
-    Сообщает ЛК, что учитель реально вошёл в урок.
-    ЛК рассылает ученику приглашение (WS / push на все устройства — реализуется в ЛК).
-    Возвращает (success, error_detail) — error_detail не пустой только при неудаче.
+    POST { "token": ..., ...extra } на URL ЛК с X-Lesson-Webhook-Secret (как teacher-joined / student-joined).
     """
-    endpoint = (getattr(django_settings, "LK_LESSON_NOTIFY_URL", "") or "").strip()
-    if not endpoint:
-        lk_base = (getattr(django_settings, "LK_PUBLIC_URL", "") or "").rstrip("/")
-        if lk_base:
-            endpoint = f"{lk_base}/api/lesson/teacher-joined/"
-    if not endpoint and bool(getattr(django_settings, "DEBUG", False)):
-        endpoint = "http://127.0.0.1:8001/api/lesson/teacher-joined/"
-    if not endpoint:
-        return False, "LK_PUBLIC_URL не задан — неизвестно куда отправить уведомление"
     payload: dict = {"token": token}
     if extra:
         for k, v in extra.items():
@@ -1968,19 +2306,13 @@ def notify_lk_teacher_joined(token: str, extra: dict | None = None) -> tuple[boo
                 continue
             payload[k] = v
     body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-    headers = {"Content-Type": "application/json"}
-    # ЛК может требовать заголовок; часто тот же секрет, что и JWT (LESSON_SECRET), если отдельный не задан.
-    wh = (getattr(django_settings, "LESSON_WEBHOOK_SECRET", None) or "").strip()
-    if not wh:
-        wh = (getattr(django_settings, "LESSON_SECRET", None) or "").strip()
-    if wh:
-        headers["X-Lesson-Webhook-Secret"] = wh
+    headers = _lk_lesson_webhook_headers()
     import ssl as _ssl
+
     http_fallback: str | None = None
     if endpoint.startswith("https://"):
         http_fallback = endpoint.replace("https://", "http://", 1)
 
-    # Возвращает (ok, http_status_or_none, detail)
     def _do_request(url: str) -> tuple[bool, int | None, str]:
         req = urlrequest.Request(url, data=body, method="POST", headers=headers)
         try:
@@ -1993,7 +2325,7 @@ def notify_lk_teacher_joined(token: str, extra: dict | None = None) -> tuple[boo
             except Exception:
                 pass
             code = getattr(e, "code", None)
-            logger.warning("ЛК ответил HTTP %s на teacher-joined (%s): %s", code, url, detail or str(e))
+            logger.warning("ЛК ответил HTTP %s на lesson webhook (%s): %s", code, url, detail or str(e))
             return False, code, detail or str(e)
         except Exception as exc:
             raise exc
@@ -2011,13 +2343,20 @@ def notify_lk_teacher_joined(token: str, extra: dict | None = None) -> tuple[boo
             ssl_reason = str(e)
             last_detail = f"Ошибка соединения с {endpoint}: {ssl_reason[:120]}"
             if http_fallback and http_fallback != endpoint:
-                logger.warning("SSL/URL-ошибка при обращении к %s (%s), пробуем HTTP: %s", endpoint, ssl_reason, http_fallback)
+                logger.warning(
+                    "SSL/URL-ошибка при обращении к %s (%s), пробуем HTTP: %s",
+                    endpoint,
+                    ssl_reason,
+                    http_fallback,
+                )
                 try:
                     ok2, http_code2, detail2 = _do_request(http_fallback)
                     if ok2:
                         logger.info("Уведомление ЛК доставлено по HTTP-fallback: %s", http_fallback)
                         return True, ""
-                    last_detail = f"HTTP {http_code2} от {http_fallback}: {detail2[:120]}" if http_code2 else detail2
+                    last_detail = (
+                        f"HTTP {http_code2} от {http_fallback}: {detail2[:120]}" if http_code2 else detail2
+                    )
                 except Exception as e2:
                     last_err = e2
                     last_detail = f"Ошибка соединения с {http_fallback}: {str(e2)[:120]}"
@@ -2027,11 +2366,46 @@ def notify_lk_teacher_joined(token: str, extra: dict | None = None) -> tuple[boo
         if attempt < 2:
             time.sleep(0.35 * (2**attempt))
     logger.warning(
-        "Не удалось уведомить ЛК о входе учителя после 3 попыток: %s (%s)",
+        "Не удалось уведомить ЛК (lesson webhook) после 3 попыток: %s (%s)",
         endpoint,
         last_err or last_detail,
     )
     return False, last_detail
+
+
+def notify_lk_teacher_joined(token: str, extra: dict | None = None) -> tuple[bool, str]:
+    """
+    Сообщает ЛК, что учитель реально вошёл в урок.
+    ЛК рассылает ученику приглашение (WS / push на все устройства — реализуется в ЛК).
+    Возвращает (success, error_detail) — error_detail не пустой только при неудаче.
+    """
+    endpoint = (getattr(django_settings, "LK_LESSON_NOTIFY_URL", "") or "").strip()
+    if not endpoint:
+        lk_base = (getattr(django_settings, "LK_PUBLIC_URL", "") or "").rstrip("/")
+        if lk_base:
+            endpoint = f"{lk_base}/api/lesson/teacher-joined/"
+    if not endpoint and bool(getattr(django_settings, "DEBUG", False)):
+        endpoint = "http://127.0.0.1:8001/api/lesson/teacher-joined/"
+    if not endpoint:
+        return False, "LK_PUBLIC_URL не задан — неизвестно куда отправить уведомление"
+    return _post_lk_lesson_webhook(endpoint, token, extra)
+
+
+def notify_lk_student_joined(token: str, extra: dict | None = None) -> tuple[bool, str]:
+    """
+    Сообщает ЛК, что ученик реально открыл комнату урока на генераторе (в т.ч. без клика «Присоединиться» в ЛК).
+    Тот же заголовок X-Lesson-Webhook-Secret, что и для teacher-joined.
+    """
+    endpoint = (getattr(django_settings, "LK_LESSON_STUDENT_NOTIFY_URL", "") or "").strip()
+    if not endpoint:
+        lk_base = (getattr(django_settings, "LK_PUBLIC_URL", "") or "").rstrip("/")
+        if lk_base:
+            endpoint = f"{lk_base}/api/lesson/student-joined/"
+    if not endpoint and bool(getattr(django_settings, "DEBUG", False)):
+        endpoint = "http://127.0.0.1:8001/api/lesson/student-joined/"
+    if not endpoint:
+        return False, "LK_PUBLIC_URL не задан — неизвестно куда отправить student-joined"
+    return _post_lk_lesson_webhook(endpoint, token, extra)
 
 
 def verify_lesson_token(token: str) -> dict:
@@ -2101,6 +2475,70 @@ def normalize_lesson_jwt_payload(payload: dict) -> dict:
         or payload.get("role")
         or payload.get("lesson_type")
         or payload.get("lessonType")
+        or payload.get("lesson_format")
+        or payload.get("lessonFormat")
+        or payload.get("lesson_formaat")
+        or ""
+    )
+    variant_obj = payload.get("variant") if isinstance(payload.get("variant"), dict) else {}
+    lesson_obj = payload.get("lesson") if isinstance(payload.get("lesson"), dict) else {}
+
+    lesson_level = (
+        payload.get("level")
+        or payload.get("exam_level")
+        or payload.get("examLevel")
+        or payload.get("level_short")
+        or payload.get("levelShort")
+        or variant_obj.get("level")
+        or lesson_obj.get("level")
+        or payload.get("lesson_level")
+        or payload.get("lessonLevel")
+        or ""
+    )
+    lesson_subject = (
+        payload.get("subject")
+        or payload.get("subject_short")
+        or payload.get("subjectShort")
+        or payload.get("subject_code")
+        or payload.get("subjectCode")
+        or payload.get("exam_subject")
+        or payload.get("examSubject")
+        or variant_obj.get("subject")
+        or variant_obj.get("subject_short")
+        or lesson_obj.get("subject")
+        or payload.get("lesson_subject")
+        or payload.get("lessonSubject")
+        or ""
+    )
+    lesson_variant_id = (
+        payload.get("variant_id")
+        or payload.get("variantId")
+        or payload.get("vid")
+        or payload.get("variant")
+        or payload.get("test_variant_id")
+        or payload.get("testVariantId")
+        or variant_obj.get("id")
+        or variant_obj.get("variant_id")
+        or lesson_obj.get("variant_id")
+        or lesson_obj.get("variantId")
+        or payload.get("lesson_variant_id")
+        or payload.get("lessonVariantId")
+    )
+    lesson_variant_url = (
+        payload.get("variant_url")
+        or payload.get("variantUrl")
+        or payload.get("variant_link")
+        or payload.get("variantLink")
+        or payload.get("url")
+        or payload.get("link")
+        or payload.get("target_url")
+        or payload.get("targetUrl")
+        or variant_obj.get("url")
+        or variant_obj.get("link")
+        or lesson_obj.get("variant_url")
+        or lesson_obj.get("variantUrl")
+        or payload.get("lesson_variant_url")
+        or payload.get("lessonVariantUrl")
         or ""
     )
     s = str(raw_role).strip().lower()
@@ -2138,6 +2576,10 @@ def normalize_lesson_jwt_payload(payload: dict) -> dict:
         "lesson_group_name": group_name,
         "lesson_type": lesson_type,
         "participant_name": participant_name,
+        "lesson_level": str(lesson_level).strip().lower(),
+        "lesson_subject": str(lesson_subject).strip().lower(),
+        "lesson_variant_id": str(lesson_variant_id).strip() if lesson_variant_id is not None else "",
+        "lesson_variant_url": str(lesson_variant_url).strip(),
     }
 
 
@@ -2517,6 +2959,620 @@ def api_lesson_session_close(request):
     return JsonResponse({"ok": True, "closed": True})
 
 
+def _lesson_results_payload(room_id: str, variant_id: int | None = None) -> list[dict]:
+    qs = LessonStudentResult.objects.filter(room_id=str(room_id or "").strip()[:200])
+    if variant_id is not None:
+        qs = qs.filter(variant_id=max(0, int(variant_id)))
+    rows = []
+    for r in qs.order_by("student", "id"):
+        rows.append(
+            {
+                "student": r.student,
+                "teacher": r.teacher,
+                "room_id": r.room_id,
+                "variant_id": r.variant_id,
+                "total_tasks": r.total_tasks,
+                "correct_count": r.correct_count,
+                "wrong_count": r.wrong_count,
+                "empty_count": r.empty_count,
+                "teacher_comment": r.teacher_comment,
+                "updated_at": r.updated_at.isoformat() if r.updated_at else "",
+            }
+        )
+    return rows
+
+
+def _save_lesson_finalize_snapshot(room_id: str, results: list[dict]) -> None:
+    rid = str(room_id or "").strip()[:200]
+    if not rid:
+        return
+    try:
+        room = LessonRoom.objects.filter(room_id=rid).only("id", "jwt_payload").first()
+        if not room:
+            return
+        payload = dict(room.jwt_payload or {})
+        payload["_lesson_finalized_at"] = timezone.now().isoformat()
+        payload["_lesson_final_results"] = results
+        room.jwt_payload = payload
+        room.save(update_fields=["jwt_payload", "updated_at"])
+    except Exception:
+        logger.exception("Не удалось сохранить итоговый snapshot урока для %s", rid)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_lesson_finalize(request):
+    """
+    Явное завершение урока учителем: закрывает комнату и возвращает финальные результаты учеников.
+    """
+    try:
+        data = json.loads(request.body or b"{}")
+    except (json.JSONDecodeError, TypeError):
+        return JsonResponse({"ok": False, "error": "invalid json"}, status=400)
+
+    token = str((data or {}).get("token") or "").strip()
+    role_override = str((data or {}).get("role") or "").strip().lower()
+    if not token:
+        return JsonResponse({"ok": False, "error": "token required"}, status=400)
+    try:
+        payload = verify_lesson_token(token)
+        normalized = normalize_lesson_jwt_payload(payload)
+    except ValueError as e:
+        return JsonResponse({"ok": False, "error": str(e)}, status=401)
+
+    lesson_type = normalized.get("lesson_type")
+    if role_override in ("teacher", "tutor"):
+        lesson_type = "teacher"
+    elif role_override in ("student", "pupil"):
+        lesson_type = "student"
+    if lesson_type != "teacher":
+        return JsonResponse({"ok": False, "error": "teacher token required"}, status=400)
+
+    room_id = normalized["room_id"]
+    variant_raw = (
+        payload.get("variant_id")
+        or payload.get("variantId")
+        or payload.get("lesson_variant_id")
+        or payload.get("lessonVariantId")
+        or normalized.get("lesson_variant_id")
+    )
+    try:
+        variant_id = int(variant_raw) if variant_raw not in (None, "") else None
+    except (TypeError, ValueError):
+        variant_id = None
+
+    first_close = mark_lesson_session_closed(room_id)
+    if first_close:
+        _broadcast_lesson_session_closed(room_id)
+
+    results = _lesson_results_payload(room_id, variant_id=variant_id)
+    _save_lesson_finalize_snapshot(room_id, results)
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "closed": True,
+            "already_closed": not first_close,
+            "room_id": room_id,
+            "variant_id": variant_id,
+            "results": results,
+        }
+    )
+
+
+def _normalize_lesson_task_number(value) -> str:
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+    digits = re.sub(r"[^\d]+", "", raw)
+    return (digits or raw)[:32]
+
+
+def _normalize_lesson_answer(value) -> str:
+    text = strip_tags(str(value or "")).replace("\xa0", " ")
+    text = re.sub(r"\s+", "", text)
+    return text.lower().strip()
+
+
+def _get_expected_answer_for_variant_task(variant_id: int, task_number_key: str) -> str:
+    """Номер задания в UI = TaskList.task_number; fallback — порядок в варианте (order)."""
+    if variant_id <= 0 or not task_number_key:
+        return ""
+    if task_number_key.isdigit():
+        tn = int(task_number_key)
+        vc = (
+            VariantContent.objects.select_related("task")
+            .filter(variant_id=variant_id, task__task__task_number=tn)
+            .first()
+        )
+        if vc and vc.task:
+            return str(getattr(vc.task, "answer", "") or "")
+        if 1 <= tn <= 500:
+            vc2 = (
+                VariantContent.objects.select_related("task")
+                .filter(variant_id=variant_id, order=tn)
+                .first()
+            )
+            if vc2 and vc2.task:
+                return str(getattr(vc2.task, "answer", "") or "")
+    return ""
+
+
+def _upsert_lesson_student_result(
+    *,
+    room_id: str,
+    variant_id: int,
+    teacher_name: str,
+    student_name: str,
+    task_number: str,
+    answer_text: str,
+    save_payload: dict | None = None,
+):
+    task_number = _normalize_lesson_task_number(task_number)
+    student_name = str(student_name or "").strip()[:200]
+    teacher_name = str(teacher_name or "").strip()[:200]
+    room_id = str(room_id or "").strip()[:200]
+    variant_id = max(0, int(variant_id or 0))
+
+    expected_answer = _get_expected_answer_for_variant_task(variant_id, task_number)
+
+    normalized_student = _normalize_lesson_answer(answer_text)
+    normalized_expected = _normalize_lesson_answer(expected_answer)
+    is_empty = normalized_student == ""
+    is_correct = bool(normalized_student) and bool(normalized_expected) and normalized_student == normalized_expected
+
+    payload = dict(save_payload or {})
+    payload.setdefault("source", "api_lesson_student_answer")
+
+    answer_row, created = LessonStudentsAnswer.objects.update_or_create(
+        room_id=room_id,
+        variant_id=variant_id,
+        task_number=task_number,
+        student=student_name,
+        defaults={
+            "teacher": teacher_name,
+            "answer": str(answer_text or ""),
+            "is_correct": is_correct,
+            "is_empty": is_empty,
+            "payload": payload,
+        },
+    )
+
+    answers_qs = LessonStudentsAnswer.objects.filter(
+        room_id=room_id,
+        variant_id=variant_id,
+        student=student_name,
+    )
+    total_tasks = VariantContent.objects.filter(variant_id=variant_id).count() if variant_id > 0 else 0
+    if total_tasks <= 0:
+        total_tasks = answers_qs.count()
+
+    correct_count = answers_qs.filter(is_correct=True).count()
+    non_empty_count = answers_qs.filter(is_empty=False).count()
+    empty_count = max(total_tasks - non_empty_count, 0)
+    wrong_count = max(total_tasks - correct_count, 0)
+
+    prev = LessonStudentResult.objects.filter(
+        room_id=room_id, variant_id=variant_id, student=student_name
+    ).only("teacher_comment", "payload").first()
+    teacher_comment = prev.teacher_comment if prev else ""
+    rollup_payload = dict(prev.payload or {}) if prev and isinstance(prev.payload, dict) else {}
+    rollup_payload.update(
+        {
+            "last_task_number": task_number,
+            "source": "lesson_result_rollup",
+        }
+    )
+    LessonStudentResult.objects.update_or_create(
+        room_id=room_id,
+        variant_id=variant_id,
+        student=student_name,
+        defaults={
+            "teacher": teacher_name,
+            "total_tasks": total_tasks,
+            "correct_count": correct_count,
+            "wrong_count": wrong_count,
+            "empty_count": empty_count,
+            "teacher_comment": teacher_comment,
+            "payload": rollup_payload,
+        },
+    )
+    return answer_row, created
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_lesson_student_answer(request):
+    """Сохранение ответа ученика и пересчёт итогов урока в БД."""
+    try:
+        data = json.loads(request.body or b"{}")
+    except (json.JSONDecodeError, TypeError):
+        return JsonResponse({"ok": False, "error": "invalid json"}, status=400)
+
+    if not isinstance(data, dict):
+        return JsonResponse({"ok": False, "error": "invalid payload"}, status=400)
+
+    lesson_token = str(data.get("lesson_token") or "").strip()
+    room_id = str(data.get("room_id") or "").strip()
+    teacher_name = str(data.get("teacher") or "").strip()
+    student_name = str(data.get("student") or "").strip()
+    task_number = _normalize_lesson_task_number(data.get("task_number") or data.get("task"))
+    answer_text = str(data.get("answer") or "")
+    variant_raw = data.get("variant_id")
+    extra_payload = data.get("payload")
+
+    if lesson_token:
+        try:
+            token_payload = verify_lesson_token(lesson_token)
+            normalized = normalize_lesson_jwt_payload(token_payload)
+            room_id = room_id or str(normalized.get("room_id") or "").strip()
+            if not teacher_name:
+                teacher_name = str(normalized.get("teacher_name") or "").strip()
+        except ValueError as exc:
+            return JsonResponse({"ok": False, "error": str(exc)}, status=401)
+
+    if not room_id:
+        return JsonResponse({"ok": False, "error": "room_id required"}, status=400)
+    if not student_name:
+        return JsonResponse({"ok": False, "error": "student required"}, status=400)
+
+    try:
+        variant_id = int(variant_raw or 0)
+    except (TypeError, ValueError):
+        variant_id = 0
+    if variant_id < 0:
+        variant_id = 0
+
+    save_payload = extra_payload if isinstance(extra_payload, dict) else {}
+    save_payload.update({"raw": {"variant_id": variant_raw, "task_number": task_number}})
+
+    try:
+        row, created = _upsert_lesson_student_result(
+            room_id=room_id,
+            variant_id=variant_id,
+            teacher_name=teacher_name,
+            student_name=student_name,
+            task_number=task_number,
+            answer_text=answer_text,
+            save_payload=save_payload,
+        )
+    except Exception:
+        logger.exception("Не удалось сохранить LessonStudentsAnswer")
+        return JsonResponse({"ok": False, "error": "db_save_failed"}, status=500)
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "id": row.id,
+            "created": created,
+        }
+    )
+
+
+@require_http_methods(["GET"])
+def api_lesson_results(request):
+    """Итоги урока по ученикам: всего задач/правильные/неправильные/пустые/комментарий."""
+    token = str(request.GET.get("token") or request.GET.get("lesson_token") or "").strip()
+    room_id = str(request.GET.get("room_id") or "").strip()
+    variant_raw = request.GET.get("variant_id")
+    if token:
+        try:
+            payload = verify_lesson_token(token)
+            normalized = normalize_lesson_jwt_payload(payload)
+            room_id = room_id or str(normalized.get("room_id") or "").strip()
+        except ValueError as exc:
+            return JsonResponse({"ok": False, "error": str(exc)}, status=401)
+    if not room_id:
+        return JsonResponse({"ok": False, "error": "room_id required"}, status=400)
+    qs = LessonStudentResult.objects.filter(room_id=room_id[:200])
+    try:
+        variant_id = int(variant_raw) if variant_raw not in (None, "") else None
+    except (TypeError, ValueError):
+        variant_id = None
+    if variant_id is not None:
+        vid = max(0, variant_id)
+        if vid > 0:
+            # Записи с variant_id=0 — до синка варианта в LessonRoom по WS
+            qs = qs.filter(Q(variant_id=vid) | Q(variant_id=0))
+        else:
+            qs = qs.filter(variant_id=0)
+    ordered = list(qs.order_by("student", "-variant_id", "id"))
+    if variant_id is not None and max(0, variant_id) > 0:
+        seen = set()
+        deduped = []
+        for r in ordered:
+            if r.student in seen:
+                continue
+            seen.add(r.student)
+            deduped.append(r)
+        ordered = deduped
+    rows = [
+        {
+            "student": r.student,
+            "teacher": r.teacher,
+            "room_id": r.room_id,
+            "variant_id": r.variant_id,
+            "total_tasks": r.total_tasks,
+            "correct_count": r.correct_count,
+            "wrong_count": r.wrong_count,
+            "empty_count": r.empty_count,
+            "teacher_comment": r.teacher_comment,
+            "updated_at": r.updated_at.isoformat() if r.updated_at else "",
+        }
+        for r in ordered
+    ]
+    return JsonResponse({"ok": True, "results": rows})
+
+
+@require_http_methods(["GET"])
+def api_lesson_task_answers(request):
+    """Все ответы учеников по задачам в комнате (для синхронизации UI учителя с БД)."""
+    token = str(request.GET.get("token") or request.GET.get("lesson_token") or "").strip()
+    room_id = str(request.GET.get("room_id") or "").strip()
+    variant_raw = request.GET.get("variant_id")
+    role_override = str(request.GET.get("role") or "").strip().lower()
+    if not token:
+        return JsonResponse({"ok": False, "error": "token required"}, status=400)
+    try:
+        _payload = verify_lesson_token(token)
+        normalized = normalize_lesson_jwt_payload(_payload)
+        room_id = room_id or str(normalized.get("room_id") or "").strip()
+    except ValueError as exc:
+        return JsonResponse({"ok": False, "error": str(exc)}, status=401)
+    if not room_id:
+        return JsonResponse({"ok": False, "error": "room_id required"}, status=400)
+    lesson_type = str(normalized.get("lesson_type") or "")
+    if role_override in ("teacher", "tutor"):
+        lesson_type = "teacher"
+    elif role_override in ("student", "pupil"):
+        lesson_type = "student"
+    if lesson_type != "teacher":
+        return JsonResponse({"ok": False, "error": "teacher token required"}, status=403)
+
+    try:
+        variant_id = int(variant_raw) if variant_raw not in (None, "") else None
+    except (TypeError, ValueError):
+        variant_id = None
+
+    qs = LessonStudentsAnswer.objects.filter(room_id=room_id[:200])
+    if variant_id is not None:
+        vid = max(0, variant_id)
+        if vid > 0:
+            qs = qs.filter(Q(variant_id=vid) | Q(variant_id=0))
+        else:
+            qs = qs.filter(variant_id=0)
+    ordered_ans = list(qs.order_by("student", "task_number", "-variant_id", "id"))
+    if variant_id is not None and max(0, variant_id) > 0:
+        seen_keys = set()
+        deduped_ans = []
+        for a in ordered_ans:
+            key = (a.student, a.task_number)
+            if key in seen_keys:
+                continue
+            seen_keys.add(key)
+            deduped_ans.append(a)
+        ordered_ans = deduped_ans
+    answers = [
+        {
+            "student": a.student,
+            "task_number": a.task_number,
+            "answer": a.answer,
+            "is_correct": a.is_correct,
+            "is_empty": a.is_empty,
+            "updated_at": a.updated_at.isoformat() if a.updated_at else "",
+        }
+        for a in ordered_ans
+    ]
+    return JsonResponse({"ok": True, "answers": answers})
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_lesson_student_comment(request):
+    """Комментарий учителя к ученику в уроке."""
+    try:
+        data = json.loads(request.body or b"{}")
+    except (json.JSONDecodeError, TypeError):
+        return JsonResponse({"ok": False, "error": "invalid json"}, status=400)
+    if not isinstance(data, dict):
+        return JsonResponse({"ok": False, "error": "invalid payload"}, status=400)
+
+    lesson_token = str(data.get("lesson_token") or data.get("token") or "").strip()
+    room_id = str(data.get("room_id") or "").strip()
+    teacher_name = str(data.get("teacher") or "").strip()
+    student_name = str(data.get("student") or "").strip()
+    comment = str(data.get("teacher_comment") or data.get("comment") or "")
+    variant_raw = data.get("variant_id")
+
+    if lesson_token:
+        try:
+            token_payload = verify_lesson_token(lesson_token)
+            normalized = normalize_lesson_jwt_payload(token_payload)
+            room_id = room_id or str(normalized.get("room_id") or "").strip()
+            teacher_name = teacher_name or str(normalized.get("teacher_name") or "").strip()
+        except ValueError as exc:
+            return JsonResponse({"ok": False, "error": str(exc)}, status=401)
+
+    if not room_id:
+        return JsonResponse({"ok": False, "error": "room_id required"}, status=400)
+    if not student_name:
+        return JsonResponse({"ok": False, "error": "student required"}, status=400)
+    try:
+        variant_id = int(variant_raw or 0)
+    except (TypeError, ValueError):
+        variant_id = 0
+    variant_id = max(0, variant_id)
+
+    row, _ = LessonStudentResult.objects.get_or_create(
+        room_id=room_id[:200],
+        variant_id=variant_id,
+        student=student_name[:200],
+        defaults={"teacher": teacher_name[:200]},
+    )
+    row.teacher = teacher_name[:200] or row.teacher
+    row.teacher_comment = comment
+    row.save(update_fields=["teacher", "teacher_comment", "updated_at"])
+    return JsonResponse({"ok": True, "id": row.id})
+
+
+@require_http_methods(["GET"])
+def api_lesson_report_download(request):
+    """
+    Скачать архив отчётов урока:
+      - summary.csv (общий отчёт),
+      - details_all.csv (все ответы),
+      - students/<name>.csv (подробный по каждому ученику).
+    """
+    token = str(request.GET.get("token") or request.GET.get("lesson_token") or "").strip()
+    room_id = str(request.GET.get("room_id") or "").strip()
+    variant_raw = request.GET.get("variant_id")
+    role_override = str(request.GET.get("role") or "").strip().lower()
+
+    normalized = None
+    payload = None
+    if token:
+        try:
+            payload = verify_lesson_token(token)
+            normalized = normalize_lesson_jwt_payload(payload)
+            room_id = room_id or str(normalized.get("room_id") or "").strip()
+        except ValueError as exc:
+            return JsonResponse({"ok": False, "error": str(exc)}, status=401)
+    if not room_id:
+        return JsonResponse({"ok": False, "error": "room_id required"}, status=400)
+
+    lesson_type = (normalized or {}).get("lesson_type", "")
+    if role_override in ("teacher", "tutor"):
+        lesson_type = "teacher"
+    elif role_override in ("student", "pupil"):
+        lesson_type = "student"
+    if token and lesson_type != "teacher":
+        return JsonResponse({"ok": False, "error": "teacher token required"}, status=403)
+
+    variant_guess = (
+        variant_raw
+        or (payload or {}).get("variant_id")
+        or (payload or {}).get("variantId")
+        or (payload or {}).get("lesson_variant_id")
+        or (payload or {}).get("lessonVariantId")
+        or (normalized or {}).get("lesson_variant_id")
+    )
+    try:
+        variant_id = int(variant_guess) if variant_guess not in (None, "") else None
+    except (TypeError, ValueError):
+        variant_id = None
+
+    results_qs = LessonStudentResult.objects.filter(room_id=room_id[:200])
+    answers_qs = LessonStudentsAnswer.objects.filter(room_id=room_id[:200])
+    if variant_id is not None:
+        variant_id = max(0, variant_id)
+        results_qs = results_qs.filter(variant_id=variant_id)
+        answers_qs = answers_qs.filter(variant_id=variant_id)
+
+    results = list(results_qs.order_by("student", "id"))
+    answers = list(answers_qs.order_by("student", "task_number", "id"))
+
+    summary_buf = io.StringIO()
+    sw = csv.writer(summary_buf)
+    sw.writerow(
+        [
+            "student",
+            "teacher",
+            "room_id",
+            "variant_id",
+            "total_tasks",
+            "correct_count",
+            "wrong_count",
+            "empty_count",
+            "teacher_comment",
+            "updated_at",
+        ]
+    )
+    for r in results:
+        sw.writerow(
+            [
+                r.student,
+                r.teacher,
+                r.room_id,
+                r.variant_id,
+                r.total_tasks,
+                r.correct_count,
+                r.wrong_count,
+                r.empty_count,
+                r.teacher_comment,
+                r.updated_at.isoformat() if r.updated_at else "",
+            ]
+        )
+
+    details_buf = io.StringIO()
+    dw = csv.writer(details_buf)
+    dw.writerow(
+        [
+            "student",
+            "teacher",
+            "room_id",
+            "variant_id",
+            "task_number",
+            "answer",
+            "is_correct",
+            "is_empty",
+            "updated_at",
+        ]
+    )
+    for a in answers:
+        dw.writerow(
+            [
+                a.student,
+                a.teacher,
+                a.room_id,
+                a.variant_id,
+                a.task_number,
+                a.answer,
+                1 if a.is_correct else 0,
+                1 if a.is_empty else 0,
+                a.updated_at.isoformat() if a.updated_at else "",
+            ]
+        )
+
+    zip_buf = io.BytesIO()
+    with zipfile.ZipFile(zip_buf, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr("summary.csv", summary_buf.getvalue().encode("utf-8-sig"))
+        zf.writestr("details_all.csv", details_buf.getvalue().encode("utf-8-sig"))
+        by_student: dict[str, list] = {}
+        for a in answers:
+            by_student.setdefault(str(a.student or "").strip() or "student", []).append(a)
+        for student_name, rows in by_student.items():
+            student_buf = io.StringIO()
+            cw = csv.writer(student_buf)
+            cw.writerow(
+                [
+                    "student",
+                    "task_number",
+                    "answer",
+                    "is_correct",
+                    "is_empty",
+                    "updated_at",
+                ]
+            )
+            for a in rows:
+                cw.writerow(
+                    [
+                        a.student,
+                        a.task_number,
+                        a.answer,
+                        1 if a.is_correct else 0,
+                        1 if a.is_empty else 0,
+                        a.updated_at.isoformat() if a.updated_at else "",
+                    ]
+                )
+            safe_student = re.sub(r"[^a-zA-Z0-9_\-]+", "_", student_name).strip("_") or "student"
+            zf.writestr(f"students/{safe_student}.csv", student_buf.getvalue().encode("utf-8-sig"))
+
+    zip_name = f"lesson_report_{re.sub(r'[^a-zA-Z0-9_-]', '_', room_id)[:64] or 'room'}.zip"
+    response = HttpResponse(zip_buf.getvalue(), content_type="application/zip")
+    response["Content-Disposition"] = f'attachment; filename="{zip_name}"'
+    return response
+
+
 @csrf_exempt
 @require_http_methods(["POST"])
 def api_lesson_attachment_upload(request):
@@ -2572,7 +3628,86 @@ def api_lesson_attachment_upload(request):
         json.dump(meta, f, ensure_ascii=False)
 
     serve_url = f"/api/lesson/attachment/{safe_room}/{filename}"
+    task_num = str(request.POST.get("task_number", "") or "").strip()
+    student_label = str(
+        normalized.get("participant_name")
+        or normalized.get("target_name")
+        or ""
+    ).strip() or "Ученик"
+    try:
+        from asgiref.sync import async_to_sync
+        from channels.layers import get_channel_layer
+
+        channel_layer = get_channel_layer()
+        if channel_layer and room_id:
+            async_to_sync(channel_layer.group_send)(
+                f"lesson_{room_id}",
+                {
+                    "type": "lesson_message",
+                    "payload": {
+                        "type": "student_attachment",
+                        "task_number": task_num,
+                        "name": student_label,
+                        "url": serve_url,
+                        "filename": uploaded.name[:200],
+                    },
+                },
+            )
+    except Exception:
+        logger.exception("WS broadcast student_attachment failed for room %s", room_id)
+
     return JsonResponse({"ok": True, "url": serve_url, "filename": uploaded.name[:200]})
+
+
+@require_http_methods(["GET"])
+def api_lesson_attachments_list(request):
+    """Список вложений комнаты (для учителя после перезагрузки)."""
+    token = str(request.GET.get("token") or request.GET.get("lesson_token") or "").strip()
+    if not token:
+        return JsonResponse({"ok": False, "error": "token required"}, status=400)
+    try:
+        payload = verify_lesson_token(token)
+        normalized = normalize_lesson_jwt_payload(payload)
+    except ValueError as exc:
+        return JsonResponse({"ok": False, "error": str(exc)}, status=401)
+    role_override = str(request.GET.get("role") or "").strip().lower()
+    lesson_type = str(normalized.get("lesson_type") or "")
+    if role_override in ("teacher", "tutor"):
+        lesson_type = "teacher"
+    elif role_override in ("student", "pupil"):
+        lesson_type = "student"
+    if lesson_type != "teacher":
+        return JsonResponse({"ok": False, "error": "teacher token required"}, status=403)
+
+    room_id = str(normalized.get("room_id") or "").strip()
+    if not room_id:
+        return JsonResponse({"ok": False, "error": "room_id missing in token"}, status=400)
+    safe_room = re.sub(r"[^a-zA-Z0-9_-]", "_", room_id)[:64]
+    attach_dir = os.path.join(django_settings.MEDIA_ROOT, "lesson_attachments", safe_room)
+    items = []
+    if os.path.isdir(attach_dir):
+        for fn in sorted(os.listdir(attach_dir)):
+            if not fn.endswith(".meta.json"):
+                continue
+            stem = fn[:-10]
+            meta_path = os.path.join(attach_dir, fn)
+            try:
+                with open(meta_path, encoding="utf-8") as mf:
+                    meta = json.load(mf)
+            except Exception:
+                continue
+            if not stem or ".." in stem or "/" in stem:
+                continue
+            serve_url = f"/api/lesson/attachment/{safe_room}/{stem}"
+            items.append(
+                {
+                    "task_number": str(meta.get("task_number") or ""),
+                    "student": str(meta.get("participant") or ""),
+                    "url": serve_url,
+                    "filename": str(meta.get("original_name") or ""),
+                }
+            )
+    return JsonResponse({"ok": True, "items": items})
 
 
 def api_lesson_attachment_serve(request, safe_room, filename):
@@ -2656,6 +3791,40 @@ def lesson_join(request):
     except ValueError as e:
         return HttpResponseBadRequest(str(e))
 
+    # Фолбэк: если ЛК передал параметры варианта query-параметрами, используем их.
+    if not normalized.get("lesson_level"):
+        normalized["lesson_level"] = str(request.GET.get("level") or "").strip().lower()
+    if not normalized.get("lesson_subject"):
+        normalized["lesson_subject"] = str(request.GET.get("subject") or "").strip().lower()
+    if not normalized.get("lesson_variant_id"):
+        normalized["lesson_variant_id"] = str(
+            request.GET.get("variant_id")
+            or request.GET.get("variantId")
+            or request.GET.get("variant")
+            or request.GET.get("vid")
+            or request.GET.get("v")
+            or ""
+        ).strip()
+    if not normalized.get("lesson_variant_url"):
+        normalized["lesson_variant_url"] = str(
+            request.GET.get("variant_url")
+            or request.GET.get("variantUrl")
+            or request.GET.get("url")
+            or request.GET.get("link")
+            or ""
+        ).strip()
+
+    # Если пришёл только variant_id, достраиваем level/subject из БД.
+    if normalized.get("lesson_variant_id") and (not normalized.get("lesson_level") or not normalized.get("lesson_subject")):
+        try:
+            v = Variant.objects.select_related("level", "var_subject").get(id=int(normalized["lesson_variant_id"]))
+            if not normalized.get("lesson_level"):
+                normalized["lesson_level"] = str(v.level.level or "").strip().lower()
+            if not normalized.get("lesson_subject"):
+                normalized["lesson_subject"] = str(v.var_subject.subject_short or "").strip().lower()
+        except (ValueError, TypeError, Variant.DoesNotExist):
+            pass
+
     if _is_lesson_session_closed(normalized["room_id"]):
         return HttpResponseBadRequest(
             "Урок уже завершён. Ссылка из личного кабинета больше не открывает эту комнату."
@@ -2663,6 +3832,30 @@ def lesson_join(request):
 
     _persist_lesson_room(normalized["room_id"], payload)
     normalized["lesson_token"] = token
+
+    # Уведомление ЛК: ученик фактически зашёл на страницу комнаты (в т.ч. по прямой ссылке с домена генератора).
+    if str(normalized.get("lesson_type") or "").strip().lower() == "student":
+        _tkn = token
+        _lk_student_extra = {
+            "room_id": normalized.get("room_id"),
+            "target_id": payload.get("target_id") or payload.get("targetId"),
+            "teacher_id": payload.get("teacher_id") or payload.get("teacherId"),
+        }
+
+        def _notify_student_joined_room():
+            ok_st, detail_st = notify_lk_student_joined(_tkn, extra=_lk_student_extra)
+            if not ok_st:
+                logger.warning("ЛК student-joined не доставлен: %s", detail_st)
+
+        threading.Thread(target=_notify_student_joined_room, daemon=True).start()
+
+    # В JSON для страницы подмешиваем роль после ?role=… — в JWT ЛК иногда шлёт lesson_format=student и для ссылки учителя.
+    client_payload = dict(payload) if isinstance(payload, dict) else {}
+    lt_eff = str(normalized.get("lesson_type") or "").strip().lower()
+    if lt_eff in ("teacher", "student"):
+        client_payload["lesson_type"] = lt_eff
+        client_payload["lesson_format"] = lt_eff
+    normalized["lesson_payload_json"] = json.dumps(client_payload, ensure_ascii=False)
     normalized["lk_public_url"] = lk_user_nav_url()
     normalized["lk_nav_password_required"] = lk_nav_password_configured()
     normalized["lk_nav_unlocked"] = (not normalized["lk_nav_password_required"]) or lk_nav_cookie_is_valid(
