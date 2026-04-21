@@ -548,9 +548,29 @@
         const m = getWbMetrics();
         if (!m) return { x: 0, y: 0 };
         
+        let taskId = null;
+        let taskTopNorm = 0;
+        try {
+          const doc = document.getElementById('variant-frame').contentDocument;
+          if (doc) {
+            const tasks = doc.querySelectorAll('.task');
+            for (let i = 0; i < tasks.length; i++) {
+              const r = tasks[i].getBoundingClientRect();
+              if (cy >= r.top && cy <= r.bottom) {
+                const idEl = tasks[i].querySelector('.task-id');
+                if (idEl) taskId = idEl.textContent.trim();
+                taskTopNorm = (r.top - m.top) / m.width;
+                break;
+              }
+            }
+          }
+        } catch (_) {}
+        
         return {
           x: (cx - canvasRect.left - m.left) / m.width,
-          y: (cy - canvasRect.top - m.top) / m.width 
+          y: (cy - canvasRect.top - m.top) / m.width,
+          taskId: taskId,
+          taskTopNorm: taskTopNorm
         };
       };
 
@@ -563,8 +583,30 @@
         const m = getWbMetrics();
         if (!m) return;
         
+        const taskOffsets = {};
+        try {
+          const doc = document.getElementById('variant-frame').contentDocument;
+          if (doc) {
+            const tasks = doc.querySelectorAll('.task');
+            for (let i = 0; i < tasks.length; i++) {
+              const idEl = tasks[i].querySelector('.task-id');
+              if (idEl) {
+                const tid = idEl.textContent.trim();
+                const r = tasks[i].getBoundingClientRect();
+                taskOffsets[tid] = (r.top - m.top) / m.width;
+              }
+            }
+          }
+        } catch (_) {}
+
         const toAbsX = (nx) => nx * m.width + m.left;
-        const toAbsY = (ny) => ny * m.width + m.top;
+        const toAbsY = (ny, s) => {
+          let y = ny;
+          if (s && s.taskId && taskOffsets[s.taskId] !== undefined && typeof s.taskTopNorm === 'number') {
+            y += (taskOffsets[s.taskId] - s.taskTopNorm);
+          }
+          return y * m.width + m.top;
+        };
         
         const drawStroke = (s, isGhost) => {
           if (!s) return;
@@ -578,14 +620,14 @@
 
           if (s.tool === 'pen' && s.points && s.points.length > 0) {
             wbCtx.beginPath();
-            wbCtx.moveTo(toAbsX(s.points[0].x), toAbsY(s.points[0].y));
+            wbCtx.moveTo(toAbsX(s.points[0].x), toAbsY(s.points[0].y, s));
             for (let i = 1; i < s.points.length; i++) {
-              wbCtx.lineTo(toAbsX(s.points[i].x), toAbsY(s.points[i].y));
+              wbCtx.lineTo(toAbsX(s.points[i].x), toAbsY(s.points[i].y, s));
             }
             wbCtx.stroke();
           } else if (s.startPoint && s.endPoint) {
-            const sx = toAbsX(s.startPoint.x), sy = toAbsY(s.startPoint.y);
-            const ex = toAbsX(s.endPoint.x), ey = toAbsY(s.endPoint.y);
+            const sx = toAbsX(s.startPoint.x), sy = toAbsY(s.startPoint.y, s);
+            const ex = toAbsX(s.endPoint.x), ey = toAbsY(s.endPoint.y, s);
             if (s.tool === 'line' || s.tool === 'arrow') {
               wbCtx.beginPath(); wbCtx.moveTo(sx, sy); wbCtx.lineTo(ex, ey); wbCtx.stroke();
               if (s.tool === 'arrow') {
@@ -612,7 +654,7 @@
           } else if (s.tool === 'text' && s.text && s.startPoint) {
             wbCtx.font = `500 ${s.width * 6}px sans-serif`;
             wbCtx.textBaseline = 'top';
-            wbCtx.fillText(s.text, toAbsX(s.startPoint.x), toAbsY(s.startPoint.y));
+            wbCtx.fillText(s.text, toAbsX(s.startPoint.x), toAbsY(s.startPoint.y, s));
           }
           wbCtx.restore();
         };
@@ -628,14 +670,43 @@
           const dist = (p1, p2) => Math.hypot(p1.x - p2.x, p1.y - p2.y);
           const erasedIds = [];
           
+          const m = getWbMetrics();
+          const taskOffsets = {};
+          if (m) {
+            try {
+              const doc = document.getElementById('variant-frame').contentDocument;
+              if (doc) {
+                const tasks = doc.querySelectorAll('.task');
+                for (let i = 0; i < tasks.length; i++) {
+                  const idEl = tasks[i].querySelector('.task-id');
+                  if (idEl) {
+                    const tid = idEl.textContent.trim();
+                    const r = tasks[i].getBoundingClientRect();
+                    taskOffsets[tid] = (r.top - m.top) / m.width;
+                  }
+                }
+              }
+            } catch (_) {}
+          }
+
+          const getOffsetY = (s) => {
+            if (s && s.taskId && taskOffsets[s.taskId] !== undefined && typeof s.taskTopNorm === 'number') {
+              return taskOffsets[s.taskId] - s.taskTopNorm;
+            }
+            return 0;
+          };
+          
           WbState.strokes = WbState.strokes.filter(s => {
+            const offsetY = getOffsetY(s);
             if (s.tool === 'pen') {
-              if (s.points.some(p => dist(p, pt) < eraserRadiusNorm)) { erasedIds.push(s.id); return false; }
+              if (s.points.some(p => dist({ x: p.x, y: p.y + offsetY }, pt) < eraserRadiusNorm)) { erasedIds.push(s.id); return false; }
             } else if (s.startPoint) {
+              const sy = s.startPoint.y + offsetY;
+              const ey = (s.endPoint?.y || s.startPoint.y) + offsetY;
               const minX = Math.min(s.startPoint.x, s.endPoint?.x || s.startPoint.x);
               const maxX = Math.max(s.startPoint.x, s.endPoint?.x || s.startPoint.x);
-              const minY = Math.min(s.startPoint.y, s.endPoint?.y || s.startPoint.y);
-              const maxY = Math.max(s.startPoint.y, s.endPoint?.y || s.startPoint.y);
+              const minY = Math.min(sy, ey);
+              const maxY = Math.max(sy, ey);
               const inBounds = pt.x >= minX - eraserRadiusNorm && pt.x <= maxX + eraserRadiusNorm &&
                                pt.y >= minY - eraserRadiusNorm && pt.y <= maxY + eraserRadiusNorm;
               if (inBounds) { erasedIds.push(s.id); return false; }
@@ -669,7 +740,8 @@
               const s = {
                 id: Date.now().toString(36) + Math.random().toString(36).substr(2),
                 tool: 'text', color: WbState.color, width: WbState.width, opacity: WbState.opacity,
-                text: text, startPoint: pt, author: me, timestamp: Date.now()
+                text: text, startPoint: pt, author: me, timestamp: Date.now(),
+                taskId: pt.taskId, taskTopNorm: pt.taskTopNorm
               };
               WbState.strokes.push(s);
               WbState.undoneStrokes = [];
@@ -691,7 +763,8 @@
           const s = {
             id: Date.now().toString(36) + Math.random().toString(36).substr(2),
             tool: WbState.tool, color: WbState.color, width: WbState.width, opacity: WbState.opacity,
-            author: me, timestamp: Date.now()
+            author: me, timestamp: Date.now(),
+            taskId: pt.taskId, taskTopNorm: pt.taskTopNorm
           };
           if (WbState.tool === 'pen') s.points = [pt];
           else { s.startPoint = pt; s.endPoint = pt; }
