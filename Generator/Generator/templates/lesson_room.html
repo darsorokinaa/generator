@@ -794,6 +794,7 @@
       };
 
       let answerByTaskNum = {};
+      let maxScoreByTaskNum = {};
       let answersByTask = {};
       let attachmentsByTask = {};
       let teacherResultsPollTimer = null;
@@ -1070,17 +1071,33 @@
           if (!rows.length) return;
           const wrap = doc.createElement('div');
           wrap.className = 'lesson-attachments-teacher';
+          const maxScore = maxScoreByTaskNum[taskNum] || 1;
           const grid = rows
             .map((r) => {
               const imgUrl = token
                 ? (r.url + (String(r.url).includes('?') ? '&' : '?') + 't=' + encodeURIComponent(token))
                 : r.url;
               const cap = safeHtml(r.name) + (r.filename ? ' · ' + safeHtml(r.filename) : '');
+              
+              // Find if there's an existing score in answersByTask
+              let currentScore = '';
+              const studentAnswers = answersByTask[taskNum] || [];
+              const sa = studentAnswers.find(a => a.name === r.name);
+              if (sa && sa.answer && sa.answer.startsWith('Оценка: ')) {
+                 currentScore = sa.answer.replace('Оценка: ', '').split(' ')[0];
+              }
+              
               return (
+                '<div class="lesson-attachment-wrapper" style="display:flex; flex-direction:column; gap:8px; align-items:center;">' +
                 '<figure class="lesson-attachment-fig">' +
                 '<img src="' + String(imgUrl).replace(/"/g, '&quot;') + '" alt=""/>' +
                 '<figcaption>' + cap + '</figcaption>' +
-                '</figure>'
+                '</figure>' +
+                '<div class="lesson-attachment-score" style="display:flex; align-items:center; gap:4px; font-size:0.8rem; color:#475569;">' +
+                '<input type="number" min="0" max="' + maxScore + '" value="' + currentScore + '" placeholder="Балл" data-student="' + safeHtml(r.name) + '" data-task="' + taskNum + '" class="lesson-score-input" style="width:50px; padding:2px 4px; border:1px solid #cbd5e1; border-radius:4px; text-align:center;" />' +
+                '<span> / ' + maxScore + '</span>' +
+                '</div>' +
+                '</div>'
               );
             })
             .join('');
@@ -1272,9 +1289,13 @@
           const data = await res.json();
           if (res.ok && data && Array.isArray(data.tasks)) {
             answerByTaskNum = {};
+            maxScoreByTaskNum = {};
             data.tasks.forEach((t) => {
               const n = normalizeTaskNumber(t.number);
-              if (n) answerByTaskNum[n] = String(t.answer || '');
+              if (n) {
+                answerByTaskNum[n] = String(t.answer || '');
+                maxScoreByTaskNum[n] = t.max_score || 1;
+              }
             });
           }
         } catch (_) {}
@@ -1284,6 +1305,23 @@
             patchTeacherView(d);
             renderLessonAttachments(d);
             removeLessonResultsPanel(d);
+          });
+          
+          d.addEventListener('change', (e) => {
+            if (e.target && e.target.classList.contains('lesson-score-input')) {
+              const student = e.target.dataset.student;
+              const taskNum = e.target.dataset.task;
+              const score = e.target.value;
+              const maxScore = maxScoreByTaskNum[taskNum] || 1;
+              if (score !== '') {
+                sendWs({
+                  type: 'student_answer',
+                  task_number: taskNum,
+                  name: student,
+                  answer: 'Оценка: ' + score + ' из ' + maxScore
+                });
+              }
+            }
           });
         }
       };
@@ -1671,7 +1709,7 @@
           .variant-score-block,.variant-score-row,.variant-score-label,.variant-score-val,.variant-score-total{display:${isTeacher ? 'none' : 'revert'}!important}
           ${!isTeacher ? `
           .correct-answer-display,.part2-answer-reveal,.task-report-error-wrap{display:none!important}
-          .part2-answer-criteria-buttons > .add-button:not(.criteria-btn){display:none!important}
+          .part2-answer-criteria-buttons {display:none!important}
           ` : `
           .part2-answer-criteria-buttons { display: flex; flex-direction: column; width: 100%; gap: 8px; }
           .part2-answer-criteria-buttons > .add-button { width: 100%; }
