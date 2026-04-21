@@ -483,13 +483,11 @@
           const page = doc.querySelector('.page') || doc.querySelector('#main-wrapper') || doc.querySelector('.main-wrapper') || doc.body;
           
           const rect = page.getBoundingClientRect();
-          const frameRect = frame.getBoundingClientRect();
-          const canvasRect = wbCanvas.getBoundingClientRect();
           
           return {
-            left: (frameRect.left + rect.left - canvasRect.left) / currentScale,
-            top: (frameRect.top + rect.top - canvasRect.top) / currentScale,
-            width: rect.width / currentScale
+            left: rect.left,
+            top: rect.top,
+            width: rect.width || 1
           };
         } catch(e) {
           return null;
