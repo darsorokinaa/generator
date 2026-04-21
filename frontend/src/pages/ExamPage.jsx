@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useLocation } from "react-router-dom";
 import MathContent from "../components/MathContent";
 import ImageLightbox from "../components/ImageLightbox";
@@ -53,6 +53,90 @@ function TaskReportErrorButton({ taskId, taskNumber, onClick }) {
   );
 }
 
+/** Урок в iframe: ученик прикрепляет изображение решения (часть 2). */
+function LessonSolutionUpload({ taskNumber, lessonToken, enabled }) {
+  const fileInputRef = useRef(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  const [previews, setPreviews] = useState([]);
+
+  if (!enabled || !lessonToken) return null;
+
+  const onChange = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setErr("Выберите изображение");
+      return;
+    }
+    setErr(null);
+    setBusy(true);
+    const fd = new FormData();
+    fd.append("lesson_token", lessonToken);
+    fd.append("task_number", String(taskNumber));
+    fd.append("file", file);
+    try {
+      const res = await fetch("/api/lesson/attachment/", {
+        method: "POST",
+        body: fd,
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || "Не удалось загрузить файл");
+      }
+      const url = String(data.url || "");
+      const filename = String(data.filename || file.name);
+      setPreviews((prev) => [...prev, { url, filename }]);
+    } catch (ex) {
+      setErr(ex.message || "Ошибка загрузки");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="lesson-solution-upload" onClick={(e) => e.stopPropagation()}>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="lesson-solution-file-input"
+        tabIndex={-1}
+        onChange={onChange}
+      />
+      <button
+        type="button"
+        className="add-button lesson-solution-upload-btn"
+        disabled={busy}
+        onClick={(e) => {
+          e.stopPropagation();
+          fileInputRef.current?.click();
+        }}
+      >
+        {busy ? "Загрузка…" : "Прикрепить решение"}
+      </button>
+      {err ? <span className="lesson-solution-upload-error">{err}</span> : null}
+      {previews.length > 0 ? (
+        <div className="lesson-solution-previews">
+          {previews.map((p, i) => {
+            const src = `${p.url}${p.url.includes("?") ? "&" : "?"}t=${encodeURIComponent(lessonToken)}`;
+            return (
+              <figure key={`${p.url}-${i}`} className="lesson-solution-preview-fig">
+                <img src={src} alt="" className="lesson-solution-thumb" />
+                {p.filename ? (
+                  <figcaption className="lesson-solution-preview-cap">{p.filename}</figcaption>
+                ) : null}
+              </figure>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 const LEVEL_NAMES = {
   ege: "ЕГЭ",
   oge: "ОГЭ",
@@ -75,13 +159,127 @@ function clampExamCornerToViewport(el, left, top) {
   };
 }
 
+const LESSON_BOARD_PEN = 3;
+
+/** Объект доски → доли от .main-wrapper. Для сохранения пропорций X и Y делятся на scrollWidth. */
+function lessonBoardToNormalized(obj, mainEl) {
+  if (!obj || !obj.type || !mainEl) return null;
+  const pageEl = mainEl.querySelector('.page') || mainEl;
+  const sw = Math.max(1, pageEl.offsetWidth || 1);
+  const normPt = (p) => ({ nx: p.x / sw, ny: p.y / sw });
+  const nw = (obj.width || LESSON_BOARD_PEN) / sw;
+
+  if (obj.type === "line" || obj.type === "segment" || obj.type === "triangle" || obj.type === "rect") {
+    return {
+      type: obj.type,
+      color: obj.color,
+      nw,
+      points: obj.points.map(normPt),
+      _norm: true,
+    };
+  }
+  if (obj.type === "circle") {
+    return {
+      type: "circle",
+      color: obj.color,
+      nw,
+      center: normPt(obj.center),
+      nr: obj.radius / sw,
+      _norm: true,
+    };
+  }
+  return null;
+}
+
+/** Восстановление штриха на локальном .main-wrapper. */
+function lessonBoardFromNormalized(nobj, mainEl) {
+  if (!nobj || !nobj.type || !mainEl) return null;
+  const pageEl = mainEl.querySelector('.page') || mainEl;
+  const sw = Math.max(1, pageEl.offsetWidth || 1);
+  const pt = (p) => ({ x: (p.nx || 0) * sw, y: (p.ny || 0) * sw });
+  const width = (nobj.nw || (LESSON_BOARD_PEN / 1000)) * sw;
+
+  if (nobj.type === "line" || nobj.type === "segment" || nobj.type === "triangle" || nobj.type === "rect") {
+    return {
+      type: nobj.type,
+      color: nobj.color,
+      width,
+      points: (nobj.points || []).map(pt),
+    };
+  }
+  if (nobj.type === "circle") {
+    return {
+      type: "circle",
+      color: nobj.color,
+      width,
+      center: pt(nobj.center || {}),
+      radius: (Number(nobj.nr) || 0) * sw,
+    };
+  }
+  return null;
+}
+
 function ExamPage() {
   const { level, subject, variant_id } = useParams();
   const location = useLocation();
+  const lessonEmbedParams = useMemo(() => {
+    const sp = new URLSearchParams(location.search);
+    return {
+      embed: sp.get("lesson_embed") === "1",
+      token: (sp.get("lesson_token") || "").trim(),
+      student: sp.get("lesson_student") === "1",
+    };
+  }, [location.search]);
+  const showLessonSolutionUpload =
+    lessonEmbedParams.embed && lessonEmbedParams.student && !!lessonEmbedParams.token;
+
+  /** Синхронизация доски урока: слушатель всегда активен при embed, не только когда доска открыта. */
+  useEffect(() => {
+    if (!lessonEmbedParams.embed) return;
+    const lessonBoardStrokeIds = new Set();
+    const trimStrokeIds = () => {
+      if (lessonBoardStrokeIds.size <= 500) return;
+      const it = lessonBoardStrokeIds.values();
+      for (let i = 0; i < 120; i++) {
+        const n = it.next();
+        if (n.done) break;
+        lessonBoardStrokeIds.delete(n.value);
+      }
+    };
+    const onLessonBoardMessage = (ev) => {
+      if (ev.source !== window.parent) return;
+      const d = ev.data;
+      if (!d || d.source !== "exam-embedded-board" || d.type !== "board_apply") return;
+      const sid = String(d.stroke_id || "");
+      if (sid && lessonBoardStrokeIds.has(sid)) return;
+      if (sid) {
+        lessonBoardStrokeIds.add(sid);
+        trimStrokeIds();
+      }
+      const tryApply = () => {
+        const root =
+          mainRef.current ||
+          (typeof document !== "undefined" ? document.querySelector(".page") || document.getElementById("main-wrapper") : null);
+        const local = lessonBoardFromNormalized(d.object, root, d.ref_board_min);
+        if (!local) return false;
+        objectsRef.current.push(local);
+        setCanUndo(true);
+        if (redrawRef.current) redrawRef.current();
+        return true;
+      };
+      if (tryApply()) return;
+      requestAnimationFrame(() => {
+        tryApply();
+      });
+    };
+    window.addEventListener("message", onLessonBoardMessage);
+    return () => window.removeEventListener("message", onLessonBoardMessage);
+  }, [lessonEmbedParams.embed]);
   const mode = location.state?.mode || "variant";
   const subjectLabel =
     location.state?.subjectName || examPageSubjectLabel(level, subject);
-  const levelLabel = LEVEL_NAMES[level] || level.toUpperCase();
+  const levelLabel =
+    LEVEL_NAMES[level] || (level != null && level !== "" ? String(level).toUpperCase() : "");
   const testTaskLabels = location.state?.testTaskLabels || [];
 
   const [variant, setVariant] = useState(null);
@@ -187,20 +385,42 @@ function ExamPage() {
      Загрузка варианта
   ========================== */
   useEffect(() => {
-    fetch(`/api/${level}/${subject}/variant/${variant_id}/`)
+    if (!level || !subject || !variant_id) {
+      setError("Некорректный адрес варианта");
+      setVariant(null);
+      return undefined;
+    }
+    setError(null);
+    let cancelled = false;
+    fetch(
+      `/api/${encodeURIComponent(level)}/${encodeURIComponent(subject)}/variant/${encodeURIComponent(String(variant_id))}/`,
+      { credentials: "same-origin" }
+    )
       .then((res) => {
-        if (!res.ok) throw new Error("Ошибка загрузки варианта");
+        if (!res.ok) throw new Error(`Ошибка загрузки варианта (${res.status})`);
         return res.json();
       })
-      .then((data) => setVariant(data))
-      .catch((err) => setError(err.message));
+      .then((data) => {
+        if (cancelled) return;
+        if (!data || !Array.isArray(data.tasks)) {
+          throw new Error("Сервер вернул неполные данные варианта");
+        }
+        setVariant(data);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err.message || "Ошибка загрузки варианта");
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [level, subject, variant_id]);
 
   /* =========================
      Справочная информация
   ========================== */
   useEffect(() => {
-    fetch(`/api/${level}/${subject}/support-info/`)
+    if (!level || !subject) return;
+    fetch(`/api/${encodeURIComponent(level)}/${encodeURIComponent(subject)}/support-info/`)
       .then((res) => res.ok ? res.json() : { items: [] })
       .then((data) => setSupportInfo((s) => ({ ...s, items: data.items || [] })))
       .catch(() => setSupportInfo((s) => ({ ...s, items: [] })));
@@ -435,6 +655,30 @@ function ExamPage() {
     const geomRef = { current: { vw: 1, vh: 1, dpr: 1 } };
     const PEN_WIDTH = 3;
     const POINT_STEP = 2;
+    const lessonEmbed = lessonEmbedParams.embed;
+
+    function relayLessonBoardEvent(type, payload) {
+      if (!lessonEmbedParams.embed || !window.parent || window.parent === window) return;
+      try {
+        window.parent.postMessage({
+          source: "exam-embedded-board",
+          type: type,
+          ...payload
+        }, "*");
+      } catch (_) {}
+    }
+
+    function relayLessonBoardAdd(obj) {
+      if (!lessonEmbedParams.embed || !obj) return;
+      const main =
+        mainRef.current ||
+        (typeof document !== "undefined" ? document.querySelector(".page") || document.getElementById("main-wrapper") : null);
+      const norm = lessonBoardToNormalized(obj, main);
+      if (!norm) return;
+      const strokeId = obj.stroke_id || (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `s_${Date.now()}_${Math.random()}`);
+      obj.stroke_id = strokeId;
+      relayLessonBoardEvent("board_add", { stroke_id: strokeId, object: norm });
+    }
     function pressureWidth(ev, base, minK = 0.7, maxK = 2.2) {
       const p = Number(ev?.pressure);
       if (!Number.isFinite(p) || p <= 0) return base;
@@ -475,6 +719,8 @@ function ExamPage() {
       canvas.style.width = `${vw}px`;
       canvas.style.height = `${vh}px`;
       canvas.style.zIndex = "10001";
+      if (lessonEmbedParams.embed) canvas.dataset.lessonSkipRasterSync = "1";
+      else delete canvas.dataset.lessonSkipRasterSync;
 
       geomRef.current = { vw, vh, dpr };
       setCanvasTouchAction();
@@ -485,9 +731,10 @@ function ExamPage() {
     function boardCoordsFromClient(clientX, clientY) {
       const root = mainRef.current;
       if (!root) return { x: 0, y: 0 };
-      const mr = root.getBoundingClientRect();
-      const sw = root.scrollWidth;
-      const sh = root.scrollHeight;
+      const pageEl = root.querySelector('.page') || root;
+      const mr = pageEl.getBoundingClientRect();
+      const sw = pageEl.offsetWidth;
+      const sh = pageEl.offsetHeight;
       const sx = mr.width > 0 ? sw / mr.width : 1;
       const sy = mr.height > 0 ? sh / mr.height : 1;
       return {
@@ -595,7 +842,8 @@ function ExamPage() {
       const pw = canvas.width;
       const ph = canvas.height;
       if (!root || pw < 1 || ph < 1 || vw < 1 || vh < 1) return;
-      const mr = root.getBoundingClientRect();
+      const pageEl = root.querySelector('.page') || root;
+      const mr = pageEl.getBoundingClientRect();
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.clearRect(0, 0, pw, ph);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -645,8 +893,19 @@ function ExamPage() {
       const radius = 12;
       for (let i = objectsRef.current.length - 1; i >= 0; i--) {
         if (hitTest(objectsRef.current[i], x, y, radius)) {
-          objectsRef.current.splice(i, 1);
-          socket.send(JSON.stringify({ action: "remove_object", index: i }));
+          const removed = objectsRef.current.splice(i, 1)[0];
+          if (lessonEmbedParams.embed) {
+            if (window.parent && window.parent !== window) {
+              window.parent.postMessage({
+                source: "exam-embedded-board",
+                type: "board_remove",
+                index: i,
+                stroke_id: removed.stroke_id || ""
+              }, "*");
+            }
+          } else if (socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({ action: "remove_object", index: i }));
+          }
           setCanUndo(objectsRef.current.length > 0);
           if (!skipRedraw) redraw();
           return;
@@ -799,7 +1058,8 @@ function ExamPage() {
           setCanRedo(false);
           objectsRef.current.push(shape);
           setCanUndo(true);
-          if (socket.readyState === WebSocket.OPEN) {
+          relayLessonBoardAdd(shape);
+          if (socket.readyState === WebSocket.OPEN && !lessonEmbed) {
             socket.send(JSON.stringify({ action: "add_object", object: shape }));
           }
         }
@@ -810,7 +1070,8 @@ function ExamPage() {
         setCanRedo(false);
         objectsRef.current.push(line);
         setCanUndo(true);
-        if (socket.readyState === WebSocket.OPEN) {
+        relayLessonBoardAdd(line);
+        if (socket.readyState === WebSocket.OPEN && !lessonEmbed) {
           socket.send(JSON.stringify({ action: "add_object", object: line }));
         }
         currentLineRef.current = null;
@@ -828,26 +1089,15 @@ function ExamPage() {
       if ((e.ctrlKey || e.metaKey) && e.key === "z") {
         e.preventDefault();
         if (e.shiftKey) {
-          if (redoStackRef.current.length > 0) {
-            const obj = redoStackRef.current.pop();
-            objectsRef.current.push(obj);
-            redraw();
-            setCanUndo(true);
-            setCanRedo(redoStackRef.current.length > 0);
-          }
+          redoBoard();
         } else {
-          if (objectsRef.current.length > 0) {
-            const obj = objectsRef.current.pop();
-            redoStackRef.current.push(obj);
-            redraw();
-            setCanUndo(objectsRef.current.length > 0);
-            setCanRedo(true);
-          }
+          undoBoard();
         }
       }
     }
 
     socket.onmessage = (e) => {
+      if (lessonEmbed) return;
       const data = JSON.parse(e.data);
       if (data.action === "add_object") {
         objectsRef.current.push(data.object);
@@ -930,7 +1180,7 @@ function ExamPage() {
       if (root) root.removeEventListener("scroll", scheduleScrollRedraw);
       if (contentArea) contentArea.removeEventListener("scroll", scheduleScrollRedraw);
     };
-  }, [boardOpen, level, subject, variant_id]);
+  }, [boardOpen, level, subject, variant_id, lessonEmbedParams.embed]);
 
   /* =========================
      Проверка ответов
@@ -1140,6 +1390,18 @@ function ExamPage() {
     redrawRef.current?.();
     setCanUndo(objectsRef.current.length > 0);
     setCanRedo(redoStackRef.current.length > 0);
+    if (lessonEmbedParams.embed) {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({
+          source: "exam-embedded-board",
+          type: "board_remove",
+          index: objectsRef.current.length,
+          stroke_id: obj.stroke_id || ""
+        }, "*");
+      }
+    } else if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({ action: "remove_object", index: objectsRef.current.length }));
+    }
   }
 
   function redoBoard() {
@@ -1149,6 +1411,11 @@ function ExamPage() {
     redrawRef.current?.();
     setCanUndo(true);
     setCanRedo(redoStackRef.current.length > 0);
+    if (lessonEmbedParams.embed) {
+      relayLessonBoardAdd(obj);
+    } else if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({ action: "add_object", object: obj }));
+    }
   }
 
   function clearBoard() {
@@ -1158,7 +1425,14 @@ function ExamPage() {
     setCanUndo(false);
     setCanRedo(false);
     redrawRef.current?.();
-    if (socketRef.current?.readyState === WebSocket.OPEN) {
+    if (lessonEmbedParams.embed) {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({
+          source: "exam-embedded-board",
+          type: "board_clear"
+        }, "*");
+      }
+    } else if (socketRef.current?.readyState === WebSocket.OPEN) {
       socketRef.current.send(JSON.stringify({ action: "clear_all" }));
     }
   }
@@ -1174,7 +1448,7 @@ function ExamPage() {
   if (error) return <div style={{ padding: 20 }}>Ошибка: {error}</div>;
   if (!variant) return <div style={{ padding: 20 }}>Загрузка...</div>;
 
-  const tasksFilteredByAuthor = variant.tasks;
+  const tasksFilteredByAuthor = Array.isArray(variant.tasks) ? variant.tasks : [];
   // Fallback: если part не задан, определяем по номеру (ОГЭ матем: 1–19 ч.1, 20+ ч.2; ЕГЭ матем: 1–11 ч.1; ОГЭ инф: 1–15 ч.1)
   const inferPart = (t) => {
     if (t.part === 1 || t.part === 2) return t.part;
@@ -1848,6 +2122,11 @@ function ExamPage() {
                               </div>
                             )}
                             {task.author && <div className="task-author">{task.author}</div>}
+                            <LessonSolutionUpload
+                              taskNumber={task.number}
+                              lessonToken={lessonEmbedParams.token}
+                              enabled={showLessonSolutionUpload}
+                            />
 
                             <div className="answer-section">
                               {useTableHere && rowsHere > 0 && colsHere > 0 ? (
@@ -2031,6 +2310,11 @@ function ExamPage() {
                         </div>
                       )}
                       {task.author && <div className="task-author">{task.author}</div>}
+                      <LessonSolutionUpload
+                        taskNumber={task.number}
+                        lessonToken={lessonEmbedParams.token}
+                        enabled={showLessonSolutionUpload}
+                      />
 
                       <div className="answer-section">
                         {criteriaOpenForTask === task.id ? (
