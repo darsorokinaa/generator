@@ -1225,6 +1225,39 @@
 
         doc.querySelectorAll('.task').forEach((task) => {
           task.querySelectorAll('.answer-section, .answer-input-row, .answer-actions, .answer-status').forEach((el) => el.remove());
+          
+          const numEl = task.querySelector('.task-number');
+          const taskNum = numEl ? normalizeTaskNumber(numEl.textContent) : '';
+          if (!taskNum) return;
+          
+          const answerHtml = answerByTaskNum[taskNum] || '—';
+          const block = doc.createElement('div');
+          block.className = 'lesson-teacher-answer-block';
+          block.innerHTML =
+            '<div class="lesson-teacher-answer-title">Эталонный ответ</div>' +
+            '<div class="lesson-teacher-answer-value">' + answerHtml + '</div>';
+          task.appendChild(block);
+
+          const studentAnswers = answersByTask[taskNum] || [];
+          if (studentAnswers.length > 0) {
+            const studentsBlock = doc.createElement('div');
+            studentsBlock.className = 'lesson-student-answers-block';
+            let html = '<div class="lesson-student-answers-title">Ответы учеников</div>';
+            html += '<table class="lesson-student-answers-table">';
+            html += '<thead><tr><th>Ученик</th><th>Ответ</th><th style="width: 60px; text-align: center;">Итог</th></tr></thead>';
+            html += '<tbody>';
+            studentAnswers.forEach(sa => {
+              const icon = sa.ok ? '<span style="color:#15803d;font-weight:bold;">✓</span>' : '<span style="color:#b91c1c;font-weight:bold;">✗</span>';
+              html += `<tr>
+                <td><b>${safeHtml(sa.name)}</b></td>
+                <td>${safeHtml(sa.answer)}</td>
+                <td style="text-align: center;">${icon}</td>
+              </tr>`;
+            });
+            html += '</tbody></table>';
+            studentsBlock.innerHTML = html;
+            task.appendChild(studentsBlock);
+          }
         });
       };
 
@@ -1642,8 +1675,10 @@
           .lesson-teacher-answer-value{font-size:.88rem;line-height:1.5;color:#0f172a;word-break:break-word}
           .lesson-student-answers-block{margin-top:10px;padding:10px 12px;border:1px solid #bbf7d0;background:#f0fdf4;border-radius:10px}
           .lesson-student-answers-title{font-size:.72rem;font-weight:800;color:#15803d;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px}
-          .lesson-student-answer-item{font-size:.88rem;line-height:1.5;color:#0f172a;margin-bottom:4px;word-break:break-word}
-          .lesson-student-answer-item:last-child{margin-bottom:0}
+          .lesson-student-answers-table{width:100%;border-collapse:collapse;margin-top:8px;font-size:.88rem}
+          .lesson-student-answers-table th{padding:6px 8px;color:#15803d;border-bottom:1px solid #bbf7d0;text-align:left}
+          .lesson-student-answers-table td{padding:6px 8px;color:#0f172a;border-bottom:1px solid #dcfce7;word-break:break-word}
+          .lesson-student-answers-table tr:last-child td{border-bottom:none}
           .lesson-attachments-teacher{margin-top:10px;padding:10px 12px;border:1px solid #d8b4fe;background:#faf5ff;border-radius:10px}
           .lesson-attachments-title{font-size:.72rem;font-weight:800;color:#7e22ce;text-transform:uppercase;letter-spacing:.04em;margin-bottom:8px}
           .lesson-attachments-grid{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start}
