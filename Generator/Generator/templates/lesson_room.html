@@ -1230,13 +1230,15 @@
           const taskNum = numEl ? normalizeTaskNumber(numEl.textContent) : '';
           if (!taskNum) return;
           
+          const taskContent = task.querySelector('.task-content') || task;
+          
           const answerHtml = answerByTaskNum[taskNum] || '—';
           const block = doc.createElement('div');
           block.className = 'lesson-teacher-answer-block';
           block.innerHTML =
             '<div class="lesson-teacher-answer-title">Эталонный ответ</div>' +
             '<div class="lesson-teacher-answer-value">' + answerHtml + '</div>';
-          task.appendChild(block);
+          taskContent.appendChild(block);
 
           const studentAnswers = answersByTask[taskNum] || [];
           if (studentAnswers.length > 0) {
@@ -1256,7 +1258,7 @@
             });
             html += '</tbody></table>';
             studentsBlock.innerHTML = html;
-            task.appendChild(studentsBlock);
+            taskContent.appendChild(studentsBlock);
           }
         });
       };
