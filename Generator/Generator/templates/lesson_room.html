@@ -1069,39 +1069,59 @@
           if (!taskNum) return;
           const rows = attachmentsByTask[taskNum] || [];
           if (!rows.length) return;
+          
+          // Group by student
+          const byStudent = {};
+          rows.forEach(r => {
+             if (!byStudent[r.name]) byStudent[r.name] = [];
+             byStudent[r.name].push(r);
+          });
+
           const wrap = doc.createElement('div');
           wrap.className = 'lesson-attachments-teacher';
           const maxScore = maxScoreByTaskNum[taskNum] || 1;
-          const grid = rows
-            .map((r) => {
-              const imgUrl = token
-                ? (r.url + (String(r.url).includes('?') ? '&' : '?') + 't=' + encodeURIComponent(token))
-                : r.url;
-              const cap = safeHtml(r.name) + (r.filename ? ' · ' + safeHtml(r.filename) : '');
-              
-              // Find if there's an existing score in answersByTask
-              let currentScore = '';
-              const studentAnswers = answersByTask[taskNum] || [];
-              const sa = studentAnswers.find(a => a.name === r.name);
-              if (sa && sa.answer && sa.answer.startsWith('Оценка: ')) {
-                 currentScore = sa.answer.replace('Оценка: ', '').split(' ')[0];
-              }
-              
-              return (
-                '<div class="lesson-attachment-wrapper" style="display:flex; flex-direction:column; gap:8px; align-items:center;">' +
-                '<figure class="lesson-attachment-fig">' +
-                '<img src="' + String(imgUrl).replace(/"/g, '&quot;') + '" alt=""/>' +
-                '<figcaption>' + cap + '</figcaption>' +
-                '</figure>' +
-                '<div class="lesson-attachment-score" style="display:flex; align-items:center; gap:4px; font-size:0.8rem; color:#475569;">' +
-                '<input type="number" min="0" max="' + maxScore + '" value="' + currentScore + '" placeholder="Балл" data-student="' + safeHtml(r.name) + '" data-task="' + taskNum + '" class="lesson-score-input" style="width:50px; padding:2px 4px; border:1px solid #cbd5e1; border-radius:4px; text-align:center;" />' +
-                '<span> / ' + maxScore + '</span>' +
-                '</div>' +
-                '</div>'
-              );
-            })
-            .join('');
-          wrap.innerHTML = '<div class="lesson-attachments-title">Прикреплённые решения</div><div class="lesson-attachments-grid">' + grid + '</div>';
+          
+          let html = '<div class="lesson-attachments-title">Прикреплённые решения</div><div class="lesson-attachments-list" style="display:flex; flex-direction:column; gap:16px;">';
+          
+          for (const studentName in byStudent) {
+             const studentAttachments = byStudent[studentName];
+             
+             let currentScore = '';
+             const studentAnswers = answersByTask[taskNum] || [];
+             const sa = studentAnswers.find(a => a.name === studentName);
+             if (sa && sa.answer && sa.answer.startsWith('Оценка: ')) {
+                currentScore = sa.answer.replace('Оценка: ', '').split(' ')[0];
+             }
+             
+             let imagesHtml = '<div style="display:flex; flex-wrap:wrap; gap:8px;">';
+             studentAttachments.forEach(r => {
+                const imgUrl = token
+                  ? (r.url + (String(r.url).includes('?') ? '&' : '?') + 't=' + encodeURIComponent(token))
+                  : r.url;
+                const cap = r.filename ? safeHtml(r.filename) : '';
+                imagesHtml += `<a href="${String(imgUrl).replace(/"/g, '&quot;')}" target="_blank" style="display:block; width:120px; height:120px; border-radius:6px; overflow:hidden; border:1px solid #e2e8f0; position:relative;" title="${cap}">
+                  <img src="${String(imgUrl).replace(/"/g, '&quot;')}" style="width:100%; height:100%; object-fit:contain; background:#f8fafc;" alt=""/>
+                </a>`;
+             });
+             imagesHtml += '</div>';
+             
+             html += `
+               <div class="lesson-student-attachment-row" style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding:12px; background:#fff; border-radius:8px; border:1px solid #e2e8f0;">
+                 <div style="flex:1; min-width:0;">
+                   <div style="font-weight:600; font-size:0.85rem; color:#334155; margin-bottom:8px;">${safeHtml(studentName)}</div>
+                   ${imagesHtml}
+                 </div>
+                 <div style="display:flex; align-items:center; gap:6px; background:#f8fafc; padding:6px 10px; border-radius:6px; border:1px solid #e2e8f0;">
+                   <span style="font-size:0.8rem; color:#64748b; font-weight:500;">Балл:</span>
+                   <input type="number" min="0" max="${maxScore}" value="${currentScore}" data-student="${safeHtml(studentName)}" data-task="${taskNum}" class="lesson-score-input" style="width:48px; padding:4px; border:1px solid #cbd5e1; border-radius:4px; text-align:center; font-size:0.9rem; font-weight:600; color:#0f172a; outline:none;" />
+                   <span style="font-size:0.85rem; color:#64748b; font-weight:500;">/ ${maxScore}</span>
+                 </div>
+               </div>
+             `;
+          }
+          
+          html += '</div>';
+          wrap.innerHTML = html;
           
           const taskContent = task.querySelector('.task-content') || task;
           taskContent.appendChild(wrap);
@@ -1243,7 +1263,7 @@
         doc.querySelectorAll('.lesson-attachments-teacher').forEach((el) => el.remove());
 
         doc.querySelectorAll('.task').forEach((task) => {
-          task.querySelectorAll('.answer-section, .answer-input-row, .answer-actions, .answer-status').forEach((el) => el.remove());
+          task.querySelectorAll('.answer-input-row, .answer-table-wrap, .answer-actions, .answer-status, .correct-answer-display, .part2-answer-reveal').forEach((el) => el.remove());
           
           const numEl = task.querySelector('.task-number');
           const taskNum = numEl ? normalizeTaskNumber(numEl.textContent) : '';
