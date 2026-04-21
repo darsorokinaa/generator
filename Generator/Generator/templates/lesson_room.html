@@ -1035,7 +1035,7 @@
         return changed;
       };
 
-      const mergeTaskAnswersFromApi = (rows) => {
+      const mergeAttachmentsFromApiItems = (items) => {
         if (!Array.isArray(items) || !items.length) return;
         items.forEach((item) => {
           const taskNum = normalizeTaskNumber(item.task_number);
