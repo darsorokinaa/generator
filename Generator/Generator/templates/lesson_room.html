@@ -1225,54 +1225,6 @@
 
         doc.querySelectorAll('.task').forEach((task) => {
           task.querySelectorAll('.answer-section, .answer-input-row, .answer-actions, .answer-status').forEach((el) => el.remove());
-          const numEl = task.querySelector('.task-number');
-          const taskNum = numEl ? normalizeTaskNumber(numEl.textContent) : '';
-          if (!taskNum) return;
-          const answerHtml = answerByTaskNum[taskNum] || '—';
-          const block = doc.createElement('div');
-          block.className = 'lesson-teacher-answer-block';
-          block.innerHTML =
-            '<div class="lesson-teacher-answer-title">Эталонный ответ</div>' +
-            '<div class="lesson-teacher-answer-value">' + answerHtml + '</div>';
-          
-          const studentAnswers = answersByTask[taskNum] || [];
-          let studentsBlockHtml = '';
-          if (studentAnswers.length > 0) {
-            studentsBlockHtml = '<div class="lesson-student-answers-block"><div class="lesson-student-answers-title">Ответы учеников</div><div class="lesson-student-answers-list">';
-            studentAnswers.forEach(sa => {
-              const icon = sa.ok ? '<span style="color:#15803d;font-weight:bold;margin-left:6px;">✓</span>' : '<span style="color:#b91c1c;font-weight:bold;margin-left:6px;">✗</span>';
-              studentsBlockHtml += `<div class="lesson-student-answer-item"><b>${safeHtml(sa.name)}</b>: ${safeHtml(sa.answer)} ${icon}</div>`;
-            });
-            studentsBlockHtml += '</div></div>';
-          }
-          
-          const container = doc.createElement('div');
-          container.className = 'lesson-answers-container';
-          container.style.display = 'flex';
-          container.style.gap = '16px';
-          container.style.marginTop = '10px';
-          container.style.alignItems = 'stretch';
-          container.style.flexWrap = 'wrap';
-          
-          block.style.marginTop = '0';
-          block.style.flex = '1 1 200px';
-          block.style.minWidth = '0';
-          
-          container.appendChild(block);
-          
-          if (studentsBlockHtml) {
-             const studentsBlock = doc.createElement('div');
-             studentsBlock.innerHTML = studentsBlockHtml;
-             const innerBlock = studentsBlock.firstElementChild;
-             innerBlock.style.marginTop = '0';
-             innerBlock.style.flex = '2 1 300px';
-             innerBlock.style.minWidth = '0';
-             innerBlock.style.height = '100%';
-             innerBlock.style.boxSizing = 'border-box';
-             container.appendChild(innerBlock);
-          }
-          
-          task.appendChild(container);
         });
       };
 
