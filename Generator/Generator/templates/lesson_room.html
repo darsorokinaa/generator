@@ -7,7 +7,8 @@
   <style>
     html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #fff; }
     #lesson-page-root { display: flex; width: 100%; height: 100%; min-height: 0; }
-    #lesson-frame-wrapper { flex: 1; min-width: 0; min-height: 0; height: 100%; position: relative; }
+    #lesson-frame-wrapper { flex: 1; min-width: 0; min-height: 0; height: 100%; position: relative; overflow: hidden; display: flex; justify-content: center; }
+    #scale-wrapper { width: 900px; height: 100%; position: relative; transform-origin: top center; }
     #variant-frame { width: 100%; height: 100%; border: 0; display: none; }
     #fallback {
       display: none; width: 100%; height: 100%; box-sizing: border-box; padding: 24px;
@@ -157,13 +158,14 @@
 <body>
   <div id="lesson-page-root">
     <div id="lesson-frame-wrapper">
-      <iframe id="variant-frame" title="Вариант урока"></iframe>
-      <div id="whiteboard-layer">
-        <canvas id="whiteboard-canvas"></canvas>
-        <input type="text" id="wb-text-input" class="wb-text-input-overlay" placeholder="Введите текст...">
+      <div id="scale-wrapper">
+        <iframe id="variant-frame" title="Вариант урока"></iframe>
+        <div id="whiteboard-layer">
+          <canvas id="whiteboard-canvas"></canvas>
+          <input type="text" id="wb-text-input" class="wb-text-input-overlay" placeholder="Введите текст...">
+        </div>
       </div>
       <div id="whiteboard-toolbar" class="wb-toolbar"></div>
-
     </div>
   </div>
   <div id="fallback" role="status" aria-live="polite"></div>
@@ -343,8 +345,11 @@
         if (!wbCanvas || !wbCtx) return;
         const rect = wbCanvas.parentElement.getBoundingClientRect();
         const dpr = window.devicePixelRatio || 1;
-        wbCanvas.width = rect.width * dpr;
-        wbCanvas.height = rect.height * dpr;
+        // Internal resolution should match the unscaled size (900px)
+        const unscaledWidth = wbCanvas.parentElement.offsetWidth;
+        const unscaledHeight = wbCanvas.parentElement.offsetHeight;
+        wbCanvas.width = unscaledWidth * dpr;
+        wbCanvas.height = unscaledHeight * dpr;
         wbCtx.scale(dpr, dpr);
         WbState.emit();
       };
@@ -476,12 +481,15 @@
           const doc = frame.contentDocument;
           if (!doc) return null;
           const page = doc.querySelector('.page') || doc.querySelector('#main-wrapper') || doc.querySelector('.main-wrapper') || doc.body;
+          
           const rect = page.getBoundingClientRect();
           const frameRect = frame.getBoundingClientRect();
+          const canvasRect = wbCanvas.getBoundingClientRect();
+          
           return {
-            left: frameRect.left + rect.left,
-            top: frameRect.top + rect.top,
-            scale: currentScale
+            left: (frameRect.left + rect.left - canvasRect.left) / currentScale,
+            top: (frameRect.top + rect.top - canvasRect.top) / currentScale,
+            width: rect.width / currentScale
           };
         } catch(e) {
           return null;
@@ -495,29 +503,30 @@
         } else {
           cx = e.clientX; cy = e.clientY;
         }
+        const canvasRect = wbCanvas.getBoundingClientRect();
+        const localX = (cx - canvasRect.left) / currentScale;
+        const localY = (cy - canvasRect.top) / currentScale;
+        
         const m = getWbMetrics();
-        if (!m || m.scale === 0) return { x: 0, y: 0 };
+        if (!m || m.width === 0) return { x: 0, y: 0 };
         
         return {
-          x: (cx - m.left) / m.scale,
-          y: (cy - m.top) / m.scale
+          x: (localX - m.left) / m.width,
+          y: (localY - m.top) / m.width
         };
       };
 
       const renderWhiteboard = () => {
         if (!WbState.dirty || !wbCtx || !wbCanvas) return;
         WbState.dirty = false;
-        const rect = wbCanvas.getBoundingClientRect();
-        wbCtx.clearRect(0, 0, rect.width, rect.height);
+        // Internal size is unscaled
+        wbCtx.clearRect(0, 0, wbCanvas.width, wbCanvas.height);
         
         const m = getWbMetrics();
         if (!m) return;
 
-        const pageOffsetX = m.left - rect.left;
-        const pageOffsetY = m.top - rect.top;
-
-        const toAbsX = (nx) => nx * m.scale + pageOffsetX;
-        const toAbsY = (ny) => ny * m.scale + pageOffsetY;
+        const toAbsX = (nx) => nx * m.width + m.left;
+        const toAbsY = (ny) => ny * m.width + m.top;
         
         const drawStroke = (s, isGhost) => {
           if (!s) return;
@@ -525,7 +534,8 @@
           wbCtx.globalAlpha = isGhost ? s.opacity * 0.6 : s.opacity;
           wbCtx.strokeStyle = s.color;
           wbCtx.fillStyle = s.color;
-          wbCtx.lineWidth = s.width * m.scale;
+          // Width is unscaled, so it stays consistent
+          wbCtx.lineWidth = s.width;
           wbCtx.lineCap = 'round';
           wbCtx.lineJoin = 'round';
 
@@ -544,7 +554,7 @@
               if (s.tool === 'arrow') {
                 const angle = Math.atan2(ey - sy, ex - sx);
                 const dist = Math.hypot(ex - sx, ey - sy);
-                const headLen = Math.min(20 * m.scale, dist * 0.25);
+                const headLen = Math.min(20, dist * 0.25);
                 wbCtx.beginPath();
                 wbCtx.moveTo(ex, ey);
                 wbCtx.lineTo(ex - headLen * Math.cos(angle - Math.PI / 7), ey - headLen * Math.sin(angle - Math.PI / 7));
@@ -563,7 +573,7 @@
               wbCtx.beginPath(); wbCtx.moveTo(cx, sy); wbCtx.lineTo(sx, ey); wbCtx.lineTo(ex, ey); wbCtx.closePath(); wbCtx.stroke();
             }
           } else if (s.tool === 'text' && s.text && s.startPoint) {
-            wbCtx.font = `500 ${s.width * 6 * m.scale}px sans-serif`;
+            wbCtx.font = `500 ${s.width * 6}px sans-serif`;
             wbCtx.textBaseline = 'top';
             wbCtx.fillText(s.text, toAbsX(s.startPoint.x), toAbsY(s.startPoint.y));
           }
@@ -577,7 +587,7 @@
       if (wbCanvas) {
         const eraseAt = (pt) => {
           const m = getWbMetrics();
-          const eraserRadiusNorm = m && m.scale > 0 ? (WbState.width * 2) / m.scale : WbState.width * 2;
+          const eraserRadiusNorm = m && m.width > 0 ? (WbState.width * 2) / m.width : WbState.width * 2;
           const dist = (p1, p2) => Math.hypot(p1.x - p2.x, p1.y - p2.y);
           const erasedIds = [];
           
@@ -603,17 +613,17 @@
 
         const handleTextClick = (e) => {
           const pt = getWbNormCoords(e);
-          const rect = wbCanvas.getBoundingClientRect();
           const m = getWbMetrics();
           if (!m) return;
-          const pageOffsetX = m.left - rect.left;
-          const pageOffsetY = m.top - rect.top;
+          
+          const unscaledX = pt.x * m.width + m.left;
+          const unscaledY = pt.y * m.width + m.top;
 
           wbTextInput.style.display = 'block';
-          wbTextInput.style.left = `${pt.x * m.scale + pageOffsetX}px`;
-          wbTextInput.style.top = `${pt.y * m.scale + pageOffsetY - 10 * m.scale}px`;
+          wbTextInput.style.left = `${unscaledX}px`;
+          wbTextInput.style.top = `${unscaledY - 10}px`;
           wbTextInput.style.color = WbState.color;
-          wbTextInput.style.font = `500 ${WbState.width * 6 * m.scale}px sans-serif`;
+          wbTextInput.style.font = `500 ${WbState.width * 6}px sans-serif`;
           wbTextInput.value = '';
           wbTextInput.focus();
 
@@ -1667,6 +1677,10 @@
           .lesson-attachment-fig img{display:block;max-width:100%;max-height:160px;object-fit:contain;border-radius:8px;border:1px solid #e9d5ff;background:#fff}
           .lesson-attachment-fig figcaption{margin-top:4px;font-size:.72rem;color:#6b21a8;word-break:break-word}
           ` : ''}
+          /* Hide the Open Board button inside the iframe */
+          #open-board-btn {
+            display: none !important;
+          }
           /* Lock layout width to ensure identical text wrapping and image sizing for drawing sync */
           .page, .main-wrapper.exam-page {
             width: 900px !important;
@@ -1683,15 +1697,21 @@
         const updateZoom = () => {
           const win = frame.contentWindow;
           if (!win || !doc.body) return;
-          const fw = frame.clientWidth;
-          currentScale = fw > 0 && fw < 900 ? fw / 900 : 1;
+          const wrapper = document.getElementById('lesson-frame-wrapper');
+          const fw = wrapper.clientWidth;
+          const fh = wrapper.clientHeight;
           
-          const page = doc.querySelector('.page') || doc.querySelector('.main-wrapper');
-          if (page) {
-            page.style.transformOrigin = 'top center';
-            page.style.transform = `scale(${currentScale})`;
-            page.style.marginBottom = `-${page.offsetHeight * (1 - currentScale)}px`;
+          const scaleWrapper = document.getElementById('scale-wrapper');
+          if (fw > 0 && fw < 900) {
+            currentScale = fw / 900;
+            scaleWrapper.style.transform = `scale(${currentScale})`;
+            scaleWrapper.style.height = `${fh / currentScale}px`;
+          } else {
+            currentScale = 1;
+            scaleWrapper.style.transform = 'none';
+            scaleWrapper.style.height = '100%';
           }
+          
           if (typeof resizeWb === 'function') resizeWb();
           if (typeof WbState !== 'undefined') WbState.emit();
         };
