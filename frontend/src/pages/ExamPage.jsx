@@ -97,7 +97,7 @@ function LessonSolutionUpload({ taskNumber, lessonToken, enabled }) {
   };
 
   return (
-    <div className="lesson-solution-upload" onClick={(e) => e.stopPropagation()}>
+    <div className="lesson-solution-upload" onClick={(e) => e.stopPropagation()} style={{ width: "100%" }}>
       <input
         ref={fileInputRef}
         type="file"
@@ -110,6 +110,7 @@ function LessonSolutionUpload({ taskNumber, lessonToken, enabled }) {
         type="button"
         className="add-button lesson-solution-upload-btn"
         disabled={busy}
+        style={{ width: "100%" }}
         onClick={(e) => {
           e.stopPropagation();
           fileInputRef.current?.click();
@@ -2254,11 +2255,12 @@ function ExamPage() {
                                 </>
                               )}
 
-                              <div className="part2-answer-criteria-buttons">
+                              <div className="part2-answer-criteria-buttons" style={{ display: "flex", flexDirection: "column", gap: "8px", width: "100%" }}>
                                 {task.answer != null && task.answer !== "" && (
                                   <button
                                     type="button"
                                     className="add-button"
+                                    style={{ width: "100%" }}
                                     onClick={() => togglePart2Answer(task.id)}
                                   >
                                     {visibleAnswers[task.id] ? "Скрыть ответ" : "Ответ"}
@@ -2268,6 +2270,7 @@ function ExamPage() {
                                   <button
                                     type="button"
                                     className={`add-button criteria-btn${criteriaOpenForTask === task.id ? " active" : ""}`}
+                                    style={{ width: "100%" }}
                                     onClick={() => toggleCriteriaPanel(task)}
                                   >
                                     {criteriaOpenForTask === task.id ? "Скрыть критерии" : "Критерии"}
@@ -2361,26 +2364,28 @@ function ExamPage() {
                           </div>
                         ) : null}
 
-                        <div className="part2-answer-criteria-buttons">
-                          {task.answer != null && task.answer !== "" && (
-                            <button
-                              type="button"
-                              className="add-button"
-                              onClick={() => togglePart2Answer(task.id)}
-                            >
-                              {visibleAnswers[task.id] ? "Скрыть ответ" : "Ответ"}
-                            </button>
-                          )}
-                          {(task.task_list_id != null || task.number != null) && (
-                            <button
-                              type="button"
-                              className={`add-button criteria-btn${criteriaOpenForTask === task.id ? " active" : ""}`}
-                              onClick={() => toggleCriteriaPanel(task)}
-                            >
-                              {criteriaOpenForTask === task.id ? "Скрыть критерии" : "Критерии"}
-                            </button>
-                          )}
-                        </div>
+                              <div className="part2-answer-criteria-buttons" style={{ display: "flex", flexDirection: "column", gap: "8px", width: "100%" }}>
+                                {task.answer != null && task.answer !== "" && (
+                                  <button
+                                    type="button"
+                                    className="add-button"
+                                    style={{ width: "100%" }}
+                                    onClick={() => togglePart2Answer(task.id)}
+                                  >
+                                    {visibleAnswers[task.id] ? "Скрыть ответ" : "Ответ"}
+                                  </button>
+                                )}
+                                {(task.task_list_id != null || task.number != null) && (
+                                  <button
+                                    type="button"
+                                    className={`add-button criteria-btn${criteriaOpenForTask === task.id ? " active" : ""}`}
+                                    style={{ width: "100%" }}
+                                    onClick={() => toggleCriteriaPanel(task)}
+                                  >
+                                    {criteriaOpenForTask === task.id ? "Скрыть критерии" : "Критерии"}
+                                  </button>
+                                )}
+                              </div>
                         {task.answer != null && task.answer !== "" && visibleAnswers[task.id] && (
                           <div className="part2-answer-reveal">
                             <span className="part2-answer-label">Правильный ответ:</span>

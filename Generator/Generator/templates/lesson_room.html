@@ -1670,7 +1670,10 @@
           ${!isTeacher ? `
           .correct-answer-display,.part2-answer-reveal,.task-report-error-wrap{display:none!important}
           .part2-answer-criteria-buttons > .add-button:not(.criteria-btn){display:none!important}
-          ` : ''}
+          ` : `
+          .part2-answer-criteria-buttons { display: flex; flex-direction: column; width: 100%; gap: 8px; }
+          .part2-answer-criteria-buttons > .add-button { width: 100%; }
+          `}
           ${isTeacher ? `
           .lesson-teacher-answer-block{margin-top:10px;padding:10px 12px;border:1px solid #bfdbfe;background:#f0f9ff;border-radius:10px}
           .lesson-teacher-answer-title{font-size:.72rem;font-weight:800;color:#1d4ed8;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px}
