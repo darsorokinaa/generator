@@ -58,11 +58,14 @@ function LessonSolutionUpload({ taskNumber, lessonToken, enabled }) {
   const fileInputRef = useRef(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
-  const [previews, setPreviews] = useState([]);
+  const [sentPreviews, setSentPreviews] = useState([]);
+  
+  const [pendingFile, setPendingFile] = useState(null);
+  const [pendingPreview, setPendingPreview] = useState(null);
 
   if (!enabled || !lessonToken) return null;
 
-  const onChange = async (e) => {
+  const onFileSelect = (e) => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
@@ -71,11 +74,27 @@ function LessonSolutionUpload({ taskNumber, lessonToken, enabled }) {
       return;
     }
     setErr(null);
+    setPendingFile(file);
+    setPendingPreview(URL.createObjectURL(file));
+  };
+
+  const onCancel = (e) => {
+    e.stopPropagation();
+    setPendingFile(null);
+    if (pendingPreview) URL.revokeObjectURL(pendingPreview);
+    setPendingPreview(null);
+    setErr(null);
+  };
+
+  const onSend = async (e) => {
+    e.stopPropagation();
+    if (!pendingFile) return;
     setBusy(true);
+    setErr(null);
     const fd = new FormData();
     fd.append("lesson_token", lessonToken);
     fd.append("task_number", String(taskNumber));
-    fd.append("file", file);
+    fd.append("file", pendingFile);
     try {
       const res = await fetch("/api/lesson/attachment/", {
         method: "POST",
@@ -87,8 +106,11 @@ function LessonSolutionUpload({ taskNumber, lessonToken, enabled }) {
         throw new Error(data.error || "Не удалось загрузить файл");
       }
       const url = String(data.url || "");
-      const filename = String(data.filename || file.name);
-      setPreviews((prev) => [...prev, { url, filename }]);
+      const filename = String(data.filename || pendingFile.name);
+      setSentPreviews((prev) => [...prev, { url, filename }]);
+      setPendingFile(null);
+      if (pendingPreview) URL.revokeObjectURL(pendingPreview);
+      setPendingPreview(null);
     } catch (ex) {
       setErr(ex.message || "Ошибка загрузки");
     } finally {
@@ -104,24 +126,51 @@ function LessonSolutionUpload({ taskNumber, lessonToken, enabled }) {
         accept="image/*"
         className="lesson-solution-file-input"
         tabIndex={-1}
-        onChange={onChange}
+        onChange={onFileSelect}
       />
-      <button
-        type="button"
-        className="add-button lesson-solution-upload-btn"
-        disabled={busy}
-        style={{ width: "100%" }}
-        onClick={(e) => {
-          e.stopPropagation();
-          fileInputRef.current?.click();
-        }}
-      >
-        {busy ? "Загрузка…" : "Прикрепить решение"}
-      </button>
-      {err ? <span className="lesson-solution-upload-error">{err}</span> : null}
-      {previews.length > 0 ? (
-        <div className="lesson-solution-previews">
-          {previews.map((p, i) => {
+      
+      {!pendingFile ? (
+        <button
+          type="button"
+          className="add-button lesson-solution-upload-btn"
+          disabled={busy}
+          style={{ width: "100%" }}
+          onClick={(e) => {
+            e.stopPropagation();
+            fileInputRef.current?.click();
+          }}
+        >
+          {busy ? "Загрузка…" : "Прикрепить решение"}
+        </button>
+      ) : (
+        <div className="lesson-solution-pending" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+          <div style={{ position: "relative", display: "inline-block", width: "fit-content" }}>
+            <img src={pendingPreview} alt="Preview" style={{ maxWidth: "100%", maxHeight: "200px", borderRadius: "8px", border: "1px solid #e2e8f0" }} />
+            <button 
+              type="button" 
+              onClick={onCancel}
+              style={{ position: "absolute", top: "-8px", right: "-8px", background: "#ef4444", color: "white", border: "none", borderRadius: "50%", width: "24px", height: "24px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", padding: 0, lineHeight: 1 }}
+            >
+              ✕
+            </button>
+          </div>
+          <button
+            type="button"
+            className="add-button lesson-solution-send-btn"
+            disabled={busy}
+            style={{ width: "100%", background: "#10b981", color: "white", borderColor: "#059669" }}
+            onClick={onSend}
+          >
+            {busy ? "Отправка…" : "Отправить"}
+          </button>
+        </div>
+      )}
+
+      {err ? <span className="lesson-solution-upload-error" style={{ display: "block", marginTop: "8px" }}>{err}</span> : null}
+      
+      {sentPreviews.length > 0 ? (
+        <div className="lesson-solution-previews" style={{ marginTop: "12px" }}>
+          {sentPreviews.map((p, i) => {
             const src = `${p.url}${p.url.includes("?") ? "&" : "?"}t=${encodeURIComponent(lessonToken)}`;
             return (
               <figure key={`${p.url}-${i}`} className="lesson-solution-preview-fig">

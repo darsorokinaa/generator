@@ -1085,7 +1085,9 @@
             })
             .join('');
           wrap.innerHTML = '<div class="lesson-attachments-title">Прикреплённые решения</div><div class="lesson-attachments-grid">' + grid + '</div>';
-          task.appendChild(wrap);
+          
+          const taskContent = task.querySelector('.task-content') || task;
+          taskContent.appendChild(wrap);
         });
       };
 
