@@ -390,6 +390,8 @@
       const wbToolbar = document.getElementById('whiteboard-toolbar');
       let wbIsDrawing = false;
 
+      let currentScale = 1;
+
       const resizeWb = () => {
         if (!wbCanvas || !wbCtx) return;
         const rect = wbCanvas.parentElement.getBoundingClientRect();
@@ -529,12 +531,10 @@
           const page = doc.querySelector('.page') || doc.querySelector('#main-wrapper') || doc.querySelector('.main-wrapper') || doc.body;
           const rect = page.getBoundingClientRect();
           const frameRect = frame.getBoundingClientRect();
-          const st = page.scrollTop || 0;
-          const sl = page.scrollLeft || 0;
           return {
-            left: frameRect.left + rect.left - sl,
-            top: frameRect.top + rect.top - st,
-            width: rect.width || 1
+            left: frameRect.left + rect.left,
+            top: frameRect.top + rect.top,
+            scale: currentScale
           };
         } catch(e) {
           return null;
@@ -549,11 +549,11 @@
           cx = e.clientX; cy = e.clientY;
         }
         const m = getWbMetrics();
-        if (!m) return { x: 0, y: 0 };
+        if (!m || m.scale === 0) return { x: 0, y: 0 };
         
         return {
-          x: (cx - m.left) / m.width,
-          y: (cy - m.top) / m.width
+          x: (cx - m.left) / m.scale,
+          y: (cy - m.top) / m.scale
         };
       };
 
@@ -566,8 +566,11 @@
         const m = getWbMetrics();
         if (!m) return;
 
-        const toAbsX = (nx) => nx * m.width + m.left;
-        const toAbsY = (ny) => ny * m.width + m.top;
+        const pageOffsetX = m.left - rect.left;
+        const pageOffsetY = m.top - rect.top;
+
+        const toAbsX = (nx) => nx * m.scale + pageOffsetX;
+        const toAbsY = (ny) => ny * m.scale + pageOffsetY;
         
         const drawStroke = (s, isGhost) => {
           if (!s) return;
@@ -575,7 +578,7 @@
           wbCtx.globalAlpha = isGhost ? s.opacity * 0.6 : s.opacity;
           wbCtx.strokeStyle = s.color;
           wbCtx.fillStyle = s.color;
-          wbCtx.lineWidth = s.width;
+          wbCtx.lineWidth = s.width * m.scale;
           wbCtx.lineCap = 'round';
           wbCtx.lineJoin = 'round';
 
@@ -594,7 +597,7 @@
               if (s.tool === 'arrow') {
                 const angle = Math.atan2(ey - sy, ex - sx);
                 const dist = Math.hypot(ex - sx, ey - sy);
-                const headLen = Math.min(20, dist * 0.25);
+                const headLen = Math.min(20 * m.scale, dist * 0.25);
                 wbCtx.beginPath();
                 wbCtx.moveTo(ex, ey);
                 wbCtx.lineTo(ex - headLen * Math.cos(angle - Math.PI / 7), ey - headLen * Math.sin(angle - Math.PI / 7));
@@ -613,7 +616,7 @@
               wbCtx.beginPath(); wbCtx.moveTo(cx, sy); wbCtx.lineTo(sx, ey); wbCtx.lineTo(ex, ey); wbCtx.closePath(); wbCtx.stroke();
             }
           } else if (s.tool === 'text' && s.text && s.startPoint) {
-            wbCtx.font = `500 ${s.width * 6}px sans-serif`;
+            wbCtx.font = `500 ${s.width * 6 * m.scale}px sans-serif`;
             wbCtx.textBaseline = 'top';
             wbCtx.fillText(s.text, toAbsX(s.startPoint.x), toAbsY(s.startPoint.y));
           }
@@ -626,8 +629,8 @@
 
       if (wbCanvas) {
         const eraseAt = (pt) => {
-          const rect = wbCanvas.getBoundingClientRect();
-          const eraserRadiusNorm = (WbState.width * 2) / rect.width;
+          const m = getWbMetrics();
+          const eraserRadiusNorm = m && m.scale > 0 ? (WbState.width * 2) / m.scale : WbState.width * 2;
           const dist = (p1, p2) => Math.hypot(p1.x - p2.x, p1.y - p2.y);
           const erasedIds = [];
           
@@ -656,11 +659,14 @@
           const rect = wbCanvas.getBoundingClientRect();
           const m = getWbMetrics();
           if (!m) return;
+          const pageOffsetX = m.left - rect.left;
+          const pageOffsetY = m.top - rect.top;
+
           wbTextInput.style.display = 'block';
-          wbTextInput.style.left = `${pt.x * m.width + m.left}px`;
-          wbTextInput.style.top = `${pt.y * m.width + m.top - 10}px`;
+          wbTextInput.style.left = `${pt.x * m.scale + pageOffsetX}px`;
+          wbTextInput.style.top = `${pt.y * m.scale + pageOffsetY - 10 * m.scale}px`;
           wbTextInput.style.color = WbState.color;
-          wbTextInput.style.font = `500 ${WbState.width * 6}px sans-serif`;
+          wbTextInput.style.font = `500 ${WbState.width * 6 * m.scale}px sans-serif`;
           wbTextInput.value = '';
           wbTextInput.focus();
 
@@ -1810,10 +1816,13 @@
           const win = frame.contentWindow;
           if (!win || !doc.body) return;
           const fw = frame.clientWidth;
-          if (fw > 0 && fw < 920) {
-            doc.body.style.zoom = fw / 920;
-          } else {
-            doc.body.style.zoom = 1;
+          currentScale = fw > 0 && fw < 900 ? fw / 900 : 1;
+          
+          const page = doc.querySelector('.page') || doc.querySelector('.main-wrapper');
+          if (page) {
+            page.style.transformOrigin = 'top center';
+            page.style.transform = `scale(${currentScale})`;
+            page.style.marginBottom = `-${page.offsetHeight * (1 - currentScale)}px`;
           }
           if (typeof resizeWb === 'function') resizeWb();
           if (typeof WbState !== 'undefined') WbState.emit();
