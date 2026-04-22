@@ -1,9 +1,9 @@
-# Интеграция genurok.tw1.ru с кабинетом учителя
+# Интеграция test.genurok.ru с кабинетом учителя
 
 ## Как работает схема
 
 ```
-Учитель (кабинет)                genurok.tw1.ru
+Учитель (кабинет)                test.genurok.ru
      │                                │
      │── POST /api/lesson/token/ ────→ Django кабинета
      │←── { url, token } ────────────│
@@ -36,7 +36,7 @@
 
 `type` = `"student"` или `"group"`
 
-## Верификация токена на genurok.tw1.ru (Python)
+## Верификация токена на test.genurok.ru (Python)
 
 ```python
 import jwt
@@ -61,7 +61,7 @@ def verify_lesson_token(token: str) -> dict:
         raise ValueError(f'Невалидный токен: {e}')
 ```
 
-## View на genurok.tw1.ru
+## View на test.genurok.ru
 
 ```python
 # views.py
@@ -88,16 +88,16 @@ def lesson_join(request):
     return render(request, 'lesson_room.html', context)
 ```
 
-## URL на genurok.tw1.ru
+## URL на test.genurok.ru
 
 ```python
 # urls.py
 path('lesson/join/', views.lesson_join, name='lesson-join'),
 ```
 
-## Кнопка «ЛК» на genurok.tw1.ru
+## Кнопка «ЛК» на test.genurok.ru
 
-Ссылка на кабинет задаётся **на стороне генератора** (шаблон / конфиг / `https://lk...` → замените на **`http://lk.genurok.tw1.ru`**, если ЛК без SSL). Редиректы после входа в кабинете берут `FRONTEND_URL` из `.env` кабинета.
+Ссылка на кабинет задаётся **на стороне генератора** (шаблон / конфиг / `https://lk...` → для теста **`https://lk-test.genurok.ru`**, при необходимости **`http://`**). Редиректы после входа в кабинете берут `FRONTEND_URL` из `.env` кабинета.
 
 ## Переменные окружения (оба сервера должны иметь одинаковый LESSON_SECRET)
 
@@ -105,11 +105,11 @@ path('lesson/join/', views.lesson_join, name='lesson-join'),
 # .env на кабинете
 LESSON_SECRET=super-secret-shared-key-32-chars
 
-# .env на genurok.tw1.ru
+# .env на test.genurok.ru
 LESSON_SECRET=super-secret-shared-key-32-chars
 ```
 
-## Верификация на JS (если genurok.tw1.ru — SPA)
+## Верификация на JS (если test.genurok.ru — SPA)
 
 ```javascript
 import { jwtVerify, importSecret } from 'jose';  // npm install jose

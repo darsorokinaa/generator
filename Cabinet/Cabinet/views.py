@@ -10,6 +10,7 @@ from django.utils import timezone                      # timezone.now() — те
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.dateparse import parse_date          # безопасный парсинг строки "YYYY-MM-DD" → date
+from django.db import transaction                      # атомарные операции при удалении группы
 import os                                              # работа с файловой системой и переменными окружения
 import random                                          # генерация случайных чисел и выборок
 import string                                          # наборы символов (ascii_letters, digits)
@@ -539,12 +540,12 @@ def get_user_by_login(login_str):
 def _dashboard_url(request):
     """
     URL дашборда (React SPA).
-    В проде SPA отдаётся Django с path /app/; отдельный CRA — http://localhost:3000.
+    В проде SPA отдаётся Django с path /app/; CRA dev — http://localhost:3000/app/ (homepage /app).
     """
-    fe = (FRONTEND_URL or '').rstrip('/')                                   # убираем trailing slash из URL фронтенда
-    if fe and (':3000' in fe or fe.rstrip('/').endswith('3000')):           # если фронтенд на порту 3000 (dev-режим)
-        return fe                                                            # возвращаем адрес CRA напрямую
-    return request.build_absolute_uri('/app/')                              # иначе SPA встроен в Django по пути /app/
+    fe = (FRONTEND_URL or '').rstrip('/')
+    if fe and ':3000' in fe:
+        return f'{fe}/app/' if not fe.endswith('/app') else f'{fe}/'
+    return request.build_absolute_uri('/app/')
 
 
 def _login_rate_limit_key(request):
@@ -1054,6 +1055,29 @@ class GroupView(TeacherProfileMixin, APIView):
             level=level,
         )
         return Response(GroupSerializer(group).data, status=status.HTTP_201_CREATED)  # 201 Created
+
+
+class GroupDetailView(TeacherProfileMixin, APIView):
+    """DELETE: удалить группу; ученики с этой группой → архив (статус 3), без группы, индив. занятия."""
+
+    permission_classes = [IsCabinetTeacher]
+
+    def delete(self, request, pk):
+        teacher_profile = self.get_teacher_profile(request)
+        try:
+            group = Group.objects.get(pk=pk, teacher=teacher_profile)
+        except Group.DoesNotExist:
+            return Response({'error': 'Группа не найдена'}, status=status.HTTP_404_NOT_FOUND)
+
+        with transaction.atomic():
+            TeachersStudent.objects.filter(teacher=teacher_profile, group=group).update(
+                status='3',
+                group=None,
+                lesson_type='individual',
+            )
+            TeachersGroup.objects.filter(group=group).delete()
+            group.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class LessonTokenView(APIView):
@@ -2930,9 +2954,27 @@ class NotificationListView(APIView):
         qs = (
             Notification.objects
             .filter(user=profile)                                  # уведомления текущего пользователя
-            .select_related('homework_assignment')                 # подтягиваем назначение ДЗ если есть
-            .order_by('-created_at')[:50]                         # последние 50 по убыванию даты
+            .select_related('homework_assignment', 'homework_assignment__homework')  # ДЗ для фильтра архива
+            .order_by('-created_at')
         )
+        # Не показывать оповещения по ДЗ для архивных связей (статус «Завершил обучение» в TeachersStudent).
+        if profile.role == 'student':
+            archived_teacher_ids = TeachersStudent.objects.filter(
+                student=profile, status='3',
+            ).values_list('teacher_id', flat=True)
+            qs = qs.exclude(
+                homework_assignment__isnull=False,
+                homework_assignment__homework__teacher_id__in=archived_teacher_ids,
+            )
+        else:
+            archived_student_ids = TeachersStudent.objects.filter(
+                teacher=profile, status='3',
+            ).values_list('student_id', flat=True)
+            qs = qs.exclude(
+                homework_assignment__isnull=False,
+                homework_assignment__student_id__in=archived_student_ids,
+            )
+        qs = qs[:50]                                                 # последние 50 после фильтра
         return Response(NotificationSerializer(qs, many=True).data)
 
 

@@ -97,7 +97,7 @@ function StudentRow({ student, dragging, onDragStart, onDragEnd, onOpenProfile, 
 }
 
 // ── Карточка-секция (индивид. или группа) ────────────────────────────
-function SectionCard({ id, title, dot, dotColor, students, draggingId, dragOver, onDragOver, onDragLeave, onDrop, onAddStudent, onOpenProfile, onDragStart, onDragEnd, onArchive, onDelete }) {
+function SectionCard({ id, title, dot, dotColor, students, draggingId, dragOver, onDragOver, onDragLeave, onDrop, onAddStudent, onOpenProfile, onDragStart, onDragEnd, onArchive, onDelete, onDeleteGroup }) {
   const isOver = dragOver === id;
   return (
     <div
@@ -112,7 +112,18 @@ function SectionCard({ id, title, dot, dotColor, students, draggingId, dragOver,
           <span className="sp-card-title">{title}</span>
           <span className="sp-card-pill">{students.length}</span>
         </div>
-        <button className="sp-add-student-btn" onClick={() => onAddStudent(id)}>+ Добавить ученика</button>
+        <div className="sp-card-header-actions">
+          {onDeleteGroup && (
+            <button
+              type="button"
+              className="sp-delete-group-btn"
+              onClick={(e) => { e.stopPropagation(); onDeleteGroup(); }}
+            >
+              Удалить группу
+            </button>
+          )}
+          <button type="button" className="sp-add-student-btn" onClick={() => onAddStudent(id)}>+ Добавить ученика</button>
+        </div>
       </div>
 
       {students.length === 0 ? (
@@ -178,17 +189,25 @@ export default function StudentsPage({ onOpenProfile }) {
   const [groupSaving, setGroupSaving]   = useState(false);
 
   // ── Data loading ─────────────────────────────────────────────────
-  const loadAll = useCallback(() => {
-    fetch(`${API}/api/students/`, { credentials: 'include' })
-      .then(r => r.json()).then(d => { setStudents(Array.isArray(d) ? d : []); setLoading(false); })
-      .catch(() => setLoading(false));
+  const loadAll = useCallback((opts = {}) => {
+    const silent = !!opts.silent;
+    if (!silent) setLoading(true);
+    Promise.all([
+      fetch(`${API}/api/students/`, { credentials: 'include' }).then(r => r.json()),
+      fetch(`${API}/api/groups/`, { credentials: 'include' }).then(r => (r.ok ? r.json() : [])),
+    ])
+      .then(([stu, grp]) => {
+        setStudents(Array.isArray(stu) ? stu : []);
+        setGroups(Array.isArray(grp) ? grp : []);
+      })
+      .catch(() => {})
+      .finally(() => { if (!silent) setLoading(false); });
   }, []);
 
   useEffect(() => {
     loadAll();
     fetch(`${API}/api/subjects/`, { credentials: 'include' }).then(r => r.ok ? r.json() : []).then(d => setSubjects(Array.isArray(d) ? d : [])).catch(() => {});
     fetch(`${API}/api/levels/`,   { credentials: 'include' }).then(r => r.ok ? r.json() : []).then(d => setLevels(Array.isArray(d) ? d : [])).catch(() => {});
-    fetch(`${API}/api/groups/`,   { credentials: 'include' }).then(r => r.ok ? r.json() : []).then(d => setGroups(Array.isArray(d) ? d : [])).catch(() => {});
   }, [loadAll]);
 
   useEffect(() => {
@@ -324,7 +343,7 @@ export default function StudentsPage({ onOpenProfile }) {
       if (r.ok) {
         setGroupModal(false);
         setGroupForm({ group_name: '', subject: '', level: '' });
-        fetch(`${API}/api/groups/`, { credentials: 'include' }).then(res => res.json()).then(setGroups).catch(() => {});
+        loadAll({ silent: true });
       } else { const err = await r.json(); setGroupError(err.error || 'Ошибка'); }
     } catch { setGroupError('Нет связи с сервером'); } finally { setGroupSaving(false); }
   }
@@ -362,6 +381,39 @@ export default function StudentsPage({ onOpenProfile }) {
         showToast(`${name} удалён`);
       }
     } catch { /* silent */ }
+  }
+
+  async function handleDeleteGroup(groupRow) {
+    const inGroupCount = students.filter(
+      s => s.status !== '3' && s.lesson_type === 'group' && Number(s.group) === Number(groupRow.id),
+    ).length;
+    const msg = inGroupCount > 0
+      ? `Удалить группу «${groupRow.group_name}»?\n\nВсе ученики группы (${inGroupCount}) будут перенесены в архив. Связь с группой удалится; профили учеников останутся.`
+      : `Удалить пустую группу «${groupRow.group_name}»?`;
+    if (!window.confirm(msg)) return;
+    try {
+      let csrf = getCookie('csrftoken');
+      if (!csrf) { await fetch(`${API}/api/groups/`, { credentials: 'include' }); csrf = getCookie('csrftoken'); }
+      const r = await fetch(`${API}/api/groups/${groupRow.id}/`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: { 'X-CSRFToken': csrf },
+      });
+      if (r.ok || r.status === 204) {
+        showToast(
+          inGroupCount > 0
+            ? `Группа удалена. Ученики (${inGroupCount}) — в архиве.`
+            : 'Группа удалена',
+        );
+        loadAll();
+      } else {
+        let err = {};
+        try { err = await r.json(); } catch { /**/ }
+        showToast((typeof err.error === 'string' && err.error) || 'Не удалось удалить группу');
+      }
+    } catch {
+      showToast('Нет связи с сервером');
+    }
   }
 
   // ── Derived ──────────────────────────────────────────────────────
@@ -453,6 +505,7 @@ export default function StudentsPage({ onOpenProfile }) {
           onDragEnd={handleDragEnd}
           onArchive={handleArchive}
           onDelete={handleDelete}
+          onDeleteGroup={() => handleDeleteGroup(g)}
         />
       ))}
 

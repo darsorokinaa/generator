@@ -4438,6 +4438,29 @@ input, select, textarea { font-family: var(--font); }
   border-bottom: 0.5px solid #F0F0F8;
 }
 .sp-card-header-left { display: flex; align-items: center; gap: 10px; }
+.sp-card-header-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.sp-delete-group-btn {
+  background: none;
+  border: 1px solid #FECACA;
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: #B91C1C;
+  cursor: pointer;
+  transition: background 150ms, border-color 150ms;
+  font-family: 'Montserrat', sans-serif;
+}
+.sp-delete-group-btn:hover {
+  background: #FEF2F2;
+  border-color: #F87171;
+}
 .sp-group-dot {
   width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
 }

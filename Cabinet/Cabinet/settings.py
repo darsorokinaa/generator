@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 from pathlib import Path
 from django.contrib import admin
+from django.core.exceptions import ImproperlyConfigured
 import os
 from dotenv import load_dotenv
 
@@ -25,10 +26,16 @@ load_dotenv(BASE_DIR / ".env")
 load_dotenv(BASE_DIR / ".env.local", override=True)
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure-0!^zwlov_t=@x1w^im@mgral)1s*+6xw*wy_e^lxa_i-if##y%')
+_DEFAULT_INSECURE_SECRET = 'django-insecure-0!^zwlov_t=@x1w^im@mgral)1s*+6xw*wy_e^lxa_i-if##y%'
+SECRET_KEY = os.environ.get('SECRET_KEY', _DEFAULT_INSECURE_SECRET)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.environ.get('DEBUG', 'True') == 'True'
+
+if not DEBUG and SECRET_KEY == _DEFAULT_INSECURE_SECRET:
+    raise ImproperlyConfigured(
+        'Задайте уникальный SECRET_KEY в окружении (не используйте значение по умолчанию из репозитория).',
+    )
 
 ALLOWED_HOSTS = [h.strip() for h in os.environ.get('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if h.strip()]
 
@@ -37,6 +44,28 @@ FRONTEND_URL = os.environ.get('FRONTEND_URL', 'http://localhost:3000').rstrip('/
 if os.environ.get('FRONTEND_URL_FORCE_HTTP', '').lower() in ('1', 'true', 'yes'):
     if FRONTEND_URL.lower().startswith('https://'):
         FRONTEND_URL = 'http://' + FRONTEND_URL[8:]
+
+
+def _split_origins(raw: str):
+    return [o.strip() for o in (raw or '').split(',') if o.strip()]
+
+
+def _origin_from_url(url: str) -> str:
+    """https://lk.example.ru/app → https://lk.example.ru"""
+    u = (url or '').strip().rstrip('/')
+    if not u:
+        return ''
+    if '://' not in u:
+        return u
+    try:
+        from urllib.parse import urlparse
+
+        p = urlparse(u if '://' in u else f'https://{u}')
+        if not p.scheme or not p.netloc:
+            return u
+        return f'{p.scheme}://{p.netloc}'
+    except Exception:
+        return u
 
 # URL сайта генератора уроков (ссылки lesson/join в JWT). В .env задавайте GENUROK_URL латиницей.
 _LEGACY_GENUROK_KEY = 'GENUR\u041e\u041a_URL'  # старый ключ с кирилл. О и К (если остался на сервере)
@@ -226,16 +255,29 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Фильтры в боковой панели (Django ≥ 3.2)
 admin.AdminSite.enable_nav_sidebar = True
 
-LOGIN_URL           = '/login/'
-LOGIN_REDIRECT_URL  = FRONTEND_URL
+LOGIN_URL = '/login/'
+# Редирект после входа (в т.ч. @login_required): дашборд SPA = /app/ на том же хосте или полный URL CRA в dev.
+_login_redirect = os.environ.get('LOGIN_REDIRECT_URL', '').strip()
+if _login_redirect:
+    LOGIN_REDIRECT_URL = _login_redirect.rstrip('/')
+elif ':3000' in FRONTEND_URL:
+    _fe = FRONTEND_URL.rstrip('/')
+    LOGIN_REDIRECT_URL = f'{_fe}/app/' if not _fe.endswith('/app') else f'{_fe}/'
+else:
+    LOGIN_REDIRECT_URL = '/app/'
 
-# CORS — в проде список задаётся через env
-_cors_origins = os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:3000')
-CORS_ALLOWED_ORIGINS = [o.strip() for o in _cors_origins.split(',') if o.strip()]
+# CORS / CSRF — в проде задайте явно; иначе добавляем origin из FRONTEND_URL, чтобы не ломать сессию
+_cors_origins = _split_origins(os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:3000'))
+_fe_origin = _origin_from_url(FRONTEND_URL)
+if _fe_origin and _fe_origin not in _cors_origins:
+    _cors_origins.append(_fe_origin)
+CORS_ALLOWED_ORIGINS = _cors_origins
 CORS_ALLOW_CREDENTIALS = True
 
-_csrf_origins = os.environ.get('CSRF_TRUSTED_ORIGINS', 'http://localhost:3000')
-CSRF_TRUSTED_ORIGINS = [o.strip() for o in _csrf_origins.split(',') if o.strip()]
+_csrf_origins = _split_origins(os.environ.get('CSRF_TRUSTED_ORIGINS', 'http://localhost:3000'))
+if _fe_origin and _fe_origin not in _csrf_origins:
+    _csrf_origins.append(_fe_origin)
+CSRF_TRUSTED_ORIGINS = _csrf_origins
 
 # Общий объём тела запроса (JSON-API, формы)
 DATA_UPLOAD_MAX_MEMORY_SIZE = min(
@@ -287,4 +329,12 @@ if not DEBUG:
         'SECURE_HSTS_INCLUDE_SUBDOMAINS', 'True'
     ).lower() in ('1', 'true', 'yes')
     SECURE_HSTS_PRELOAD = os.environ.get('SECURE_HSTS_PRELOAD', '0').lower() in ('1', 'true', 'yes')
+    # За Nginx / Caddy / балансировщиком: корректный Host и схема для build_absolute_uri() и редиректов
+    USE_X_FORWARDED_HOST = os.environ.get('USE_X_FORWARDED_HOST', 'True').lower() in (
+        '1', 'true', 'yes',
+    )
+    _fwd_proto = os.environ.get('SECURE_PROXY_SSL_HEADER', 'HTTP_X_FORWARDED_PROTO,https').strip()
+    if _fwd_proto and ',' in _fwd_proto:
+        name, val = _fwd_proto.split(',', 1)
+        SECURE_PROXY_SSL_HEADER = (name.strip(), val.strip())
 
