@@ -5,6 +5,7 @@ from .models import (
     Homework, HomeworkAttachment, HomeworkAssignment, HomeworkAnswerFile,
     HomeworkTeacherFeedbackFile,
     Notification,
+    TeacherVariant,
 )
 
 
@@ -153,6 +154,7 @@ class HomeworkAssignmentSerializer(serializers.ModelSerializer):
             'homework_title', 'variant_id', 'deadline', 'teacher_name',
             'answer_count', 'result', 'score',
             'task_teacher_comments', 'whiteboard_strokes',
+            'revision_task_ids',
         ]
 
     def get_task_teacher_comments(self, obj):
@@ -219,3 +221,17 @@ class NotificationSerializer(serializers.ModelSerializer):
             'id', 'text', 'notification_type', 'read',
             'created_at', 'homework_id', 'assignment_id',
         ]
+
+
+class TeacherVariantSerializer(serializers.ModelSerializer):
+    teacher_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = TeacherVariant
+        fields = [
+            'id', 'variant_id', 'level', 'subject', 'title',
+            'task_ids', 'created_at', 'teacher_name',
+        ]
+
+    def get_teacher_name(self, obj):
+        return f'{obj.teacher.name} {obj.teacher.surname}'.strip()

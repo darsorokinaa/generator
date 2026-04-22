@@ -233,6 +233,11 @@ class HomeworkAssignment(models.Model):
     task_teacher_comments = models.JSONField(default=dict, blank=True)
     # Общая доска к варианту: [{ "type": "path", "color": "#000", "width": 2, "points": [[x,y],...] }, ...]
     whiteboard_strokes = models.JSONField(default=list, blank=True)
+    # JWT и slug «комнаты» на сайте генератора (как урок; тема «домашка» — query cabinet_session=homework).
+    homework_room_token = models.TextField(blank=True, default='')
+    homework_room_id = models.CharField(max_length=200, blank=True, default='')
+    # Номера заданий (строки), которые ученик должен переделать; пустой список = доработка всей работы.
+    revision_task_ids = models.JSONField(default=list, blank=True)
 
     def __str__(self):
         return f'ДЗ #{self.homework_id} → {self.student} [{self.status}]'
@@ -287,6 +292,48 @@ class HomeworkTeacherFeedbackFile(models.Model):
         ordering = ['created_at']
 
 
+class TeacherVariant(models.Model):
+    """Сохранённый вариант учителя (ссылка на variant_id в генераторе)."""
+    teacher = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='saved_variants')
+    variant_id = models.IntegerField()
+    level = models.CharField(max_length=50)
+    subject = models.CharField(max_length=50)
+    title = models.CharField(max_length=255, blank=True)
+    task_ids = models.JSONField(default=list, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+    def __str__(self):
+        label = self.title or f'Вариант {self.variant_id}'
+        return f'{label} [{self.level}/{self.subject}]'
+
+    class Meta:
+        verbose_name = "Вариант учителя"
+        verbose_name_plural = "Варианты учителей"
+        ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(fields=['teacher', 'variant_id'], name='uniq_teacher_variant_pair'),
+        ]
+
+
+class TeacherVariantStudents(models.Model):
+    TYPE_CHOICE = [
+        ('1', "Урок"),
+        ('2', "Домашнее задание")
+    ]
+    variant_id = models.ForeignKey(TeacherVariant, on_delete=models.CASCADE, related_name='given_to')
+    student = models.ForeignKey(UserProfile, on_delete=models.CASCADE)
+    variant_type = models.CharField(choices=TYPE_CHOICE, default='1')
+
+    def __str__(self):
+        return f'Вариант: {self.variant_id} задан {self.student} ({variant_type})'
+
+    class Meta:
+        verbose_name = "Заданный вариант"
+        verbose_name_plural = "Заданные варианты"
+        ordering = ['-variant_id']
+
+
 # ── Старые модели оставлены для совместимости с существующими данными ──────────
 
 class StudentsHomework(models.Model):
@@ -332,3 +379,60 @@ class Notification(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
 
+
+
+
+class LessonInvite(models.Model):
+    TARGET_TYPE = [
+        ('ind',   'Индивидуальный'),
+        ('group', 'Групповой'),
+    ]
+
+    STATUS_CHOICES = [
+        ('scheduled', 'Учитель ещё не в комнате'),  # звонок ученику не отправляем
+        ('pending',   'Ожидает'),
+        ('accepted',  'Принято'),
+        ('expired',   'Истекло'),
+        ('cancelled', 'Отменено'),
+    ]
+
+    teacher     = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='lesson_invites')
+    target_type = models.CharField(max_length=10, choices=TARGET_TYPE)
+    target_id   = models.IntegerField()          # id ученика или группы
+    target_name = models.CharField(max_length=150)
+
+    token       = models.CharField(max_length=2048, unique=True, editable=False)
+    expires_at  = models.DateTimeField()
+    status      = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    lesson_link = models.CharField(max_length=2048, blank=True)
+    lesson      = models.ForeignKey('Lesson', on_delete=models.SET_NULL, null=True, blank=True, related_name='invites')
+
+    created_at  = models.DateTimeField(auto_now_add=True)
+
+    def is_valid(self):
+        return self.status == 'pending' and timezone.now() < self.expires_at
+
+    def __str__(self):
+        return f'Приглашение {self.token} → {self.target_name} [{self.status}]'
+
+    class Meta:
+        verbose_name = "Приглашение на урок"
+        verbose_name_plural = "Приглашения на уроки"
+        ordering = ['-created_at']
+
+class Lesson(models.Model):
+    lesson_token = models.CharField(max_length=1000)
+    room_id = models.CharField(max_length=100)
+    teacher = models.ForeignKey(UserProfile, on_delete=models.CASCADE)
+    variant = models.ForeignKey(TeacherVariant, on_delete=models.PROTECT)
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    finished_at = models.DateTimeField(auto_now_add=True)
+
+
+    class Meta:
+        verbose_name = "Проведённый урок"
+        verbose_name_plural ="Проведённые уроки"
+
+
+    

@@ -1,0 +1,414 @@
+/* Токены блока проверки (EdTech); при необходимости совпадают с :root в кабинете */
+.vp-exam {
+  --tb-bg: var(--bg, #fafafa);
+  --tb-surface: var(--surface, #ffffff);
+  --tb-border: var(--border, #e5e7eb);
+  --tb-text: var(--text, #111827);
+  --tb-muted: var(--muted, #6b7280);
+  --tb-accent: var(--accent, #4f6df5);
+  --tb-accent-dim: var(--accent-dim, rgba(79, 109, 245, 0.14));
+  --tb-green: var(--green, #16a34a);
+  --tb-green-dim: var(--green-dim, #f0fdf4);
+  --tb-red: var(--red, #dc2626);
+  --tb-red-dim: var(--red-dim, #fef2f2);
+}
+
+.vp-exam .task-shell {
+  border-radius: var(--radius-lg, 16px);
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+  width: 100%;
+  max-width: 100%;
+  /*
+    Совпадает с колонкой .task-content: padding карточки + .task-left + gap
+    (см. .vp-exam .task в variantPlayerExam.css)
+  */
+  --tb-inline-pl: calc(2rem + 80px + 2rem);
+  --tb-inline-pr: 2rem;
+}
+
+@media (max-width: 640px) {
+  .vp-exam .task-shell {
+    --tb-inline-pl: 1.25rem;
+    --tb-inline-pr: 1.25rem;
+  }
+}
+
+.vp-exam .task-shell > .task {
+  margin-bottom: 0;
+  border-radius: var(--radius-lg, 16px) var(--radius-lg, 16px) 0 0;
+}
+
+.vp-exam .task-shell > .teacher-block {
+  border-radius: 0 0 var(--radius-lg, 16px) var(--radius-lg, 16px);
+}
+
+/* Критерии части 2 — внутри той же карточки, над блоком комментария */
+.vp-exam .task-shell > .tb-part2-criteria {
+  border-top: 1px solid var(--tb-border);
+  background: var(--tb-surface);
+  padding: 12px var(--tb-inline-pr, 2rem) 14px var(--tb-inline-pl, calc(2rem + 80px + 2rem));
+}
+
+.vp-exam .tb-part2-criteria-score {
+  font-size: 13px;
+  font-weight: 700;
+  color: #4338ca;
+  margin-bottom: 8px;
+}
+
+/* Лёгкая подсветка «в списке на доработку»; клики по блоку не отключаем — чекбокс переключается */
+.vp-exam .task-shell.task-shell--returned {
+  box-shadow: inset 0 0 0 1px rgba(220, 38, 38, 0.22);
+}
+
+/* Ученик решает ДЗ: одна карточка без блока учителя — полное скругление */
+.vp-exam .task-shell.task-shell--student-solve > .task {
+  border-radius: var(--radius-lg, 16px);
+}
+
+.vp-exam .answer-input-row--student-hw .answer-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.vp-exam .teacher-block {
+  font-family: 'Onest', 'Montserrat', system-ui, sans-serif;
+  border-top: 1px solid var(--tb-border);
+  width: 100%;
+  max-width: 100%;
+}
+
+.vp-exam .task-shell .teacher-block .tb-attachments {
+  padding: 12px var(--tb-inline-pr, 2rem) 14px var(--tb-inline-pl, calc(2rem + 80px + 2rem));
+  border-top: 1px solid var(--tb-border);
+  background: var(--tb-surface);
+}
+
+.vp-exam .task-shell .teacher-block .tb-attachments-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--tb-muted);
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+}
+
+.vp-exam .task-shell .teacher-block .tb-attachments .lesson-solution-upload {
+  margin-top: 0;
+}
+
+.vp-exam .task-shell .teacher-block .tb-verdict {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px var(--tb-inline-pr, 2rem) 12px var(--tb-inline-pl, calc(2rem + 80px + 2rem));
+  border-bottom: 1px solid var(--tb-border);
+  background: var(--tb-surface);
+}
+
+.vp-exam .task-shell .teacher-block .tb-verdict-left {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  min-width: 0;
+}
+
+.vp-exam .tb-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.vp-exam .tb-status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.vp-exam .tb-status--correct .tb-status-dot {
+  background: var(--tb-green);
+}
+
+.vp-exam .tb-status--correct .tb-status-label {
+  color: var(--tb-green);
+}
+
+.vp-exam .tb-status--wrong .tb-status-dot {
+  background: var(--tb-red);
+}
+
+.vp-exam .tb-status--wrong .tb-status-label {
+  color: var(--tb-red);
+}
+
+.vp-exam .tb-status--empty .tb-status-dot {
+  background: var(--tb-border);
+  border: 1.5px solid var(--tb-muted);
+  box-sizing: border-box;
+}
+
+.vp-exam .tb-status--empty .tb-status-label {
+  color: var(--tb-muted);
+}
+
+.vp-exam .tb-status--pending .tb-status-dot {
+  background: #d97706;
+}
+
+.vp-exam .tb-status--pending .tb-status-label {
+  color: #b45309;
+}
+
+.vp-exam .tb-chips {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.vp-exam .tb-chip {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.vp-exam .tb-chip--ref {
+  background: var(--tb-green-dim);
+  color: var(--tb-green);
+}
+
+.vp-exam .tb-chip--answer-correct {
+  background: var(--tb-green-dim);
+  color: var(--tb-green);
+}
+
+.vp-exam .tb-chip--answer-wrong {
+  background: var(--tb-red-dim);
+  color: var(--tb-red);
+}
+
+.vp-exam .tb-chip--answer-empty {
+  background: var(--tb-surface);
+  color: var(--tb-muted);
+  border: 1px solid var(--tb-border);
+}
+
+.vp-exam .tb-chip--answer-pending {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
+}
+
+.vp-exam .tb-chip-arrow {
+  color: var(--tb-border);
+  font-size: 11px;
+  font-weight: 500;
+  user-select: none;
+}
+
+/* Вернуть на доработку: компактная кнопка + чекбокс */
+.vp-exam .tb-return {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 14px 7px 10px;
+  margin: 0;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: var(--tb-surface);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #475569;
+  cursor: pointer;
+  flex-shrink: 0;
+  line-height: 1.2;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.vp-exam .tb-return:hover:not(:disabled) {
+  border-color: #fcd34d;
+  background: #fffbeb;
+  color: #78350f;
+  box-shadow: 0 1px 3px rgba(180, 83, 9, 0.08);
+}
+
+.vp-exam .tb-return:focus-visible {
+  outline: none;
+  border-color: var(--tb-accent);
+  box-shadow: 0 0 0 3px var(--tb-accent-dim);
+}
+
+.vp-exam .tb-return:disabled {
+  cursor: not-allowed;
+}
+
+/* Нет колбэка (не режим проверки ДЗ в кабинете) */
+.vp-exam .tb-return--unavailable {
+  opacity: 0.42;
+  box-shadow: none;
+}
+
+.vp-exam .tb-return--unavailable:hover:not(:disabled) {
+  border-color: #e2e8f0;
+  background: var(--tb-surface);
+  color: #475569;
+  box-shadow: none;
+}
+
+.vp-exam .tb-return--done {
+  border-color: #fecaca;
+  background: #fff5f5;
+  color: #b91c1c;
+  box-shadow: none;
+  opacity: 1;
+}
+
+.vp-exam .tb-return--done:hover:not(:disabled) {
+  border-color: #f87171;
+  background: #ffe4e6;
+  color: #991b1b;
+  box-shadow: 0 1px 3px rgba(185, 28, 28, 0.1);
+}
+
+.vp-exam .tb-return-checkbox {
+  width: 15px;
+  height: 15px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  border: 2px solid currentColor;
+  border-radius: 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--tb-surface);
+  color: inherit;
+  opacity: 0.9;
+}
+
+.vp-exam .tb-return:hover:not(:disabled) .tb-return-checkbox:not(.tb-return-checkbox--checked) {
+  border-color: #b45309;
+  opacity: 1;
+}
+
+.vp-exam .tb-return-checkbox--checked {
+  background: var(--tb-red);
+  border-color: var(--tb-red);
+  color: #fff;
+  opacity: 1;
+}
+
+.vp-exam .tb-return-checkbox-tick {
+  display: block;
+  flex-shrink: 0;
+}
+
+.vp-exam .task-shell .teacher-block .tb-comment {
+  padding: 14px var(--tb-inline-pr, 2rem) 16px var(--tb-inline-pl, calc(2rem + 80px + 2rem));
+  background: white;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.vp-exam .task-shell .teacher-block .tb-comment-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--tb-muted);
+  letter-spacing: 0.04em;
+  margin-bottom: 7px;
+}
+
+.vp-exam .task-shell .teacher-block .tb-comment textarea {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  min-height: 64px;
+  padding: 9px 11px;
+  font-family: 'Onest', 'Montserrat', system-ui, sans-serif;
+  font-size: 13.5px;
+  line-height: 1.55;
+  /* Светлый фон независимо от --bg страницы */
+  background: var(--tb-surface);
+  border: 1px solid var(--tb-border);
+  border-radius: 7px;
+  resize: none;
+  box-sizing: border-box;
+  color: var(--tb-text);
+}
+
+.vp-exam .task-shell .teacher-block .tb-comment textarea::placeholder {
+  color: var(--tb-muted);
+}
+
+.vp-exam .task-shell .teacher-block .tb-comment textarea:focus {
+  outline: none;
+  border-color: var(--tb-accent);
+  box-shadow: 0 0 0 3px var(--tb-accent-dim);
+}
+
+.vp-exam .task-shell .teacher-block .tb-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.vp-exam .task-shell .teacher-block .tb-save-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: var(--tb-green);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.vp-exam .task-shell .teacher-block .tb-save-hint.show {
+  opacity: 1;
+}
+
+.vp-exam .task-shell .teacher-block .tb-save-btn {
+  font-family: 'Onest', 'Montserrat', system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--tb-accent);
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  padding: 8px 18px;
+  cursor: pointer;
+}
+
+.vp-exam .task-shell .teacher-block .tb-save-btn:hover:not(:disabled) {
+  background: #3251c6;
+}
+
+.vp-exam .task-shell .teacher-block .tb-save-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.vp-exam .task-shell .teacher-block .tb-save-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+
+.vp-exam .task-shell .teacher-block .tb-save-btn--saved {
+  background: #15803d;
+}

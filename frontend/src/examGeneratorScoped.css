@@ -1,0 +1,1499 @@
+/* Synced from 01 generator/frontend/src/styles/styles.css (ExamPage + variant hero).
+ * Scoped with `.vp-exam `.
+ */
+
+.vp-exam .main-wrapper {    width: 100%;
+    min-height: 100vh;
+}
+
+.vp-exam .main-wrapper.exam-page {    position: relative;
+}
+
+.vp-exam .exam-page {    margin-top: -2rem;
+}
+
+.vp-exam .exam-page .exam-page-container {    padding-top: 0.5rem;
+}
+/* Домашнее задание (из ЛК): отличимая шапка и панель действий */
+.vp-exam .main-wrapper.exam-page--homework {    --homework-amber: #f59e0b;
+    --homework-bg: #fffbeb;
+    --homework-border: #fde68a;
+    /* Тулбар доски в lesson_room (снаружи iframe) перекрывает ~76px снизу — иначе клики попадают в него, а не в кнопки ДЗ */
+    padding-bottom: 6rem;
+    /* Без подтягивания вверх — иначе блок варианта прилипает к полоске ДЗ */
+    margin-top: 0;
+}
+.vp-exam .main-wrapper.exam-page.exam-page--homework > .content-area {    padding-top: clamp(2.5rem, 6vw, 4.5rem);
+}
+.vp-exam .exam-homework-bar {    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: var(--homework-bg, #fffbeb);
+    border-bottom: 1px solid var(--homework-border, #fde68a);
+    box-shadow: 0 2px 12px rgba(180, 83, 9, 0.08);
+}
+.vp-exam .exam-homework-bar__inner {    max-width: 1100px;
+    margin: 0 auto;
+    padding: 10px 16px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px 16px;
+}
+.vp-exam .exam-homework-bar__title {    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px 12px;
+    font-size: 0.95rem;
+    color: #713f12;
+}
+.vp-exam .exam-homework-bar__badge {    display: inline-block;
+    font-family: "Unbounded", system-ui, sans-serif;
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: #92400e;
+    letter-spacing: 0.02em;
+}
+.vp-exam .exam-homework-bar__meta {    font-size: 0.8rem;
+    color: #a16207;
+    font-weight: 600;
+}
+.vp-exam .exam-homework-bar__actions {    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 10px;
+}
+.vp-exam .exam-homework-bar__btn {    border-radius: 10px;
+    font-family: "Montserrat", system-ui, sans-serif;
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 8px 16px;
+    cursor: pointer;
+    border: none;
+    transition: opacity 0.15s ease, transform 0.1s ease;
+}
+.vp-exam .exam-homework-bar__btn:disabled {    opacity: 0.55;
+    cursor: not-allowed;
+}
+.vp-exam .exam-homework-bar__btn--primary {    background: #ea580c;
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(234, 88, 12, 0.35);
+}
+.vp-exam .exam-homework-bar__btn--secondary {    background: #fff;
+    color: #78350f;
+    border: 1.5px solid #fcd34d;
+}
+.vp-exam .exam-homework-bar__hint, .vp-exam .exam-homework-bar__err {    font-size: 0.8rem;
+    color: #92400e;
+    max-width: 420px;
+    line-height: 1.45;
+}
+.vp-exam .exam-homework-bar__err a {    color: #7c3aed;
+    text-decoration: underline;
+}
+.vp-exam .exam-homework-bar__link {    color: #7c3aed;
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(124, 58, 237, 0.35);
+}
+.vp-exam .exam-homework-bar__link:hover {    border-bottom-color: #7c3aed;
+}
+.vp-exam .exam-homework-bar__notice {    font-size: 0.8rem;
+    color: #15803d;
+    font-weight: 600;
+}
+.vp-exam .exam-page--homework .variant-hero {    background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 50%, #fff 100%) !important;
+}
+.vp-exam .exam-page--homework .part-divider-1 h2 {    color: #1d4ed8;
+}
+.vp-exam .exam-page--homework .part-divider-1 p {    color: #2563eb;
+}
+.vp-exam .exam-page--homework .part-divider-2 h2 {    color: #1e3a8a;
+}
+.vp-exam .exam-page--homework .part-divider-2 p {    color: #1d4ed8;
+}
+
+.vp-exam .exam-hw-save-btn {    background: #fff7ed !important;
+    border: 1.5px solid #fb923c !important;
+    color: #9a3412 !important;
+    font-weight: 600 !important;
+}
+
+.vp-exam .exam-homework-finish {    margin: 2rem auto 2.5rem;
+    max-width: 640px;
+    padding: 1.25rem 1.5rem;
+    border-radius: 16px;
+    border: 1.5px solid #fde68a;
+    background: linear-gradient(180deg, #fffbeb 0%, #fff 100%);
+    box-shadow: 0 4px 20px rgba(180, 83, 9, 0.08);
+}
+.vp-exam .exam-homework-finish__hint {    font-size: 0.88rem;
+    color: #78350f;
+    line-height: 1.5;
+    margin: 0 0 1rem;
+}
+.vp-exam .exam-homework-finish__row {    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+}
+.vp-exam .exam-homework-finish__btn {    border-radius: 12px;
+    font-family: "Montserrat", system-ui, sans-serif;
+    font-size: 0.95rem;
+    font-weight: 700;
+    padding: 12px 22px;
+    cursor: pointer;
+    border: none;
+    min-width: 200px;
+}
+.vp-exam .exam-homework-finish__btn:disabled {    opacity: 0.55;
+    cursor: not-allowed;
+}
+.vp-exam .exam-homework-finish__btn--primary {    background: #ea580c;
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(234, 88, 12, 0.35);
+}
+.vp-exam .exam-homework-finish__btn--secondary {    background: #fff;
+    color: #92400e;
+    border: 1.5px solid #fcd34d !important;
+}
+.vp-exam .content-area {    padding: 0;
+}
+
+.vp-exam .container {    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+}
+
+
+.vp-exam .page {    max-width: 900px;
+    width: 100%;
+    margin: 0 auto;
+    box-sizing: border-box;
+}
+.vp-exam .task {    background: var(--bg-card);
+    padding: 2rem;
+    margin-bottom: 1.5rem;
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-sm);
+    display: flex;
+    gap: 2rem;
+    border: 1px solid rgba(102, 126, 234, 0.08);
+}
+
+.vp-exam .task-left {    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    min-width: 80px;
+}
+
+.vp-exam .task-number {    background: linear-gradient(135deg, var(--primary-purple), var(--primary-purple-dark));
+    color: white;
+    font-weight: 700;
+    font-size: 1.5rem;
+    width: 60px;
+    height: 60px;
+    border-radius: var(--radius-sm);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Unbounded", sans-serif;
+}
+
+.vp-exam .task-id {    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-align: center;
+}
+
+.vp-exam .task-author {    font-size: 0.75rem;
+    font-style: italic;
+    color: #9ca3af;
+    text-align: right;
+    margin-top: 0.5rem;
+    margin-bottom: 1.25rem;
+}
+
+/* Урок (iframe): ученик прикрепляет фото решения к заданию части 2 */
+.vp-exam .lesson-solution-upload {    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.vp-exam .lesson-solution-file-input {    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.vp-exam .lesson-solution-upload-btn {    font-size: 0.85rem;
+    padding: 0.5rem 0.9rem;
+}
+
+.vp-exam .lesson-solution-upload-error {    font-size: 0.8rem;
+    color: #b91c1c;
+    flex-basis: 100%;
+}
+
+.vp-exam .lesson-solution-previews {    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    flex-basis: 100%;
+}
+
+.vp-exam .lesson-solution-preview-fig {    margin: 0;
+    max-width: 140px;
+}
+
+.vp-exam .lesson-solution-thumb {    display: block;
+    width: 100%;
+    max-height: 120px;
+    object-fit: contain;
+    border-radius: 6px;
+    border: 1px solid var(--border-color, #e5e7eb);
+    background: #f9fafb;
+}
+
+.vp-exam .lesson-solution-preview-cap {    margin-top: 0.25rem;
+    font-size: 0.7rem;
+    color: var(--text-secondary, #6b7280);
+    word-break: break-all;
+}
+
+.vp-exam .task-content {    flex: 1;
+    min-width: 0;
+    max-width: 100%;
+}
+
+.vp-exam .task-report-error-wrap {    display: flex;
+    justify-content: flex-end;
+    margin-top: 0.25rem;
+}
+
+.vp-exam .task-report-error-btn {    display: inline-flex;
+    align-items: center;
+    height: 36px;
+    padding: 0 10px;
+    background: #fffbeb;
+    border: 1px solid #fef3c7;
+    border-radius: 18px;
+    color: #a16207;
+    cursor: pointer;
+    font-size: 0.8rem;
+    overflow: hidden;
+    transition: padding 0.25s ease, background 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.vp-exam .task-report-error-btn svg {    flex-shrink: 0;
+    width: 16px;
+    height: 16px;
+}
+
+.vp-exam .task-report-error-btn:hover {    padding: 0 0.75rem 0 10px;
+    background: #fef9c3;
+    border-color: #fde68a;
+    box-shadow: 0 2px 8px rgba(253, 230, 138, 0.4);
+}
+
+.vp-exam .task-report-error-btn .task-report-error-label {    max-width: 0;
+    margin-left: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    transition: max-width 0.25s ease, margin-left 0.25s ease;
+}
+
+.vp-exam .task-report-error-btn:hover .task-report-error-label {    max-width: 180px;
+    margin-left: 0.5rem;
+}
+
+.vp-exam .task-text {    margin-bottom: 1.5rem;
+    font-size: 1.125rem;
+    line-height: 1.8;
+    color: var(--text-primary);
+    max-width: 100%;
+    overflow-wrap: break-word;
+    word-wrap: break-word;
+    word-break: break-word;
+}
+
+.vp-exam .task-text mjx-container {    color: inherit !important;
+}
+
+.vp-exam mjx-container {    font-size: 150% !important;
+}
+
+
+.vp-exam .task-text table {    max-width: 100%;
+}
+
+.vp-exam .task-text img, .vp-exam .task-text figure {    max-width: 100%;
+    height: auto;
+}
+
+/* Белая подложка для всех картинок в задачах */
+.vp-exam .task-text img, .vp-exam .task-text figure img, .vp-exam .correct-answer-content img, .vp-exam .part2-answer-content img, .vp-exam .criteria-text img {    background: #fff;
+}
+
+.vp-exam .task-files {    margin: 0.4rem 0 1rem;
+    text-align: center;
+}
+
+.vp-exam .task-file-link {    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: #e0f2fe;
+    border: 1px solid #bae6fd;
+    border-radius: var(--radius-md, 8px);
+    color: #0369a1;
+    font-size: 0.875rem;
+    font-weight: 400;
+    text-decoration: none;
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.vp-exam .task-file-link:hover {    background: #bae6fd;
+    border-color: #7dd3fc;
+}
+
+.vp-exam .task-file-icon {    font-size: 0.95rem;
+    opacity: 0.8;
+}
+
+.vp-exam .task-file-label {    letter-spacing: 0;
+}
+
+.vp-exam .task-text p {    margin-bottom: 0;
+}
+
+.vp-exam .task-text table {    border-collapse: collapse;
+    margin: 10px auto;
+}
+
+.vp-exam .task-text th, .vp-exam .task-text td {    border: 1px solid rgba(0, 0, 0, 0.2);
+    padding: 6px 14px;
+    text-align: center;
+    font-size: 18px;
+    min-width: 40px;
+}
+
+.vp-exam .task-text th {    background-color: #7084e0;
+    color: white;
+    font-weight: 600;
+}
+
+.vp-exam .answer-section {    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.vp-exam .answer-input {    padding: 1rem 1.5rem;
+    border: 2px solid rgba(102, 126, 234, 0.2);
+    border-radius: var(--radius-md);
+    font-size: 1rem;
+    font-family: "Montserrat", sans-serif;
+    transition: all 0.3s ease;
+    background: var(--bg-main);
+}
+
+.vp-exam .answer-input:focus {    outline: none;
+    border-color: var(--primary-purple);
+    background: white;
+    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+}
+
+.vp-exam .answer-input:disabled {    background: #f3f4f6;
+    cursor: not-allowed;
+}
+
+.vp-exam .answer-input.correct {    border-color: #4CAF50;
+    background-color: #E8F5E9;
+}
+
+.vp-exam .answer-input.incorrect {    border-color: #F44336;
+    background-color: #FFEBEE;
+}
+
+.vp-exam .answer-table-wrap {    margin: 0.75rem 0;
+    overflow-x: auto;
+}
+
+.vp-exam .answer-table {    width: 100%;
+    max-width: 100%;
+    border-collapse: separate;
+    border-spacing: 0.35rem;
+}
+
+.vp-exam .answer-table td {    padding: 0;
+    border: none;
+    vertical-align: middle;
+}
+
+.vp-exam .answer-table-input {    width: 100%;
+    min-width: 2.5rem;
+    padding: 0.45rem 0.5rem;
+    font-size: 0.875rem;
+    text-align: center;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    background: #fafafa;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.vp-exam .answer-table-input:focus {    outline: none;
+    border-color: #cbd5e1;
+    background: #fff;
+}
+
+.vp-exam .answer-table-input.correct {    border-color: #86efac;
+    background: #dcfce7;
+}
+
+.vp-exam .answer-table-input.incorrect {    border-color: #fca5a5;
+    background: #fee2e2;
+}
+
+.vp-exam .answer-actions {    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.vp-exam .answer-status {    display: inline-block;
+    min-width: 30px;
+    width: 30px;
+    text-align: center;
+    font-size: 20px;
+    font-weight: bold;
+    vertical-align: middle;
+    min-height: 1.5rem;
+}
+
+.vp-exam .answer-status.correct {    color: #4CAF50;
+}
+
+.vp-exam .answer-status.incorrect {    color: #F44336;
+}
+
+.vp-exam .correct-answer-display {    min-height: 48px;
+    visibility: hidden;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    color: #4CAF50;
+    font-weight: 600;
+    background-color: #E8F5E9;
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin-top: 8px;
+}
+
+.vp-exam .correct-answer-display .correct-answer-label {    font-weight: 600;
+}
+
+.vp-exam .correct-answer-display .correct-answer-content {    flex: 1;
+    min-width: 0;
+    font-weight: 600;
+}
+
+.vp-exam .correct-answer-display.visible {    visibility: visible;
+}
+
+.vp-exam .part2-answer-reveal {  margin-top: 0.75rem;
+  padding: 1rem;
+  background: #e8f5e9;
+  border: 1px solid rgba(76, 175, 80, 0.3);
+  border-radius: 12px;
+}
+
+.vp-exam .part2-answer-label {  display: block;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #2e7d32;
+  margin-bottom: 0.5rem;
+}
+
+.vp-exam .part2-answer-content {  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #1a1a1a;
+  font-weight: 600;
+}
+
+/* Часть 1 и Часть 2 — заголовки разделов */
+.vp-exam .part-divider {    padding: 1.5rem 2rem;
+    border-radius: 16px;
+    margin: 3rem 0 2rem 0;
+    text-align: center;
+    box-shadow: none;
+    border: 3px solid transparent;
+}
+
+.vp-exam .part-divider h2 {    font-size: 1.5rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.vp-exam .part-divider p {    margin: 0.5rem 0 0 0;
+    opacity: 1;
+    font-size: 0.95rem;
+}
+
+.vp-exam .part-divider-1 {    background: #eff6ff;
+    border-color: rgba(59, 130, 246, 0.25);
+    color: #1e40af;
+}
+
+.vp-exam .part-divider-1 h2 {    color: #1d4ed8;
+}
+
+.vp-exam .part-divider-1 p {    color: #3b82f6;
+}
+
+.vp-exam .part-divider-2 {    background: #bfdbfe;
+    border-color: rgba(30, 64, 175, 0.4);
+    color: #1e3a8a;
+}
+
+.vp-exam .part-divider-2 h2 {    color: #1e3a8a;
+}
+
+.vp-exam .part-divider-2 p {    color: #1e40af;
+}
+
+/* Связанная группа заданий (19–21 ЕГЭ информатика) */
+.vp-exam .task-group {    margin: 2rem 0;
+    padding: 1.5rem 2rem;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 16px;
+    border-left: 4px solid var(--primary-purple, #6366f1);
+}
+
+.vp-exam .task-group-title {    font-size: 1.25rem;
+    font-weight: 600;
+    margin: 0 0 0.25rem 0;
+    color: var(--text-primary, #1e293b);
+}
+
+.vp-exam .task-group-desc {    font-size: 0.9rem;
+    color: var(--text-secondary, #64748b);
+    margin: 0 0 1.25rem 0;
+}
+
+.vp-exam .task-group .task-in-group {    margin-bottom: 1.5rem;
+}
+
+.vp-exam .task-group .task-in-group:last-child {    margin-bottom: 0;
+}
+
+.vp-exam .score-label {    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.vp-exam .score-controls {    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+    padding: 1rem 1.5rem;
+    border-radius: 12px;
+    margin-top: 1rem;
+}
+
+.vp-exam .score-controls button {    width: 40px;
+    height: 40px;
+    background: white;
+    color: var(--primary-purple);
+    border: 2px solid var(--primary-purple);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1.5rem;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.vp-exam .score-controls button:hover {    background: var(--primary-purple);
+    color: white;
+    transform: scale(1.1);
+}
+@media (max-width: 768px) {
+    .vp-exam .main-wrapper.exam-page, .vp-exam .exam-page .content-area {        overflow-x: hidden;
+        max-width: 100vw;
+    }
+
+    .vp-exam body.home, .vp-exam body.index {        overflow-y: auto;
+    }
+
+    .vp-exam body.home main, .vp-exam body.index main {        align-items: flex-start;
+        overflow-y: auto;
+    }
+
+    .vp-exam body.home .container, .vp-exam body.index .container {        padding: 1.5rem 1rem;
+        gap: 2rem;
+    }
+
+    .vp-exam body.home .hero, .vp-exam body.index .hero {        padding: 1.5rem 1rem;
+    }
+
+    .vp-exam body.home .exam-grid, .vp-exam body.index .exam-grid {        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    .vp-exam .hero h1 {        font-size: 2rem;
+    }
+
+    .vp-exam .hero p {        font-size: 1rem;
+    }
+
+    .vp-exam .exam-grid {        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+
+    .vp-exam .task {        flex-direction: column;
+        gap: 1.5rem;
+    }
+
+    .vp-exam .task-left {        flex-direction: row;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .vp-exam .add-button {        width: 100%;
+    }
+
+    /* Страница экзамена — ввод ответов и проверка на мобильных */
+    .vp-exam .exam-page .answer-section {        gap: 0.75rem;
+    }
+
+    .vp-exam .exam-page .answer-input-row {        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .vp-exam .exam-page .answer-section .answer-input {        min-width: 0;
+        flex: 1 1 auto;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .vp-exam .exam-page .answer-actions {        flex-wrap: wrap;
+        gap: 0.5rem;
+        width: 100%;
+    }
+
+    .vp-exam .exam-page .answer-actions .add-button {        flex: 1 1 auto;
+        min-width: 120px;
+    }
+
+    .vp-exam .exam-page .answer-table-wrap {        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        max-width: 100%;
+    }
+
+    .vp-exam .exam-page .answer-table {        min-width: 120px;
+    }
+
+    .vp-exam .exam-page .task-text {        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+        word-break: break-word;
+        max-width: 100%;
+        font-size: 1.05rem;
+        line-height: 1.6;
+    }
+
+    /* Защита от переполнения длинным текстом/ссылками/инлайн-формулами */
+    .vp-exam .exam-page .task-text, .vp-exam .exam-page .task-text p, .vp-exam .exam-page .task-text li, .vp-exam .exam-page .task-text span, .vp-exam .exam-page .task-text a, .vp-exam .exam-page .task-text strong, .vp-exam .exam-page .task-text em {        max-width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+        white-space: normal;
+    }
+
+    .vp-exam .exam-page .task-text pre, .vp-exam .exam-page .task-text code {        white-space: pre-wrap;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    .vp-exam .exam-page .task-text mjx-container {        max-width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+    }
+
+    .vp-exam .exam-page .task-content {        min-width: 0;
+        max-width: 100%;
+        overflow-wrap: break-word;
+    }
+
+    .vp-exam .exam-page .page, .vp-exam .exam-page .exam-page-container {        overflow-x: hidden;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    .vp-exam .exam-page .task {        max-width: 100%;
+        box-sizing: border-box;
+        overflow-wrap: break-word;
+    }
+
+    .vp-exam .exam-page .task-content {        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .vp-exam .exam-page .task-text table {        width: 100%;
+        min-width: 100%;
+        max-width: none;
+        table-layout: auto;
+    }
+
+    .vp-exam .exam-page .task-text th, .vp-exam .exam-page .task-text td {        white-space: normal;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    .vp-exam .variant-hero-content {        flex-direction: column;
+        align-items: stretch;
+        padding: 1.5rem 1.25rem;
+        gap: 1.25rem;
+    }
+
+    .vp-exam .variant-timer {        justify-content: center;
+        padding: 0.75rem 1rem;
+    }
+
+    .vp-exam .variant-timer-display {        font-size: 1.5rem;
+    }
+
+    .vp-exam .variant-hero-right {        justify-content: center;
+        flex-direction: column;
+    }
+
+    .vp-exam .variant-hero-actions {        display: grid;
+        grid-template-columns: 1fr 1fr;
+        width: 100%;
+        gap: 0.5rem;
+    }
+
+    .vp-exam .variant-hero-actions > button {        width: 100%;
+        min-width: 0;
+        padding: 0.7rem 1rem;
+        font-size: 0.88rem;
+        justify-content: center;
+        text-align: center;
+        white-space: normal;
+        line-height: 1.2;
+    }
+
+    .vp-exam .variant-btn-copy-link {        grid-column: 1 / -1;
+        width: 100%;
+        justify-content: center;
+    }
+
+    .vp-exam .variant-btn-copy-link-text {        white-space: normal;
+    }
+}
+@media (max-width: 480px) {
+    .vp-exam .main-wrapper.exam-page, .vp-exam .exam-page .content-area {        overflow-x: hidden;
+        max-width: 100vw;
+    }
+
+    .vp-exam .exam-page .container {        padding-left: 1rem;
+        padding-right: 1rem;
+    }
+
+    .vp-exam body.home .container, .vp-exam body.index .container {        padding: 1rem 0.8rem;
+        gap: 1.5rem;
+    }
+
+    .vp-exam body.home .hero, .vp-exam body.index .hero {        padding: 1rem;
+    }
+
+    .vp-exam .exam-card {        padding: 1.5rem 1.2rem;
+    }
+
+    .vp-exam .exam-icon {        font-size: 2.5rem;
+        width: 70px;
+        height: 70px;
+    }
+
+    .vp-exam .exam-title {        font-size: 1.5rem;
+    }
+
+    .vp-exam .container {        padding: 1.5rem 1rem;
+    }
+
+    .vp-exam .hero {        padding: 2rem 1.5rem;
+    }
+
+    .vp-exam .card {        padding: 1.5rem;
+    }
+
+    .vp-exam .task {        padding: 1.5rem;
+    }
+
+    /* Экзамен: узкий экран — ответы и проверка колонкой */
+    .vp-exam .exam-page .answer-input-row {        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .vp-exam .exam-page .answer-input-row .answer-input {        width: 100%;
+    }
+
+    .vp-exam .exam-page .answer-actions {        flex-direction: row;
+        align-items: center;
+    }
+
+    .vp-exam .exam-page .answer-actions .add-button {        min-width: 0;
+    }
+
+    .vp-exam .exam-page .task-text {        font-size: 0.96rem !important;
+        line-height: 1.55 !important;
+    }
+
+    .vp-exam .exam-page .task {        padding: 0.9rem;
+    }
+
+    .vp-exam .exam-page .task-left {        min-width: 44px;
+    }
+
+    .vp-exam .exam-page .task-number {        width: 44px;
+        height: 44px;
+        font-size: 1.05rem;
+    }
+}
+@media (max-width: 400px) {
+    .vp-exam .exam-page .task-text {        font-size: 0.92rem !important;
+        line-height: 1.52 !important;
+    }
+
+    .vp-exam .exam-page .task {        padding: 0.75rem !important;
+        gap: 0.75rem !important;
+    }
+
+    .vp-exam .exam-page .container {        padding-left: 0.6rem;
+        padding-right: 0.6rem;
+    }
+
+    .vp-exam .exam-page .task-left {        min-width: 38px;
+    }
+
+    .vp-exam .exam-page .task-number {        width: 38px;
+        height: 38px;
+        font-size: 0.95rem;
+    }
+}
+.vp-exam .task-text figure.image {    text-align: center;
+    margin: 0.75rem auto 0.5rem;
+}
+
+.vp-exam .task-text figure.image img {    width: 80%;
+    max-width: 80%;
+    height: auto;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+/* Страница варианта: картинки */
+.vp-exam .exam-page .task-text figure, .vp-exam .exam-page .task-text figure.image {    text-align: center;
+}
+/* Геометрия: до min(320px, 90vw) — в 1.5× к предыдущему уменьшенному виду */
+.vp-exam .exam-page .task-geom .task-text figure, .vp-exam .exam-page .task-geom .task-text figure.image {    margin-top: 0.85rem !important;
+    margin-bottom: 0.55rem !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+.vp-exam .exam-page .task-geom .task-text img, .vp-exam .exam-page .task-geom .task-text figure img, .vp-exam .exam-page .task-geom .task-text figure.image img, .vp-exam .exam-page .task-geom .correct-answer-content img, .vp-exam .exam-page .task-geom .part2-answer-content img {    display: block !important;
+    margin: 0 auto !important;
+    width: min(320px, 90vw) !important;
+    max-width: 100% !important;
+    height: min(320px, 90vw) !important;
+    max-height: min(320px, 90vw) !important;
+    object-fit: contain !important;
+    object-position: center !important;
+    cursor: pointer;
+}
+/* Информатика (ОГЭ/ЕГЭ): компактные картинки — диаграммы, схемы */
+.vp-exam .exam-page[data-subject="inf"] .task:not(.task-geom) .task-text figure, .vp-exam .exam-page[data-subject="inf"] .task:not(.task-geom) .task-text figure.image {    width: auto !important;
+    max-width: 100% !important;
+    margin-top: 0.85rem !important;
+    margin-bottom: 0.55rem !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+.vp-exam .exam-page[data-subject="inf"] .task:not(.task-geom) .task-img-zoomable {    display: block !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+.vp-exam .exam-page[data-subject="inf"] .task:not(.task-geom) .task-text img {    display: block !important;
+    width: auto !important;
+    max-width: min(420px, 95vw) !important;
+    height: auto !important;
+    max-height: min(420px, 85vh) !important;
+    margin: 0.85rem auto 0.55rem !important;
+    object-fit: contain !important;
+    cursor: pointer;
+}
+.vp-exam .exam-page[data-subject="inf"] .task:not(.task-geom) .task-text figure img, .vp-exam .exam-page[data-subject="inf"] .task:not(.task-geom) .task-text figure.image img {    margin: 0 auto !important;
+}
+.vp-exam .exam-page[data-subject="inf"] .task:not(.task-geom) .correct-answer-content img, .vp-exam .exam-page[data-subject="inf"] .task:not(.task-geom) .part2-answer-content img, .vp-exam .exam-page[data-subject="inf"] .task:not(.task-geom) .criteria-text img {    display: block !important;
+    width: auto !important;
+    max-width: min(420px, 95vw) !important;
+    height: auto !important;
+    max-height: min(420px, 85vh) !important;
+    margin: 0.85rem auto 0.55rem !important;
+    object-fit: contain !important;
+    cursor: pointer;
+}
+
+/* Всё кроме геометрии и информатики: картинки 100% ширины */
+.vp-exam .exam-page .task:not(.task-geom) .task-text figure, .vp-exam .exam-page .task:not(.task-geom) .task-text figure.image {    width: 100% !important;
+    max-width: 100% !important;
+}
+.vp-exam .exam-page .task:not(.task-geom) .task-img-zoomable {    width: 100% !important;
+    max-width: 100% !important;
+    display: block !important;
+}
+.vp-exam .exam-page .task:not(.task-geom) .task-text img {    display: block !important;
+    width: calc(100% / 1.5) !important;
+    max-width: calc(100% / 1.5) !important;
+    height: auto !important;
+    max-height: none !important;
+    margin: 0.85rem auto 0.55rem !important;
+    object-fit: contain !important;
+}
+.vp-exam .exam-page .task:not(.task-geom) .task-text figure img, .vp-exam .exam-page .task:not(.task-geom) .task-text figure.image img {    margin: 0 auto !important;
+}
+.vp-exam .exam-page .task:not(.task-geom) .correct-answer-content img, .vp-exam .exam-page .task:not(.task-geom) .part2-answer-content img {    display: block !important;
+    width: calc(100% / 1.5) !important;
+    max-width: calc(100% / 1.5) !important;
+    height: auto !important;
+    margin: 0.75rem auto 0.5rem !important;
+    object-fit: contain !important;
+    cursor: pointer;
+}
+
+/* Алгебра: ещё компактнее иллюстрации и MathJax (раньше казались слишком крупными) */
+.vp-exam .exam-page .task-alg .task-text img, .vp-exam .exam-page .task-alg .task-text figure img, .vp-exam .exam-page .task-alg .task-text figure.image img, .vp-exam .exam-page .task-alg .correct-answer-content img, .vp-exam .exam-page .task-alg .part2-answer-content img {    width: calc(100% / 2.25) !important;
+    max-width: calc(100% / 2.25) !important;
+}
+
+.vp-exam .exam-page .task-alg .task-text mjx-container, .vp-exam .exam-page .task-alg .task-text mjx-container[display="true"], .vp-exam .exam-page .task-alg .correct-answer-content mjx-container, .vp-exam .exam-page .task-alg .correct-answer-content mjx-container[display="true"], .vp-exam .exam-page .task-alg .part2-answer-content mjx-container, .vp-exam .exam-page .task-alg .part2-answer-content mjx-container[display="true"], .vp-exam .exam-page .task-alg .criteria-text mjx-container {    font-size: 1.325em !important;
+}
+
+/* Убираем встроенные белые подложки у текста в задачах */
+.vp-exam .exam-page .task-text [style*="background"], .vp-exam .exam-page .task-text [style*="background-color"], .vp-exam .exam-page .correct-answer-content [style*="background"], .vp-exam .exam-page .correct-answer-content [style*="background-color"], .vp-exam .exam-page .part2-answer-content [style*="background"], .vp-exam .exam-page .part2-answer-content [style*="background-color"], .vp-exam .exam-page .criteria-text [style*="background"], .vp-exam .exam-page .criteria-text [style*="background-color"] {    background: transparent !important;
+    background-color: transparent !important;
+}
+
+/* Инлайновые цвета текста тоже подстраиваем под тему */
+.vp-exam .exam-page .task-text [style*="color"], .vp-exam .exam-page .correct-answer-content [style*="color"], .vp-exam .exam-page .part2-answer-content [style*="color"], .vp-exam .exam-page .criteria-text [style*="color"] {    color: var(--text-primary) !important;
+}
+
+/* Иконка лупы — прямо в правом нижнем углу картинки */
+.vp-exam .task-img-zoomable {    display: inline-block;
+    position: relative;
+    vertical-align: top;
+    cursor: pointer;
+}
+.vp-exam .task-img-zoom-hint {    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.92);
+    border-radius: 6px;
+    color: #475569;
+    pointer-events: auto;
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+.vp-exam .task-img-zoom-hint svg {    width: 16px;
+    height: 16px;
+}
+.vp-exam .exam-page .task-img-zoomable {    display: block;
+    margin: 0.06rem auto;
+}
+.vp-exam .exam-page .task-img-zoomable img {    margin-bottom: 0 !important;
+}
+
+/* Меньший отступ перед полем ответа и перед «Скачать файл» */
+.vp-exam .exam-page .task-text {    margin-bottom: 0.1rem !important;
+    max-width: 100% !important;
+    overflow-x: visible;
+    overflow-y: visible;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    white-space: normal;
+    font-size: 1.14rem;
+    line-height: 1.7;
+}
+/* Прокрутка широких таблиц/формул — на колонке условия, не на всей странице */
+.vp-exam .exam-page .task-content {    min-width: 0;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: touch;
+}
+.vp-exam .exam-page .task-text > * {    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+.vp-exam .exam-page .task-text > table {    max-width: none !important;
+}
+.vp-exam .exam-page .task-text * {    white-space: normal !important;
+    overflow-wrap: anywhere !important;
+    word-break: break-word !important;
+}
+/* MathJax: глобальные word-break/white-space выше ломают внутреннюю вёрстку → цифры/буквы наезжают */
+.vp-exam .exam-page .task-text mjx-container, .vp-exam .exam-page .task-text mjx-container *, .vp-exam .exam-page .correct-answer-content mjx-container, .vp-exam .exam-page .correct-answer-content mjx-container *, .vp-exam .exam-page .part2-answer-content mjx-container, .vp-exam .exam-page .part2-answer-content mjx-container * {    white-space: revert !important;
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+}
+.vp-exam .exam-page .task-text nobr {    white-space: normal !important;
+}
+.vp-exam .exam-page .task-text mjx-container, .vp-exam .exam-page .task-text mjx-container[display="true"] {    max-width: 100% !important;
+    overflow-x: auto;
+    overflow-y: hidden;
+    font-size: 1.475em !important;
+}
+
+.vp-exam .exam-page .correct-answer-content mjx-container, .vp-exam .exam-page .correct-answer-content mjx-container[display="true"], .vp-exam .exam-page .part2-answer-content mjx-container, .vp-exam .exam-page .part2-answer-content mjx-container[display="true"], .vp-exam .exam-page .criteria-text mjx-container {    font-size: 1.475em !important;
+}
+
+@media (max-width: 900px) {
+    .vp-exam .exam-page .task-text {        font-size: 1.05rem !important;
+        line-height: 1.62 !important;
+    }
+}
+
+@media (max-width: 600px) {
+    .vp-exam .exam-page .task-text {        font-size: 1rem !important;
+        line-height: 1.58 !important;
+    }
+}
+
+/* Мобильный индикатор горизонтальной прокрутки условия */
+@media (max-width: 768px) {
+    .vp-exam .exam-page .task-text.task-text--has-overflow {        position: relative;
+        padding-bottom: 1.35rem;
+    }
+    .vp-exam .exam-page .task-text.task-text--has-overflow::after {        content: "Листайте дальше →";
+        position: absolute;
+        right: 0.2rem;
+        bottom: 0.15rem;
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.02em;
+        color: #64748b;
+        background: linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,0.92) 40%);
+        padding: 0.15rem 0.35rem 0.15rem 1.2rem;
+        border-radius: 999px;
+        pointer-events: none;
+        animation: task-scroll-hint-pulse 1.6s ease-in-out infinite;
+    }
+}
+
+@keyframes task-scroll-hint-pulse {
+    0%, 100% { opacity: 0.62; transform: translateX(0); }
+    50% { opacity: 1; transform: translateX(2px); }
+}
+/* Отступы сверху/снизу у контейнера; у img внутри — без двойного зазора */
+.vp-exam .exam-page .task-text figure.image img, .vp-exam .exam-page .task-text figure img {    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+}
+.vp-exam .exam-page .task-text figure, .vp-exam .exam-page .task-text figure.image {    margin-top: 0.85rem !important;
+    margin-bottom: 0.55rem !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+/* Таблицы в условии: минимум на всю ширину блока; если шире — прокрутка у .task-content */
+.vp-exam .exam-page .task-text table {    width: 100% !important;
+    min-width: 100% !important;
+    max-width: none !important;
+    margin: 0.35rem 0 !important;
+    table-layout: auto !important;
+    font-size: 0.95rem !important;
+    line-height: 1.3 !important;
+    border-collapse: collapse !important;
+}
+.vp-exam .exam-page .task-text th, .vp-exam .exam-page .task-text td {    padding: 0.42rem 0.55rem !important;
+    font-size: inherit !important;
+    word-break: break-word !important;
+    overflow-wrap: break-word !important;
+}
+
+.vp-exam .exam-page .correct-answer-content, .vp-exam .exam-page .part2-answer-content {    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+.vp-exam .exam-page .correct-answer-content table, .vp-exam .exam-page .part2-answer-content table {    width: 100% !important;
+    min-width: 100% !important;
+    max-width: none !important;
+    table-layout: auto !important;
+    font-size: 0.9rem !important;
+    line-height: 1.3 !important;
+    border-collapse: collapse !important;
+}
+.vp-exam .exam-page .correct-answer-content th, .vp-exam .exam-page .correct-answer-content td, .vp-exam .exam-page .part2-answer-content th, .vp-exam .exam-page .part2-answer-content td {    padding: 0.38rem 0.48rem !important;
+    font-size: inherit !important;
+    word-break: break-word !important;
+}
+
+.vp-exam .exam-page .answer-section {    margin-top: 0.2rem !important;
+    gap: 0rem !important;
+}
+.vp-exam .exam-page .correct-answer-display:not(.visible) {    min-height: 0 !important;
+    margin-top: 2px !important;
+    padding: 0 !important;
+}
+
+/* ========================================
+   VARIANT HERO HEADER
+======================================== */
+
+.vp-exam .variant-hero {    position: relative;
+    border-radius: 24px;
+    overflow: hidden;
+    margin-bottom: 1rem;
+    box-shadow: 0 4px 20px rgba(147, 197, 253, 0.25);
+}
+
+.vp-exam .variant-author-bar {    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding: 0 0.25rem;
+}
+
+.vp-exam .variant-author-filter {    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.vp-exam .variant-author-label {    font-size: 0.875rem;
+    color: var(--text-secondary, #64748b);
+    font-weight: 500;
+}
+
+.vp-exam .variant-author-select {    padding: 0.45rem 0.75rem;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    color: var(--text-primary, #1e293b);
+    font-size: 0.875rem;
+    min-width: 160px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.vp-exam .variant-author-select:hover {    border-color: #93c5fd;
+}
+
+.vp-exam .variant-author-select:focus {    outline: none;
+    border-color: var(--primary-purple, #6366f1);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.vp-exam .variant-hero-bg {    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 50%, #bfdbfe 100%);
+    z-index: 0;
+}
+
+.vp-exam .variant-hero-bg::before {    content: '';
+    position: absolute;
+    top: -60px;
+    right: -60px;
+    width: 280px;
+    height: 280px;
+    background: radial-gradient(circle, rgba(147, 197, 253, 0.3) 0%, transparent 70%);
+    border-radius: 50%;
+}
+
+.vp-exam .variant-hero-bg::after {    content: '';
+    position: absolute;
+    bottom: -40px;
+    left: 10%;
+    width: 200px;
+    height: 200px;
+    background: radial-gradient(circle, rgba(96, 165, 250, 0.15) 0%, transparent 70%);
+    border-radius: 50%;
+}
+
+.vp-exam .variant-hero-content {    position: relative;
+    z-index: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2.2rem 2.5rem;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+
+.vp-exam .variant-hero-left {    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+}
+
+.vp-exam .variant-label {    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: #1e40af;
+    font-family: "Montserrat", sans-serif;
+}
+
+.vp-exam .variant-number {    font-family: "Unbounded", sans-serif;
+    font-size: 3rem;
+    font-weight: 700;
+    color: #1e3a8a;
+    line-height: 1;
+    letter-spacing: -0.02em;
+}
+
+.vp-exam .variant-timer {    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: rgba(255, 255, 255, 0.75);
+    border: 1px solid rgba(96, 165, 250, 0.3);
+    border-radius: 16px;
+    padding: 0.9rem 1.25rem;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 2px 12px rgba(30, 64, 175, 0.08);
+}
+
+.vp-exam .variant-timer-display {    font-family: "Unbounded", sans-serif;
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #1e3a8a;
+    letter-spacing: 0.02em;
+    min-width: 4.5ch;
+    text-align: center;
+}
+
+.vp-exam .variant-timer-actions {    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.vp-exam .variant-timer-btn {    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.vp-exam .variant-timer-btn:disabled {    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.vp-exam .variant-timer-btn svg {    width: 20px;
+    height: 20px;
+}
+
+.vp-exam .variant-timer-btn-start {    background: linear-gradient(135deg, #22c55e, #16a34a);
+    color: white;
+    box-shadow: 0 2px 8px rgba(34, 197, 94, 0.35);
+}
+
+.vp-exam .variant-timer-btn-start:hover:not(:disabled) {    transform: translateY(-2px);
+    box-shadow: 0 4px 14px rgba(34, 197, 94, 0.45);
+}
+
+.vp-exam .variant-timer-btn-pause {    background: linear-gradient(135deg, #f59e0b, #d97706);
+    color: white;
+    box-shadow: 0 2px 8px rgba(245, 158, 11, 0.35);
+}
+
+.vp-exam .variant-timer-btn-pause:hover:not(:disabled) {    transform: translateY(-2px);
+    box-shadow: 0 4px 14px rgba(245, 158, 11, 0.45);
+}
+
+.vp-exam .variant-timer-btn-stop {    background: rgba(255, 255, 255, 0.9);
+    color: #64748b;
+    border: 1.5px solid rgba(100, 116, 139, 0.3);
+}
+
+.vp-exam .variant-timer-btn-stop:hover:not(:disabled) {    background: #fef2f2;
+    color: #dc2626;
+    border-color: #fecaca;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 10px rgba(220, 38, 38, 0.15);
+}
+
+.vp-exam .variant-hero-right {    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.vp-exam .variant-score-block {    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(96, 165, 250, 0.25);
+    border-radius: 16px;
+    padding: 1rem 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1.2rem;
+    backdrop-filter: blur(10px);
+}
+
+.vp-exam .variant-score-row {    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.2rem;
+}
+
+.vp-exam .variant-score-label {    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: #1e40af;
+}
+
+.vp-exam .variant-score-val {    font-family: "Unbounded", sans-serif;
+    font-size: 1.6rem;
+    font-weight: 700;
+    color: #1e3a8a;
+    line-height: 1;
+}
+
+.vp-exam .variant-score-val.accent {    color: #1e3a8a;
+}
+
+.vp-exam .variant-score-total {    font-size: 1rem;
+    color: #3b82f6;
+    font-weight: 400;
+}
+
+.vp-exam .variant-hero-actions {    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.7rem;
+}
+
+.vp-exam .variant-btn-primary {    background: linear-gradient(135deg, #3b82f6, #2563eb);
+    color: white;
+    border: none;
+    padding: 0.7rem 1.4rem;
+    border-radius: 12px;
+    font-weight: 700;
+    font-size: 0.88rem;
+    cursor: pointer;
+    font-family: "Montserrat", sans-serif;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+    white-space: nowrap;
+}
+
+.vp-exam .variant-btn-primary:hover {    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+}
+
+.vp-exam .variant-btn-danger {    background: rgba(255, 255, 255, 0.5);
+    color: #1e40af;
+    border: 1px solid rgba(96, 165, 250, 0.3);
+    padding: 0.7rem 1.4rem;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.88rem;
+    cursor: pointer;
+    font-family: "Montserrat", sans-serif;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.vp-exam .variant-btn-danger:hover {    background: rgba(255, 255, 255, 0.8);
+    border-color: rgba(96, 165, 250, 0.5);
+}
+
+.vp-exam .variant-btn-cosmos {    position: relative;
+    overflow: hidden;
+    color: #e0e7ff;
+    border: 1.5px solid rgba(129, 140, 248, 0.45);
+    padding: 0.7rem 1.4rem;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.88rem;
+    cursor: pointer;
+    font-family: "Montserrat", sans-serif;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.25);
+    background-color: #1e1b4b;
+    background-image:
+        .vp-exam radial-gradient(1px 1px at 8% 22%, rgba(255, 255, 255, 0.95) 50%, transparent 52%), .vp-exam radial-gradient(1.2px 1.2px at 18% 78%, rgba(224, 231, 255, 0.85) 50%, transparent 52%), .vp-exam radial-gradient(1px 1px at 32% 14%, rgba(255, 255, 255, 0.75) 50%, transparent 52%), .vp-exam radial-gradient(1.5px 1.5px at 44% 62%, rgba(255, 255, 255, 1) 50%, transparent 52%), .vp-exam radial-gradient(1px 1px at 55% 28%, rgba(196, 210, 255, 0.7) 50%, transparent 52%), .vp-exam radial-gradient(1px 1px at 68% 85%, rgba(255, 255, 255, 0.9) 50%, transparent 52%), .vp-exam radial-gradient(1.2px 1.2px at 78% 38%, rgba(255, 255, 255, 0.8) 50%, transparent 52%), .vp-exam radial-gradient(1px 1px at 88% 12%, rgba(238, 242, 255, 0.85) 50%, transparent 52%), .vp-exam radial-gradient(1px 1px at 92% 68%, rgba(255, 255, 255, 0.65) 50%, transparent 52%), .vp-exam radial-gradient(1.4px 1.4px at 12% 52%, rgba(255, 255, 255, 0.55) 50%, transparent 52%), .vp-exam radial-gradient(1px 1px at 26% 92%, rgba(224, 231, 255, 0.6) 50%, transparent 52%), .vp-exam radial-gradient(1px 1px at 61% 8%, rgba(255, 255, 255, 0.5) 50%, transparent 52%), .vp-exam radial-gradient(1.2px 1.2px at 95% 42%, rgba(255, 255, 255, 0.75) 50%, transparent 52%), .vp-exam linear-gradient(135deg, #1e1b4b, #312e81); background-repeat: no-repeat; background-size: 100% 100%; } .variant-btn-cosmos:hover {    border-color: rgba(165, 180, 252, 0.55);
+    box-shadow: 0 4px 12px rgba(79, 70, 229, 0.35);
+    transform: translateY(-2px);
+    background-color: #312e81;
+    background-image:
+        .vp-exam radial-gradient(1px 1px at 8% 22%, rgba(255, 255, 255, 1) 50%, transparent 52%), .vp-exam radial-gradient(1.2px 1.2px at 18% 78%, rgba(238, 242, 255, 0.95) 50%, transparent 52%), .vp-exam radial-gradient(1px 1px at 32% 14%, rgba(255, 255, 255, 0.9) 50%, transparent 52%), .vp-exam radial-gradient(1.5px 1.5px at 44% 62%, rgba(255, 255, 255, 1) 50%, transparent 52%), .vp-exam radial-gradient(1px 1px at 55% 28%, rgba(224, 231, 255, 0.85) 50%, transparent 52%), .vp-exam radial-gradient(1px 1px at 68% 85%, rgba(255, 255, 255, 1) 50%, transparent 52%), .vp-exam radial-gradient(1.2px 1.2px at 78% 38%, rgba(255, 255, 255, 0.95) 50%, transparent 52%), .vp-exam radial-gradient(1px 1px at 88% 12%, rgba(255, 255, 255, 0.95) 50%, transparent 52%), .vp-exam radial-gradient(1px 1px at 92% 68%, rgba(255, 255, 255, 0.8) 50%, transparent 52%), .vp-exam radial-gradient(1.4px 1.4px at 12% 52%, rgba(255, 255, 255, 0.75) 50%, transparent 52%), .vp-exam radial-gradient(1px 1px at 26% 92%, rgba(238, 242, 255, 0.85) 50%, transparent 52%), .vp-exam radial-gradient(1px 1px at 61% 8%, rgba(255, 255, 255, 0.65) 50%, transparent 52%), .vp-exam radial-gradient(1.2px 1.2px at 95% 42%, rgba(255, 255, 255, 0.9) 50%, transparent 52%), .vp-exam linear-gradient(135deg, #312e81, #4338ca); } .variant-btn-easter {    position: relative;
+    overflow: hidden;
+    color: #4a6741;
+    border: 1.5px solid rgba(120, 170, 100, 0.35);
+    padding: 0.7rem 1.4rem;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.88rem;
+    cursor: pointer;
+    font-family: "Montserrat", sans-serif;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    box-shadow: 0 2px 8px rgba(120, 170, 100, 0.15);
+    background:
+        .vp-exam url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Ctext x='10' y='30' font-size='18' opacity='0.45' transform='rotate(-15 10 30)'%3E🌿%3C/text%3E%3Ctext x='65' y='70' font-size='14' opacity='0.40' transform='rotate(20 65 70)'%3E🍃%3C/text%3E%3Ctext x='30' y='100' font-size='16' opacity='0.42' transform='rotate(-8 30 100)'%3E🌱%3C/text%3E%3Ctext x='85' y='25' font-size='12' opacity='0.38' transform='rotate(12 85 25)'%3E🍀%3C/text%3E%3C/svg%3E") repeat, .vp-exam linear-gradient(135deg, #f0f7ee, #e8f3e5); } .variant-btn-easter:hover {    border-color: rgba(120, 170, 100, 0.55);
+    box-shadow: 0 4px 12px rgba(120, 170, 100, 0.25);
+    transform: translateY(-2px);
+    background:
+        .vp-exam url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Ctext x='10' y='30' font-size='18' opacity='0.55' transform='rotate(-15 10 30)'%3E🌿%3C/text%3E%3Ctext x='65' y='70' font-size='14' opacity='0.50' transform='rotate(20 65 70)'%3E🍃%3C/text%3E%3Ctext x='30' y='100' font-size='16' opacity='0.52' transform='rotate(-8 30 100)'%3E🌱%3C/text%3E%3Ctext x='85' y='25' font-size='12' opacity='0.48' transform='rotate(12 85 25)'%3E🍀%3C/text%3E%3C/svg%3E") repeat, .vp-exam linear-gradient(135deg, #e8f3e5, #dcefd8); } .variant-btn-copy-link {    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: auto;
+    height: auto;
+    padding: 0.55rem 0.85rem;
+    gap: 0.55rem;
+    border: 1.5px solid rgba(102, 126, 234, 0.3);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.9);
+    color: var(--primary-purple);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.vp-exam .variant-btn-copy-link:hover {    background: rgba(102, 126, 234, 0.12);
+    border-color: var(--primary-purple);
+    transform: translateY(-2px);
+    color: #4c51bf;
+}
+
+.vp-exam .variant-btn-copy-link svg {    display: block;
+}
+
+.vp-exam .variant-btn-copy-link-text {    font-size: 0.9rem;
+    font-weight: 600;
+    line-height: 1;
+    white-space: nowrap;
+}

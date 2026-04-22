@@ -1,8 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import API from './api';
+import {
+  openHomeworkOnGenerator,
+  buildHomeworkReviewPlayUrl,
+  cabinetSpaBasePathname,
+  cabinetSpaPlayerOrigin,
+} from './homeworkGeneratorNav';
 import ImageAnnotationCanvas from './ImageAnnotationCanvas';
-import VariantPlayer from './VariantPlayer';
-import { MathHtmlBlock } from './mathJaxUtils';
 
 function getCookie(name) {
   const value = `; ${document.cookie}`;
@@ -11,12 +15,26 @@ function getCookie(name) {
   return '';
 }
 
-/** URL текущей страницы с ?variant_play= — для открытия варианта в новой вкладке. */
-function buildVariantPlayUrl(assignmentId) {
+/** URL текущего приложения с ?variant_play= — полноэкранная страница варианта (см. App.js). */
+export function buildVariantPlayUrl(assignmentId) {
   if (typeof window === 'undefined') return '';
   const u = new URL(window.location.href);
   u.searchParams.set('variant_play', String(assignmentId));
   return u.toString();
+}
+
+/** Ученик: сразу на генератор (join-url); при ошибке — встроенный плеер ЛК. */
+async function openStudentAssignmentOnGenerator(a) {
+  if (!a?.id) return;
+  try {
+    await openHomeworkOnGenerator(a.id);
+  } catch {
+    const u = new URL(cabinetSpaBasePathname(), cabinetSpaPlayerOrigin());
+    u.searchParams.set('variant_play', String(a.id));
+    u.searchParams.set('hw_local', '1');
+    u.searchParams.delete('homework_room');
+    window.location.assign(u.toString());
+  }
 }
 
 /** Текст ошибки из ответа DRF (detail / error / поля формы). */
@@ -531,400 +549,6 @@ function CreateHomeworkModal({ students, onClose, onCreated }) {
   );
 }
 
-// ── AssignmentDetailModal ─────────────────────────────────────────────────────
-function AssignmentDetailModal({ assignment, isTeacher, onClose, onUpdated }) {
-  const [comment, setComment]   = useState(assignment.teacher_comment || '');
-  const [saving,  setSaving]    = useState(false);
-  const [files,   setFiles]     = useState([]);
-  const [uploading, setUploading] = useState(false);
-  const [localFiles, setLocalFiles] = useState(assignment.answer_files || []);
-  const [feedbackFiles, setFeedbackFiles] = useState(assignment.teacher_feedback_files || []);
-  const [fbPick, setFbPick]     = useState([]);
-  const [fbUploading, setFbUploading] = useState(false);
-  const fileRef = useRef(null);
-  const fbRef = useRef(null);
-
-  const wideTeacherModal = isTeacher && !!assignment.variant_id;
-
-  const teacherCanComment = isTeacher && ['submitted', 'reviewing', 'reviewed', 'revision'].includes(assignment.status);
-  const teacherCanFinalize = isTeacher && ['submitted', 'reviewing'].includes(assignment.status);
-
-  useEffect(() => {
-    setLocalFiles(assignment.answer_files || []);
-  }, [assignment.id, assignment.answer_files]);
-
-  useEffect(() => {
-    setFeedbackFiles(assignment.teacher_feedback_files || []);
-  }, [assignment.id, assignment.teacher_feedback_files]);
-
-  useEffect(() => {
-    setComment(assignment.teacher_comment || '');
-  }, [assignment.id, assignment.teacher_comment]);
-
-  const uploadFiles = async () => {
-    if (!files.length) return;
-    setUploading(true);
-    for (const f of files) {
-      const fd = new FormData();
-      fd.append('file', f);
-      try {
-        const res = await fetch(`${API}/api/homework/assignment/${assignment.id}/upload-answer/`, {
-          method: 'POST', credentials: 'include',
-          headers: { 'X-CSRFToken': getCookie('csrftoken') },
-          body: fd,
-        });
-        if (res.ok) {
-          const newFile = await res.json();
-          setLocalFiles(prev => [...prev, newFile]);
-        }
-      } catch {}
-    }
-    setFiles([]);
-    setUploading(false);
-  };
-
-  const submit = async () => {
-    setSaving(true);
-    const res = await fetch(`${API}/api/homework/assignment/${assignment.id}/submit/`, {
-      method: 'POST', credentials: 'include',
-      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
-      body: JSON.stringify({}),
-    });
-    setSaving(false);
-    if (res.ok) onUpdated(await res.json());
-  };
-
-  const review = async (action) => {
-    setSaving(true);
-    const res = await fetch(`${API}/api/homework/assignment/${assignment.id}/review/`, {
-      method: 'POST', credentials: 'include',
-      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
-      body: JSON.stringify({ action, comment }),
-    });
-    setSaving(false);
-    if (res.ok) onUpdated(await res.json());
-  };
-
-  const sendTeacherComment = async () => {
-    setSaving(true);
-    try {
-      const res = await fetch(`${API}/api/homework/assignment/${assignment.id}/teacher-comment/`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
-        body: JSON.stringify({ comment }),
-      });
-      if (res.ok) onUpdated(await res.json());
-    } catch { /* ignore */ }
-    setSaving(false);
-  };
-
-  const uploadTeacherFeedback = async () => {
-    if (!fbPick.length) return;
-    setFbUploading(true);
-    for (const f of fbPick) {
-      const fd = new FormData();
-      fd.append('file', f);
-      try {
-        const res = await fetch(
-          `${API}/api/homework/assignment/${assignment.id}/upload-teacher-feedback/`,
-          { method: 'POST', credentials: 'include', headers: { 'X-CSRFToken': getCookie('csrftoken') }, body: fd },
-        );
-        if (res.ok) {
-          const row = await res.json();
-          setFeedbackFiles(prev => [...prev, row]);
-        }
-      } catch { /* ignore */ }
-    }
-    setFbPick([]);
-    setFbUploading(false);
-  };
-
-  const title = assignment.homework_title || `Вариант ${assignment.variant_id}`;
-
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div
-        className="modal"
-        style={{
-          maxWidth: wideTeacherModal ? 960 : 600,
-          width: wideTeacherModal ? 'min(96vw, 960px)' : undefined,
-          maxHeight: '90vh',
-          overflowY: 'auto',
-        }}
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="modal-header">
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span className="modal-title">{title}</span>
-            <StatusBadge status={assignment.status} />
-          </div>
-          <button className="modal-close" onClick={onClose}>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
-        </div>
-
-        <div style={{ padding: '16px 24px', display: 'flex', flexDirection: 'column', gap: 18 }}>
-          {/* Info row */}
-          <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', fontSize: 12, color: '#64748b' }}>
-            {assignment.subject && <span>📚 {assignment.subject}</span>}
-            <span>📅 Срок: {fmtDate(assignment.deadline)}</span>
-            {assignment.submitted_at && <span>📬 Сдано: {fmtDate(assignment.submitted_at)}</span>}
-            {assignment.reviewed_at  && <span>✅ Проверено: {fmtDate(assignment.reviewed_at)}</span>}
-            {isTeacher && <span>👤 {assignment.student_name} {assignment.student_surname}</span>}
-          </div>
-
-          {/* Homework text */}
-          {assignment.homework_text && (
-            <div style={{
-              background: '#f8fafc',
-              borderRadius: 10,
-              padding: '12px 16px',
-              border: '1px solid #e8edf5',
-            }}
-            >
-              <MathHtmlBlock html={assignment.homework_text} />
-            </div>
-          )}
-
-          {/* Teacher attachments */}
-          {assignment.homework_attachments && assignment.homework_attachments.length > 0 && (
-            <div>
-              <div style={sectionLabelStyle}>Материалы к заданию</div>
-              <FileList files={assignment.homework_attachments} showAnnotations={false} />
-            </div>
-          )}
-
-          {/* Вариант + ответы (учитель) */}
-          {isTeacher && assignment.variant_id && (
-            <div>
-              <div style={sectionLabelStyle}>Вариант и ответы ученика</div>
-              <VariantPlayer
-                embedded
-                variantId={assignment.variant_id}
-                readOnly
-                savedResult={assignment.result || {}}
-                showCorrectAnswers
-                assignmentId={assignment.id}
-                answerFiles={localFiles}
-                isTeacher={isTeacher}
-                taskTeacherComments={assignment.task_teacher_comments || {}}
-                whiteboardStrokes={assignment.whiteboard_strokes || []}
-                onMetaUpdated={(data) => {
-                  onUpdated({
-                    ...assignment,
-                    task_teacher_comments: data.task_teacher_comments,
-                    whiteboard_strokes: data.whiteboard_strokes,
-                  });
-                }}
-                openVariantPlayUrl={buildVariantPlayUrl(assignment.id)}
-              />
-            </div>
-          )}
-
-          {/* Файлы / фото ученика */}
-          <div>
-            <div style={sectionLabelStyle}>
-              {isTeacher ? 'Файлы и фото к работе' : 'Мои вложения'}
-            </div>
-            <FileList
-              files={localFiles}
-              showAnnotations={isTeacher}
-              layout={isTeacher ? 'cards' : 'list'}
-              assignmentId={assignment.id}
-              onAnnotationsSaved={(updated) => {
-                setLocalFiles(prev => prev.map(f => f.id === updated.id ? updated : f));
-              }}
-              teacherCanAttachAnnotationToComment={teacherCanComment}
-              onTeacherFeedbackUploaded={(row) => setFeedbackFiles(prev => [...prev, row])}
-            />
-          </div>
-
-          {(isTeacher && teacherCanComment) || (feedbackFiles && feedbackFiles.length > 0) ? (
-            <div>
-              <div style={sectionLabelStyle}>Материалы учителя к проверке</div>
-              {feedbackFiles && feedbackFiles.length > 0 ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
-                  {feedbackFiles.map(ff => (
-                    <a
-                      key={ff.id}
-                      href={ff.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ fontSize: 12, color: '#4F6EF7', textDecoration: 'none', wordBreak: 'break-all' }}
-                    >
-                      {FILE_ICONS[ff.file_type] || '📄'}{' '}
-                      {ff.source_answer_file ? 'Разметка: ' : ''}{ff.filename}
-                    </a>
-                  ))}
-                </div>
-              ) : (
-                <span style={{ color: '#9ca3af', fontSize: 12 }}>—</span>
-              )}
-              {isTeacher && teacherCanComment && (
-                <div style={{ marginTop: 8 }}>
-                  <input
-                    ref={fbRef}
-                    type="file"
-                    multiple
-                    style={{ display: 'none' }}
-                    onChange={e => setFbPick(Array.from(e.target.files || []))}
-                  />
-                  <button type="button" onClick={() => fbRef.current?.click()} style={{ ...outlineBtn, marginRight: 8 }}>
-                    Прикрепить файлы
-                  </button>
-                  {fbPick.length > 0 && (
-                    <button
-                      type="button"
-                      disabled={fbUploading}
-                      onClick={uploadTeacherFeedback}
-                      style={{ ...primaryBtn, opacity: fbUploading ? 0.7 : 1 }}
-                    >
-                      {fbUploading ? 'Загрузка…' : 'Загрузить'}
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          ) : null}
-
-          {/* Upload for student */}
-          {!isTeacher && ['sent', 'revision'].includes(assignment.status) && (
-            <div>
-              <div style={sectionLabelStyle}>Прикрепить файлы</div>
-              <input ref={fileRef} type="file" multiple style={{ display: 'none' }} onChange={e => setFiles(Array.from(e.target.files))} />
-              <button type="button" onClick={() => fileRef.current?.click()} style={{ ...outlineBtn, marginBottom: 8 }}>
-                📎 Выбрать файлы
-              </button>
-              {files.length > 0 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
-                  {files.map((f, i) => (
-                    <span key={i} style={{ fontSize: 11, background: '#f1f5f9', padding: '2px 8px', borderRadius: 12, color: '#475569' }}>
-                      {f.name}
-                    </span>
-                  ))}
-                </div>
-              )}
-              {files.length > 0 && (
-                <button
-                  onClick={uploadFiles}
-                  disabled={uploading}
-                  style={{ ...primaryBtn, opacity: uploading ? 0.7 : 1, marginBottom: 8 }}
-                >
-                  {uploading ? 'Загрузка…' : 'Загрузить'}
-                </button>
-              )}
-            </div>
-          )}
-
-          {/* Teacher comment */}
-          {isTeacher && teacherCanComment && (
-            <div>
-              <div style={sectionLabelStyle}>Комментарий учителя</div>
-              <textarea
-                value={comment}
-                onChange={e => setComment(e.target.value)}
-                placeholder="Текст комментария (можно отправить отдельно или вместе с «Принять» / «Вернуть на доработку»)…"
-                style={{ ...inputStyle, minHeight: 80, width: '100%', boxSizing: 'border-box', resize: 'vertical' }}
-              />
-            </div>
-          )}
-          {!isTeacher && assignment.teacher_comment && (
-            <div>
-              <div style={sectionLabelStyle}>Комментарий учителя</div>
-              <div style={{
-                background: '#fffbeb',
-                borderRadius: 10,
-                padding: '12px 16px',
-                border: '1px solid #fde68a',
-                borderLeft: '4px solid #f59e0b',
-              }}
-              >
-                <MathHtmlBlock html={assignment.teacher_comment} />
-              </div>
-            </div>
-          )}
-          {!isTeacher && feedbackFiles && feedbackFiles.length > 0 && (
-            <div>
-              <div style={sectionLabelStyle}>Материалы от учителя</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {feedbackFiles.map(ff => (
-                  <a
-                    key={ff.id}
-                    href={ff.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ fontSize: 12, color: '#4F6EF7', textDecoration: 'none', wordBreak: 'break-all' }}
-                  >
-                    {FILE_ICONS[ff.file_type] || '📄'}{' '}
-                    {ff.source_answer_file ? 'Разметка: ' : ''}{ff.filename}
-                  </a>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Actions */}
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 4 }}>
-            {!isTeacher && ['sent', 'revision'].includes(assignment.status) && (
-              <button
-                onClick={submit}
-                disabled={saving}
-                style={{ ...primaryBtn, opacity: saving ? 0.7 : 1 }}
-              >
-                {saving ? 'Отправка…' : '📤 Сдать задание'}
-              </button>
-            )}
-            {isTeacher && teacherCanComment && (
-              <button
-                type="button"
-                onClick={sendTeacherComment}
-                disabled={saving}
-                style={{
-                  ...primaryBtn,
-                  background: '#4338ca',
-                  opacity: saving ? 0.7 : 1,
-                }}
-              >
-                {saving ? '…' : 'Отправить комментарий ученику'}
-              </button>
-            )}
-            {isTeacher && teacherCanFinalize && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => review('reviewed')}
-                  disabled={saving}
-                  style={{
-                    ...primaryBtn,
-                    background: '#16a34a',
-                    opacity: saving ? 0.7 : 1,
-                  }}
-                >
-                  {saving ? '…' : 'Принять'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => review('revision')}
-                  disabled={saving}
-                  style={{
-                    ...primaryBtn,
-                    background: '#d97706',
-                    opacity: saving ? 0.7 : 1,
-                  }}
-                >
-                  {saving ? '…' : 'Вернуть на доработку'}
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // Палитры обложек — разные цвета, все приглушённые и сочетаемые
 const COVER_PALETTES = [
@@ -969,7 +593,7 @@ function CoverWaves({ gradient, cancelled }) {
 }
 
 // ── HomeworkCard ──────────────────────────────────────────────────────────────
-function HomeworkCard({ hw, onClick, isTeacher, onCancelAll, cardIndex = 0, showVariantNewTab = false }) {
+function HomeworkCard({ hw, onClick, isTeacher, onCancelAll, cardIndex = 0 }) {
   const isCancelled = hw.status === 'cancelled' || hw.all_cancelled === true;
   const title   = hw.homework_title || hw.title || `Вариант ${hw.variant_id}`;
   const subject = hw.subject || hw.homework?.subject || null;
@@ -1162,31 +786,6 @@ function HomeworkCard({ hw, onClick, isTeacher, onCancelAll, cardIndex = 0, show
             </button>
           )}
         </div>
-
-        {showVariantNewTab && hw.id && hw.status !== 'cancelled' && (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              window.open(buildVariantPlayUrl(hw.id), '_blank', 'noopener,noreferrer');
-            }}
-            style={{
-              width: '100%',
-              marginTop: 2,
-              padding: '7px 0',
-              borderRadius: 8,
-              border: '1px solid #e2e8f0',
-              background: '#f8fafc',
-              color: '#475569',
-              fontSize: 11,
-              fontWeight: 600,
-              cursor: 'pointer',
-              fontFamily: 'Montserrat, sans-serif',
-            }}
-          >
-            Открыть вариант в новой вкладке
-          </button>
-        )}
       </div>
     </div>
   );
@@ -1228,55 +827,22 @@ const TAB_STUDENT = [
   { id: 'cancelled', label: 'Отменённые' },
 ];
 
-export default function HomeworkPage({ isStudent = false, variantPlayAssignmentId = null, onConsumedVariantPlay = () => {} }) {
+export default function HomeworkPage({ isStudent = false }) {
   const [tab,          setTab]          = useState('all');
   const [homeworks,    setHomeworks]    = useState([]);
   const [assignments,  setAssignments]  = useState([]);
   const [loading,      setLoading]      = useState(true);
   const [createOpen,   setCreateOpen]   = useState(false);
-  const [selected,     setSelected]     = useState(null);
   const [students,     setStudents]     = useState([]);
   const [selectedHwAssignments, setSelectedHwAssignments] = useState([]);
   const [assignView,   setAssignView]   = useState(null);
-  // Variant player state
-  const [playerAssignment, setPlayerAssignment] = useState(null);
 
-  const openVariantFromAssignment = useCallback(async (a, { isTeacherView = false } = {}) => {
-    const aid = a?.id;
-    if (!aid) return;
-    let full = a;
-    try {
-      const res = await fetch(`${API}/api/homework/assignment/${aid}/`, { credentials: 'include' });
-      if (res.ok) full = await res.json();
-    } catch { /* use a */ }
-    if (!full.variant_id) return;
-    const studentReadOnly = !isTeacherView && ['submitted', 'reviewing', 'reviewed'].includes(full.status);
-    setPlayerAssignment({
-      variantId: full.variant_id,
-      assignmentId: full.id,
-      readOnly: isTeacherView ? true : studentReadOnly,
-      result: full.result || {},
-      score: full.score ?? null,
-      showCorrect: isTeacherView || full.status === 'reviewed',
-      answerFiles: full.answer_files || [],
-      taskTeacherComments: full.task_teacher_comments || {},
-      whiteboardStrokes: full.whiteboard_strokes || [],
-      studentName: isTeacherView ? `${full.student_name || ''} ${full.student_surname || ''}`.trim() : undefined,
-      status: full.status,
-      openVariantPlayUrl: buildVariantPlayUrl(full.id),
-      isTeacher: !!isTeacherView,
-    });
+  /** Учитель: полноэкранная страница варианта в этой же вкладке (как страница урока). */
+  const openTeacherAssignmentRoom = useCallback((assignmentId) => {
+    if (!assignmentId) return;
+    const url = buildHomeworkReviewPlayUrl(assignmentId);
+    if (url) window.location.assign(url);
   }, []);
-
-  useEffect(() => {
-    if (!variantPlayAssignmentId) return;
-    let cancelled = false;
-    (async () => {
-      await openVariantFromAssignment({ id: variantPlayAssignmentId }, { isTeacherView: !isStudent });
-      if (!cancelled) onConsumedVariantPlay();
-    })();
-    return () => { cancelled = true; };
-  }, [variantPlayAssignmentId, isStudent, openVariantFromAssignment, onConsumedVariantPlay]);
 
   const fetchData = useCallback(() => {
     setLoading(true);
@@ -1332,22 +898,6 @@ export default function HomeworkPage({ isStudent = false, variantPlayAssignmentI
     } catch {}
   };
 
-  const cancelAssignment = async (assignmentId) => {
-    if (!window.confirm('Отменить это задание для ученика?')) return;
-    try {
-      const res = await fetch(`${API}/api/homework/assignment/${assignmentId}/cancel/`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'X-CSRFToken': getCookie('csrftoken') },
-      });
-      if (res.ok) {
-        setSelectedHwAssignments(prev =>
-          prev.map(a => a.id === assignmentId ? { ...a, status: 'cancelled' } : a),
-        );
-      }
-    } catch {}
-  };
-
   const filteredAssignments = assignments.filter(a => {
     if (tab === 'cancelled') return a.status === 'cancelled';
     if (tab === 'submitted') return ['submitted', 'reviewing'].includes(a.status);
@@ -1367,6 +917,142 @@ export default function HomeworkPage({ isStudent = false, variantPlayAssignmentI
   });
 
   const tabs = isStudent ? TAB_STUDENT : TAB_TEACHER;
+
+  /** Подстраница «как урок»: список учеников по выбранному ДЗ, без модального оверлея */
+  if (!isStudent && assignView) {
+    return (
+      <div style={{ fontFamily: 'Montserrat, sans-serif', padding: '0 0 32px' }}>
+        <div style={{ marginBottom: 20 }}>
+          <button
+            type="button"
+            onClick={() => setAssignView(null)}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              padding: '8px 0', border: 'none', background: 'none', cursor: 'pointer',
+              fontSize: 13, fontWeight: 700, color: '#64748b', fontFamily: 'Montserrat, sans-serif',
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+            К списку заданий
+          </button>
+        </div>
+
+        <div style={{
+          background: '#fff',
+          borderRadius: 16,
+          border: '1px solid #e2e8f0',
+          boxShadow: '0 1px 8px rgba(15,23,42,.06)',
+          overflow: 'hidden',
+          maxWidth: 920,
+          margin: '0 auto',
+        }}
+        >
+          <div style={{
+            padding: '20px 24px',
+            borderBottom: '1px solid #e2e8f0',
+            background: 'linear-gradient(180deg, #f8fafc 0%, #fff 100%)',
+          }}
+          >
+            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#1e293b', fontFamily: 'Unbounded, sans-serif' }}>
+              {assignView.title || `Вариант ${assignView.variant_id}`}
+            </h2>
+            <p style={{ margin: '8px 0 0', fontSize: 13, color: '#64748b' }}>
+              Назначено ученикам: {selectedHwAssignments.length}. Выберите ученика — откроется страница проверки работы.
+            </p>
+          </div>
+
+          <div style={{ padding: '16px 24px 28px', maxHeight: 'calc(100vh - 220px)', overflowY: 'auto' }}>
+            {selectedHwAssignments.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '32px 0', color: '#9ca3af', fontSize: 14 }}>
+                Никому не назначено. Назначьте через страницу ученика.
+              </div>
+            ) : selectedHwAssignments.map((a) => {
+              const isCancelled = a.status === 'cancelled';
+              return (
+                <div
+                  key={a.id}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '14px 16px', borderRadius: 12,
+                    border: `1px solid ${isCancelled ? '#E2E8F0' : '#e2e8f0'}`,
+                    background: isCancelled ? '#F8FAFC' : '#fff',
+                    opacity: isCancelled ? 0.65 : 1,
+                    gap: 10,
+                    marginBottom: 10,
+                  }}
+                >
+                  <div
+                    role="button"
+                    tabIndex={isCancelled ? -1 : 0}
+                    style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0, cursor: isCancelled ? 'default' : 'pointer' }}
+                    onClick={() => { if (!isCancelled) openTeacherAssignmentRoom(a.id); }}
+                    onKeyDown={(e) => { if (!isCancelled && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openTeacherAssignmentRoom(a.id); } }}
+                  >
+                    <div style={{
+                      width: 40, height: 40, borderRadius: '50%',
+                      background: isCancelled ? '#E2E8F0' : 'linear-gradient(135deg,#667eea,#586fd7)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: isCancelled ? '#94A3B8' : '#fff', fontWeight: 700, fontSize: 13, flexShrink: 0,
+                    }}
+                    >
+                      {initials(a.student_name, a.student_surname)}
+                    </div>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: isCancelled ? '#94A3B8' : '#1a1a2e', textDecoration: isCancelled ? 'line-through' : 'none' }}>
+                        {a.student_name} {a.student_surname}
+                      </div>
+                      {a.submitted_at && !isCancelled && (
+                        <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>Сдано {fmtDate(a.submitted_at)}</div>
+                      )}
+                      {isCancelled && (
+                        <div style={{ fontSize: 12, color: '#CBD5E1', marginTop: 2 }}>Задание отменено</div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                    {!isCancelled && a.score != null && (
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#667eea' }}>{a.score} б</span>
+                    )}
+                    {!isCancelled && a.answer_count > 0 && (
+                      <span style={{ fontSize: 12, color: '#9ca3af' }}>📎 {a.answer_count}</span>
+                    )}
+                    <StatusBadge status={a.status} />
+                    {!isCancelled && (
+                      <button
+                        type="button"
+                        onClick={(e) => { e.stopPropagation(); openTeacherAssignmentRoom(a.id); }}
+                        style={{
+                          padding: '8px 14px', borderRadius: 10, border: '1px solid #c7d2fe',
+                          background: 'linear-gradient(135deg,#eef2ff,#e0e7ff)', color: '#3730a3', fontSize: 12, fontWeight: 700,
+                          fontFamily: 'Montserrat, sans-serif', whiteSpace: 'nowrap', cursor: 'pointer',
+                        }}
+                      >
+                        Проверить работу
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {createOpen && (
+          <CreateHomeworkModal
+            students={students}
+            onClose={() => setCreateOpen(false)}
+            onCreated={(hw) => {
+              setHomeworks(prev => [hw, ...prev]);
+              setCreateOpen(false);
+            }}
+          />
+        )}
+      </div>
+    );
+  }
 
   return (
     <div style={{ fontFamily: 'Montserrat, sans-serif', padding: '0 0 32px' }}>
@@ -1437,7 +1123,7 @@ export default function HomeworkPage({ isStudent = false, variantPlayAssignmentI
                 hw={a}
                 isTeacher={false}
                 cardIndex={i}
-                onClick={a.status === 'cancelled' ? undefined : () => window.open(buildVariantPlayUrl(a.id), '_blank', 'noopener,noreferrer')}
+                onClick={a.status === 'cancelled' ? undefined : () => { openStudentAssignmentOnGenerator(a); }}
               />
             ))}
           </div>
@@ -1461,133 +1147,6 @@ export default function HomeworkPage({ isStudent = false, variantPlayAssignmentI
         )
       )}
 
-      {/* Teacher: assignment list for selected homework */}
-      {assignView && (
-        <div className="modal-overlay" onClick={() => setAssignView(null)}>
-          <div
-            className="modal"
-            style={{ maxWidth: 680, maxHeight: '90vh', overflowY: 'auto' }}
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="modal-header">
-              <div>
-                <span className="modal-title">
-                  {assignView.title || `Вариант ${assignView.variant_id}`}
-                </span>
-                <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>
-                  Назначено ученикам: {selectedHwAssignments.length}
-                </div>
-              </div>
-              <button className="modal-close" onClick={() => setAssignView(null)}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-              </button>
-            </div>
-            <div style={{ padding: '8px 24px 20px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {selectedHwAssignments.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '24px 0', color: '#9ca3af', fontSize: 13 }}>
-                  Никому не назначено. Назначьте через страницу ученика.
-                </div>
-              ) : selectedHwAssignments.map(a => {
-                const isCancelled = a.status === 'cancelled';
-                return (
-                  <div
-                    key={a.id}
-                    style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      padding: '10px 14px', borderRadius: 10,
-                      border: `1.5px solid ${isCancelled ? '#E2E8F0' : '#e2e8f0'}`,
-                      transition: 'border-color .15s',
-                      background: isCancelled ? '#F8FAFC' : '#fff',
-                      opacity: isCancelled ? 0.65 : 1,
-                      gap: 8,
-                    }}
-                  >
-                    {/* left: avatar + name — clickable only if not cancelled */}
-                    <div
-                      style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0, cursor: isCancelled ? 'default' : 'pointer' }}
-                      onClick={async () => {
-                        if (isCancelled) return;
-                        if (a.result && Object.keys(a.result).length > 0) {
-                          await openVariantFromAssignment(a, { isTeacherView: true });
-                        } else {
-                          setSelected(a);
-                        }
-                      }}
-                    >
-                      <div style={{
-                        width: 32, height: 32, borderRadius: '50%',
-                        background: isCancelled ? '#E2E8F0' : 'linear-gradient(135deg,#667eea,#586fd7)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        color: isCancelled ? '#94A3B8' : '#fff', fontWeight: 700, fontSize: 12, flexShrink: 0,
-                      }}>
-                        {initials(a.student_name, a.student_surname)}
-                      </div>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: isCancelled ? '#94A3B8' : '#1a1a2e', textDecoration: isCancelled ? 'line-through' : 'none' }}>
-                          {a.student_name} {a.student_surname}
-                        </div>
-                        {a.submitted_at && !isCancelled && (
-                          <div style={{ fontSize: 11, color: '#64748b' }}>Сдано {fmtDate(a.submitted_at)}</div>
-                        )}
-                        {isCancelled && (
-                          <div style={{ fontSize: 11, color: '#CBD5E1' }}>Задание отменено</div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* right: badges + cancel button */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                      {!isCancelled && a.score != null && (
-                        <span style={{ fontSize: 12, fontWeight: 700, color: '#667eea' }}>
-                          {a.score} б
-                        </span>
-                      )}
-                      {!isCancelled && a.answer_count > 0 && (
-                        <span style={{ fontSize: 11, color: '#9ca3af' }}>📎 {a.answer_count}</span>
-                      )}
-                      <StatusBadge status={a.status} />
-                      {!isCancelled && assignView?.variant_id && (
-                        <a
-                          href={buildVariantPlayUrl(a.id)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          style={{
-                            padding: '4px 10px', borderRadius: 8, border: '1px solid #c7d2fe',
-                            background: '#eef2ff', color: '#4338ca', fontSize: 11, fontWeight: 700,
-                            textDecoration: 'none', fontFamily: 'Montserrat, sans-serif', whiteSpace: 'nowrap',
-                          }}
-                        >
-                          Вариант в новой вкладке
-                        </a>
-                      )}
-                      {!isCancelled && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); cancelAssignment(a.id); }}
-                          title="Отменить задание"
-                          style={{
-                            padding: '4px 10px', borderRadius: 8, border: '1.5px solid #FCA5A5',
-                            background: '#FFF5F5', color: '#EF4444', fontSize: 11, fontWeight: 700,
-                            cursor: 'pointer', fontFamily: 'Montserrat, sans-serif',
-                            whiteSpace: 'nowrap', transition: 'background .15s',
-                          }}
-                          onMouseEnter={e => { e.currentTarget.style.background = '#FEE2E2'; }}
-                          onMouseLeave={e => { e.currentTarget.style.background = '#FFF5F5'; }}
-                        >
-                          Отменить
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Create modal */}
       {createOpen && (
         <CreateHomeworkModal
@@ -1596,77 +1155,6 @@ export default function HomeworkPage({ isStudent = false, variantPlayAssignmentI
           onCreated={(hw) => {
             setHomeworks(prev => [hw, ...prev]);
             setCreateOpen(false);
-          }}
-        />
-      )}
-
-      {/* Assignment detail modal (files, comments — for cases without variant) */}
-      {selected && (
-        <AssignmentDetailModal
-          assignment={selected}
-          isTeacher={!isStudent}
-          onClose={() => setSelected(null)}
-          onUpdated={(updated) => {
-            if (isStudent) {
-              setAssignments(prev => prev.map(a => a.id === updated.id ? { ...a, ...updated } : a));
-            } else {
-              setSelectedHwAssignments(prev => prev.map(a => a.id === updated.id ? { ...a, ...updated } : a));
-            }
-            setSelected(prev => ({ ...prev, ...updated }));
-          }}
-        />
-      )}
-
-      {/* Variant player — student takes test / teacher views results */}
-      {playerAssignment && (
-        <VariantPlayer
-          key={playerAssignment.assignmentId}
-          variantId={playerAssignment.variantId}
-          readOnly={playerAssignment.readOnly}
-          savedResult={playerAssignment.result}
-          showCorrectAnswers={!!playerAssignment.showCorrect}
-          assignmentId={playerAssignment.assignmentId}
-          answerFiles={playerAssignment.answerFiles || []}
-          isTeacher={!!playerAssignment.isTeacher}
-          taskTeacherComments={playerAssignment.taskTeacherComments || {}}
-          whiteboardStrokes={playerAssignment.whiteboardStrokes || []}
-          onMetaUpdated={(data) => {
-            setPlayerAssignment((pa) => {
-              if (!pa || pa.assignmentId !== data.id) return pa;
-              return {
-                ...pa,
-                taskTeacherComments: data.task_teacher_comments || {},
-                whiteboardStrokes: data.whiteboard_strokes || [],
-              };
-            });
-            if (isStudent) {
-              setAssignments((prev) => prev.map((x) => (x.id === data.id ? { ...x, ...data } : x)));
-            } else {
-              setSelectedHwAssignments((prev) => prev.map((x) => (x.id === data.id ? { ...x, ...data } : x)));
-              setSelected((sel) => (sel && sel.id === data.id ? { ...sel, ...data } : sel));
-            }
-          }}
-          openVariantPlayUrl={playerAssignment.openVariantPlayUrl}
-          onClose={() => setPlayerAssignment(null)}
-          onSubmit={playerAssignment.readOnly ? null : async (result, score) => {
-            try {
-              const res = await fetch(
-                `${API}/api/homework/assignment/${playerAssignment.assignmentId}/submit/`,
-                {
-                  method: 'POST',
-                  credentials: 'include',
-                  headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
-                  body: JSON.stringify({ result, score }),
-                },
-              );
-              if (res.ok) {
-                const updated = await res.json();
-                setAssignments(prev => prev.map(a =>
-                  a.id === playerAssignment.assignmentId ? { ...a, ...updated } : a,
-                ));
-                setPlayerAssignment(null);
-              }
-            } catch {}
           }}
         />
       )}
@@ -1728,9 +1216,4 @@ const outlineBtn = {
   padding: '8px 14px', borderRadius: 8, border: '1.5px solid #e2e8f0',
   background: '#fff', color: '#64748b', fontSize: 12,
   cursor: 'pointer', fontFamily: 'Montserrat, sans-serif',
-};
-
-const sectionLabelStyle = {
-  fontSize: 11, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase',
-  letterSpacing: '.05em', marginBottom: 6,
 };

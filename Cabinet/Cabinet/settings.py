@@ -40,8 +40,19 @@ if os.environ.get('FRONTEND_URL_FORCE_HTTP', '').lower() in ('1', 'true', 'yes')
 
 # URL сайта генератора уроков (ссылки lesson/join в JWT). В .env задавайте GENUROK_URL латиницей.
 _LEGACY_GENUROK_KEY = 'GENUR\u041e\u041a_URL'  # старый ключ с кирилл. О и К (если остался на сервере)
-_genurok_raw = (os.environ.get('GENUROK_URL') or os.environ.get(_LEGACY_GENUROK_KEY) or 'https://genurok.tw1.ru')
+_genurok_raw = (os.environ.get('GENUROK_URL') or os.environ.get(_LEGACY_GENUROK_KEY) or 'https://test.genurok.ru')
 GENUROK_URL = _genurok_raw.strip().rstrip('/')
+# Локальная отладка: запасной URL генератора для ссылок, если GENUROK_URL указывает на Cabinet (часто 8001).
+LOCAL_GENUROK_URL = os.environ.get('LOCAL_GENUROK_URL', 'http://127.0.0.1:8000').strip().rstrip('/')
+# Ссылки «Комната ДЗ» (join/exam): при DEBUG=True по умолчанию всегда LOCAL_GENUROK_URL (иначе редирект на :8001/app/).
+# В DEBUG использовать GENUROK из .env: HOMEWORK_USE_ENV_GENUROK_URL=1
+# При DEBUG=False принудительно локальный генератор: FORCE_LOCAL_GENERATOR_LINKS=1
+HOMEWORK_LINKS_USE_LOCAL_GENERATOR = (
+    (DEBUG and os.environ.get('HOMEWORK_USE_ENV_GENUROK_URL', '').lower() not in ('1', 'true', 'yes'))
+    or os.environ.get('FORCE_LOCAL_GENERATOR_LINKS', '').lower() in ('1', 'true', 'yes')
+)
+# Секрет для запросов к API генератора (заголовок X-Tasks-Get-Secret)
+TASKS_GET_SECRET = os.environ.get('TASKS_GET_SECRET', os.environ.get('LINK_SECRET_FOR_TASKS', '')).strip()
 # После /logout/ — по умолчанию страница входа (`/login/` на хосте FRONTEND_URL). Иначе задайте LOGOUT_REDIRECT_URL.
 _logout_url = os.environ.get('LOGOUT_REDIRECT_URL', '').strip().rstrip('/')
 LOGOUT_REDIRECT_URL = _logout_url if _logout_url else f"{FRONTEND_URL}/login/"
@@ -145,6 +156,20 @@ else:
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME':   BASE_DIR / os.environ.get('SQLITE_NAME', 'db.sqlite3'),
         }
+    }
+
+# Вторая БД — Генератор (только чтение, опционально)
+# Заполните GEN_DB_PASSWORD в .env чтобы включить прямые запросы к БД генератора.
+_gen_db_password = os.environ.get('GEN_DB_PASSWORD', '')
+if _gen_db_password:
+    DATABASES['generator'] = {
+        'ENGINE':   'django.db.backends.postgresql',
+        'NAME':     os.environ.get('GEN_DB_NAME',     'generatordb'),
+        'USER':     os.environ.get('GEN_DB_USER',     'postgres'),
+        'PASSWORD': _gen_db_password,
+        'HOST':     os.environ.get('GEN_DB_HOST',     'localhost'),
+        'PORT':     os.environ.get('GEN_DB_PORT',     '5432'),
+        'TEST':     {'NAME': None},   # не создавать тестовую БД для этого коннекта
     }
 
 

@@ -1,14 +1,20 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import './Dashboard.css';
 import StudentsPage from './StudentsPage';
 import HomeworkPage from './HomeworkPage';
 import StudentProfilePage from './StudentProfilePage';
 import GroupDetailPage from './GroupDetailPage';
 import NotificationBell from './NotificationBell';
+import VariantsPage from './VariantsPage';
 import API from './api';
+import {
+  openHomeworkOnGenerator,
+  buildHomeworkReviewPlayUrl,
+  cabinetSpaBasePathname,
+  cabinetSpaPlayerOrigin,
+} from './homeworkGeneratorNav';
 
-// В разработке ссылка ведёт на локальный генератор; в проде — на переменную окружения
-const GENUROK_URL = (process.env.REACT_APP_GENERATOR_URL || 'https://genurok.tw1.ru').replace(/\/$/, '');
+// const GENUROK_URL = (process.env.REACT_APP_GENERATOR_URL || 'https://test.genurok.ru').replace(/\/$/, '');
 
 function getCookie(name) {
   const value = `; ${document.cookie}`;
@@ -17,195 +23,135 @@ function getCookie(name) {
   return '';
 }
 
-const NAV_ITEMS = [
-  {
-    id: 'dashboard',
-    label: 'Дашборд',
-    icon: (
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" />
-        <rect x="14" y="14" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" />
-      </svg>
-    ),
-  },
-  {
-    id: 'students',
-    label: 'Мои ученики',
-    icon: (
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" />
-        <path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" />
-      </svg>
-    ),
-  },
-  {
-    id: 'homework',
-    label: 'Домашние задания',
-    badge: null,
-    icon: (
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" />
-        <line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" />
-      </svg>
-    ),
-  },
-  {
-    id: 'generator',
-    label: 'Генератор',
-    icon: (
-      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M18 4H6l6 8-6 8h12" />
-      </svg>
-    ),
-  },
-];
-
-
-const CALENDAR_DAYS = ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'];
-
-function timeAgoShort(dateStr) {
-  if (!dateStr) return '';
-  const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
-  if (diff < 60) return 'только что';
-  if (diff < 3600) return `${Math.floor(diff / 60)} мин назад`;
-  if (diff < 86400) return `${Math.floor(diff / 3600)} ч назад`;
-  return `${Math.floor(diff / 86400)} д назад`;
+/** ws/notify/: при пустом REACT_APP_API_URL CRA шлёт WS на :3000 — прокси часто обрывает handshake; задайте REACT_APP_WS_URL. */
+function notifyWebSocketUrl() {
+  const custom = (process.env.REACT_APP_WS_URL || '').trim().replace(/\/$/, '');
+  if (custom) return `${custom}/ws/notify/`;
+  const api = (API || '').trim().replace(/\/$/, '');
+  if (api) return `${api.replace(/^http/, 'ws')}/ws/notify/`;
+  const proto = window.location.protocol === 'https:' ? 'wss' : 'ws';
+  return `${proto}://${window.location.host}/ws/notify/`;
 }
 
-/** Точка слева: цвет по типу уведомления */
-function notifDotKind(notificationType) {
-  if (['missed', 'check_deadline_soon', 'low_result_alert'].includes(notificationType)) return 'warn';
-  if (['submitted', 'reviewing', 'homework_assigned', 'reviewed', 'revision_requested', 'teacher_comment'].includes(notificationType)) return 'hw';
-  return 'msg';
-}
 
-const MONTH_NAMES = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
-const DAY_NAMES   = ['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'];
-
-function buildCalendarWeeks(year, month) {
-  const firstDay = new Date(year, month, 1).getDay(); // 0=Sun
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  // convert Sunday=0 → Mon-based offset
-  const offset = (firstDay + 6) % 7;
-  const cells = Array(offset).fill(null);
-  for (let d = 1; d <= daysInMonth; d++) cells.push(d);
-  while (cells.length % 7 !== 0) cells.push(null);
-  const weeks = [];
-  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
-  return weeks;
-}
-
-function initials(name) {
-  return name.split(' ').map(w => w[0]).join('').slice(0, 2);
-}
-
-const SUBJECT_COLOR = {
-  'Математика':  'math',
-  'Алгебра':     'math',
-  'Геометрия':   'math',
-  'Информатика': 'cs',
-  'Физика':      'physics',
-};
-
-const LEVEL_COLOR = {
-  'ОГЭ': 'oge',
-  'ЕГЭ': 'ege',
-};
-
-const LEVEL_FILTERS = [
-  { id: 'all', label: 'Все' },
-  { id: 'ОГЭ', label: 'ОГЭ' },
-  { id: 'ЕГЭ', label: 'ЕГЭ' },
-];
 
 
 export default function Dashboard() {
   const [page, setPage] = useState('dashboard');
-  const [variantPlayAssignmentId, setVariantPlayAssignmentId] = useState(null);
   const [profileBackPage, setProfileBackPage] = useState('students');
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const u = new URL(window.location.href);
-    const v = u.searchParams.get('variant_play');
-    if (!v) return;
-    const n = parseInt(String(v), 10);
-    if (Number.isFinite(n) && n > 0) {
-      setPage('homework');
-      setVariantPlayAssignmentId(n);
-    }
-    u.searchParams.delete('variant_play');
-    const qs = u.searchParams.toString();
-    window.history.replaceState({}, '', `${u.pathname}${qs ? `?${qs}` : ''}${u.hash}`);
-  }, []);
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [selectedGroup, setSelectedGroup] = useState(null);
-  const [levelFilter, setLevelFilter] = useState('all');
-  const [subjectFilter, setSubjectFilter] = useState('Все');
   const [search, setSearch] = useState('');
-  const [notifIdx, setNotifIdx] = useState(0);
-  const [notifDir, setNotifDir] = useState('next');
   const [students, setStudents] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [user, setUser] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
-  const [lessonModalOpen, setLessonModalOpen] = useState(false);
-  const [lessonTarget, setLessonTarget] = useState('student');
   const [groups, setGroups] = useState([]);
-  const [call, setCall] = useState(null);
-  // Входящий звонок от учителя { teacher, studentUrl, lessonType }
-  const [incomingLesson, setIncomingLesson] = useState(null);
-  const notifyWsRef = useRef(null);
-  const audioCtxRef = useRef(null);
-  const incomingRingTimerRef = useRef(null);
   const today = new Date();
-  const [calYear, setCalYear] = useState(today.getFullYear());
-  const [calMonth, setCalMonth] = useState(today.getMonth());
-  const notifTimer = useRef(null);
   const [dashHomeworks, setDashHomeworks] = useState([]);
   const [dashHwStats, setDashHwStats] = useState({ total: 0, needReview: 0, overdue: 0 });
   const hwPollRef = useRef(null);
+  const [studentMyAssignments, setStudentMyAssignments] = useState([]);
+  const studentHwPollRef = useRef(null);
   const [searchFocused, setSearchFocused] = useState(false);
-  const [sidebarNotifs, setSidebarNotifs] = useState([]);
-  const unreadNotifs = useMemo(() => sidebarNotifs.filter(n => !n.read), [sidebarNotifs]);
-  const unreadNotifsRef = useRef(unreadNotifs);
-  unreadNotifsRef.current = unreadNotifs;
+  const [reviewTab, setReviewTab] = useState('all');
+  const [alertDismissed, setAlertDismissed] = useState(false);
+  // eslint-disable-next-line no-unused-vars
+  const [analyticsExpanded, setAnalyticsExpanded] = useState(false);
+  const [reviewShowAll, setReviewShowAll] = useState(false);
+  const [createDone, setCreateDone] = useState(false);
+  const [weather, setWeather] = useState(null);
+  const [incomingLesson, setIncomingLesson] = useState(null);
+  const incomingLessonRef = useRef(null);
+  const notifyWsRef = useRef(null);
+  const audioCtxRef = useRef(null);
+  const incomingRingTimerRef = useRef(null);
+  /** Пока true — звонок в ЛК уже погашен (вкладка урока открылась или invite снят). */
+  const lessonRingDismissedRef = useRef(false);
+  /** Invite с этим JWT ученик уже принял: не поднимать звонок снова, пока сервер не сбросит pending. */
+  const lessonInviteSuppressedTokenRef = useRef('');
+  const lessonPollIntervalRef = useRef(null);
+  const lessonFailsafeRef = useRef(null);
+  const lessonRingTimeoutRef = useRef(null);
 
-  function goNotif(dir) {
-    const len = unreadNotifsRef.current.length;
-    if (!len) return;
-    setNotifDir(dir);
-    setNotifIdx(i => (dir === 'next' ? (i + 1) % len : (i - 1 + len) % len));
-  }
-
-  function resetNotifTimer() {
-    if (notifTimer.current) clearInterval(notifTimer.current);
-    notifTimer.current = setInterval(() => {
-      if (unreadNotifsRef.current.length > 1) goNotif('next');
-    }, 10000);
-  }
-
-  useEffect(() => {
-    if (unreadNotifs.length <= 1) {
-      if (notifTimer.current) clearInterval(notifTimer.current);
-      return;
+  const forceStopIncomingRing = useCallback(() => {
+    if (incomingRingTimerRef.current) {
+      clearInterval(incomingRingTimerRef.current);
+      incomingRingTimerRef.current = null;
     }
-    resetNotifTimer();
-    return () => clearInterval(notifTimer.current);
-  }, [unreadNotifs.length]);
+  }, []);
+
+  /** Снять звонок и модалку без POST (pending уже нет на сервере). */
+  const dismissIncomingLessonUiOnly = useCallback(() => {
+    lessonRingDismissedRef.current = true;
+    if (lessonFailsafeRef.current) {
+      clearTimeout(lessonFailsafeRef.current);
+      lessonFailsafeRef.current = null;
+    }
+    if (lessonPollIntervalRef.current) {
+      clearInterval(lessonPollIntervalRef.current);
+      lessonPollIntervalRef.current = null;
+    }
+    forceStopIncomingRing();
+    setIncomingLesson(null);
+  }, [forceStopIncomingRing]);
 
   useEffect(() => {
-    const len = unreadNotifs.length;
-    setNotifIdx(i => (len === 0 ? 0 : Math.min(Math.max(0, i), len - 1)));
-  }, [unreadNotifs.length]);
+    incomingLessonRef.current = incomingLesson;
+    if (incomingLesson) {
+      lessonRingDismissedRef.current = false;
+      if (lessonRingTimeoutRef.current) clearTimeout(lessonRingTimeoutRef.current);
+      lessonRingTimeoutRef.current = setTimeout(() => {
+        const t = String(incomingLesson.token || '');
+        if (t) {
+          lessonInviteSuppressedTokenRef.current = t;
+          // Автосброс по таймауту: сообщаем серверу
+          fetch(`${API}/api/lesson/student-reject/`, {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': getCookie('csrftoken'),
+            },
+            body: JSON.stringify({ token: t }),
+          }).catch(() => {});
+        }
+        dismissIncomingLessonUiOnly();
+      }, 60000);
+    } else {
+      if (lessonRingTimeoutRef.current) {
+        clearTimeout(lessonRingTimeoutRef.current);
+        lessonRingTimeoutRef.current = null;
+      }
+    }
+    return () => {
+      if (lessonRingTimeoutRef.current) {
+        clearTimeout(lessonRingTimeoutRef.current);
+        lessonRingTimeoutRef.current = null;
+      }
+    };
+  }, [incomingLesson, dismissIncomingLessonUiOnly]);
 
+  useEffect(() => {
+    return () => {
+      if (lessonPollIntervalRef.current) {
+        clearInterval(lessonPollIntervalRef.current);
+        lessonPollIntervalRef.current = null;
+      }
+      if (lessonFailsafeRef.current) {
+        clearTimeout(lessonFailsafeRef.current);
+        lessonFailsafeRef.current = null;
+      }
+    };
+  }, []);
+
+  // Notifications polling (used by NotificationBell badge count)
+  // eslint-disable-next-line no-unused-vars
   useEffect(() => {
     if (!authChecked || !user || user.role === 'student') return;
     const load = () => {
       fetch(`${API}/api/notifications/`, { credentials: 'include' })
         .then(r => (r.ok ? r.json() : []))
-        .then(data => setSidebarNotifs(Array.isArray(data) ? data : []))
-        .catch(() => {});
+        .catch(() => []);
     };
     load();
     const t = setInterval(load, 30_000);
@@ -219,12 +165,10 @@ export default function Dashboard() {
       setGroups([]);
       return;
     }
-    setLoading(true);
     fetch(`${API}/api/students/`, { credentials: 'include' })
       .then(r => (r.ok ? r.json() : []))
       .then(data => { setStudents(Array.isArray(data) ? data : []); })
-      .catch(() => setStudents([]))
-      .finally(() => setLoading(false));
+      .catch(() => setStudents([]));
     fetch(`${API}/api/groups/`, { credentials: 'include' })
       .then(r => (r.ok ? r.json() : []))
       .then(data => { setGroups(Array.isArray(data) ? data : []); })
@@ -279,6 +223,66 @@ export default function Dashboard() {
     if (page === 'dashboard') fetchDashHomeworks();
   }, [page, fetchDashHomeworks]);
 
+  const fetchStudentMyHomework = useCallback(async () => {
+    if (!authChecked || !user || user.role !== 'student') return;
+    try {
+      const r = await fetch(`${API}/api/homework/my/`, { credentials: 'include' });
+      if (!r.ok) return;
+      const data = await r.json();
+      setStudentMyAssignments(Array.isArray(data) ? data : []);
+    } catch {
+      setStudentMyAssignments([]);
+    }
+  }, [authChecked, user]);
+
+  useEffect(() => {
+    if (!authChecked || !user || user.role !== 'student') return undefined;
+    fetchStudentMyHomework();
+    studentHwPollRef.current = setInterval(fetchStudentMyHomework, 30_000);
+    return () => {
+      if (studentHwPollRef.current) clearInterval(studentHwPollRef.current);
+    };
+  }, [fetchStudentMyHomework]);
+
+  useEffect(() => {
+    if (page === 'dashboard' && user?.role === 'student') fetchStudentMyHomework();
+  }, [page, fetchStudentMyHomework, user]);
+
+  /** Сразу на генератор (join-url), без промежуточной страницы ЛК ?homework_room=. */
+  const goToStudentAssignment = useCallback((assignmentId) => {
+    if (!assignmentId) return;
+    void openHomeworkOnGenerator(assignmentId).catch(() => {
+      const u = new URL(cabinetSpaBasePathname(), cabinetSpaPlayerOrigin());
+      u.searchParams.set('variant_play', String(assignmentId));
+      u.searchParams.set('hw_local', '1');
+      u.searchParams.delete('homework_room');
+      window.location.assign(u.toString());
+    });
+  }, []);
+
+  // Погода по геолокации (Open-Meteo, бесплатно, без ключа)
+  useEffect(() => {
+    if (!authChecked || !user || user.role === 'student') return;
+    if (!navigator.geolocation) return;
+    // Не вызывать getCurrentPosition, если политика документа запрещает geolocation (иначе [Violation] в консоли).
+    try {
+      const pp = document.permissionsPolicy;
+      if (pp && typeof pp.allowsFeature === 'function' && !pp.allowsFeature('geolocation')) return;
+    } catch {
+      /* empty */
+    }
+    navigator.geolocation.getCurrentPosition(
+      ({ coords: { latitude, longitude } }) => {
+        fetch(`https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,weathercode&timezone=auto`)
+          .then(r => r.json())
+          .then(d => setWeather({ temp: Math.round(d.current.temperature_2m), code: d.current.weathercode }))
+          .catch(() => {});
+      },
+      () => {},
+      { timeout: 10000, maximumAge: 600_000 },
+    );
+  }, [authChecked, user]);
+
   useEffect(() => {
     fetch(`${API}/api/me/`, { credentials: 'include' })
       .then(r => {
@@ -300,25 +304,42 @@ export default function Dashboard() {
   // Личный WS-канал уведомлений — для входящих уроков (только ученик)
   useEffect(() => {
     if (!user || user.role !== 'student') return undefined;
-    // Строим абсолютный WS-URL: если API пустой (prod, same-origin) — берём текущий host
-    const wsBase = API
-      ? API.replace(/^https?/, (p) => (p === 'https' ? 'wss' : 'ws'))
-      : `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}`;
-    const ws = new WebSocket(`${wsBase}/ws/notify/`);
+    const ws = new WebSocket(notifyWebSocketUrl());
     notifyWsRef.current = ws;
     ws.onmessage = (e) => {
       try {
         const msg = JSON.parse(e.data);
+        if (msg.event === 'lesson_call_cancelled' || msg.event === 'student_joined_lesson') {
+          const t = String(msg?.token || '');
+          const cur = incomingLessonRef.current;
+          const curTok = String(cur?.token || '');
+          if (!t || !curTok || t === curTok) {
+            if (t || curTok) {
+              lessonInviteSuppressedTokenRef.current = t || curTok;
+            }
+            dismissIncomingLessonUiOnly();
+          }
+          return;
+        }
         if (msg.event === 'incoming_lesson') {
+          const t = String(msg?.token || '');
+          if (t && t === lessonInviteSuppressedTokenRef.current) return;
           setIncomingLesson(msg);
+          return;
+        }
+        if (msg.event === 'homework_assigned') {
+          fetchStudentMyHomework();
         }
       } catch {}
     };
     ws.onerror = () => {};
-    return () => ws.close();
-  }, [user]);
+    return () => {
+      ws.close();
+      if (notifyWsRef.current === ws) notifyWsRef.current = null;
+    };
+  }, [user, dismissIncomingLessonUiOnly, fetchStudentMyHomework]);
 
-  // Fallback: если WS-сообщение потерялось, подтягиваем pending invite из API.
+  // Fallback: подтягиваем pending из API; пока модалка открыта — следим, чтобы гасить ЛК, когда invite уже снят (ученик на уроке).
   useEffect(() => {
     if (!user || user.role !== 'student') return undefined;
     let stopped = false;
@@ -327,21 +348,35 @@ export default function Dashboard() {
         .then(r => (r.ok ? r.json() : null))
         .then(data => {
           if (stopped) return;
-          if (data?.invite?.event === 'incoming_lesson') {
-            setIncomingLesson(data.invite);
+          const invite = data?.invite;
+          if (!invite) {
+            // Больше не очищаем suppressed token, чтобы избежать гонки (race condition),
+            // когда старый poll возвращает старый инвайт сразу после его отмены.
+            // Новый урок всё равно будет иметь новый токен.
+          }
+          if (incomingLesson) {
+            if (!invite) {
+              dismissIncomingLessonUiOnly();
+            }
+            return;
+          }
+          if (invite?.event === 'incoming_lesson') {
+            const t = String(invite?.token || '');
+            if (t && t === lessonInviteSuppressedTokenRef.current) return;
+            setIncomingLesson(invite);
           }
         })
         .catch(() => {});
     };
     poll();
-    const timer = setInterval(poll, 3000);
+    const timer = setInterval(poll, incomingLesson ? 2000 : 4000);
     return () => {
       stopped = true;
       clearInterval(timer);
     };
-  }, [user]);
+  }, [user, incomingLesson, dismissIncomingLessonUiOnly]);
 
-  // Создаём AudioContext после первого пользовательского жеста (требование браузеров)
+  // Создаём AudioContext после первого пользовательского жеста
   useEffect(() => {
     const unlockAudio = () => {
       if (audioCtxRef.current) return;
@@ -355,15 +390,11 @@ export default function Dashboard() {
     };
   }, []);
 
-  // Звук входящего урока (повторяем, пока окно приглашения открыто)
+  // Звук входящего урока
   useEffect(() => {
     const stopRing = () => {
-      if (incomingRingTimerRef.current) {
-        clearInterval(incomingRingTimerRef.current);
-        incomingRingTimerRef.current = null;
-      }
+      forceStopIncomingRing();
     };
-
     const playRing = () => {
       try {
         if (!audioCtxRef.current) {
@@ -372,7 +403,6 @@ export default function Dashboard() {
         const ctx = audioCtxRef.current;
         if (ctx.state === 'suspended') ctx.resume();
         const now = ctx.currentTime;
-        // Двухтональный телефонный звонок: две пары тонов 440/480 Гц
         [[0, 440], [0, 480], [0.35, 440], [0.35, 480]].forEach(([offset, freq]) => {
           const osc = ctx.createOscillator();
           const gain = ctx.createGain();
@@ -389,1007 +419,745 @@ export default function Dashboard() {
         });
       } catch {}
     };
-
     if (!incomingLesson) {
       stopRing();
+      return stopRing;
+    }
+    playRing();
+    incomingRingTimerRef.current = setInterval(playRing, 3000);
+    return stopRing;
+  }, [incomingLesson, forceStopIncomingRing]);
+
+  const postStudentJoined = useCallback((token) => {
+    return fetch(`${API}/api/lesson/student-joined/`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCookie('csrftoken'),
+      },
+      body: JSON.stringify(token ? { token } : {}),
+    }).then(r => (r.ok ? r.json().catch(() => ({})) : Promise.reject(new Error('student-joined'))));
+  }, []);
+
+  const rejectIncomingLesson = useCallback(() => {
+    const t = incomingLesson?.token;
+    if (t) {
+      lessonInviteSuppressedTokenRef.current = String(t);
+      // Сообщаем серверу, что ученик отклонил/пропустил звонок, чтобы после обновления страницы он не зазвонил снова
+      fetch(`${API}/api/lesson/student-reject/`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie('csrftoken'),
+        },
+        body: JSON.stringify({ token: t }),
+      }).catch(() => {});
+    }
+    dismissIncomingLessonUiOnly();
+  }, [incomingLesson, dismissIncomingLessonUiOnly]);
+
+  const acceptIncomingLesson = useCallback(() => {
+    const currentInvite = incomingLesson;
+    const url = currentInvite?.student_url || currentInvite?.url;
+    if (!url) {
       return;
     }
 
-    playRing();
-    incomingRingTimerRef.current = setInterval(playRing, 3000);
+    let lessonToken = currentInvite?.token || '';
+    if (!lessonToken) {
+      try {
+        const u = new URL(url, window.location.origin);
+        lessonToken = u.searchParams.get('token') || '';
+      } catch {}
+    }
 
-    return stopRing;
-  }, [incomingLesson]);
+    // Синхронно в обработчике клика — иначе браузер блокирует всплывающее окно.
+    const win = window.open(url, '_blank', 'noopener,noreferrer');
+    if (!win) {
+      // Если браузер всё равно заблокировал попап, переходим в этой же вкладке
+      window.location.href = url;
+    }
 
-  const filtered = students.filter(s => {
-    const byLevel = levelFilter === 'all' || s.level_name === levelFilter;
-    const bySubject = subjectFilter === 'Все' || s.subject_name === subjectFilter;
-    const fullName = `${s.student_name || ''} ${s.student_surname || ''}`.trim();
-    const bySearch = fullName.toLowerCase().includes(search.toLowerCase());
-    return byLevel && bySubject && bySearch;
-  });
+    if (lessonToken) {
+      lessonInviteSuppressedTokenRef.current = lessonToken;
+    }
 
-  const availableSubjects = ['Все', ...Array.from(new Set(
-    (levelFilter === 'all' ? students : students.filter(s => s.level_name === levelFilter)).map(s => s.subject_name)
-  ))];
+    // Сразу гасим звонок и снимаем invite: ждать load у чужого домена ненадёжно.
+    dismissIncomingLessonUiOnly();
+    void postStudentJoined(lessonToken).catch(() => {
+      /* сеть: suppress остаётся, иначе poll снова поднимет тот же invite и звонок зациклится */
+    });
+  }, [incomingLesson, postStudentJoined, dismissIncomingLessonUiOnly]);
+
 
   const isStudent = user?.role === 'student';
   const isTeacher = !isStudent;
-  const navItems = isStudent
-    ? NAV_ITEMS.filter(item => item.id === 'homework')
-    : NAV_ITEMS;
 
-  useEffect(() => {
-    if (user?.role === 'student') setPage('homework');
-  }, [user]);
+  const studentHwActionCount = isStudent
+    ? studentMyAssignments.filter(
+        a => a.status !== 'cancelled' && ['sent', 'revision', 'overdue'].includes(a.status),
+      ).length
+    : 0;
+
+  const studentHwWord = (n) => {
+    if (n % 10 === 1 && n % 100 !== 11) return 'задание';
+    if ([2, 3, 4].includes(n % 10) && ![12, 13, 14].includes(n % 100)) return 'задания';
+    return 'заданий';
+  };
+
+  const ST_HW_STATUS_LABEL = {
+    sent: 'К выполнению',
+    submitted: 'На проверке',
+    reviewing: 'На проверке',
+    reviewed: 'Проверено',
+    revision: 'Доработка',
+    overdue: 'Просрочено',
+    cancelled: 'Отменено',
+  };
+
+  const studentDashHwSorted = isStudent
+    ? [...studentMyAssignments]
+        .filter(a => a.status !== 'cancelled')
+        .sort((a, b) => {
+          const pr = { revision: 0, overdue: 1, sent: 2, submitted: 3, reviewing: 3, reviewed: 4 };
+          const pa = pr[a.status] ?? 9;
+          const pb = pr[b.status] ?? 9;
+          if (pa !== pb) return pa - pb;
+          const da = a.deadline ? new Date(a.deadline).getTime() : Infinity;
+          const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
+          return da - db;
+        })
+    : [];
+
+  const studentHwRowKind = (a) => {
+    if (a.status === 'reviewed') return 'green';
+    if (['submitted', 'reviewing'].includes(a.status)) return 'amber';
+    return 'red';
+  };
+
+  const fmtStudentHwDeadline = (dl) => {
+    if (!dl) return '';
+    try {
+      return new Date(dl).toLocaleString('ru-RU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return '';
+    }
+  };
+
+  const studentHwCtaLabel = (a) => {
+    if (a.status === 'revision') return 'Доработать';
+    if (['submitted', 'reviewing'].includes(a.status)) return 'Открыть';
+    if (a.status === 'reviewed') return 'Результат';
+    return 'Выполнить';
+  };
+
+  const filteredStudents = students.filter(s => {
+    if (!search) return false;
+    const fullName = `${s.student_name || ''} ${s.student_surname || ''}`.trim();
+    return fullName.toLowerCase().includes(search.toLowerCase());
+  });
+
+  const activeStudents = students.filter(s => s.status === '1');
+
+  const isOverdueAssignment = (a) =>
+    a.status === 'overdue' ||
+    (a.hw_deadline && new Date(a.hw_deadline) < new Date() &&
+      !['reviewed', 'submitted', 'reviewing', 'cancelled'].includes(a.status));
+
+  const overdueHws  = dashHomeworks.filter(a => isOverdueAssignment(a));
+  const waitingHws  = dashHomeworks.filter(a => ['submitted', 'reviewing'].includes(a.status));
+  const reviewTabItems = reviewTab === 'overdue' ? overdueHws : reviewTab === 'waiting' ? waitingHws : dashHomeworks;
+
+  // Helpers для главной страницы
+  const greeting = (() => {
+    const h = new Date().getHours();
+    if (h < 6)  return 'Доброй ночи';
+    if (h < 12) return 'Доброе утро';
+    if (h < 17) return 'Добрый день';
+    return 'Добрый вечер';
+  })();
+  const weatherEmoji = (code) => {
+    if (code == null) return '🌤';
+    if (code === 0)    return '☀️';
+    if (code <= 3)     return '⛅';
+    if (code <= 48)    return '🌫️';
+    if (code <= 67)    return '🌧️';
+    if (code <= 77)    return '❄️';
+    if (code <= 82)    return '🌦️';
+    return '⛈️';
+  };
+  const weatherLabel = (code) => {
+    if (code == null) return '–';
+    if (code === 0)   return 'Ясно';
+    if (code <= 3)    return 'Облачно';
+    if (code <= 48)   return 'Туман';
+    if (code <= 57)   return 'Изморось';
+    if (code <= 67)   return 'Дождь';
+    if (code <= 77)   return 'Снег';
+    if (code <= 82)   return 'Ливень';
+    return 'Гроза';
+  };
+  const declWork = (n) => {
+    if (n % 10 === 1 && n % 100 !== 11) return 'работа';
+    if ([2,3,4].includes(n % 10) && ![12,13,14].includes(n % 100)) return 'работы';
+    return 'работ';
+  };
+  // Сортировка событий ДЗ: красные → янтарные → зелёные
+  const hwEvents = (() => {
+    const now = new Date();
+    return dashHomeworks.map(a => {
+      const deadline = a.hw_deadline ? new Date(a.hw_deadline) : null;
+      const deadlinePassed = deadline && deadline < now;
+      const submitted = ['submitted', 'reviewing'].includes(a.status);
+      const kind = submitted ? (deadlinePassed ? 'amber' : 'green') : 'red';
+      return { ...a, kind, deadlinePassed };
+    }).sort((a, b) => ({ red: 0, amber: 1, green: 2 }[a.kind] - { red: 0, amber: 1, green: 2 }[b.kind]));
+  })();
+
+  const PAGE_TITLES = {
+    dashboard: 'Дашборд', students: 'Ученики', homework: 'Задания',
+    schedule: 'Расписание', analytics: 'Аналитика', // generator: 'AI-Генератор',
+    variants: 'Варианты',
+    'student-profile': 'Профиль ученика', 'group-detail': 'Группа',
+  };
+
+  const todayStr = (() => {
+    const d = today;
+    const days = ['воскресенье','понедельник','вторник','среда','четверг','пятница','суббота'];
+    const months = ['января','февраля','марта','апреля','мая','июня','июля','августа','сентября','октября','ноября','декабря'];
+    return `${(days[d.getDay()][0].toUpperCase() + days[d.getDay()].slice(1))}, ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+  })();
+
+  const scheduleGroups = groups.slice(0, 3).map((g, i) => {
+    const hrs = [9, 14, 17]; const mins = [0, 0, 30];
+    const slot = new Date(today); slot.setHours(hrs[i], mins[i], 0, 0);
+    const diffMs = slot - today; const diffMin = Math.round(diffMs / 60000);
+    let status, statusLabel;
+    if (diffMs < -3600000)      { status = 'past';    statusLabel = 'Завершён'; }
+    else if (diffMs < 0)        { status = 'current'; statusLabel = 'Сейчас'; }
+    else if (diffMin < 60)      { status = 'soon';    statusLabel = `Через ${diffMin} мин`; }
+    else                        { status = 'future';  statusLabel = `Через ${Math.round(diffMin / 60)}ч`; }
+    const cnt = students.filter(s => s.group_name === g.group_name).length;
+    return { ...g, time: `${String(hrs[i]).padStart(2,'0')}:${String(mins[i]).padStart(2,'0')}`, status, statusLabel, studentCount: cnt };
+  });
+
+  const nextLesson = scheduleGroups.find(g => g.status === 'soon' || g.status === 'future');
 
   if (!authChecked) {
     return (
-      <div style={{
-        minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: '#F0F2FA', flexDirection: 'column', gap: 16,
-      }}>
-        <div style={{
-          width: 44, height: 44, borderRadius: '50%',
-          border: '3px solid #E5E7EB', borderTopColor: '#4F6EF7',
-          animation: 'spin 0.8s linear infinite',
-        }} />
-        <p style={{ color: '#9CA3AF', fontFamily: 'Montserrat, sans-serif', fontSize: 14, margin: 0 }}>
-          Проверка авторизации…
-        </p>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0f2fb', flexDirection: 'column', gap: 16 }}>
+        <div style={{ width: 44, height: 44, borderRadius: '50%', border: '3px solid #E5E7EB', borderTopColor: '#4F6EF7', animation: 'spin 0.8s linear infinite' }} />
+        <p style={{ color: '#9CA3AF', fontFamily: 'Montserrat, sans-serif', fontSize: 14, margin: 0 }}>Проверка авторизации…</p>
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
     );
   }
 
-  if (loading) return (
-    <div className="page-bg" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
-      <span style={{ color: 'var(--text-3)', fontWeight: 600 }}>Загрузка…</span>
-    </div>
-  );
-
   return (
-    <div className={`page-bg${isStudent ? " student-theme" : ""}`}>
-      <div className="dashboard-card">
+    <div className="app-shell">
 
         {/* ── MOBILE TOPBAR ── */}
         <header className="mobile-topbar">
           <div className="mobile-logo">
-            <div className="logo-icon">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
+          <div className="brand-icon-sm">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
               </svg>
             </div>
-            <span className="mobile-logo-text">Кабинет</span>
+          <span className="mobile-logo-text">ГенУрок</span>
           </div>
-          <div className="mobile-user">
-            <NotificationBell onGoToAssignment={(assignmentId) => { setPage('homework'); }} />
-            <div className="user-avatar" style={{ width: 34, height: 34, fontSize: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <NotificationBell onGoToAssignment={goToStudentAssignment} />
+          <div className="mobile-avatar">
               {user ? (user.name?.[0] || '') + (user.surname?.[0] || '') : '??'}
             </div>
           </div>
         </header>
 
         {/* ── LEFT SIDEBAR ── */}
-        <aside className="sidebar">
-          <div className="sidebar-logo">
-            <div className="logo-icon">
+      <aside className="app-sidebar">
+        <div className="sidebar-brand">
+          <div className="brand-icon">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" />
+              <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
               </svg>
             </div>
-            <span className="logo-text">Кабинет</span>
+          <div>
+            <div className="brand-name">ГенУрок</div>
+            <div className="brand-sub">Личный кабинет</div>
+          </div>
           </div>
 
           <nav className="sidebar-nav">
-            {navItems.map((item) => (
-              <a
-                key={item.label}
-                href="#"
-                className={`nav-item${page === item.id ? ' nav-item--active' : ''}`}
-                onClick={e => { e.preventDefault(); setSelectedGroup(null); setPage(item.id); }}
+          {isTeacher ? (<>
+            {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
+            <a href="#"
+              className={`nav-item nav-item--main${page === 'dashboard' ? ' nav-item--active' : ''}`}
+              onClick={e => { e.preventDefault(); setSelectedGroup(null); setPage('dashboard'); }}
+            >
+              <span className="nav-item-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+                  <rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
+                </svg>
+              </span>
+              <span className="nav-item-label">Главная</span>
+            </a>
+
+            <div className="nav-divider" />
+
+            <div className="nav-section-label">Учебный процесс</div>
+            {[
+              { id: 'students', label: 'Мои ученики', badge: activeStudents.length || null, icon: (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>) },
+              // { id: 'homework', label: 'Задания', badge: dashHwStats.needReview || null, icon: (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>) },
+            ].map(({ id, label, badge, icon }) => (
+              // eslint-disable-next-line jsx-a11y/anchor-is-valid
+              <a key={id} href="#"
+                className={`nav-item${page === id ? ' nav-item--active' : ''}`}
+                onClick={e => { e.preventDefault(); setSelectedGroup(null); setPage(id); }}
               >
-                <span className="nav-icon">{item.icon}</span>
-                <span className="nav-label">{item.label}</span>
-                {isTeacher && item.badge && <span className="nav-badge">{item.badge}</span>}
+                <span className="nav-item-icon">{icon}</span>
+                <span className="nav-item-label">{label}</span>
+                {badge != null && <span className="nav-badge">{badge}</span>}
               </a>
             ))}
-          </nav>
-        </aside>
 
-        {/* ── MAIN ── */}
-        <main className="main-content">
-          {page === 'student-profile' && selectedStudent && isTeacher && (
-            <StudentProfilePage
-              student={selectedStudent}
-              groups={groups}
-              backLabel={
-                profileBackPage === 'dashboard'
-                  ? 'Назад к дашборду'
-                  : profileBackPage === 'group-detail'
-                    ? 'Назад к группе'
-                    : 'Назад к ученикам'
-              }
-              onBack={() => { setPage(profileBackPage); setSelectedStudent(null); }}
-              onStudentUpdated={(updated) => {
-                setSelectedStudent(prev => (prev ? { ...prev, ...updated } : prev));
-                setStudents(prev => prev.map(st => (st.id === updated.id ? { ...st, ...updated } : st)));
-              }}
-            />
-          )}
-          {page === 'group-detail' && selectedGroup && isTeacher && (
-            <GroupDetailPage
-              group={selectedGroup}
-              onBack={() => { setPage('dashboard'); setSelectedGroup(null); }}
-              onOpenProfile={s => {
-                setProfileBackPage('group-detail');
-                setSelectedStudent(s);
-                setPage('student-profile');
-              }}
-            />
-          )}
-          {page === 'students' && isTeacher && (
-            <StudentsPage
-              onOpenProfile={s => {
-                setProfileBackPage('students');
-                setSelectedStudent(s);
-                setPage('student-profile');
-              }}
-            />
-          )}
-          {page === 'homework' && (
-            <HomeworkPage
-              isStudent={isStudent}
-              variantPlayAssignmentId={variantPlayAssignmentId}
-              onConsumedVariantPlay={() => setVariantPlayAssignmentId(null)}
-            />
-          )}
-          {(page === 'dashboard' || page === 'generator') && isTeacher && <>
-
-          {/* Search at top */}
-          <div className="topbar">
-            <div className="search-box" style={{ position: 'relative' }}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-              <input
-                className="search-input"
-                type="text"
-                placeholder="Поиск ученика по имени…"
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                onFocus={() => setSearchFocused(true)}
-                onBlur={() => setTimeout(() => setSearchFocused(false), 180)}
-              />
-              {search && (
-                <button className="search-clear" onClick={() => setSearch('')}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
-              )}
-
-              {/* Дропдаун результатов */}
-              {searchFocused && search.trim().length > 0 && (() => {
-                const hits = students.filter(s =>
-                  `${s.student_name || ''} ${s.student_surname || ''}`.toLowerCase().includes(search.toLowerCase())
-                ).slice(0, 8);
-                return (
-                  <div style={{
-                    position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0,
-                    background: '#fff', borderRadius: 12,
-                    border: '1.5px solid var(--border)',
-                    boxShadow: '0 8px 24px rgba(102,126,234,.15)',
-                    zIndex: 200, overflow: 'hidden',
-                  }}>
-                    {hits.length === 0 ? (
-                      <div style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text-3)' }}>Ученики не найдены</div>
-                    ) : hits.map(s => {
-                      const name = `${s.student_name || ''} ${s.student_surname || ''}`.trim();
-                      const ini  = ((s.student_name?.[0] || '') + (s.student_surname?.[0] || '')).toUpperCase();
-                      return (
-                        <div
-                          key={s.id}
-                          onMouseDown={() => {
-                            setSearch('');
-                            setProfileBackPage('dashboard');
-                            setSelectedStudent(s);
-                            setPage('student-profile');
-                          }}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: 10,
-                            padding: '9px 14px', cursor: 'pointer',
-                            borderBottom: '1px solid var(--border)',
-                            transition: 'background .12s',
-                          }}
-                          onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg)'; }}
-                          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-                        >
-                          <div style={{
-                            width: 30, height: 30, borderRadius: '50%', flexShrink: 0,
-                            background: 'linear-gradient(135deg,#667eea,#586fd7)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            color: '#fff', fontWeight: 700, fontSize: 11,
-                          }}>{ini}</div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)' }}>{name}</div>
-                            <div style={{ fontSize: 11, color: 'var(--text-3)' }}>{s.subject_name} · {s.grade} класс</div>
-                          </div>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="9 18 15 12 9 6"/>
-                          </svg>
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })()}
-            </div>
-
-          </div>
-
-          {/* Banner */}
-          <div className="welcome-banner">
-            <div className="welcome-text">
-              <p className="welcome-greeting">Добро пожаловать,</p>
-              <h1 className="welcome-name">{user ? `${user.name} ${user.surname}` : '...'}</h1>
-              <p className="welcome-role">Преподаю: {user ? (user.subjects?.map(s => s.toLowerCase()).join(', ') || '—') : '...'}</p>
-              {isTeacher && (call ? (
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {/* Индикатор + переход на платформу */}
-                  <button
-                    className="welcome-link welcome-link--active"
-                    onClick={() => call.tab && !call.tab.closed
-                      ? call.tab.focus()
-                      : window.open(call.url || GENUROK_URL, '_blank', 'noopener,noreferrer')
-                    }
-                  >
-                    <span style={{
-                      width: 7, height: 7, borderRadius: '50%',
-                      background: '#4ADE80', boxShadow: '0 0 6px #4ADE80',
-                      flexShrink: 0, animation: 'pulse 1.5s ease-in-out infinite',
-                    }} />
-                    Урок идёт · {call.targetName}
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
-                      <polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>
+            <div className="nav-section-label" style={{ marginTop: 8 }}>Инструменты</div>
+            {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
+            <a href="#"
+              className={`nav-item${page === 'variants' ? ' nav-item--active' : ''}`}
+              onClick={e => { e.preventDefault(); setPage('variants'); }}
+            >
+              <span className="nav-item-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="2" y="3" width="20" height="4" rx="1"/><rect x="2" y="10" width="20" height="4" rx="1"/><rect x="2" y="17" width="20" height="4" rx="1"/>
                     </svg>
-                  </button>
-                  {/* Ссылка для ученика */}
-                  {call.studentUrl && (
-                    <button
-                      className="welcome-link"
-                      style={{ background: 'rgba(99,179,237,.12)', border: '1.5px solid rgba(99,179,237,.3)', color: '#93C5FD' }}
-                      onClick={() => {
-                        navigator.clipboard.writeText(call.studentUrl);
-                      }}
-                      title={call.studentUrl}
-                    >
-                      📋 Ссылка ученику
-                    </button>
-                  )}
-                  {/* Завершить урок */}
-                  <button
-                    className="welcome-link"
-                    style={{ background: 'rgba(239,68,68,.15)', border: '1.5px solid rgba(239,68,68,.3)', color: '#fca5a5' }}
-                    onClick={() => { call.tab?.close(); setCall(null); }}
-                  >
-                    Завершить урок
-                  </button>
-                </div>
-              ) : (
-                <button type="button" className="welcome-link" onClick={() => setLessonModalOpen(true)}>
-                  Начать урок
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="5" y1="12" x2="19" y2="12" /><polyline points="12 5 19 12 12 19" />
+              </span>
+              <span className="nav-item-label">Варианты</span>
+            </a>
+            {/* AI-Генератор — скрыт */}
+            {/* {[
+              { id: 'generator', label: 'AI-Генератор', isNew: true, icon: (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>) },
+            ].map(({ id, label, isNew, icon }) => (
+              // eslint-disable-next-line jsx-a11y/anchor-is-valid
+              <a key={id} href="#"
+                className={`nav-item${page === id ? ' nav-item--active' : ''}`}
+                onClick={e => { e.preventDefault(); if (id === 'generator') window.open(GENUROK_URL, '_blank', 'noopener,noreferrer'); else setPage(id); }}
+              >
+                <span className="nav-item-icon">{icon}</span>
+                <span className="nav-item-label">{label}</span>
+                {isNew && <span className="nav-badge-new">NEW</span>}
+              </a>
+            ))} */}
+          </>) : (
+            <>
+              <div className="nav-section-label">Обучение</div>
+              {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
+              <a href="#"
+                className={`nav-item nav-item--main${page === 'dashboard' ? ' nav-item--active' : ''}`}
+                onClick={e => { e.preventDefault(); setSelectedGroup(null); setPage('dashboard'); }}
+              >
+                <span className="nav-item-icon">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+                    <rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
                   </svg>
-                </button>
-              ))}
-            </div>
-            <div className="photo-placeholder-wrap">
-              <div className="photo-placeholder">
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.7)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
-                  <circle cx="12" cy="13" r="4" />
-                </svg>
-                <span className="photo-placeholder-text">Добавить фото</span>
-              </div>
-            </div>
-          </div>
+                </span>
+                <span className="nav-item-label">Дашборд</span>
+              </a>
+              {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
+              <a href="#" className={`nav-item${page === 'homework' ? ' nav-item--active' : ''}`} onClick={e => { e.preventDefault(); setPage('homework'); }}>
+                <span className="nav-item-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>
+                <span className="nav-item-label">Мои задания</span>
+                {studentHwActionCount > 0 ? <span className="nav-badge">{studentHwActionCount}</span> : null}
+              </a>
+            </>
+          )}
+        </nav>
 
-          {/* Homework widget */}
-          <div className="section-block">
-            <div className="section-header">
-              <div className="section-title-wrap" style={{ flexWrap: 'wrap', gap: 10 }}>
-                <h3 className="section-title">Домашние задания</h3>
-                <div className="dash-hw-counters" aria-label="Сводка по домашним заданиям">
-                  <span className="dash-hw-counter dash-hw-counter--total">Всего <strong>{dashHwStats.total}</strong></span>
-                  <span className="dash-hw-counter dash-hw-counter--review">На проверке <strong>{dashHwStats.needReview}</strong></span>
-                  <span className="dash-hw-counter dash-hw-counter--overdue">Просрочено <strong>{dashHwStats.overdue}</strong></span>
+        <div className="sidebar-footer">
+          <a href={`${API}/logout/`} className="sidebar-footer-link">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Выйти из профиля
+          </a>
+          <div className="sidebar-user-row">
+            <div className="sidebar-user-avatar">{user ? (user.name?.[0] || '') + (user.surname?.[0] || '') : '??'}</div>
+            <div className="sidebar-user-info">
+              <div className="sidebar-user-name">{user ? `${user.name} ${user.surname}` : '…'}</div>
+              <div className="sidebar-user-role">{isStudent ? 'Ученик' : (user?.subjects?.join(', ') || 'Учитель')}</div>
                 </div>
               </div>
-              <a href="#" className="section-link" onClick={e => { e.preventDefault(); setPage('homework'); }}>Все задания →</a>
             </div>
+      </aside>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 0, background: '#fff', borderRadius: 14, border: '1.5px solid var(--border)', overflow: 'hidden', boxShadow: 'var(--shadow-sm)' }}>
-              {/* Шапка */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: 0, padding: '10px 18px', borderBottom: '1.5px solid var(--border)', background: 'var(--bg)' }}>
-                {['УЧЕНИК', 'ЗАДАНИЕ', 'СТАТУС', 'ДЕЙСТВИЕ'].map((h, i) => (
-                  <span key={i} className="dash-hw-table-th">{h}</span>
-                ))}
-              </div>
+      {/* ── MAIN AREA ── */}
+      <div className="app-main">
 
-              {dashHomeworks.length === 0 ? (
-                <div style={{ padding: '32px 18px', textAlign: 'center', color: 'var(--text-3)', fontSize: 13 }}>
-                  Нет активных домашних заданий
+        {/* TOP HEADER */}
+        <header className="app-topbar">
+          <div className="topbar-left">
+            <h1 className="topbar-title">{PAGE_TITLES[page] || 'Дашборд'}</h1>
+            {page === 'dashboard' && <span className="topbar-date">{todayStr}</span>}
                 </div>
-              ) : dashHomeworks.map((a, i) => {
-                const isOverdue = a.status === 'overdue' || (a.hw_deadline && new Date(a.hw_deadline) < new Date() && !['reviewed','submitted','reviewing'].includes(a.status));
-                const needsReview = ['submitted', 'reviewing'].includes(a.status);
-                const statusCfg = {
-                  sent:      { label: 'В срок',        dot: '#22C55E', bg: '#F0FDF4', color: '#15803D' },
-                  submitted: { label: 'Сдано',          dot: '#667eea', bg: '#EEF0FE', color: '#4338CA' },
-                  reviewing: { label: 'На проверке',    dot: '#F59E0B', bg: '#FEF3C7', color: '#B45309' },
-                  reviewed:  { label: 'Проверено',      dot: '#22C55E', bg: '#F0FDF4', color: '#15803D' },
-                  revision:  { label: 'На доработке',   dot: '#F59E0B', bg: '#FEF3C7', color: '#B45309' },
-                  overdue:   { label: 'Просрочено',     dot: '#EF4444', bg: '#FEF2F2', color: '#B91C1C' },
-                }[isOverdue ? 'overdue' : a.status] || { label: a.status, dot: '#9ca3af', bg: '#F1F5F9', color: '#64748b' };
-
-                const name = `${a.student_name || ''} ${a.student_surname || ''}`.trim();
-                const ini  = ((a.student_name?.[0] || '') + (a.student_surname?.[0] || '')).toUpperCase();
-
+          <div className="topbar-right">
+            <div className="search-wrap">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="search-icon"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              <input className="topbar-search" type="text" placeholder="Поиск учеников, заданий..." value={search} onChange={e => setSearch(e.target.value)} onFocus={() => setSearchFocused(true)} onBlur={() => setTimeout(() => setSearchFocused(false), 180)} />
+              {search && <button className="search-clear-btn" onClick={() => setSearch('')}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>}
+              {searchFocused && search && filteredStudents.length > 0 && (
+                <div className="search-dropdown">
+                  {filteredStudents.slice(0, 6).map(s => {
+                    const name = `${s.student_name || ''} ${s.student_surname || ''}`.trim();
+                    const ini = ((s.student_name?.[0] || '') + (s.student_surname?.[0] || '')).toUpperCase();
                 return (
-                  <div
-                    key={a.id}
-                    style={{
-                      display: 'grid', gridTemplateColumns: '1fr 1fr auto auto',
-                      alignItems: 'center', gap: 0,
-                      padding: '13px 18px',
-                      borderBottom: i < dashHomeworks.length - 1 ? '1px solid var(--border)' : 'none',
-                      transition: 'background .15s', cursor: 'pointer',
-                    }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-                    onClick={() => setPage('homework')}
-                  >
-                    {/* Ученик */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingRight: 12 }}>
-                      <div style={{
-                        width: 34, height: 34, borderRadius: '50%', flexShrink: 0,
-                        background: 'linear-gradient(135deg,#667eea,#586fd7)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        color: '#fff', fontWeight: 700, fontSize: 12,
-                      }}>{ini}</div>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{name}</span>
-                    </div>
-
-                    {/* Задание */}
-                    <div style={{ fontSize: 13, color: 'var(--text-2)', paddingRight: 16, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {a.hw_title}
-                    </div>
-
-                    {/* Статус */}
-                    <div style={{ paddingRight: 16 }}>
-                      <span style={{
-                        display: 'inline-flex', alignItems: 'center', gap: 5,
-                        borderRadius: 20, padding: '4px 10px',
-                        background: statusCfg.bg, color: statusCfg.color,
-                        fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap',
-                      }}>
-                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: statusCfg.dot, flexShrink: 0 }} />
-                        {statusCfg.label}
-                      </span>
-                    </div>
-
-                    {/* Кнопка */}
-                    <div>
-                      {needsReview && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setPage('homework'); }}
-                          style={{
-                            padding: '6px 16px', borderRadius: 8, border: 'none',
-                            background: '#3e5bd4', color: '#fff',
-                            fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                            fontFamily: 'Montserrat, sans-serif', whiteSpace: 'nowrap',
-                            transition: 'background .15s',
-                          }}
-                          onMouseEnter={e => { e.currentTarget.style.background = '#2f4bbf'; }}
-                          onMouseLeave={e => { e.currentTarget.style.background = '#3e5bd4'; }}
-                        >
-                          Проверить
-                        </button>
-                      )}
-                    </div>
+                      <div key={s.id} className="search-dropdown-item" onMouseDown={() => { setSearch(''); setProfileBackPage('dashboard'); setSelectedStudent(s); setPage('student-profile'); }}>
+                        <div className="search-dropdown-avatar">{ini}</div>
+                        <div><div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)' }}>{name}</div><div style={{ fontSize: 11, color: 'var(--text-3)' }}>{s.subject_name} · {s.grade} класс</div></div>
                   </div>
                 );
               })}
             </div>
-
-            {/* Кнопка под таблицей ДЗ */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
-              <button
-                className="btn-page-primary"
-                style={{ minWidth: 180 }}
-                onClick={() => setPage('homework')}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                  <polyline points="14 2 14 8 20 8"/>
-                  <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
-                </svg>
-                Создать задание
-              </button>
-            </div>
-          </div>
-
-          {/* Students Table */}
-          <div className="section-block">
-            <div className="section-header">
-              <h3 className="section-title">Мои ученики</h3>
-            </div>
-
-            {/* Level filters + ссылка «Все ученики» в одну строку */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-              <div className="filter-bar" style={{ margin: 0, flex: 1, flexWrap: 'wrap' }}>
-                {LEVEL_FILTERS.map(f => (
-                  <button
-                    key={f.id}
-                    className={`filter-pill${levelFilter === f.id ? ' filter-pill--active' : ''}`}
-                    onClick={() => { setLevelFilter(f.id); setSubjectFilter('Все'); }}
-                  >
-                    {f.label}
-                  </button>
-                ))}
-              </div>
-              <button
-                className="section-link"
-                style={{ background: 'none', border: 'none', cursor: 'pointer', whiteSpace: 'nowrap', padding: '4px 0' }}
-                onClick={() => setPage('students')}
-              >
-                Все ученики →
-              </button>
-            </div>
-
-            {/* Subject filters */}
-            <div className="filter-bar filter-bar--sub">
-              {availableSubjects.map(subj => (
-                <button
-                  key={subj}
-                  className={`filter-chip${subjectFilter === subj ? ' filter-chip--active' : ''}`}
-                  onClick={() => setSubjectFilter(subj)}
-                >
-                  {subj !== 'Все' && (
-                    <span className={`chip-dot chip-dot--${SUBJECT_COLOR[subj] || 'default'}`} />
-                  )}
-                  {subj}
-                </button>
-              ))}
-            </div>
-
-            <div className="table-wrap">
-              <table className="students-table">
-                <thead>
-                  <tr>
-                    <th className="students-table-col--student">УЧЕНИК</th>
-                    <th className="students-table-col--subject">ПРЕДМЕТ</th>
-                    <th className="students-table-col--level">УРОВЕНЬ</th>
-                    <th className="students-table-col--lesson">ТИП ЗАНЯТИЙ</th>
-                    <th className="students-table-col--status">СТАТУС</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="table-empty">Ученики не найдены</td>
-                    </tr>
-                  ) : filtered.map((s) => (
-                    <tr
-                      key={s.id}
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => {
-                        setProfileBackPage('dashboard');
-                        setSelectedStudent(s);
-                        setPage('student-profile');
-                      }}
-                      onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent-lt)'; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = ''; }}
-                    >
-                      <td className="students-table-col--student">
-                        <div className="student-cell">
-                          <div className="student-avatar-sm">{initials(`${s.student_name || '?'} ${s.student_surname || ''}`)}</div>
-                          <div className="student-info">
-                            <span className="student-name">{s.student_name} {s.student_surname}</span>
-                            <span className="student-meta-sm">{s.grade} класс</span>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="students-table-col--subject">
-                        <span className={`subject-badge subject-badge--${SUBJECT_COLOR[s.subject_name] || 'default'}`}>
-                          {s.subject_name}
-                        </span>
-                      </td>
-                      <td className="students-table-col--level">
-                        <span className={`level-badge level-badge--${LEVEL_COLOR[s.level_name] || 'default'}`}>
-                          {s.level_name}
-                        </span>
-                      </td>
-                      <td className="students-table-col--lesson">
-                        {s.lesson_type === 'group' ? (
-                          <div className="lesson-type-cell lesson-type-cell--group" title={s.group_name || ''}>
-                            <span className="lesson-type-badge lesson-type-badge--group">Группа</span>
-                            <span className="lesson-type-group-name">{s.group_name || '—'}</span>
-                          </div>
-                        ) : (
-                          <div className="lesson-type-cell lesson-type-cell--ind">
-                            <span className="lesson-type-badge lesson-type-badge--individual">Инд.</span>
-                          </div>
-                        )}
-                      </td>
-                      <td className="students-table-col--status">
-                        <span className={`status-badge status-badge--${s.status === '1' ? 'active' : s.status === '3' ? 'danger' : 'warning'}`}>
-                          {{'1':'Активный','2':'На паузе','3':'Завершил','4':'Пробный'}[s.status] || s.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Кнопка под таблицей учеников */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
-              <button
-                className="btn-page-primary"
-                style={{ minWidth: 180 }}
-                onClick={() => setPage('students')}
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-                </svg>
-                Добавить ученика
-              </button>
-            </div>
-
-            {/* Мои группы */}
-            <div style={{ marginTop: 22, paddingTop: 20, borderTop: '1.5px solid var(--border)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 12 }}>
-                <h3 className="section-title" style={{ margin: 0 }}>Мои группы</h3>
-                <button
-                  type="button"
-                  className="section-link"
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '4px 0', whiteSpace: 'nowrap' }}
-                  onClick={() => setPage('students')}
-                >
-                  Управление группами →
-                </button>
-              </div>
-              {groups.length === 0 ? (
-                <p className="table-empty" style={{ margin: 0, borderRadius: 'var(--radius-md)', border: '1.5px solid var(--border)', background: 'var(--surface)' }}>
-                  Пока нет групп. Создайте группу на странице «Ученики».
-                </p>
-              ) : (
-                <div className="dash-groups-grid">
-                  {groups.map(g => (
-                    <div
-                      key={g.id}
-                      role="button"
-                      tabIndex={0}
-                      className="dash-group-card dash-group-card--clickable"
-                      onClick={() => { setSelectedGroup(g); setPage('group-detail'); }}
-                      onKeyDown={e => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          setSelectedGroup(g);
-                          setPage('group-detail');
-                        }
-                      }}
-                    >
-                      <div className="dash-group-card-title">{g.group_name}</div>
-                      <div className="dash-group-card-meta">
-                        <span className={`subject-badge subject-badge--${SUBJECT_COLOR[g.subject_name] || 'default'}`}>{g.subject_name}</span>
-                        <span className={`level-badge level-badge--${LEVEL_COLOR[g.level_name] || 'default'}`}>{g.level_name}</span>
-                      </div>
-                      <span className="dash-group-card-hint">Открыть →</span>
-                    </div>
-                  ))}
-                </div>
               )}
             </div>
-
+            <NotificationBell onGoToAssignment={goToStudentAssignment} />
+            {/* isTeacher && <button className="topbar-add-btn" onClick={() => setPage('homework')} title="Создать задание">+</button> */}
           </div>
-          </>}
-        </main>
+        </header>
 
-        {/* ── RIGHT SIDEBAR ── */}
-        <aside className="right-sidebar">
-          {/* User + actions */}
-          <div className="user-block">
-            <div className="user-actions">
-              <NotificationBell onGoToAssignment={() => setPage('homework')} />
-              <a href={`${API}/settings/`} className="icon-btn" title="Настройки">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                </svg>
-              </a>
-              <a href={`${API}/logout/`} className="icon-btn icon-btn--logout" title="Выйти">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
-                </svg>
-              </a>
-            </div>
-            
-            <div className="user-info">
-              <div className="user-details">
-                <span className="user-name">{user ? `${user.name} ${user.surname}` : '…'}</span>
-                <span className="user-email">{isStudent ? 'Ученик' : 'Учитель'} · {user?.email || '…'}</span>
-              </div>
-              <div className="user-avatar">
-                {user ? (user.name?.[0] || '') + (user.surname?.[0] || '') : '??'}
-              </div>
-            </div>
-          </div>
+        {/* PAGE BODY */}
+        <div className="app-body">
 
-          {isTeacher && (
-            <>
-              <div className="divider" />
+          {page === 'student-profile' && selectedStudent && isTeacher && (
+            <StudentProfilePage student={selectedStudent} groups={groups}
+              backLabel={profileBackPage === 'dashboard' ? 'Назад к дашборду' : profileBackPage === 'group-detail' ? 'Назад к группе' : 'Назад к ученикам'}
+              onBack={() => { setPage(profileBackPage); setSelectedStudent(null); }}
+              onStudentUpdated={(updated) => { setSelectedStudent(prev => prev ? { ...prev, ...updated } : prev); setStudents(prev => prev.map(st => st.id === updated.id ? { ...st, ...updated } : st)); }}
+            />
+          )}
+          {page === 'group-detail' && selectedGroup && isTeacher && (
+            <GroupDetailPage group={selectedGroup} onBack={() => { setPage('dashboard'); setSelectedGroup(null); }}
+              onOpenProfile={s => { setProfileBackPage('group-detail'); setSelectedStudent(s); setPage('student-profile'); }}
+            />
+          )}
+          {page === 'students' && isTeacher && (
+            <StudentsPage onOpenProfile={s => { setProfileBackPage('students'); setSelectedStudent(s); setPage('student-profile'); }} />
+          )}
+          {page === 'homework' && (
+            <HomeworkPage isStudent={isStudent} />
+          )}
+          {page === 'variants' && isTeacher && <VariantsPage />}
 
-              {/* Непрочитанные уведомления (API) */}
-              <div className="notif-section">
-                <div className="notif-header">
-                  <span className="notif-label">Уведомления</span>
-                  <div className="notif-nav">
-                    <button
-                      type="button"
-                      className="notif-arrow"
-                      onClick={() => { goNotif('prev'); resetNotifTimer(); }}
-                      disabled={unreadNotifs.length === 0}
-                    >
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="15 18 9 12 15 6" />
-                      </svg>
-                    </button>
-                    <span className="notif-counter">
-                      {unreadNotifs.length ? `${notifIdx + 1}/${unreadNotifs.length}` : '0'}
-                    </span>
-                    <button
-                      type="button"
-                      className="notif-arrow"
-                      onClick={() => { goNotif('next'); resetNotifTimer(); }}
-                      disabled={unreadNotifs.length === 0}
-                    >
-                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="9 18 15 12 9 6" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-                <div className="notif-slide-wrap">
-                  {unreadNotifs.length === 0 ? (
-                    <div className="notif-empty">Нет непрочитанных уведомлений</div>
-                  ) : (() => {
-                    const n = unreadNotifs[notifIdx];
-                    if (!n) return null;
-                    const dot = notifDotKind(n.notification_type);
-                    return (
-                      <div
-                        key={n.id}
-                        role="button"
-                        tabIndex={0}
-                        className={`notif-item notif-item--${notifDir}${n.assignment_id ? ' notif-item--clickable' : ''}`}
-                        onClick={() => {
-                          if (!n.read) {
-                            fetch(`${API}/api/notifications/${n.id}/read/`, {
-                              method: 'POST',
-                              credentials: 'include',
-                              headers: { 'X-CSRFToken': getCookie('csrftoken') },
-                            }).then(() => {
-                              setSidebarNotifs(prev => prev.map(x => (x.id === n.id ? { ...x, read: true } : x)));
-                            });
-                          }
-                          if (n.assignment_id) setPage('homework');
-                        }}
-                        onKeyDown={e => {
-                          if (e.key === 'Enter' || e.key === ' ') {
-                            e.preventDefault();
-                            e.currentTarget.click();
-                          }
-                        }}
-                      >
-                        <div className={`notif-dot-type notif-dot-type--${dot}`} />
-                        <div className="notif-body">
-                          <span className="notif-text">{n.text}</span>
-                          <span className="notif-time">{timeAgoShort(n.created_at)}</span>
+          {/* ── DASHBOARD TEACHER ── */}
+          {page === 'dashboard' && isTeacher && (
+            <div className="dash-new">
+
+              {/* ── БЛОК 1: HERO ── */}
+              <div className="hero-card">
+                <div className="hero-avatar-wrap">
+                  <div className="hero-avatar-lg">
+                    {user ? (user.name?.[0] || '') + (user.surname?.[0] || '') : '??'}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })()}
+                <div className="hero-content">
+                  <div className="hero-greeting">{greeting}, {user?.name}!</div>
+                  <div className="hero-meta">
+                    {user?.subjects?.join(', ') || 'Учитель'}
+                    {activeStudents.length > 0 && <> · <strong>{activeStudents.length}</strong> учеников</>}
+                    {groups.length > 0 && <> · <strong>{groups.length}</strong> групп</>}
+                          </div>
+                  <div className="hero-badges">
+                    {dashHwStats.needReview > 0 ? (
+                      <span className="hero-badge hero-badge--warn">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        {dashHwStats.needReview} {declWork(dashHwStats.needReview)} ждут проверки
+                      </span>
+                    ) : (
+                      <span className="hero-badge hero-badge--ok">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                        Все работы проверены
+                      </span>
+                    )}
+                    {dashHwStats.overdue > 0 && (
+                      <span className="hero-badge hero-badge--danger">
+                        {dashHwStats.overdue} просрочено
+                        </span>
+                    )}
+            </div>
                 </div>
+                <a href={`${API}/logout/`} className="hero-edit-btn">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                  Выйти из профиля
+                </a>
+            </div>
+
+              {/* ── БЛОК 2: ВИДЖЕТЫ ── */}
+              <div className="widgets-row">
+                {/* Погода */}
+                <div className="widget-card">
+                  <div className="widget-icon-wrap widget-icon-wrap--blue">
+                    <span style={{ fontSize: 26, lineHeight: 1 }}>{weatherEmoji(weather?.code)}</span>
+              </div>
+                  <div className="widget-body">
+                    <div className="widget-title">Погода сейчас</div>
+                    {weather ? (
+                      <>
+                        <div className="widget-value">{weather.temp}°C</div>
+                        <div className="widget-sub">{weatherLabel(weather.code)}</div>
+                      </>
+                    ) : (
+                      <div className="widget-value widget-value--muted">Определяется…</div>
+                    )}
+                      </div>
+                    </div>
+
+                {/* Ближайший урок */}
+                <div className="widget-card">
+                  <div className="widget-icon-wrap widget-icon-wrap--purple">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                </div>
+                  <div className="widget-body">
+                    <div className="widget-title">Ближайший урок</div>
+                    {nextLesson ? (
+                      <>
+                        <div className="widget-value">{nextLesson.group_name}</div>
+                        <div className="widget-sub">{nextLesson.time} · <span className={`widget-status widget-status--${nextLesson.status}`}>{nextLesson.statusLabel}</span></div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="widget-value widget-value--muted">–</div>
+                        <div className="widget-sub">Уроков не запланировано</div>
+                      </>
+              )}
+            </div>
+          </div>
+
+                {/* Сдача заданий */}
+                <div className="widget-card">
+                  <div className={`widget-icon-wrap ${dashHwStats.needReview > 0 ? 'widget-icon-wrap--amber' : 'widget-icon-wrap--green'}`}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            </div>
+                  <div className="widget-body">
+                    <div className="widget-title">Сдача заданий</div>
+                    <div className="widget-value">
+                      <span className={dashHwStats.needReview > 0 ? 'widget-num--warn' : 'widget-num--ok'}>{dashHwStats.needReview}</span>
+                      <span className="widget-denom"> / {dashHwStats.total}</span>
+              </div>
+                    <div className="widget-sub">{dashHwStats.needReview > 0 ? 'ждут проверки' : 'всё проверено'}</div>
+              </div>
+            </div>
+          </div>
+
+              {/* ── БЛОК 3: ОПОВЕЩЕНИЯ О ДЗ ── */}
+              <div className="section-card">
+                <div className="section-card-header">
+                  <div>
+                    <h2 className="section-card-title">Уведомления</h2>
+                    {/* <div className="section-card-sub">Сортировка: не сдано → с опозданием → вовремя</div> */}
+                  </div>
+                  <div className="hw-legend">
+                    <span className="hw-leg hw-leg--green">сдано вовремя</span>
+                    <span className="hw-leg hw-leg--amber">с опозданием</span>
+                    <span className="hw-leg hw-leg--red">не сдано</span>
+                </div>
+                        </div>
+
+                {hwEvents.length === 0 ? (
+                  <div className="review-empty-state">
+                    <div className="review-empty-icon">
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                      </div>
+                    <div className="review-empty-title">Нет активных событий</div>
+                    <div className="review-empty-sub">Новые оповещения появятся здесь автоматически</div>
+                </div>
+                ) : (
+                  <div className="hw-events-list">
+                    {(reviewShowAll ? hwEvents : hwEvents.slice(0, 6)).map((a, idx) => {
+                      const name = `${a.student_name || ''} ${a.student_surname || ''}`.trim();
+                      const ini  = ((a.student_name?.[0] || '') + (a.student_surname?.[0] || '')).toUpperCase();
+                      const deadline = a.hw_deadline ? new Date(a.hw_deadline) : null;
+                      const daysLeft = deadline ? Math.ceil((deadline - new Date()) / 86400000) : null;
+                      const submitted = ['submitted', 'reviewing'].includes(a.status);
+                      const kindLabel = a.kind === 'green' ? 'Сдано вовремя' : a.kind === 'amber' ? 'Сдано с опозданием' : 'Не сдано';
+                      return (
+                        <div key={a.id} className={`hw-event-row hw-event-row--${a.kind}`} style={{ animationDelay: `${idx * 40}ms` }}>
+                          <div className={`hw-event-stripe hw-event-stripe--${a.kind}`} />
+                          <div className="hw-event-avatar">{ini}</div>
+                          <div className="hw-event-info">
+                            <div className="hw-event-name">{name || '—'}</div>
+                            <div className="hw-event-subject">
+                              {a.hw_subject || 'Задание'}{a.hw_title ? ` · ${a.hw_title}` : ''}
+              </div>
+                          </div>
+                          <div className="hw-event-meta">
+                            <span className={`hw-event-badge hw-event-badge--${a.kind}`}>{kindLabel}</span>
+                            {daysLeft !== null && (
+                              <span className="hw-event-deadline">
+                                {daysLeft < 0 ? `${Math.abs(daysLeft)} дн. назад` : daysLeft === 0 ? 'Сегодня' : `через ${daysLeft} дн.`}
+                    </span>
+                            )}
+                  </div>
+                          {submitted && (
+                            <button
+                              type="button"
+                              className="hw-event-check-btn"
+                              onClick={() => {
+                                const url = buildHomeworkReviewPlayUrl(a.id);
+                                if (url) window.location.assign(url);
+                              }}
+                            >
+                              Проверить →
+                            </button>
+                          )}
+                  </div>
+                      );
+                    })}
+                </div>
+                )}
+
+                {hwEvents.length > 6 && (
+                  <div className="review-footer">
+                    <button className="review-more-btn" onClick={() => setReviewShowAll(v => !v)}>
+                      {reviewShowAll ? 'Свернуть' : `Показать ещё ${hwEvents.length - 6}`}
+                    </button>
+                        </div>
+                  )}
               </div>
 
-              <div className="divider" />
+                </div>
+          )}
 
-              {/* Calendar */}
-              <div className="calendar">
-                <div className="cal-header">
-                  <div className="cal-month-info">
-                    <span className="cal-month">{MONTH_NAMES[calMonth]} {calYear}</span>
-                    <span className="cal-date-line">
-                      {today.getDate()} · {DAY_NAMES[today.getDay()]}
-                    </span>
-                  </div>
-                  <div className="cal-nav">
-                    <button type="button" className="cal-nav-btn" onClick={() => {
-                      if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1); }
-                      else setCalMonth(m => m - 1);
-                    }}>‹</button>
-                    <button
-                      type="button"
-                      className="cal-today-btn"
-                      onClick={() => { setCalMonth(today.getMonth()); setCalYear(today.getFullYear()); }}
-                    >Сегодня</button>
-                    <button type="button" className="cal-nav-btn" onClick={() => {
-                      if (calMonth === 11) { setCalMonth(0); setCalYear(y => y + 1); }
-                      else setCalMonth(m => m + 1);
-                    }}>›</button>
+          {/* STUDENT DASHBOARD */}
+          {page === 'dashboard' && isStudent && (
+            <div className="dash-new">
+              <div className="hero-card">
+                <div className="hero-avatar-wrap">
+                  <div className="hero-avatar-lg">
+                    {user ? (user.name?.[0] || '') + (user.surname?.[0] || '') : '??'}
                   </div>
                 </div>
-                <div className="cal-grid">
-                  {CALENDAR_DAYS.map((d) => (
-                    <div key={d} className="cal-weekday-label">{d}</div>
-                  ))}
-                  {buildCalendarWeeks(calYear, calMonth).map((week, wi) =>
-                    week.map((day, di) => {
-                      const isToday = day === today.getDate() && calMonth === today.getMonth() && calYear === today.getFullYear();
+                <div className="hero-content">
+                  <div className="hero-greeting">{greeting}, {user?.name}!</div>
+                  <div className="hero-meta">
+                    {user?.subject_name || user?.subjects?.join(', ') || 'Ученик'}
+                    {user?.grade && <> · <strong>{user.grade}</strong> класс</>}
+                  </div>
+                  <div className="hero-badges">
+                    {studentHwActionCount > 0 ? (
+                      <span className="hero-badge hero-badge--warn">
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        {studentHwActionCount} {studentHwWord(studentHwActionCount)} к выполнению
+                      </span>
+                    ) : (
+                      <span className="hero-badge hero-badge--ok">
+                        Личный кабинет активен
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <button className="hero-edit-btn" onClick={() => setPage('homework')}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                  Перейти к заданиям
+                </button>
+              </div>
+
+              <div className="section-card" style={{ marginTop: 20 }}>
+                <div className="section-card-header">
+                  <div>
+                    <h2 className="section-card-title">Домашние задания</h2>
+                    <div className="section-card-sub" style={{ marginTop: 4, fontSize: 12, color: 'var(--text-3, #64748b)', lineHeight: 1.45 }}>
+                      Учитель задаёт вариант как ДЗ — вы решаете его здесь же: ответы сохраняются, «Проверить» доступна один раз, можно прикрепить файлы и отправить работу на проверку.
+                    </div>
+                  </div>
+                  <button type="button" className="review-more-btn" onClick={() => setPage('homework')}>
+                    Все задания
+                  </button>
+                </div>
+
+                {studentDashHwSorted.length === 0 ? (
+                  <div className="review-empty-state">
+                    <div className="review-empty-icon">
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                    </div>
+                    <div className="review-empty-title">Пока нет заданий</div>
+                    <div className="review-empty-sub">Когда учитель задаст вариант как ДЗ, уведомление появится в колокольчике, а задание — в этом списке</div>
+                  </div>
+                ) : (
+                  <div className="hw-events-list">
+                    {studentDashHwSorted.slice(0, 8).map((a, idx) => {
+                      const kind = studentHwRowKind(a);
+                      const dl = fmtStudentHwDeadline(a.deadline);
                       return (
-                        <div key={`${wi}-${di}`} className={`cal-day${isToday ? ' cal-day--today' : ''}${!day ? ' cal-day--empty' : ''}`}>
-                          {day ?? ''}
+                        <div key={a.id} className={`hw-event-row hw-event-row--${kind}`} style={{ animationDelay: `${idx * 40}ms` }}>
+                          <div className={`hw-event-stripe hw-event-stripe--${kind}`} />
+                          <div className="hw-event-info" style={{ flex: 1, minWidth: 0 }}>
+                            <div className="hw-event-name">{a.homework_title || `Вариант ${a.variant_id ?? ''}`}</div>
+                            <div className="hw-event-subject">
+                              {[a.subject, a.teacher_name].filter(Boolean).join(' · ')}
+                              {dl ? ` · сдать до ${dl}` : ''}
+                            </div>
+                          </div>
+                          <div className="hw-event-meta" style={{ flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+                            <span className={`hw-event-badge hw-event-badge--${kind}`}>{ST_HW_STATUS_LABEL[a.status] || a.status}</span>
+                          </div>
+                          <button type="button" className="hw-event-check-btn" onClick={() => goToStudentAssignment(a.id)}>
+                            {studentHwCtaLabel(a)} →
+                          </button>
                         </div>
                       );
-                    })
-                  )}
-                </div>
+                    })}
+                  </div>
+                )}
               </div>
-
-              <div className="divider" />
-
-              {/* Quote */}
-              <div className="quote-block">
-                <div className="quote-icon">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
-                  </svg>
-                </div>
-                <p className="quote-text">
-                  Хороший учитель — тот, кто помогает ученику обнаружить в себе то, что он уже знает.
-                </p>
-                <span className="quote-author">— Тимоти Голлвей</span>
-              </div>
-            </>
+            </div>
           )}
-        </aside>
 
-      </div>
+        </div>{/* /app-body */}
+      </div>{/* /app-main */}
 
-      {/* ── MOBILE BOTTOM NAV ── */}
+      {/* MOBILE BOTTOM NAV */}
       <nav className="mobile-bottom-nav">
         <div className="bottom-nav-inner">
-          {navItems.map((item) => (
-            <a
-              key={item.label}
-              href="#"
-              className={`bottom-nav-item${page === item.id ? ' bottom-nav-item--active' : ''}`}
-              onClick={e => { e.preventDefault(); setSelectedGroup(null); setPage(item.id); }}
-            >
-              {isTeacher && item.badge && <span className="bottom-nav-badge">{item.badge}</span>}
-              {item.icon}
+          {(isStudent ? [
+            { id: 'dashboard', label: 'Дашборд', badge: null, icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>) },
+            { id: 'homework', label: 'Задания', badge: studentHwActionCount > 0 ? studentHwActionCount : null, icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>) },
+          ] : [
+            { id: 'dashboard', label: 'Главная',  icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>) },
+            { id: 'students', label: 'Ученики',   icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>) },
+            // { id: 'homework', label: 'Задания', icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>) },
+            { id: 'variants', label: 'Варианты',  icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="4" rx="1"/><rect x="2" y="10" width="20" height="4" rx="1"/><rect x="2" y="17" width="20" height="4" rx="1"/></svg>) },
+          ]).map(item => (
+            // eslint-disable-next-line jsx-a11y/anchor-is-valid
+            <a key={item.id} href="#" className={`bottom-nav-item${page === item.id ? ' bottom-nav-item--active' : ''}`} onClick={e => { e.preventDefault(); setPage(item.id); setSelectedGroup(null); }}>
+              <span className="bottom-nav-item-wrap">
+                {item.icon}
+                {item.badge ? <span className="bottom-nav-badge">{item.badge}</span> : null}
+              </span>
               <span>{item.label}</span>
             </a>
           ))}
         </div>
       </nav>
 
-      {/* ── LESSON START MODAL ── */}
-      {isTeacher && lessonModalOpen && (() => {
-        const activeStudents = students.filter(s => s.lesson_type === 'individual');
-
-        async function startLesson(type, id, name) {
-          const roomId = `${type}_${id}_${Date.now()}`;
-
-          // Открываем таб немедленно (синхронно при клике), чтобы браузер не заблокировал его как попап.
-          // Без noopener — иначе window.open возвращает null и tab.location.href не работает.
-          const tab = window.open('about:blank', '_blank');
-
-          try {
-            const res = await fetch(`${API}/api/lesson/token/`, {
-              method: 'POST',
-              credentials: 'include',
-              headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
-              body: JSON.stringify({
-                room_id:     roomId,
-                type,
-                target_id:   id,
-                target_name: name,
-              }),
-            });
-
-            if (!res.ok) throw new Error('token error');
-            const { url, student_url } = await res.json();
-
-            if (tab && !tab.closed) {
-              tab.location.href = url;
-            } else {
-              if (window.confirm(`Браузер заблокировал вкладку. Открыть урок в этой вкладке?`)) {
-                window.location.href = url;
-              }
-            }
-
-            setCall({ roomId, targetName: name, type, tab, url, studentUrl: student_url });
-          } catch {
-            if (tab && !tab.closed) tab.close();
-            alert('Не удалось создать урок. Попробуйте снова.');
-          }
-
-          setLessonModalOpen(false);
-        }
-
-        return (
-          <div className="modal-overlay" onClick={() => setLessonModalOpen(false)}>
-            <div className="modal modal--lesson" onClick={e => e.stopPropagation()}>
-              <div className="modal-header">
-                <span className="modal-title">Начать урок</span>
-                <button className="modal-close" onClick={() => setLessonModalOpen(false)}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                  </svg>
+      {isStudent && incomingLesson && (
+        <div className="modal-overlay" role="dialog" aria-modal="true">
+          <div className="modal modal--lesson-call">
+            <div className="modal-header">
+              <div className="modal-title">Входящий урок</div>
+            </div>
+            <div className="modal-form">
+              <div className="lesson-call-teacher">
+                {incomingLesson.teacher || 'Учитель'} уже в комнате урока — присоединяйтесь
+              </div>
+              <div className="modal-actions lesson-call-actions">
+                <button type="button" className="modal-btn modal-btn--cancel" onClick={rejectIncomingLesson}>
+                  Закрыть
+                </button>
+                <button type="button" className="modal-btn modal-btn--save" onClick={acceptIncomingLesson}>
+                  Присоединиться
                 </button>
               </div>
-              <div className="lesson-modal-body">
-                {/* Tabs */}
-                <div className="lesson-tabs">
-                  <button
-                    className={`lesson-tab${lessonTarget === 'student' ? ' lesson-tab--active' : ''}`}
-                    onClick={() => setLessonTarget('student')}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
-                    </svg>
-                    Индивидуальный
-                  </button>
-                  <button
-                    className={`lesson-tab${lessonTarget === 'group' ? ' lesson-tab--active' : ''}`}
-                    onClick={() => setLessonTarget('group')}
-                  >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-                      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                    </svg>
-                    Групповой
-                  </button>
-                </div>
-
-                {lessonTarget === 'student' && (
-                  <div className="lesson-list">
-                    {activeStudents.length === 0 && (
-                      <p className="lesson-empty">Нет индивидуальных учеников</p>
-                    )}
-                    {activeStudents.map(s => (
-                      <button
-                        key={s.id}
-                        className="lesson-item"
-                        onClick={() => startLesson('student', s.id, `${s.student_name} ${s.student_surname || ''}`.trim())}
-                      >
-                        <div className="lesson-item-avatar">
-                          {(s.student_name?.[0] || '?').toUpperCase()}{(s.student_surname?.[0] || '').toUpperCase()}
-                        </div>
-                        <div className="lesson-item-info">
-                          <span className="lesson-item-name">{s.student_name} {s.student_surname}</span>
-                          <span className="lesson-item-sub">{s.subject_name} · {s.level_name}</span>
-                        </div>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="lesson-item-arrow">
-                          <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
-                        </svg>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {lessonTarget === 'group' && (
-                  <div className="lesson-list">
-                    {groups.length === 0 && (
-                      <p className="lesson-empty">Нет созданных групп</p>
-                    )}
-                    {groups.map(g => (
-                      <button
-                        key={g.id}
-                        className="lesson-item"
-                        onClick={() => startLesson('group', g.id, g.group_name)}
-                      >
-                        <div className="lesson-item-avatar lesson-item-avatar--group">
-                          {g.group_name[0]?.toUpperCase()}
-                        </div>
-                        <div className="lesson-item-info">
-                          <span className="lesson-item-name">{g.group_name}</span>
-                          <span className="lesson-item-sub">{g.subject_name} · {g.level_name}</span>
-                        </div>
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="lesson-item-arrow">
-                          <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
-                        </svg>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                <p className="lesson-hint">
-                  После выбора откроется страница урока на сайте генератора.
-                </p>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* ── INCOMING LESSON MODAL ── */}
-      {isStudent && incomingLesson && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,.55)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 9999, backdropFilter: 'blur(4px)',
-        }}>
-          <div style={{
-            background: '#fff', borderRadius: 20, padding: '36px 40px',
-            maxWidth: 380, width: '100%', textAlign: 'center',
-            boxShadow: '0 20px 60px rgba(0,0,0,.25)',
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16,
-          }}>
-            {/* Анимированный звонок */}
-            <div style={{
-              width: 72, height: 72, borderRadius: '50%',
-              background: 'linear-gradient(135deg,#4F6EF7,#5b7cf7)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              animation: 'ringing 1s ease-in-out infinite',
-            }}>
-              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.49 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.4 2.18h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L7.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 21 16.92z"/>
-              </svg>
-            </div>
-            <style>{`@keyframes ringing{0%,100%{transform:rotate(0)}20%{transform:rotate(-12deg)}40%{transform:rotate(12deg)}60%{transform:rotate(-8deg)}80%{transform:rotate(8deg)}}`}</style>
-
-            <p style={{ margin: 0, fontSize: 13, color: '#9CA3AF', fontFamily: 'Montserrat,sans-serif' }}>
-              Входящий урок
-            </p>
-            <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, fontFamily: 'Montserrat,sans-serif', color: '#1a1a2e' }}>
-              {incomingLesson.teacher}
-            </h2>
-            <p style={{ margin: 0, fontSize: 14, color: '#6B7280', fontFamily: 'Montserrat,sans-serif' }}>
-              приглашает вас на урок
-            </p>
-
-            <div style={{ display: 'flex', gap: 12, marginTop: 8, width: '100%' }}>
-              <button
-                onClick={() => setIncomingLesson(null)}
-                style={{
-                  flex: 1, padding: '12px 0', borderRadius: 12, border: 'none',
-                  background: '#FEE2E2', color: '#DC2626',
-                  fontWeight: 700, fontSize: 14, cursor: 'pointer',
-                  fontFamily: 'Montserrat,sans-serif',
-                }}
-              >
-                Отклонить
-              </button>
-              <button
-                onClick={() => {
-                  window.open(incomingLesson.student_url, '_blank');
-                  setIncomingLesson(null);
-                }}
-                style={{
-                  flex: 1, padding: '12px 0', borderRadius: 12, border: 'none',
-                  background: 'linear-gradient(135deg,#4F6EF7,#5b7cf7)', color: '#fff',
-                  fontWeight: 700, fontSize: 14, cursor: 'pointer',
-                  fontFamily: 'Montserrat,sans-serif',
-                }}
-              >
-                Принять
-              </button>
             </div>
           </div>
         </div>

@@ -97,3 +97,4 @@ class LessonTokenSerializer(serializers.Serializer):
     type = serializers.ChoiceField(choices=['student', 'group'], default='student')
     target_id = serializers.IntegerField(min_value=1)
     target_name = serializers.CharField(max_length=200, trim_whitespace=True)
+    variant_id = serializers.IntegerField(min_value=1, required=False, allow_null=True)
