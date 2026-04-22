@@ -2,6 +2,34 @@
 
 Краткий чеклист и порядок действий на сервере.
 
+## Шаблон окружения
+
+Полный список переменных: **`deploy/.env.production.example`**. Скопируйте в каталог с `manage.py` как `.env` или подключите через `systemd` (`EnvironmentFile=`).
+
+## База данных
+
+- **Только PostgreSQL** (см. `Generator/Generator/settings.py`, переменные `PGDATABASE`, `PGUSER`, `PGPASSWORD`, `PGHOST`, `PGPORT`).
+- Создайте БД и пользователя заранее, выдайте права, затем на сервере: `python manage.py migrate --noinput`.
+- Бэкапы: `pg_dump` по расписанию; каталог `media/` — в резервной копии вместе с БД (файлы заданий/вложения).
+
+## Ссылки и согласованность доменов (прод)
+
+| Назначение | Где задаётся | Пример / правило |
+|------------|----------------|------------------|
+| Публичный URL генератора (страницы, API, `/lesson/`) | Nginx `server_name` + `DJANGO_ALLOWED_HOSTS` | `generator.example.com` в обоих местах, без `*` в проде |
+| Публичный URL ЛК | `LK_PUBLIC_URL` в `.env` | `https://lk.example.com` — тот же origin, что в ссылках из ЛК в уроки |
+| Сборка SPA: ссылки/ДЗ в сторону ЛК | `frontend`: `VITE_LK_PUBLIC_URL` при `npm run build` | = origin `LK_PUBLIC_URL` (схема+хост+порт) |
+| JSON для SPA без жёсткого LK в бандле | `GET /api/site-config/` | Проверяйте `lk_public_url` после деплоя |
+| Редирект HTTP → HTTPS | Nginx: отдельный `server { listen 80; return 301 https://$host$request_uri; }` | Как в `deploy/nginx.conf` |
+| Выход из `/admin/logout/` | `GENUROK_PUBLIC_HOME_URL` | Публичная главная, не `localhost` |
+| WebSocket урока | `wss://<тот же host>/ws/lesson/...` | Nginx: `location /ws/` + `Upgrade` (см. `nginx.conf`) |
+| Прокси ДЗ → API ЛК | `LK_*` + опционально `LK_HOMEWORK_*` | `deploy/LK_GENUROK_DEBUG.md` |
+| CORS (ограничить внешние origin) | `CORS_ALLOWED_ORIGINS` | Список через запятую; не задан — режим «все origin» (только dev) |
+
+**CSRF / доверие к хосту:** задайте `CSRF_TRUSTED_ORIGINS` **или** только `DJANGO_ALLOWED_HOSTS` (хосты без `*`) — тогда `https`/`http` для них добавятся автоматически в `settings.py`.
+
+**Redis** для `channels` (несколько воркеров Daphne): `CHANNEL_LAYER_BACKEND=redis`, `REDIS_HOST`, `REDIS_PORT`. Один процесс — можно `CHANNEL_LAYER_BACKEND=inmemory` (только тест/один воркер).
+
 ## Перед выкладкой (локально или в CI)
 
 1. **Фронтенд** (из корня репозитория):
@@ -41,7 +69,10 @@
 | `LK_DASHBOARD_URL` | **Опционально.** Полный URL дашборда после входа, куда ведёт кнопка «Личный кабинет», например `http://lk.example.com/dashboard`. Если не задан, открывается корень `LK_PUBLIC_URL` (часто это не дашборд, а лендинг или логин) |
 | `GENUROK_PUBLIC_HOME_URL` | Публичная главная после **выхода из админки** генератора (`/admin/logout/`). По умолчанию `http://genurok.ru`. Без этого при `LOGOUT_REDIRECT_URL='/'` с dev-сервера уводило на `localhost` |
 | `LK_NAVIGATION_PASSWORD` | Пароль для кнопки «Личный кабинет» на сайте генератора. Не задан — по умолчанию `100326`. Пустое значение `LK_NAVIGATION_PASSWORD=` — **отключить** запрос пароля |
-| `CSRF_TRUSTED_ORIGINS` | Список через запятую: `http://ваш-домен.ru`, при необходимости `http://lk.ваш-домен.ru` |
+| `CSRF_TRUSTED_ORIGINS` | Список через запятую с **схемой** (`https://...`). При необходимости отдельно ЛК. Альтернатива: оставить пусто и задать только `DJANGO_ALLOWED_HOSTS` |
+| `CORS_ALLOWED_ORIGINS` | **Прод:** перечислить origin’ы (генератор + при необходимости ЛК). Пусто = как в dev (все origin) — нежелательно в бою |
+| `SECURE_SSL_REDIRECT` | По умолчанию при `DEBUG=false` — `false` (редирект в nginx). `true` — только если Django сам принимает HTTP и отдаёт 301 |
+| `SESSION_COOKIE_SECURE` / `CSRF_COOKIE_SECURE` | При `DEBUG=false` по умолчанию `true` (куки только по HTTPS) |
 | `CHANNEL_LAYER_BACKEND` | `inmemory` — один процесс Daphne. Для нескольких воркеров — Redis (см. ниже) |
 
 Пример фрагмента unit-файла см. `deploy/gunicorn.service`.
@@ -87,6 +118,8 @@ sudo systemctl status generator_test
 ```
 
 ## Проверки после деплоя
+
+0. `python manage.py check --deploy` — предупреждения Django по безопасности (с `DEBUG=false` и целевым `.env`).
 
 1. `GET /api/site-config/` — в ответе `lk_public_url`, `lk_nav_password_required`, `lk_nav_unlocked`.
 2. Кнопка «Личный кабинет» — при включённом пароле открывается только после `POST /api/lk-nav-unlock/` с верным паролем.

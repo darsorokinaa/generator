@@ -14,10 +14,21 @@ def _get_expected_answer_for_variant_task(variant_id: int, task_number_key: str)
     """
     Номер в UI варианта — это TaskList.task_number (банк), а не порядок VariantContent.order.
     Сначала ищем по task__task__task_number, затем fallback на order 1..N.
+    Ключ ``t<task_id>`` — id строки Task в варианте (см. API варианта), для уникальности при коллизиях номеров.
     """
     if variant_id <= 0 or not task_number_key:
         return ""
     VariantContent = apps.get_model("Generator", "VariantContent")
+    if len(task_number_key) >= 2 and task_number_key[0] == "t" and task_number_key[1:].isdigit():
+        tid = int(task_number_key[1:])
+        vc = (
+            VariantContent.objects.select_related("task")
+            .filter(variant_id=variant_id, task_id=tid)
+            .first()
+        )
+        if vc and vc.task:
+            return str(getattr(vc.task, "answer", "") or "")
+        return ""
     if task_number_key.isdigit():
         tn = int(task_number_key)
         vc = (
@@ -46,6 +57,8 @@ class LessonConsumer(AsyncWebsocketConsumer):
         raw = str(value or "").strip()
         if not raw:
             return ""
+        if len(raw) >= 2 and raw[0] == "t" and raw[1:].isdigit():
+            return raw[:32]
         digits = re.sub(r"[^\d]+", "", raw)
         return digits or raw[:32]
 
@@ -160,9 +173,19 @@ class LessonConsumer(AsyncWebsocketConsumer):
             return None
         if payload.get("type") != "student_answer":
             return None
-        task_number = self._normalize_task_number(
-            payload.get("task_number") or payload.get("task") or payload.get("number")
-        )
+        task_id_raw = payload.get("task_id")
+        task_number = ""
+        if task_id_raw is not None and str(task_id_raw).strip() != "":
+            try:
+                tid = int(task_id_raw)
+                if tid > 0:
+                    task_number = f"t{tid}"[:32]
+            except (TypeError, ValueError):
+                pass
+        if not task_number:
+            task_number = self._normalize_task_number(
+                payload.get("task_number") or payload.get("task") or payload.get("number")
+            )
         if not task_number:
             return None
         student = str(payload.get("name") or self._participant_name or "").strip()

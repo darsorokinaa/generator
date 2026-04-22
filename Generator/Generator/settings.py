@@ -124,7 +124,13 @@ MIDDLEWARE = [
 # (нужно для /lesson/join/ -> iframe с /<level>/<subject>/variant/<id>/).
 X_FRAME_OPTIONS = "SAMEORIGIN"
 
-CORS_ALLOW_ALL_ORIGINS = True
+# Прод: задайте CORS_ALLOWED_ORIGINS=https://гегенератор,https://лк (через запятую) — иначе по умолчанию разрешены все origin (только для разработки).
+_cors_allowed_list = [o.strip() for o in os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",") if o.strip()]
+if _cors_allowed_list:
+    CORS_ALLOW_ALL_ORIGINS = False
+    CORS_ALLOWED_ORIGINS = _cors_allowed_list
+else:
+    CORS_ALLOW_ALL_ORIGINS = True
 
 CORS_ALLOW_CREDENTIALS = True
 
@@ -204,27 +210,27 @@ else:
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 # В systemd задают PGDATABASE/PGUSER/... — обязательно читаем их (раньше были захардкожены generatordb).
-# DATABASES = {
-#     "default": {
-#         "ENGINE": "django.db.backends.postgresql",
-#         "NAME": os.environ.get("PGDATABASE", "generatordb"),
-#         "USER": os.environ.get("PGUSER", "generator_user"),
-#         "PASSWORD": os.environ.get("PGPASSWORD", "StrongPass123"),
-#         "HOST": os.environ.get("PGHOST", "localhost"),
-#         "PORT": os.environ.get("PGPORT", "5432"),
-#     }
-# }
-
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": os.environ.get("PGDATABASE", "generatordb"),
-        "USER": os.environ.get("PGUSER", "postgres"),
-        "PASSWORD": os.environ.get("PGPASSWORD", "postgres"),
+        "USER": os.environ.get("PGUSER", "generator_user"),
+        "PASSWORD": os.environ.get("PGPASSWORD", "StrongPass123"),
         "HOST": os.environ.get("PGHOST", "localhost"),
         "PORT": os.environ.get("PGPORT", "5432"),
     }
 }
+
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.postgresql",
+#         "NAME": os.environ.get("PGDATABASE", "generatordb"),
+#         "USER": os.environ.get("PGUSER", "postgres"),
+#         "PASSWORD": os.environ.get("PGPASSWORD", "postgres"),
+#         "HOST": os.environ.get("PGHOST", "localhost"),
+#         "PORT": os.environ.get("PGPORT", "5432"),
+#     }
+# }
 
 
 # Password validation
@@ -286,3 +292,23 @@ TELEGRAM_BOT_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '')
 TELEGRAM_CHAT_ID = os.environ.get('TELEGRAM_CHAT_ID', '')
 TELEGRAM_TOPIC_ID = os.environ.get('TELEGRAM_TOPIC_ID', '') or None  # опционально
 
+# —— HTTPS / cookies (прод, DEBUG=false): редирект HTTP→HTTPS обычно в nginx; Django может дублировать — осторожно с петлёй.
+if not DEBUG:
+    SECURE_SSL_REDIRECT = os.environ.get("SECURE_SSL_REDIRECT", "false").lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
+    SESSION_COOKIE_SECURE = os.environ.get("SESSION_COOKIE_SECURE", "true").lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
+    CSRF_COOKIE_SECURE = os.environ.get("CSRF_COOKIE_SECURE", "true").lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )

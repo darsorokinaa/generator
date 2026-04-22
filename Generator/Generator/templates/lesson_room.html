@@ -201,7 +201,7 @@
     </div>
   </div>
 
-  <!-- Teacher: красная кнопка «Завершить урок» наверху + модалка итогов (ещё кнопка внутри варианта в iframe) -->
+  <!-- Teacher: кнопка «Завершить урок» наверху + модалка итогов -->
   <div id="lesson-teacher-ui" style="display:none;">
     <button type="button" id="lesson-finish-top-btn" style="display:none;position:fixed;top:12px;right:12px;z-index:240;padding:11px 22px;border-radius:12px;border:none;background:#dc2626;color:#fff;font-weight:700;font-size:0.88rem;font-family:'Montserrat',system-ui,sans-serif;cursor:pointer;box-shadow:0 4px 18px rgba(220,38,38,.45);">Завершить урок</button>
   </div>
@@ -887,6 +887,19 @@
         const digitsOnly = raw.replace(/[^\d]+/g, "");
         return digitsOnly || raw;
       };
+      /** Ключ в answersByTask: по id задания варианта (Task.id) — устраняет склейку при одинаковых номерах в UI. */
+      const answerKeyFromStoredTaskNumber = (stored) => {
+        const s = String(stored == null ? "" : stored).trim();
+        if (s.length >= 2 && s[0] === "t" && /^\d+$/.test(s.slice(1))) return s;
+        return "n" + normalizeTaskNumber(s);
+      };
+      const answerKeyFromDomTask = (task) => {
+        if (!task) return "";
+        const tid = String(task.getAttribute("data-task-id") || "").trim();
+        if (tid && /^\d+$/.test(tid)) return "t" + tid;
+        const ne = task.querySelector(".task-left .task-number") || task.querySelector(".task-number");
+        return "n" + normalizeTaskNumber(ne ? ne.textContent : "");
+      };
       const toFiniteOrNull = (value) => {
         const n = Number(value);
         return Number.isFinite(n) ? n : null;
@@ -1183,17 +1196,20 @@
         if (!Array.isArray(rows) || !rows.length) return false;
         let changed = false;
         rows.forEach((row) => {
-          const taskNum = normalizeTaskNumber(row.task_number);
+          const taskKey = answerKeyFromStoredTaskNumber(row.task_number);
+          const displayNum = normalizeTaskNumber(row.task_number);
           const studentName = String((row && row.student) || '').trim();
-          if (!taskNum || !studentName) return;
+          if (!taskKey || !studentName) return;
           const answer = String(row.answer || '');
           let ok = false;
           if (typeof row.is_correct === 'boolean') {
             ok = row.is_correct;
+          } else if (taskKey.startsWith('n')) {
+            ok = normalizeAnswer(answer) === normalizeAnswer(stripHtml(answerByTaskNum[displayNum] || ''));
           } else {
-            ok = normalizeAnswer(answer) === normalizeAnswer(stripHtml(answerByTaskNum[taskNum] || ''));
+            ok = false;
           }
-          const list = answersByTask[taskNum] || [];
+          const list = answersByTask[taskKey] || [];
           const idx = list.findIndex((r) => r.name === studentName);
           const newRow = { name: studentName, answer, ok };
           if (idx >= 0) {
@@ -1204,7 +1220,7 @@
             }
           } else {
             list.push(newRow);
-            answersByTask[taskNum] = list;
+            answersByTask[taskKey] = list;
             changed = true;
           }
         });
@@ -1234,6 +1250,8 @@
           const numEl = task.querySelector('.task-number');
           const taskNum = numEl ? normalizeTaskNumber(numEl.textContent) : '';
           if (!taskNum) return;
+          const taskKey = answerKeyFromDomTask(task);
+          const taskIdAttr = String(task.getAttribute('data-task-id') || '').trim();
           const rows = attachmentsByTask[taskNum] || [];
           if (!rows.length) return;
           
@@ -1254,7 +1272,7 @@
              const studentAttachments = byStudent[studentName];
              
              let currentScore = '';
-             const studentAnswers = answersByTask[taskNum] || [];
+             const studentAnswers = answersByTask[taskKey] || [];
              const sa = studentAnswers.find(a => a.name === studentName);
              if (sa && sa.answer && sa.answer.startsWith('Оценка: ')) {
                 currentScore = sa.answer.replace('Оценка: ', '').split(' ')[0];
@@ -1280,7 +1298,7 @@
                  </div>
                  <div style="display:flex; align-items:center; gap:6px; background:#f8fafc; padding:6px 10px; border-radius:6px; border:1px solid #e2e8f0;">
                    <span style="font-size:0.8rem; color:#64748b; font-weight:500;">Балл:</span>
-                   <input type="number" min="0" max="${maxScore}" value="${currentScore}" data-student="${safeHtml(studentName)}" data-task="${taskNum}" class="lesson-score-input" style="width:48px; padding:4px; border:1px solid #cbd5e1; border-radius:4px; text-align:center; font-size:0.9rem; font-weight:600; color:#0f172a; outline:none;" />
+                   <input type="number" min="0" max="${maxScore}" value="${currentScore}" data-student="${safeHtml(studentName)}" data-task="${taskNum}" ${taskIdAttr ? `data-task-id="${escAttr(taskIdAttr)}"` : ''} class="lesson-score-input" style="width:48px; padding:4px; border:1px solid #cbd5e1; border-radius:4px; text-align:center; font-size:0.9rem; font-weight:600; color:#0f172a; outline:none;" />
                    <span style="font-size:0.85rem; color:#64748b; font-weight:500;">/ ${maxScore}</span>
                  </div>
                </div>
@@ -1419,16 +1437,16 @@
         }, 900);
       };
 
-      const getStudentScoreForTask = (taskNum, studentName) => {
-        const list = answersByTask[taskNum] || [];
+      const getStudentScoreForTask = (taskKey, displayTaskNum, studentName) => {
+        const list = answersByTask[taskKey] || [];
         const sa = list.find(r => r.name === studentName);
         if (!sa) return null;
+        const maxM = maxScoreByTaskNum[displayTaskNum] || 1;
         if (sa.answer && sa.answer.startsWith('Оценка: ')) {
           const parts = sa.answer.replace('Оценка: ', '').split(' из ');
-          return { score: parseFloat(parts[0]) || 0, max: maxScoreByTaskNum[taskNum] || 1, isManual: true };
+          return { score: parseFloat(parts[0]) || 0, max: maxM, isManual: true };
         }
-        const max = maxScoreByTaskNum[taskNum] || 1;
-        return { score: sa.ok ? max : 0, max, isManual: false };
+        return { score: sa.ok ? maxM : 0, max: maxM, isManual: false };
       };
 
       const patchTeacherView = (doc) => {
@@ -1456,7 +1474,7 @@
         doc.querySelectorAll('.lesson-criteria-section').forEach((el) => { if (notInExtra(el)) el.remove(); });
         doc.getElementById('lesson-student-totals')?.remove();
 
-        const allTaskNums = [];
+        const allTaskMeta = [];
 
         doc.querySelectorAll('.task').forEach((task) => {
           // Extra tasks manage their own blocks — skip them here
@@ -1467,7 +1485,8 @@
           const numEl = task.querySelector('.task-number');
           const taskNum = numEl ? normalizeTaskNumber(numEl.textContent) : '';
           if (!taskNum) return;
-          allTaskNums.push(taskNum);
+          const taskKey = answerKeyFromDomTask(task);
+          allTaskMeta.push({ key: taskKey, num: taskNum });
           
           const taskContent = task.querySelector('.task-content') || task;
           
@@ -1482,7 +1501,7 @@
             '<div class="lesson-teacher-answer-value">' + answerHtml + '</div>';
           taskContent.appendChild(block);
 
-          const studentAnswers = answersByTask[taskNum] || [];
+          const studentAnswers = answersByTask[taskKey] || [];
           if (studentAnswers.length > 0) {
             const maxScore = maxScoreByTaskNum[taskNum] || 1;
             const studentsBlock = doc.createElement('div');
@@ -1506,7 +1525,7 @@
                   <td style="text-align:center;">${icon}</td>
                 </tr>`;
               } else {
-                const scoreData = getStudentScoreForTask(taskNum, sa.name);
+                const scoreData = getStudentScoreForTask(taskKey, taskNum, sa.name);
                 const scoreStr = scoreData !== null
                   ? `<span style="font-weight:700;color:${scoreData.score > 0 ? '#15803d' : '#b91c1c'}">${scoreData.score}</span> / ${scoreData.max}`
                   : '—';
@@ -1559,20 +1578,20 @@
 
         // Totals panel: sum scores per student across all tasks
         const allStudents = new Set();
-        allTaskNums.forEach(tn => (answersByTask[tn] || []).forEach(sa => allStudents.add(sa.name)));
+        allTaskMeta.forEach(({ key }) => (answersByTask[key] || []).forEach(sa => allStudents.add(sa.name)));
         if (allStudents.size > 0) {
           const container = doc.querySelector('.main-wrapper, .exam-page, body') || doc.body;
           const totalsDiv = doc.createElement('div');
           totalsDiv.id = 'lesson-student-totals';
           let totalMax = 0;
-          allTaskNums.forEach(tn => { totalMax += (maxScoreByTaskNum[tn] || 1); });
+          allTaskMeta.forEach(({ num }) => { totalMax += (maxScoreByTaskNum[num] || 1); });
           let html = '<div class="lesson-student-answers-title" style="margin-bottom:8px;">Итоговые баллы учеников</div>';
           html += '<table class="lesson-student-answers-table">';
           html += `<thead><tr><th>Ученик</th><th style="width:120px;text-align:center;">Итого / ${totalMax}</th></tr></thead><tbody>`;
           allStudents.forEach(name => {
             let total = 0;
-            allTaskNums.forEach(tn => {
-              const sd = getStudentScoreForTask(tn, name);
+            allTaskMeta.forEach(({ key, num }) => {
+              const sd = getStudentScoreForTask(key, num, name);
               if (sd !== null) total += sd.score;
             });
             html += `<tr>
@@ -1636,15 +1655,18 @@
               if (e.target && e.target.classList.contains('lesson-score-input')) {
                 const student = e.target.dataset.student;
                 const taskNum = e.target.dataset.task;
+                const taskIdRaw = e.target.dataset.taskId;
                 const score = e.target.value;
                 const maxScore = maxScoreByTaskNum[taskNum] || 1;
                 if (score !== '') {
-                  sendWs({
+                  const pl = {
                     type: 'student_answer',
                     task_number: taskNum,
                     name: student,
                     answer: 'Оценка: ' + score + ' из ' + maxScore
-                  });
+                  };
+                  if (taskIdRaw && String(taskIdRaw).trim()) pl.task_id = String(taskIdRaw).trim();
+                  sendWs(pl);
                 }
               }
             });
@@ -1804,11 +1826,8 @@
           };
 
           const lockAlreadySubmittedTasks = () => {
-            Object.keys(submittedTaskNumbers).forEach((taskNum) => {
-              const task = [...doc.querySelectorAll('.task')].find((el) => {
-                const numEl = el.querySelector('.task-number');
-                return numEl && normalizeTaskNumber(numEl.textContent) === normalizeTaskNumber(taskNum);
-              });
+            Object.keys(submittedTaskNumbers).forEach((taskKey) => {
+              const task = [...doc.querySelectorAll('.task')].find((el) => answerKeyFromDomTask(el) === taskKey);
               if (task) lockCheckButton(task);
             });
           };
@@ -1827,15 +1846,19 @@
             const numEl = task.querySelector('.task-number');
             if (!numEl) return;
             const taskNum = normalizeTaskNumber(numEl.textContent);
-            if (submittedTaskNumbers[taskNum]) return;
-            const sent = sendWs({
+            const taskKey = answerKeyFromDomTask(task);
+            if (submittedTaskNumbers[taskKey]) return;
+            const taskIdAttr = String(task.getAttribute('data-task-id') || '').trim();
+            const pl = {
               type: 'student_answer',
               task_number: taskNum,
               answer: readTaskAnswer(task),
               name: participantName || 'Ученик'
-            });
+            };
+            if (taskIdAttr) pl.task_id = taskIdAttr;
+            const sent = sendWs(pl);
             if (!sent) return;
-            submittedTaskNumbers[taskNum] = true;
+            submittedTaskNumbers[taskKey] = true;
             lockCheckButton(task);
           }, true);
 
@@ -1845,15 +1868,19 @@
             if (!numEl) return;
             const taskNum = normalizeTaskNumber(numEl.textContent);
             if (!taskNum) return;
-            if (submittedTaskNumbers[taskNum]) return;
-            const sent = sendWs({
+            const taskKey = answerKeyFromDomTask(task);
+            if (submittedTaskNumbers[taskKey]) return;
+            const taskIdAttr = String(task.getAttribute('data-task-id') || '').trim();
+            const pl = {
               type: 'student_answer',
               task_number: taskNum,
               answer: readTaskAnswer(task),
               name: participantName || 'Ученик',
-            });
+            };
+            if (taskIdAttr) pl.task_id = taskIdAttr;
+            const sent = sendWs(pl);
             if (!sent) return;
-            submittedTaskNumbers[taskNum] = true;
+            submittedTaskNumbers[taskKey] = true;
             lockCheckButton(task);
           };
 
@@ -1965,14 +1992,14 @@
           return;
         }
         if (msg.type === 'lesson_extra_answer' && isTeacher) {
-          const taskNum = normalizeTaskNumber(String(msg.taskNum || ''));
+          const taskKey = answerKeyFromStoredTaskNumber(String(msg.taskNum || ''));
           const name = String(msg.name || '').trim();
-          if (!taskNum || !name) return;
-          const list = answersByTask[taskNum] || [];
+          if (!taskKey || !name) return;
+          const list = answersByTask[taskKey] || [];
           const entry = { name, answer: String(msg.answer || ''), ok: !!msg.ok };
           const idx = list.findIndex(r => r.name === name);
           if (idx >= 0) list[idx] = entry;
-          else { list.push(entry); answersByTask[taskNum] = list; }
+          else { list.push(entry); answersByTask[taskKey] = list; }
           const doc = getDoc();
           if (doc) renderExtraTasks(doc);
           return;
@@ -2049,16 +2076,24 @@
           if (openVariantIfReady(nextSrc)) return;
         }
         if (msg.type === 'student_answer' && isTeacher) {
-          const taskNum = normalizeTaskNumber(msg.task_number || msg.task || msg.number);
-          if (!taskNum) return;
+          const taskKey = (() => {
+            const tid = msg.task_id != null && String(msg.task_id).trim() !== '' ? String(msg.task_id).trim() : '';
+            if (tid && /^\d+$/.test(tid)) return 't' + tid;
+            return answerKeyFromStoredTaskNumber(msg.task_number || msg.task || msg.number);
+          })();
+          if (!taskKey) return;
+          const displayNum = normalizeTaskNumber(msg.task_number || msg.task || msg.number);
           const studentAnswer = String(msg.answer || '');
           const studentName = String(msg.name || 'Ученик');
-          const ok = normalizeAnswer(studentAnswer) === normalizeAnswer(stripHtml(answerByTaskNum[taskNum] || ''));
-          const list = answersByTask[taskNum] || [];
+          let ok = false;
+          if (taskKey.startsWith('n') && displayNum) {
+            ok = normalizeAnswer(studentAnswer) === normalizeAnswer(stripHtml(answerByTaskNum[displayNum] || ''));
+          }
+          const list = answersByTask[taskKey] || [];
           const idx = list.findIndex((r) => r.name === studentName);
           const row = { name: studentName, answer: studentAnswer, ok };
           if (idx >= 0) list[idx] = row; else list.push(row);
-          answersByTask[taskNum] = list;
+          answersByTask[taskKey] = list;
           const doc = getDoc();
           if (doc) scheduleTeacherAnswerRefresh(doc);
           fetchTeacherResults();
@@ -2248,8 +2283,8 @@
         } catch (_) { return String(html).replace(/<[^>]*>/g, ''); }
       };
 
-      const _buildStudentAnswersHtml = (taskNum, isPart2, maxScore) => {
-        const studentAnswers = answersByTask[taskNum] || [];
+      const _buildStudentAnswersHtml = (taskKey, displayTaskNum, isPart2, maxScore) => {
+        const studentAnswers = answersByTask[taskKey] || [];
         if (!studentAnswers.length) return '';
         let html = '<div class="lesson-student-answers-title">Ответы учеников</div>';
         html += '<table class="lesson-student-answers-table">';
@@ -2266,7 +2301,7 @@
               : '<span style="color:#b91c1c;font-weight:bold;">✗</span>';
             html += `<tr><td><b>${safeHtml(sa.name)}</b></td><td>${safeHtml(sa.answer)}</td><td style="text-align:center;">${icon}</td></tr>`;
           } else {
-            const sd = getStudentScoreForTask(taskNum, sa.name);
+            const sd = getStudentScoreForTask(taskKey, displayTaskNum, sa.name);
             const scoreStr = sd !== null
               ? `<span style="font-weight:700;color:${sd.score > 0 ? '#15803d' : '#b91c1c'}">${sd.score}</span> / ${sd.max}`
               : '—';
@@ -2302,28 +2337,10 @@
         });
       };
 
+      /** Раньше внизу варианта в iframe показывали дублирующую кнопку «Завершить урок»; оставлена только верхняя. */
       function injectTeacherFinishStrip(doc) {
         if (!doc || !isTeacher) return;
         doc.getElementById('lesson-teacher-finish-in-frame')?.remove();
-        const wrap = doc.createElement('div');
-        wrap.id = 'lesson-teacher-finish-in-frame';
-        wrap.style.cssText =
-          'margin:28px auto 20px;padding:20px 16px;text-align:center;border:2px solid #fecaca;' +
-          'background:linear-gradient(180deg,#fff8f8 0%,#fff 100%);border-radius:16px;box-sizing:border-box;max-width:100%;';
-        const btn = doc.createElement('button');
-        btn.type = 'button';
-        btn.textContent = 'Завершить урок';
-        btn.style.cssText =
-          'padding:14px 40px;font-size:1rem;font-weight:700;font-family:Montserrat,system-ui,sans-serif;' +
-          'color:#fff;background:#dc2626;border:none;border-radius:12px;cursor:pointer;' +
-          'box-shadow:0 4px 16px rgba(220,38,38,.35);width:100%;max-width:400px;';
-        btn.addEventListener('click', () => openFinishModal());
-        wrap.appendChild(btn);
-        const page = _getPage(doc);
-        if (!page) return;
-        const finishSec = page.querySelector('.exam-finish-section');
-        if (finishSec) page.insertBefore(wrap, finishSec);
-        else page.appendChild(wrap);
       }
 
       const renderExtraTasks = (doc) => {
@@ -2364,7 +2381,8 @@
               const section = _extraTaskSections.get(taskId);
               const tc = section.querySelector('.task-content') || section;
               tc.querySelector('.lesson-student-answers-block')?.remove();
-              const saHtml = _buildStudentAnswersHtml(taskNum, isPart2, task.maxScore || 1);
+              const exKey = answerKeyFromStoredTaskNumber(String(taskNum));
+              const saHtml = _buildStudentAnswersHtml(exKey, String(taskNum), isPart2, task.maxScore || 1);
               if (saHtml) {
                 const block = doc.createElement('div');
                 block.className = 'lesson-student-answers-block';
@@ -2410,7 +2428,8 @@
               article.appendChild(ansBlock);
             }
             // Student answers table
-            const saHtml = _buildStudentAnswersHtml(taskNum, isPart2, task.maxScore || 1);
+            const exKey2 = answerKeyFromStoredTaskNumber(String(taskNum));
+            const saHtml = _buildStudentAnswersHtml(exKey2, String(taskNum), isPart2, task.maxScore || 1);
             if (saHtml) {
               const saBlock = doc.createElement('div');
               saBlock.className = 'lesson-student-answers-block';

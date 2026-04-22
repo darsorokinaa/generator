@@ -3309,6 +3309,8 @@ def _normalize_lesson_task_number(value) -> str:
     raw = str(value or "").strip()
     if not raw:
         return ""
+    if len(raw) >= 2 and raw[0] == "t" and raw[1:].isdigit():
+        return raw[:32]
     digits = re.sub(r"[^\d]+", "", raw)
     return (digits or raw)[:32]
 
@@ -3320,8 +3322,18 @@ def _normalize_lesson_answer(value) -> str:
 
 
 def _get_expected_answer_for_variant_task(variant_id: int, task_number_key: str) -> str:
-    """Номер задания в UI = TaskList.task_number; fallback — порядок в варианте (order)."""
+    """Номер задания в UI = TaskList.task_number; fallback — порядок в варианте (order). Ключ t<id> = Task.id в варианте."""
     if variant_id <= 0 or not task_number_key:
+        return ""
+    if len(task_number_key) >= 2 and task_number_key[0] == "t" and task_number_key[1:].isdigit():
+        tid = int(task_number_key[1:])
+        vc = (
+            VariantContent.objects.select_related("task")
+            .filter(variant_id=variant_id, task_id=tid)
+            .first()
+        )
+        if vc and vc.task:
+            return str(getattr(vc.task, "answer", "") or "")
         return ""
     if task_number_key.isdigit():
         tn = int(task_number_key)
@@ -3441,7 +3453,17 @@ def api_lesson_student_answer(request):
     room_id = str(data.get("room_id") or "").strip()
     teacher_name = str(data.get("teacher") or "").strip()
     student_name = str(data.get("student") or "").strip()
-    task_number = _normalize_lesson_task_number(data.get("task_number") or data.get("task"))
+    task_id_raw = data.get("task_id")
+    task_number = ""
+    if task_id_raw is not None and str(task_id_raw).strip() != "":
+        try:
+            tid = int(task_id_raw)
+            if tid > 0:
+                task_number = f"t{tid}"[:32]
+        except (TypeError, ValueError):
+            pass
+    if not task_number:
+        task_number = _normalize_lesson_task_number(data.get("task_number") or data.get("task"))
     answer_text = str(data.get("answer") or "")
     variant_raw = data.get("variant_id")
     extra_payload = data.get("payload")
