@@ -2342,6 +2342,169 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
     padding-top: 0.5rem;
 }
 
+/* Домашнее задание (из ЛК): отличимая шапка и панель действий */
+.main-wrapper.exam-page--homework {
+    --homework-amber: #f59e0b;
+    --homework-bg: #fffbeb;
+    --homework-border: #fde68a;
+    /* Тулбар доски в lesson_room (снаружи iframe) перекрывает ~76px снизу — иначе клики попадают в него, а не в кнопки ДЗ */
+    padding-bottom: 6rem;
+}
+.exam-homework-bar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: var(--homework-bg, #fffbeb);
+    border-bottom: 1px solid var(--homework-border, #fde68a);
+    box-shadow: 0 2px 12px rgba(180, 83, 9, 0.08);
+}
+.exam-homework-bar__inner {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 10px 16px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px 16px;
+}
+.exam-homework-bar__title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 8px 12px;
+    font-size: 0.95rem;
+    color: #713f12;
+}
+.exam-homework-bar__badge {
+    display: inline-block;
+    font-family: "Unbounded", system-ui, sans-serif;
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: #92400e;
+    letter-spacing: 0.02em;
+}
+.exam-homework-bar__meta {
+    font-size: 0.8rem;
+    color: #a16207;
+    font-weight: 600;
+}
+.exam-homework-bar__actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 10px;
+}
+.exam-homework-bar__btn {
+    border-radius: 10px;
+    font-family: "Montserrat", system-ui, sans-serif;
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 8px 16px;
+    cursor: pointer;
+    border: none;
+    transition: opacity 0.15s ease, transform 0.1s ease;
+}
+.exam-homework-bar__btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+.exam-homework-bar__btn--primary {
+    background: #ea580c;
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(234, 88, 12, 0.35);
+}
+.exam-homework-bar__btn--secondary {
+    background: #fff;
+    color: #78350f;
+    border: 1.5px solid #fcd34d;
+}
+.exam-homework-bar__hint,
+.exam-homework-bar__err {
+    font-size: 0.8rem;
+    color: #92400e;
+    max-width: 420px;
+    line-height: 1.45;
+}
+.exam-homework-bar__err a {
+    color: #7c3aed;
+    text-decoration: underline;
+}
+.exam-homework-bar__link {
+    color: #7c3aed;
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-decoration: none;
+    border-bottom: 1px solid rgba(124, 58, 237, 0.35);
+}
+.exam-homework-bar__link:hover {
+    border-bottom-color: #7c3aed;
+}
+.exam-homework-bar__notice {
+    font-size: 0.8rem;
+    color: #15803d;
+    font-weight: 600;
+}
+.exam-page--homework .variant-hero {
+    background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 50%, #fff 100%) !important;
+}
+.exam-page--homework .part-divider h2 {
+    color: #9a3412;
+}
+
+.exam-hw-save-btn {
+    background: #fff7ed !important;
+    border: 1.5px solid #fb923c !important;
+    color: #9a3412 !important;
+    font-weight: 600 !important;
+}
+
+.exam-homework-finish {
+    margin: 2rem auto 2.5rem;
+    max-width: 640px;
+    padding: 1.25rem 1.5rem;
+    border-radius: 16px;
+    border: 1.5px solid #fde68a;
+    background: linear-gradient(180deg, #fffbeb 0%, #fff 100%);
+    box-shadow: 0 4px 20px rgba(180, 83, 9, 0.08);
+}
+.exam-homework-finish__hint {
+    font-size: 0.88rem;
+    color: #78350f;
+    line-height: 1.5;
+    margin: 0 0 1rem;
+}
+.exam-homework-finish__row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+}
+.exam-homework-finish__btn {
+    border-radius: 12px;
+    font-family: "Montserrat", system-ui, sans-serif;
+    font-size: 0.95rem;
+    font-weight: 700;
+    padding: 12px 22px;
+    cursor: pointer;
+    border: none;
+    min-width: 200px;
+}
+.exam-homework-finish__btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+.exam-homework-finish__btn--primary {
+    background: #ea580c;
+    color: #fff;
+    box-shadow: 0 4px 14px rgba(234, 88, 12, 0.35);
+}
+.exam-homework-finish__btn--secondary {
+    background: #fff;
+    color: #92400e;
+    border: 1.5px solid #fcd34d !important;
+}
+
 .subject-page {
     margin-top: -2rem;
 }

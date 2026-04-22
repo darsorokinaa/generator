@@ -1292,7 +1292,7 @@ def api_task_bank(request, level, subject):
     qs = Task.objects.filter(
         task__subject=subject_instance,
         task__level=level_instance,
-    ).select_related('task', 'subtopic')
+    ).select_related('task', 'task__part', 'subtopic')
 
     task_list_id = request.GET.get('task_list_id')
     if task_list_id:
@@ -1320,12 +1320,16 @@ def api_task_bank(request, level, subject):
 
     result = []
     for task in tasks_qs:
+        tl = task.task
         result.append({
             'id': task.id,
             'task_list_id': task.task_id,
-            'task_number': task.task.task_number if task.task else None,
-            'task_title': task.task.task_title if task.task else '',
+            'task_number': tl.task_number if tl else None,
+            'task_title': tl.task_title if tl else '',
             'subtopic': task.subtopic.title if task.subtopic else None,
+            'max_score': tl.max_score if tl else 1,
+            'part_id': tl.part_id if tl else None,
+            'part_title': (tl.part.part_title if tl and tl.part else None),
             'text': process_latex(str(task.task_template or ''), for_browser=True),
             'answer': str(task.answer or ''),
             'added_at': task.added_at.strftime('%d.%m.%Y') if task.added_at else None,
@@ -1540,13 +1544,17 @@ def api_group_instances(request, level, subject):
         for m in members:
             t  = m.task
             tl = t.task if t else None
+            part = tl.part if tl else None
             task_items.append({
                 'id':          t.id if t else None,
+                'task_list_id': tl.id if tl else None,
                 'task_number': m.task_number,
                 'task_title':  tl.task_title if tl else '',
                 'text':        process_latex(str(t.task_template or ''), for_browser=True) if t else '',
                 'answer':      str(t.answer or '') if t else '',
                 'max_score':   t.max_score if t else None,
+                'part_id':     tl.part_id if tl else None,
+                'part_title':  (part.part_title if part else None),
             })
         instances.append({
             'group_id':   grp.id,
@@ -2569,6 +2577,19 @@ def normalize_lesson_jwt_payload(payload: dict) -> dict:
         participant_name = target or "Ученик"
     else:
         participant_name = teacher
+    session_kind = str(
+        payload.get("session_kind") or payload.get("sessionKind") or payload.get("session_type") or ""
+    ).strip()
+    homework_assignment_id = (
+        payload.get("homework_assignment_id")
+        or payload.get("homeworkAssignmentId")
+        or payload.get("cabinet_assignment")
+        or payload.get("cabinetAssignment")
+    )
+    lesson_format_raw = str(
+        payload.get("lesson_format") or payload.get("lessonFormat") or raw_role or ""
+    ).strip()
+
     return {
         "room_id": str(room).strip(),
         "teacher_name": teacher,
@@ -2580,6 +2601,11 @@ def normalize_lesson_jwt_payload(payload: dict) -> dict:
         "lesson_subject": str(lesson_subject).strip().lower(),
         "lesson_variant_id": str(lesson_variant_id).strip() if lesson_variant_id is not None else "",
         "lesson_variant_url": str(lesson_variant_url).strip(),
+        "session_kind": session_kind,
+        "homework_assignment_id": str(homework_assignment_id).strip()
+        if homework_assignment_id is not None and str(homework_assignment_id).strip() != ""
+        else "",
+        "lesson_format": lesson_format_raw,
     }
 
 
@@ -2845,6 +2871,225 @@ def lesson_video_context_from_jwt(payload: dict, lesson_type: str = "teacher") -
         "jitsi_room": jitsi_room_name,
         "jitsi_jwt": jitsi_ext_jwt,
     }
+
+
+def _hw_assignment_id_from_payload(payload: dict) -> int | None:
+    """
+    id назначения ДЗ в JWT/кабинете: int/str/float; float(" 4 ") устойчивее, чем int(" 4 ").
+    """
+    for key in (
+        "homework_assignment_id",
+        "homeworkAssignmentId",
+        "cabinet_assignment",
+        "cabinetAssignment",
+    ):
+        v = payload.get(key)
+        if v is None:
+            continue
+        s = str(v).strip()
+        if not s or s.lower() in ("null", "none", "undefined"):
+            continue
+        try:
+            return int(float(s))
+        except (ValueError, TypeError, OverflowError):
+            continue
+    return None
+
+
+def _assert_homework_token_matches_assignment(aid: int, payload: dict) -> str | None:
+    """None если ок, иначе текст ошибки (для 403/400)."""
+    exp = _hw_assignment_id_from_payload(payload)
+    if exp is None:
+        return "В токене нет id домашнего задания"
+    try:
+        if int(aid) != int(exp):
+            return "Назначение не совпадает с токеном"
+    except (ValueError, TypeError) as e:
+        logger.warning("proxy homework: bad id in token aid=%s: %s", aid, e)
+        return "Некорректный id в токене"
+    return None
+
+
+def _lk_homework_request_headers(lesson_token: str) -> dict[str, str]:
+    """
+    Серверный запрос к API ЛК (обход CORS в браузере).
+    На стороне ЛК нужно принять JWT (см. LK_HOMEWORK_* в settings) или вебхук-секрет.
+    """
+    h: dict[str, str] = {"X-Lesson-Token": lesson_token}
+    scheme = (getattr(django_settings, "LK_HOMEWORK_AUTHORIZATION_SCHEME", None) or "Bearer").strip()
+    if scheme.lower() not in ("", "none", "off", "0", "false"):
+        h["Authorization"] = f"{scheme} {lesson_token}"
+    wh = (getattr(django_settings, "LESSON_WEBHOOK_SECRET", None) or "").strip() or (
+        getattr(django_settings, "LESSON_SECRET", None) or ""
+    ).strip()
+    if wh:
+        h["X-Lesson-Webhook-Secret"] = wh
+    return h
+
+
+def _lk_homework_url_on_lk(aid: int, suffix: str, lesson_token: str | None = None) -> str | None:
+    """
+    suffix: "" | "save-draft/" | "submit/" — путь на ЛК после /api/homework/assignment/<id>/
+    """
+    lk = (getattr(django_settings, "LK_PUBLIC_URL", "") or "").rstrip("/")
+    if not lk and bool(getattr(django_settings, "DEBUG", False)):
+        lk = "http://127.0.0.1:8001"
+    if not lk:
+        return None
+    base = f"{lk}/api/homework/assignment/{int(aid)}/{suffix}"
+    if (
+        lesson_token
+        and bool(getattr(django_settings, "LK_HOMEWORK_APPEND_TOKEN_QUERY", True))
+    ):
+        qn = (getattr(django_settings, "LK_HOMEWORK_TOKEN_QUERY_PARAM", None) or "token").strip()
+        if qn:
+            sep = "&" if "?" in base else "?"
+            base = f"{base}{sep}{quote(qn, safe='')}={quote(lesson_token, safe='')}"
+    return base
+
+
+def _forward_to_lk_homework(
+    method: str, aid: int, lesson_token: str, suffix: str, body: bytes | None
+) -> tuple[int, bytes, str]:
+    """(status, body, content_type) — от ЛК на генератор (или ошибка 502/503)."""
+    fetch_url = (getattr(django_settings, "LK_HOMEWORK_FETCH_URL", None) or "").strip()
+    use_internal_fetch = fetch_url and method == "GET" and not (suffix or "").strip()
+    if use_internal_fetch:
+        url = fetch_url
+        req_method = "POST"
+        req_body = json.dumps({"token": lesson_token, "assignment_id": int(aid)}, ensure_ascii=False).encode(
+            "utf-8"
+        )
+        headers = _lk_homework_request_headers(lesson_token)
+        headers["Content-Type"] = "application/json; charset=utf-8"
+    else:
+        url = _lk_homework_url_on_lk(aid, suffix, lesson_token)
+        if not url:
+            return (
+                503,
+                '{"error":"LK_PUBLIC_URL не задан на генераторе"}'.encode("utf-8"),
+                "application/json; charset=utf-8",
+            )
+        req_method = method
+        req_body = body
+        headers = _lk_homework_request_headers(lesson_token)
+        if body is not None:
+            headers["Content-Type"] = "application/json; charset=utf-8"
+        else:
+            headers.setdefault("Accept", "application/json")
+    import ssl as _ssl
+
+    http_fb = url.replace("https://", "http://", 1) if url.startswith("https://") else None
+
+    def _one(u: str) -> tuple[int, bytes, str]:
+        req = urlrequest.Request(u, data=req_body, method=req_method, headers=headers)
+        with urlrequest.urlopen(req, timeout=45) as resp:  # noqa: S310 — URL из настроек
+            raw = resp.read() or b""
+            ct = resp.headers.get("Content-Type") or "application/octet-stream"
+            return (resp.status or 200), raw, ct
+    try:
+        return _one(url)
+    except urlerror.HTTPError as e:
+        try:
+            raw = e.read() or b""
+        except Exception:
+            raw = b""
+        ct = (e.headers.get("Content-Type") if e.headers else None) or "text/plain; charset=utf-8"
+        return (e.code or 502), raw, ct
+    except (_ssl.SSLError, _ssl.CertificateError, urlerror.URLError, OSError) as e:
+        if http_fb and http_fb != url:
+            try:
+                return _one(http_fb)
+            except Exception as e2:
+                logger.warning("ЛК homework proxy SSL failed %s, HTTP fallback: %s", e, e2)
+        en = (str(e) or "connection error").encode("utf-8", errors="replace")
+        return 502, b'{"error":"' + en[:200].replace(b'"', b"'") + b'"}', "application/json; charset=utf-8"
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def api_lesson_homework_assignment(request, aid: int):
+    """
+    Прокси GET /api/homework/assignment/<id>/ на ЛК. Тот же origin, что страница варианта — без CORS.
+    GET ?token=<JWT урока> — id назначения должен совпадать с токеном.
+    """
+    token = (request.GET.get("token") or "").strip()
+    if not token:
+        return JsonResponse({"error": "token required"}, status=400)
+    try:
+        payload = verify_lesson_token(token)
+    except ValueError as e:
+        return JsonResponse({"error": str(e)}, status=401)
+    bad = _assert_homework_token_matches_assignment(aid, payload)
+    if bad:
+        logger.info("Прокси ДЗ: отклонение по токену assignment=%s: %s", aid, bad)
+        return JsonResponse({"error": bad}, status=403)
+    code, body, _ct = _forward_to_lk_homework("GET", aid, token, "", None)
+    if code and code >= 400:
+        logger.warning(
+            "Прокси ДЗ: ответ ЛК HTTP %s assignment=%s: %s",
+            code,
+            aid,
+            (body[:500] or b"").decode("utf-8", errors="replace"),
+        )
+    try:
+        return HttpResponse(
+            body,
+            content_type="application/json; charset=utf-8",
+            status=code,
+        )
+    except Exception:
+        return HttpResponse(body, status=code, content_type="application/json; charset=utf-8")
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_lesson_homework_save_draft(request, aid: int):
+    token = (request.GET.get("token") or "").strip()
+    if not token:
+        return JsonResponse({"error": "token required"}, status=400)
+    try:
+        payload = verify_lesson_token(token)
+    except ValueError as e:
+        return JsonResponse({"error": str(e)}, status=401)
+    bad = _assert_homework_token_matches_assignment(aid, payload)
+    if bad:
+        return JsonResponse({"error": bad}, status=403)
+    code, body, _ct = _forward_to_lk_homework(
+        "POST", aid, token, "save-draft/", (request.body or b"") if (request.body or b"") else b"{}"
+    )
+    if code and code >= 400:
+        logger.warning(
+            "Прокси ДЗ save-draft: ответ ЛК HTTP %s assignment=%s: %s",
+            code,
+            aid,
+            (body[:500] or b"").decode("utf-8", errors="replace"),
+        )
+    return HttpResponse(body, content_type="application/json; charset=utf-8", status=code)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_lesson_homework_submit(request, aid: int):
+    token = (request.GET.get("token") or "").strip()
+    if not token:
+        return JsonResponse({"error": "token required"}, status=400)
+    try:
+        payload = verify_lesson_token(token)
+    except ValueError as e:
+        return JsonResponse({"error": str(e)}, status=401)
+    bad = _assert_homework_token_matches_assignment(aid, payload)
+    if bad:
+        return JsonResponse({"error": bad}, status=403)
+    code, body, _ct = _forward_to_lk_homework("POST", aid, token, "submit/", b"{}")
+    if code and code >= 400:
+        logger.warning(
+            "Прокси ДЗ submit: ответ ЛК HTTP %s assignment=%s: %s",
+            code,
+            aid,
+            (body[:500] or b"").decode("utf-8", errors="replace"),
+        )
+    return HttpResponse(body, content_type="application/json; charset=utf-8", status=code)
 
 
 @require_http_methods(["GET"])
@@ -3255,6 +3500,8 @@ def api_lesson_results(request):
     token = str(request.GET.get("token") or request.GET.get("lesson_token") or "").strip()
     room_id = str(request.GET.get("room_id") or "").strip()
     variant_raw = request.GET.get("variant_id")
+    role_override = str(request.GET.get("role") or "").strip().lower()
+    normalized = None
     if token:
         try:
             payload = verify_lesson_token(token)
@@ -3262,6 +3509,13 @@ def api_lesson_results(request):
             room_id = room_id or str(normalized.get("room_id") or "").strip()
         except ValueError as exc:
             return JsonResponse({"ok": False, "error": str(exc)}, status=401)
+        lesson_type = str(normalized.get("lesson_type") or "")
+        if role_override in ("teacher", "tutor"):
+            lesson_type = "teacher"
+        elif role_override in ("student", "pupil"):
+            lesson_type = "student"
+        if lesson_type != "teacher":
+            return JsonResponse({"ok": False, "error": "teacher token required"}, status=403)
     if not room_id:
         return JsonResponse({"ok": False, "error": "room_id required"}, status=400)
     qs = LessonStudentResult.objects.filter(room_id=room_id[:200])
@@ -3415,13 +3669,40 @@ def api_lesson_student_comment(request):
     return JsonResponse({"ok": True, "id": row.id})
 
 
+def _lesson_report_pdf_response(request, room_id: str, variant_id: int | None, results, answers) -> HttpResponse:
+    """PDF-отчёт по уроку (WeasyPrint)."""
+    by_student: dict[str, list] = {}
+    for a in answers:
+        by_student.setdefault(str(a.student or "").strip() or "student", []).append(a)
+    answers_sections = [{"student": k, "rows": v} for k, v in sorted(by_student.items())]
+    context = {
+        "room_id": room_id,
+        "variant_id": variant_id,
+        "generated_at": timezone.now().strftime("%d.%m.%Y %H:%M"),
+        "results": results,
+        "answers_sections": answers_sections,
+    }
+    html_string = render_to_string("lesson_report_pdf.html", context)
+    base_url = request.build_absolute_uri("/")
+    if not _WEASYPRINT_OK:
+        return HttpResponse("PDF недоступен: WeasyPrint не установлен", status=503, content_type="text/plain; charset=utf-8")
+    try:
+        pdf = WeasyHTML(string=html_string, base_url=base_url).write_pdf()
+    except Exception as e:
+        logger.exception("lesson report PDF failed: %s", e)
+        return HttpResponse("Ошибка генерации PDF", status=500, content_type="text/plain; charset=utf-8")
+    safe_room = re.sub(r"[^a-zA-Z0-9_-]", "_", room_id)[:64] or "room"
+    response = HttpResponse(pdf, content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="lesson_report_{safe_room}.pdf"'
+    return response
+
+
 @require_http_methods(["GET"])
 def api_lesson_report_download(request):
     """
-    Скачать архив отчётов урока:
-      - summary.csv (общий отчёт),
-      - details_all.csv (все ответы),
-      - students/<name>.csv (подробный по каждому ученику).
+    Скачать отчёт по уроку:
+      - format=zip (по умолчанию): архив CSV — summary, details, по ученикам;
+      - format=pdf: один PDF-файл с таблицей и ответами.
     """
     token = str(request.GET.get("token") or request.GET.get("lesson_token") or "").strip()
     room_id = str(request.GET.get("room_id") or "").strip()
@@ -3470,6 +3751,10 @@ def api_lesson_report_download(request):
 
     results = list(results_qs.order_by("student", "id"))
     answers = list(answers_qs.order_by("student", "task_number", "id"))
+
+    fmt = (request.GET.get("format") or "zip").strip().lower()
+    if fmt == "pdf":
+        return _lesson_report_pdf_response(request, room_id, variant_id, results, answers)
 
     summary_buf = io.StringIO()
     sw = csv.writer(summary_buf)
@@ -3826,15 +4111,51 @@ def lesson_join(request):
             pass
 
     if _is_lesson_session_closed(normalized["room_id"]):
-        return HttpResponseBadRequest(
-            "Урок уже завершён. Ссылка из личного кабинета больше не открывает эту комнату."
+        return HttpResponseRedirect(lk_user_nav_url())
+
+    # Домашнее задание из ЛК: query и/или поля JWT
+    cabinet_session = str(request.GET.get("cabinet_session") or request.GET.get("cabinetSession") or "").strip()
+    cabinet_assignment = str(
+        request.GET.get("cabinet_assignment")
+        or request.GET.get("cabinetAssignment")
+        or normalized.get("homework_assignment_id")
+        or payload.get("homework_assignment_id")
+        or payload.get("homeworkAssignmentId")
+        or ""
+    ).strip()
+    if not cabinet_assignment and payload.get("homework_assignment_id") is not None:
+        cabinet_assignment = str(payload.get("homework_assignment_id")).strip()
+    sk = str(
+        (normalized.get("session_kind") or payload.get("session_kind") or payload.get("sessionKind") or "")
+    ).strip().lower()
+    lf = str(
+        (
+            normalized.get("lesson_format")
+            or payload.get("lesson_format")
+            or payload.get("lessonFormat")
+            or ""
         )
+    ).strip().lower()
+    cas = cabinet_session.lower()
+    homework_mode = bool(
+        cas == "homework"
+        or sk == "homework"
+        or lf == "homework"
+        or bool(cabinet_assignment)
+    )
 
     _persist_lesson_room(normalized["room_id"], payload)
     normalized["lesson_token"] = token
+    normalized["cabinet_session"] = cabinet_session
+    normalized["cabinet_assignment"] = cabinet_assignment
+    normalized["homework_mode"] = homework_mode
 
-    # Уведомление ЛК: ученик фактически зашёл на страницу комнаты (в т.ч. по прямой ссылке с домена генератора).
-    if str(normalized.get("lesson_type") or "").strip().lower() == "student":
+    # Уведомление ЛК: ученик зашёл в live-комнату. Для ДЗ (session_kind/lesson_format homework) не шлём —
+    # /api/lesson/student-joined/ в ЛК ждёт разрешимых «получателей» урока и иначе 400.
+    if (
+        str(normalized.get("lesson_type") or "").strip().lower() == "student"
+        and not homework_mode
+    ):
         _tkn = token
         _lk_student_extra = {
             "room_id": normalized.get("room_id"),
@@ -3850,11 +4171,18 @@ def lesson_join(request):
         threading.Thread(target=_notify_student_joined_room, daemon=True).start()
 
     # В JSON для страницы подмешиваем роль после ?role=… — в JWT ЛК иногда шлёт lesson_format=student и для ссылки учителя.
+    # Не затираем lesson_format, если в JWT это режим «homework» (домашка из ЛК).
     client_payload = dict(payload) if isinstance(payload, dict) else {}
     lt_eff = str(normalized.get("lesson_type") or "").strip().lower()
+    lf_jwt = str(
+        (payload.get("lesson_format") or payload.get("lessonFormat") or "")
+        if isinstance(payload, dict)
+        else ""
+    ).strip().lower()
     if lt_eff in ("teacher", "student"):
         client_payload["lesson_type"] = lt_eff
-        client_payload["lesson_format"] = lt_eff
+        if lf_jwt != "homework":
+            client_payload["lesson_format"] = lt_eff
     normalized["lesson_payload_json"] = json.dumps(client_payload, ensure_ascii=False)
     normalized["lk_public_url"] = lk_user_nav_url()
     normalized["lk_nav_password_required"] = lk_nav_password_configured()

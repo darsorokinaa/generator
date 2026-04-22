@@ -1,8 +1,15 @@
 /**
- * Запасной URL ЛК до ответа `/api/site-config/` (Django `LK_PUBLIC_URL`).
- * Локально: можно задать VITE_LK_URL в .env — не ставьте URL главной генератора.
+ * URL ЛК из сборки (до и после `/api/site-config/`, вместе с Django `LK_PUBLIC_URL`).
+ * Задавайте VITE_LK_PUBLIC_URL (рекомендуется) — тот же origin, что и сессия/cookies ЛК
+ * (CORS + `credentials: 'include'` с стороны ЛК для API ДЗ). Фоллбек: VITE_LK_URL.
+ * Не подставляйте URL корня генератора вместо ЛК.
  */
-export const LK_PUBLIC_URL = String(import.meta.env.VITE_LK_URL || "http://lk.genurok.tw1.ru").replace(
-  /\/$/,
-  ""
-);
+function lkBuildBase() {
+  return String(
+    import.meta.env.VITE_LK_PUBLIC_URL || import.meta.env.VITE_LK_URL || "http://lk.genurok.tw1.ru"
+  )
+    .trim()
+    .replace(/\/$/, "");
+}
+
+export const LK_PUBLIC_URL = lkBuildBase();

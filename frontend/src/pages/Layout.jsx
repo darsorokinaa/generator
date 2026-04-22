@@ -11,7 +11,7 @@ const COOKIE_CONSENT_KEY = "cookie_consent_accepted";
 
 function Layout() {
   const { pathname } = useLocation();
-  /** URL ЛК: сначала из сборки, после запроса — с сервера (LK_PUBLIC_URL в Django), чтобы не открывалась та же главная генератора из‑за ошибочного VITE_LK_URL или DNS. */
+  /** URL ЛК: сначала из сборки (VITE_LK_PUBLIC_URL / VITE_LK_URL), после запроса — с сервера (Django LK_PUBLIC_URL), чтобы не открывалась главная генератора по ошибке. */
   const [lkHref, setLkHref] = useState(LK_PUBLIC_URL);
   const [lkNavGateRequired, setLkNavGateRequired] = useState(false);
   const [lkNavUnlocked, setLkNavUnlocked] = useState(false);

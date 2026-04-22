@@ -12,13 +12,22 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-insecure-secret-key")
 # Тот же секрет, что в ЛК (02_lk_generator): POST /api/lesson/token/ → ссылка на /lesson/join/
 LESSON_SECRET = os.environ.get("LESSON_SECRET", "").strip()
 TASKS_GET_SECRET = os.environ.get("LINK_SECRET_FOR_TASKS").strip()
-# Ссылка «Личный кабинет» в шаблоне урока и согласованность с фронтом (VITE_LK_URL)
+# Ссылка «Личный кабинет» в шаблоне урока; должен совпадать с origin из сборки фронта (VITE_LK_PUBLIC_URL).
 LK_PUBLIC_URL = os.environ.get("LK_PUBLIC_URL", "http://lk.genurok.tw1.ru").rstrip("/")
 LK_DASHBOARD_URL = os.environ.get("LK_DASHBOARD_URL", "").strip().rstrip("/")
 # Опционально: явный URL вебхука ЛК при входе ученика в комнату (иначе LK_PUBLIC_URL + /api/lesson/student-joined/).
 LK_LESSON_STUDENT_NOTIFY_URL = os.environ.get("LK_LESSON_STUDENT_NOTIFY_URL", "").strip()
 LK_LESSON_NOTIFY_URL = os.environ.get("LK_LESSON_NOTIFY_URL", "").strip()
 LESSON_WEBHOOK_SECRET = os.environ.get("LESSON_WEBHOOK_SECRET", "").strip()
+# Прокси ДЗ → ЛК: ЛК по умолчанию не знает Bearer JWT; см. deploy/LK_GENUROK_DEBUG.md
+# Добавить ?token=… к URL (если на ЛК читают GET-параметр). Отключить: LK_HOMEWORK_APPEND_TOKEN_QUERY=0
+_hw_q = os.environ.get("LK_HOMEWORK_APPEND_TOKEN_QUERY", "true").strip().lower()
+LK_HOMEWORK_APPEND_TOKEN_QUERY = _hw_q not in ("0", "false", "no", "off")
+LK_HOMEWORK_TOKEN_QUERY_PARAM = (os.environ.get("LK_HOMEWORK_TOKEN_QUERY_PARAM", "token") or "token").strip()
+# Заголовок Authorization: Bearer <jwt> | Token <jwt> | пусто — не слать (только X-Lesson-Token + секрет).
+LK_HOMEWORK_AUTHORIZATION_SCHEME = (os.environ.get("LK_HOMEWORK_AUTHORIZATION_SCHEME", "Bearer") or "Bearer").strip()
+# Вместо GET /api/homework/assignment/<id>/ — POST сюда с JSON {"token","assignment_id"} (как teacher-joined).
+LK_HOMEWORK_FETCH_URL = os.environ.get("LK_HOMEWORK_FETCH_URL", "").strip()
 _gen_home_outer = os.environ.get("GENUROK_PUBLIC_HOME_URL", "http://genurok.ru").strip().rstrip("/")
 GENUROK_PUBLIC_HOME_URL = f"{_gen_home_outer}/"
 LOGOUT_REDIRECT_URL = GENUROK_PUBLIC_HOME_URL
