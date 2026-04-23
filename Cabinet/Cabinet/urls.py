@@ -71,7 +71,7 @@ def home_view(request):
         if user_can_use_lk(request.user):
             # ЛК открывается на корне без префикса /app.
             return react_app(request)
-        return redirect('/admin/')
+        return redirect('login')
     return redirect('login')
 
 

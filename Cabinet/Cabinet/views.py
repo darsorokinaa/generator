@@ -760,7 +760,12 @@ def login_view(request):
     if request.user.is_authenticated:                                       # пользователь уже вошёл
         if user_can_use_lk(request.user):                                   # имеет доступ к ЛК
             return redirect(_dashboard_url(request))                        # → редирект на дашборд
-        return redirect('/admin/')                                          # суперпользователь → в админку
+        logout(request)
+        messages.error(
+            request,
+            'Для личного кабинета используйте учётную запись с доступом в ЛК.',
+        )
+        return render(request, 'login.html', _login_page_context(request))
 
     if request.method == 'POST':                                            # обработка формы входа
         rl_key = _login_rate_limit_key(request)                            # ключ для rate limit по IP
@@ -947,7 +952,12 @@ def register_view(request):
     if request.user.is_authenticated:                                       # уже авторизован — не нужна регистрация
         if user_can_use_lk(request.user):
             return redirect(_dashboard_url(request))                        # → в ЛК
-        return redirect('/admin/')                                          # → в админку
+        logout(request)
+        messages.error(
+            request,
+            'Для регистрации в личном кабинете войдите под учётной записью ЛК.',
+        )
+        return redirect('login')
 
     subjects = Subject.objects.all().order_by('subject_name')              # все предметы для чекбоксов формы
 
@@ -1147,7 +1157,12 @@ def logout_view(request):
 
 def settings_view(request):
     if request.user.is_authenticated and not user_can_use_lk(request.user):  # суперпользователь без ЛК
-        return redirect('/admin/')                                           # → в Django admin
+        logout(request)
+        messages.error(
+            request,
+            'Доступ к настройкам личного кабинета разрешён только пользователям ЛК.',
+        )
+        return redirect('login')
     return render(request, 'settings.html')                                 # рендерим страницу настроек
 
 
