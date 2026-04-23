@@ -19,6 +19,7 @@ import string                                          # наборы симво
 import time                                            # time.time() — текущий Unix-timestamp
 import re                                              # регулярные выражения
 import json       
+import logging
 import requests                                    # HTTP-клиент для проксирования запросов к генератору
 import urllib.request                                  # HTTP-запросы без сторонних библиотек
 import urllib.error                                    # HTTPError при проксировании запросов
@@ -67,6 +68,7 @@ from .serializers_input import (                       # сериализато�
 from datetime import timedelta
 from .models import LessonInvite
 
+logger = logging.getLogger(__name__)
 
 
 
@@ -705,11 +707,16 @@ def _login_page_context(request):
     """Контекст страницы входа: настройки виджета VK ID (если задан VKID_APP_ID)."""
     ctx = {}
     app_id = getattr(settings, 'VKID_APP_ID', '').strip()
+    if app_id and not re.fullmatch(r'\d+', app_id):
+        logger.warning('VK ID disabled on /login/: VKID_APP_ID must contain only digits.')
+        return ctx
     if app_id:
         ctx['vkid_app_id'] = app_id
         redir = getattr(settings, 'VKID_REDIRECT_URL', '').strip()
         ctx['vkid_redirect_url'] = redir or request.build_absolute_uri('/login/')
         ctx['vkid_scope'] = getattr(settings, 'VKID_SCOPE', 'email') or 'email'
+    elif not settings.DEBUG:
+        logger.warning('VK ID disabled on /login/: VKID_APP_ID is empty in production environment.')
     return ctx
 
 

@@ -100,8 +100,9 @@ JITSI_JWT_SECRET = os.environ.get('JITSI_JWT_SECRET', '').strip()
 
 # VK ID (вход учителя через ВКонтакте). redirectUrl в кабинете VK должен совпадать с VKID_REDIRECT_URL
 # или с URL страницы /login/ этого сайта.
-VKID_APP_ID = os.environ.get('VKID_APP_ID', '').strip()
-VKID_REDIRECT_URL = os.environ.get('VKID_REDIRECT_URL', '').strip()
+# Для совместимости поддерживаются старые ключи VK_APP_ID / VK_REDIRECT_URL.
+VKID_APP_ID = (os.environ.get('VKID_APP_ID') or os.environ.get('VK_APP_ID') or '').strip()
+VKID_REDIRECT_URL = (os.environ.get('VKID_REDIRECT_URL') or os.environ.get('VK_REDIRECT_URL') or '').strip()
 VKID_SCOPE = (os.environ.get('VKID_SCOPE', 'email') or 'email').strip()
 
 
