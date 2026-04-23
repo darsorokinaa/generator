@@ -151,8 +151,11 @@ export function homeworkResultToUiState(result, taskByNumber) {
   const outSc = {};
   const outCh = {};
 
+  const byId = r.by_task_id || r.byTaskId || r.answers;
+  const hasById = byId && typeof byId === "object" && Object.keys(byId).length > 0;
+
   const byNum = r.by_number || r.byNumber || r.answersByNumber;
-  if (byNum && typeof byNum === "object") {
+  if (byNum && typeof byNum === "object" && !hasById) {
     for (const [num, val] of Object.entries(/** @type {Record<string, unknown>} */ (byNum))) {
       const t = taskByNumber.get(String(num)) || taskByNumber.get(String(Number(num)));
       if (t) {
@@ -163,8 +166,8 @@ export function homeworkResultToUiState(result, taskByNumber) {
       }
     }
   }
-  const byId = r.by_task_id || r.byTaskId || r.answers;
-  if (byId && typeof byId === "object") {
+  
+  if (hasById) {
     for (const [id, val] of Object.entries(/** @type {Record<string, unknown>} */ (byId))) {
       if (typeof val === "string") outUa[id] = val;
       else if (val != null) outUa[id] = String(val);

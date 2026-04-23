@@ -394,7 +394,7 @@ function TasksPage() {
       } else if (identifier.startsWith("linked_") && item.tasks?.length) {
         const nums = item.task_numbers || item.tasks.map((t) => t.task_number);
         const bySt = groupSubtopicCounts[identifier];
-        const groupCount = bySt ? Math.max(...Object.values(bySt), 0) : count;
+        const groupCount = bySt ? Object.values(bySt).reduce((sum, val) => sum + (val || 0), 0) : count;
         item.tasks.forEach((t) => {
           const tlId = t.tasklist_id ?? t.id;
           if (tlId != null) content[String(tlId)] = Math.max(content[String(tlId)] || 0, groupCount);
@@ -411,7 +411,7 @@ function TasksPage() {
       } else if (identifier.startsWith("group_") && item.tasks?.length) {
         const nums = item.task_numbers || item.tasks.map((t) => t.task_number);
         const bySt = groupSubtopicCounts[identifier];
-        const groupCount = bySt ? Math.max(...Object.values(bySt), 0) : count;
+        const groupCount = bySt ? Object.values(bySt).reduce((sum, val) => sum + (val || 0), 0) : count;
         item.tasks.forEach((t) => {
           const tlId = t.tasklist_id ?? t.id;
           if (tlId != null) content[String(tlId)] = Math.max(content[String(tlId)] || 0, groupCount);

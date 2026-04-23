@@ -10,6 +10,426 @@
   <style>
     .lesson-modal-font { font-family: 'Montserrat', sans-serif; }
     .lesson-modal-font h2, .lesson-modal-font h3 { font-family: 'Unbounded', sans-serif; }
+    /* Lesson UI: aligned with ExamPage look */
+    :root {
+      --lesson-ui-primary: #586fd7;
+      --lesson-ui-primary-2: #667eea;
+      --lesson-ui-primary-soft: #eef2ff;
+      --lesson-ui-text: #1e293b;
+      --lesson-ui-muted: #64748b;
+      --lesson-ui-border: #e2e8f0;
+      --lesson-ui-bg: #f8fafc;
+      --lesson-ui-danger: #dc2626;
+      --lesson-ui-success: #15803d;
+      --lesson-ui-shadow: 0 16px 44px rgba(15, 23, 42, 0.2);
+      --lesson-ui-radius: 16px;
+    }
+    .lesson-ui-btn {
+      border: 1px solid transparent;
+      border-radius: 12px;
+      padding: 10px 16px;
+      font-family: "Montserrat", sans-serif;
+      font-weight: 700;
+      font-size: 0.86rem;
+      cursor: pointer;
+      transition: transform .2s ease, box-shadow .2s ease, filter .2s ease, background-color .2s ease;
+    }
+    .lesson-ui-btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 18px rgba(88, 111, 215, .22);
+    }
+    .lesson-ui-btn:disabled {
+      opacity: .6;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    .lesson-ui-btn--primary {
+      color: #fff;
+      background: linear-gradient(135deg, var(--lesson-ui-primary-2), var(--lesson-ui-primary));
+      border-color: rgba(88, 111, 215, .4);
+    }
+    .lesson-ui-btn--ghost {
+      color: #334155;
+      background: #fff;
+      border-color: var(--lesson-ui-border);
+    }
+    .lesson-ui-btn--danger {
+      color: #fff;
+      background: linear-gradient(135deg, #ef4444, var(--lesson-ui-danger));
+      border-color: rgba(220, 38, 38, .35);
+    }
+    .lesson-ui-fab {
+      display: none;
+      position: fixed;
+      right: 18px;
+      bottom: 88px;
+      z-index: 260;
+      width: 52px;
+      height: 52px;
+      border-radius: 50%;
+      padding: 0;
+      font-size: 1.8rem;
+      line-height: 1;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 10px 24px rgba(88, 111, 215, .35);
+    }
+    .lesson-modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, .52);
+      z-index: 500;
+      overflow: auto;
+      padding: 28px 16px;
+      box-sizing: border-box;
+    }
+    .lesson-modal-overlay.lesson-modal-overlay--centered {
+      align-items: flex-start;
+      justify-content: center;
+    }
+    .lesson-modal-card {
+      width: 100%;
+      max-width: 940px;
+      margin: 0 auto;
+      background: #fff;
+      border: 1px solid var(--lesson-ui-border);
+      border-radius: 22px;
+      overflow: hidden;
+      box-shadow: var(--lesson-ui-shadow);
+    }
+    .lesson-modal-card--finish { max-width: 760px; }
+    .lesson-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--lesson-ui-border);
+      background: linear-gradient(180deg, #f8fbff 0%, #f8fafc 100%);
+    }
+    .lesson-modal-title {
+      margin: 0;
+      font-family: "Unbounded", sans-serif;
+      font-size: 1rem;
+      color: #1e3a8a;
+      letter-spacing: -.01em;
+    }
+    .lesson-modal-close {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      border: 1px solid var(--lesson-ui-border);
+      background: #fff;
+      color: #64748b;
+      cursor: pointer;
+      font-size: 1.2rem;
+      line-height: 1;
+    }
+    .lesson-modal-layout {
+      display: flex;
+      min-height: min(68vh, 620px);
+      max-height: min(68vh, 620px);
+    }
+    .lesson-modal-slots {
+      width: 240px;
+      flex-shrink: 0;
+      border-right: 1px solid var(--lesson-ui-border);
+      padding: 12px 10px;
+      overflow-y: auto;
+      background: #fbfcff;
+    }
+    .lesson-modal-bank-wrap {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      flex: 1;
+    }
+    .lesson-modal-subtopic-bar {
+      display: none;
+      overflow-x: auto;
+      white-space: nowrap;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--lesson-ui-border);
+      background: var(--lesson-ui-bg);
+    }
+    .lesson-modal-bank {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      background: #fff;
+    }
+    .lesson-modal-placeholder {
+      color: var(--lesson-ui-muted);
+      padding: 10px;
+      font-size: .86rem;
+      font-family: "Montserrat", sans-serif;
+    }
+    .lesson-modal-placeholder--error { color: #b91c1c; }
+    .lesson-slot-header {
+      color: #94a3b8;
+      padding: 6px 8px 10px;
+      font-size: .7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      font-family: "Unbounded", sans-serif;
+    }
+    .lesson-slot-item {
+      display: block;
+      width: 100%;
+      text-align: left;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      background: transparent;
+      color: #334155;
+      padding: 9px 10px;
+      font-size: .82rem;
+      font-weight: 600;
+      margin-bottom: 4px;
+      cursor: pointer;
+      font-family: "Montserrat", sans-serif;
+      transition: all .18s ease;
+    }
+    .lesson-slot-item:hover { background: #f8fafc; border-color: #dbe6ff; }
+    .lesson-slot-item.is-active {
+      background: var(--lesson-ui-primary-soft);
+      border-color: #c7d2fe;
+      color: #3730a3;
+    }
+    .lesson-slot-group {
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #eff6ff;
+    }
+    .lesson-slot-group-title {
+      font-size: .65rem;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: 6px;
+      font-family: "Unbounded", sans-serif;
+    }
+    .lesson-slot-group-label {
+      font-family: "Unbounded", sans-serif;
+      font-size: .78rem;
+      color: #4f46e5;
+      margin-bottom: 6px;
+    }
+    .lesson-slot-group-meta {
+      font-size: .72rem;
+      color: #64748b;
+      line-height: 1.4;
+      font-weight: 600;
+    }
+    .lesson-slot-group-preview {
+      font-size: .7rem;
+      color: #94a3b8;
+      margin-top: 6px;
+      line-height: 1.35;
+      max-height: 3.9em;
+      overflow: hidden;
+    }
+    .lesson-subtopic-label {
+      font-size: .7rem;
+      font-weight: 700;
+      color: #94a3b8;
+      margin-right: 8px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      vertical-align: middle;
+      font-family: "Unbounded", sans-serif;
+    }
+    .lesson-subtopic-chip {
+      display: inline-block;
+      margin-right: 6px;
+      padding: 4px 12px;
+      border-radius: 999px;
+      border: 1.5px solid var(--lesson-ui-border);
+      background: #fff;
+      color: #334155;
+      font-size: .75rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: "Montserrat", sans-serif;
+      transition: all .16s ease;
+      white-space: nowrap;
+      vertical-align: middle;
+    }
+    .lesson-subtopic-chip.is-active {
+      border-color: #586fd7;
+      background: #586fd7;
+      color: #fff;
+      box-shadow: 0 4px 12px rgba(88, 111, 215, .22);
+    }
+    .lesson-bank-card {
+      border: 1px solid var(--lesson-ui-border);
+      border-radius: 14px;
+      background: #fff;
+      box-shadow: 0 4px 14px rgba(15, 23, 42, .06);
+      padding: 14px 16px;
+      margin-bottom: 12px;
+    }
+    .lesson-bank-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .lesson-bank-meta {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+      min-width: 0;
+    }
+    .lesson-bank-badge {
+      border-radius: 999px;
+      padding: 2px 9px;
+      font-size: .7rem;
+      font-weight: 700;
+      font-family: "Montserrat", sans-serif;
+      white-space: nowrap;
+    }
+    .lesson-bank-badge--num {
+      font-family: "Unbounded", sans-serif;
+      color: #4f46e5;
+      background: #eef2ff;
+    }
+    .lesson-bank-badge--part1 { color: #166534; background: #dcfce7; }
+    .lesson-bank-badge--part2 { color: #854d0e; background: #fef3c7; }
+    .lesson-bank-badge--subtopic {
+      color: #0369a1;
+      background: #e0f2fe;
+      max-width: 280px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .lesson-bank-task-text {
+      font-size: .86rem;
+      color: #0f172a;
+      line-height: 1.7;
+      max-height: 220px;
+      overflow: hidden;
+      font-family: "Montserrat", sans-serif;
+    }
+    .lesson-bank-group-title {
+      font-family: "Unbounded", sans-serif;
+      font-size: .82rem;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 4px;
+    }
+    .lesson-bank-group-subtitle {
+      font-size: .74rem;
+      color: #64748b;
+      font-family: "Montserrat", sans-serif;
+    }
+    .lesson-bank-group-items {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      border-top: 1px solid #eff6ff;
+      padding-top: 12px;
+    }
+    .lesson-bank-group-item {
+      padding: 10px 12px;
+      border-radius: 10px;
+      background: #f8fafc;
+      border: 1px solid var(--lesson-ui-border);
+    }
+    .lesson-bank-pagination {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 12px;
+    }
+    .lesson-page-btn {
+      border: 1.5px solid var(--lesson-ui-border);
+      border-radius: 8px;
+      background: #fff;
+      color: #334155;
+      font-size: .8rem;
+      font-weight: 600;
+      padding: 5px 12px;
+      cursor: pointer;
+      font-family: "Montserrat", sans-serif;
+    }
+    .lesson-page-btn.is-active {
+      background: #586fd7;
+      color: #fff;
+      border-color: #586fd7;
+    }
+    #lesson-teacher-ui {
+      display: none;
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      z-index: 240;
+    }
+    #lesson-finish-modal-body .lesson-result-card {
+      margin-bottom: 14px;
+      border: 1px solid var(--lesson-ui-border);
+      border-radius: 14px;
+      padding: 14px 16px;
+      background: #fff;
+      box-shadow: 0 3px 10px rgba(15, 23, 42, .05);
+    }
+    .lesson-result-student {
+      font-weight: 700;
+      font-size: .95rem;
+      color: #0f172a;
+      margin-bottom: 4px;
+      font-family: "Unbounded", sans-serif;
+    }
+    .lesson-result-meta {
+      font-size: .8rem;
+      color: #64748b;
+      margin-bottom: 10px;
+      line-height: 1.45;
+    }
+    .lesson-result-label {
+      display: block;
+      font-size: .75rem;
+      font-weight: 600;
+      color: #475569;
+      margin-bottom: 6px;
+    }
+    .lesson-result-comment {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px 12px;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      font-size: .88rem;
+      font-family: "Montserrat", sans-serif;
+      resize: vertical;
+    }
+    .lesson-save-comment-btn {
+      margin-top: 8px;
+      padding: 8px 16px;
+      border-radius: 10px;
+      border: 1px solid var(--lesson-ui-border);
+      background: #f8fafc;
+      color: #0f172a;
+      font-weight: 600;
+      font-size: .82rem;
+      font-family: "Montserrat", sans-serif;
+      cursor: pointer;
+    }
+    .lesson-modal-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      padding: 16px 20px;
+      border-top: 1px solid var(--lesson-ui-border);
+      background: #f8fafc;
+    }
   </style>
   <script>
     window.MathJax = {
@@ -172,29 +592,29 @@
 </head>
 <body>
   <!-- Teacher: Add extra task button (must be before <script> so getElementById works) -->
-  <button id="lesson-add-task-btn" style="display:none;position:fixed;bottom:84px;right:16px;z-index:200;background:#7c3aed;color:#fff;border:none;border-radius:50%;width:48px;height:48px;font-size:1.6rem;cursor:pointer;box-shadow:0 4px 16px rgba(124,58,237,.45);align-items:center;justify-content:center;" title="Добавить задание">＋</button>
+  <button id="lesson-add-task-btn" class="lesson-ui-btn lesson-ui-btn--primary lesson-ui-fab" title="Добавить задание">＋</button>
 
   <!-- Add task modal -->
-  <div id="lesson-add-task-modal" class="lesson-modal-font" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:500;overflow:auto;align-items:flex-start;justify-content:center;padding:32px 16px;">
-    <div style="width:100%;max-width:900px;background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.25);">
+  <div id="lesson-add-task-modal" class="lesson-modal-overlay lesson-modal-overlay--centered lesson-modal-font">
+    <div class="lesson-modal-card">
       <!-- Header -->
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:20px 28px;border-bottom:1px solid #ede9fe;background:linear-gradient(135deg,#faf5ff 0%,#f0f9ff 100%);">
-        <h2 style="margin:0;font-size:1.05rem;font-weight:700;color:#4c1d95;font-family:'Unbounded',sans-serif;letter-spacing:-.01em;">Добавить задание</h2>
-        <button id="lesson-add-task-modal-close" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#64748b;line-height:1;padding:4px 8px;border-radius:6px;">✕</button>
+      <div class="lesson-modal-header">
+        <h2 class="lesson-modal-title">Добавить задание</h2>
+        <button id="lesson-add-task-modal-close" class="lesson-modal-close">✕</button>
       </div>
       <!-- Body: slots + bank -->
-      <div style="display:flex;height:580px;">
+      <div class="lesson-modal-layout">
         <!-- Left: task number slots -->
-        <div id="lesson-task-slots" style="width:200px;border-right:1px solid #e2e8f0;overflow-y:auto;padding:12px 8px;flex-shrink:0;background:#fafafa;">
-          <div style="color:#94a3b8;padding:6px 8px 10px;font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;font-family:'Unbounded',sans-serif;">Задание №</div>
+        <div id="lesson-task-slots" class="lesson-modal-slots">
+          <div class="lesson-slot-header">Задание №</div>
         </div>
         <!-- Right: subtopic filter + task cards -->
-        <div style="flex:1;display:flex;flex-direction:column;min-width:0;">
-          <div id="lesson-subtopic-bar" style="display:none;padding:10px 16px;border-bottom:1px solid #e2e8f0;background:#f8fafc;overflow-x:auto;white-space:nowrap;flex-shrink:0;">
-            <span style="font-size:0.72rem;font-weight:600;color:#94a3b8;margin-right:8px;text-transform:uppercase;letter-spacing:.06em;vertical-align:middle;">Подтема:</span>
+        <div class="lesson-modal-bank-wrap">
+          <div id="lesson-subtopic-bar" class="lesson-modal-subtopic-bar">
+            <span class="lesson-subtopic-label">Подтема:</span>
           </div>
-          <div id="lesson-task-bank" style="flex:1;overflow-y:auto;padding:16px;">
-            <div style="color:#94a3b8;font-size:0.9rem;padding:8px;">← Выберите номер задания</div>
+          <div id="lesson-task-bank" class="lesson-modal-bank">
+            <div class="lesson-modal-placeholder">← Выберите номер задания</div>
           </div>
         </div>
       </div>
@@ -202,21 +622,21 @@
   </div>
 
   <!-- Teacher: кнопка «Завершить урок» наверху + модалка итогов -->
-  <div id="lesson-teacher-ui" style="display:none;">
-    <button type="button" id="lesson-finish-top-btn" style="display:none;position:fixed;top:12px;right:12px;z-index:240;padding:11px 22px;border-radius:12px;border:none;background:#dc2626;color:#fff;font-weight:700;font-size:0.88rem;font-family:'Montserrat',system-ui,sans-serif;cursor:pointer;box-shadow:0 4px 18px rgba(220,38,38,.45);">Завершить урок</button>
+  <div id="lesson-teacher-ui">
+    <button type="button" id="lesson-finish-top-btn" class="lesson-ui-btn lesson-ui-btn--danger">Завершить урок</button>
   </div>
 
-  <div id="lesson-finish-modal" class="lesson-modal-font" style="display:none;position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:480;overflow:auto;padding:24px 16px;box-sizing:border-box;">
-    <div style="width:100%;max-width:720px;background:#fff;border-radius:20px;overflow:hidden;box-shadow:0 24px 64px rgba(0,0,0,.25);margin:12px auto;">
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #e2e8f0;background:#fafafa;">
-        <h2 style="margin:0;font-size:1.15rem;font-family:'Unbounded',sans-serif;color:#0f172a;">Итоги урока</h2>
-        <button type="button" id="lesson-finish-modal-close" style="background:none;border:none;font-size:1.3rem;cursor:pointer;color:#64748b;line-height:1;padding:4px 8px;border-radius:6px;">✕</button>
+  <div id="lesson-finish-modal" class="lesson-modal-overlay lesson-modal-font">
+    <div class="lesson-modal-card lesson-modal-card--finish">
+      <div class="lesson-modal-header">
+        <h2 class="lesson-modal-title" style="font-size:1.12rem;color:#0f172a;">Итоги урока</h2>
+        <button type="button" id="lesson-finish-modal-close" class="lesson-modal-close">✕</button>
       </div>
       <div id="lesson-finish-modal-body" style="padding:16px 20px;max-height:min(70vh,620px);overflow-y:auto;"></div>
-      <div style="display:flex;flex-wrap:wrap;gap:10px;padding:16px 20px;border-top:1px solid #e2e8f0;background:#f8fafc;">
-        <button type="button" id="lesson-finish-download-pdf" style="padding:10px 18px;background:#7c3aed;color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:600;font-size:0.88rem;font-family:'Montserrat',sans-serif;">Скачать PDF</button>
-        <button type="button" id="lesson-finish-download-zip" style="padding:10px 18px;background:#fff;color:#334155;border:1px solid #e2e8f0;border-radius:10px;cursor:pointer;font-weight:600;font-size:0.88rem;font-family:'Montserrat',sans-serif;">Архив CSV</button>
-        <button type="button" id="lesson-finish-close-session" style="margin-left:auto;padding:10px 18px;background:#dc2626;color:#fff;border:none;border-radius:10px;cursor:pointer;font-weight:600;font-size:0.88rem;font-family:'Montserrat',sans-serif;">Закрыть урок для всех</button>
+      <div class="lesson-modal-actions">
+        <button type="button" id="lesson-finish-download-pdf" class="lesson-ui-btn lesson-ui-btn--primary">Скачать PDF</button>
+        <button type="button" id="lesson-finish-download-zip" class="lesson-ui-btn lesson-ui-btn--ghost">Архив CSV</button>
+        <button type="button" id="lesson-finish-close-session" class="lesson-ui-btn lesson-ui-btn--danger" style="margin-left:auto;">Закрыть урок для всех</button>
       </div>
     </div>
   </div>
@@ -287,6 +707,23 @@
       const cabinetAssignmentFromServer = "{{ cabinet_assignment|default:''|escapejs }}".trim();
       const cabinetSessionFromServer = "{{ cabinet_session|default:''|escapejs }}".trim();
       const homeworkModeFromServer = "{{ homework_mode|yesno:'true,false' }}" === "true";
+      const isHomeworkSession = (() => {
+        const cabS = String(
+          cabinetSessionFromServer ||
+          qs.get("cabinet_session") ||
+          qs.get("cabinetSession") ||
+          ""
+        ).trim().toLowerCase();
+        const pSk = String(payload.session_kind || payload.sessionKind || "").trim().toLowerCase();
+        const pLf = String(payload.lesson_format || payload.lessonFormat || "").trim().toLowerCase();
+        return (
+          homeworkModeFromServer ||
+          cabS === "homework" ||
+          pSk === "homework" ||
+          pLf === "homework" ||
+          !!cabinetAssignmentFromServer
+        );
+      })();
       const withLessonIframeParams = (urlStr) => {
         const raw = String(urlStr || "").trim();
         if (!raw) return raw;
@@ -351,8 +788,8 @@
       const variantId = pick(variantIdFromServer, qs.get("variant_id"), qs.get("variant"), qs.get("vid"), payload.variant_id, payload.variantId, payload.lesson_variant_id, payload.test_variant_id, byPath(payload, ["variant", "id"]), byPath(payload, ["variant", "variant_id"]));
       const directUrl = pick(variantUrlFromServer, qs.get("variant_url"), qs.get("url"), qs.get("link"), payload.variant_url, payload.variantUrl, payload.variant_link, payload.url, payload.link, byPath(payload, ["variant", "url"]), byPath(payload, ["variant", "link"]));
 
-      /** URL личного кабинета (дашборд или база ЛК) — для редиректа после завершения урока */
-      const lkNavUrl = "{{ lk_public_url|default:''|escapejs }}".trim();
+      /** Главная страница ЛК (без /app или /dashboard) — для редиректа после завершения урока */
+      const lkHomeUrl = "{{ lk_home_url|default:''|escapejs }}".trim();
       const buildLessonReportDownloadUrl = (format) => {
         const p = new URLSearchParams();
         if (lessonPageToken) {
@@ -367,7 +804,7 @@
       };
       /** После окончания урока: PDF для учителя, затем переход в ЛК */
       const redirectToLkAfterLessonEnd = () => {
-        const target = lkNavUrl || '/';
+        const target = lkHomeUrl || '/';
         if (isTeacher && lessonPageToken) {
           try {
             window.open(buildLessonReportDownloadUrl('pdf'), '_blank', 'noopener');
@@ -900,6 +1337,13 @@
         const ne = task.querySelector(".task-left .task-number") || task.querySelector(".task-number");
         return "n" + normalizeTaskNumber(ne ? ne.textContent : "");
       };
+      /** Ключ для вложений (тот же смысл, что у ответов): t<id> или n<номер>. */
+      const attachmentKeyFromApiItem = (item) => {
+        if (!item) return "";
+        const raw = item.task_id != null ? String(item.task_id).trim() : "";
+        if (raw && /^\d+$/.test(raw)) return "t" + raw;
+        return answerKeyFromStoredTaskNumber(item.task_number);
+      };
       const toFiniteOrNull = (value) => {
         const n = Number(value);
         return Number.isFinite(n) ? n : null;
@@ -1230,15 +1674,15 @@
       const mergeAttachmentsFromApiItems = (items) => {
         if (!Array.isArray(items) || !items.length) return;
         items.forEach((item) => {
-          const taskNum = normalizeTaskNumber(item.task_number);
-          if (!taskNum || !item.url) return;
+          const taskKey = attachmentKeyFromApiItem(item);
+          if (!taskKey || !item.url) return;
           const row = {
             name: String(item.student || 'Ученик').trim() || 'Ученик',
             url: String(item.url || ''),
             filename: String(item.filename || ''),
           };
-          attachmentsByTask[taskNum] = attachmentsByTask[taskNum] || [];
-          if (!attachmentsByTask[taskNum].some((x) => x.url === row.url)) attachmentsByTask[taskNum].push(row);
+          attachmentsByTask[taskKey] = attachmentsByTask[taskKey] || [];
+          if (!attachmentsByTask[taskKey].some((x) => x.url === row.url)) attachmentsByTask[taskKey].push(row);
         });
       };
 
@@ -1252,7 +1696,7 @@
           if (!taskNum) return;
           const taskKey = answerKeyFromDomTask(task);
           const taskIdAttr = String(task.getAttribute('data-task-id') || '').trim();
-          const rows = attachmentsByTask[taskNum] || [];
+          const rows = attachmentsByTask[taskKey] || [];
           if (!rows.length) return;
           
           // Group by student
@@ -1441,7 +1885,7 @@
         const list = answersByTask[taskKey] || [];
         const sa = list.find(r => r.name === studentName);
         if (!sa) return null;
-        const maxM = maxScoreByTaskNum[displayTaskNum] || 1;
+        const maxM = maxScoreByTaskNum[taskKey] || maxScoreByTaskNum[displayTaskNum] || 1;
         if (sa.answer && sa.answer.startsWith('Оценка: ')) {
           const parts = sa.answer.replace('Оценка: ', '').split(' из ');
           return { score: parseFloat(parts[0]) || 0, max: maxM, isManual: true };
@@ -1490,10 +1934,10 @@
           
           const taskContent = task.querySelector('.task-content') || task;
           
-          const correctAnswer = answerByTaskNum[taskNum] || '';
+          const correctAnswer = answerByTaskNum[taskKey] || answerByTaskNum[taskNum] || '';
           const isPart1 = correctAnswer.trim() !== '';
 
-          const answerHtml = answerByTaskNum[taskNum] || '—';
+          const answerHtml = answerByTaskNum[taskKey] || answerByTaskNum[taskNum] || '—';
           const block = doc.createElement('div');
           block.className = 'lesson-teacher-answer-block';
           block.innerHTML =
@@ -1503,7 +1947,7 @@
 
           const studentAnswers = answersByTask[taskKey] || [];
           if (studentAnswers.length > 0) {
-            const maxScore = maxScoreByTaskNum[taskNum] || 1;
+            const maxScore = maxScoreByTaskNum[taskKey] || maxScoreByTaskNum[taskNum] || 1;
             const studentsBlock = doc.createElement('div');
             studentsBlock.className = 'lesson-student-answers-block';
             let html = '<div class="lesson-student-answers-title">Ответы учеников</div>';
@@ -1637,6 +2081,12 @@
                 maxScoreByTaskNum[n] = t.max_score || 1;
                 if (t.task_list_id) taskListIdByNum[n] = t.task_list_id;
               }
+              if (t.id) {
+                const tk = 't' + t.id;
+                answerByTaskNum[tk] = String(t.answer || '');
+                maxScoreByTaskNum[tk] = t.max_score || 1;
+                if (t.task_list_id) taskListIdByNum[tk] = t.task_list_id;
+              }
             });
           }
         } catch (_) {}
@@ -1728,6 +2178,8 @@
       };
 
       const setupCursorBroadcast = () => {
+        // В режиме ДЗ не отправляем курсор ученика (не должен сохраняться/синхронизироваться).
+        if (!isTeacher && isHomeworkSession) return;
         frame.addEventListener('load', () => {
           const doc = getDoc();
           if (!doc) return;
@@ -2086,8 +2538,9 @@
           const studentAnswer = String(msg.answer || '');
           const studentName = String(msg.name || 'Ученик');
           let ok = false;
-          if (taskKey.startsWith('n') && displayNum) {
-            ok = normalizeAnswer(studentAnswer) === normalizeAnswer(stripHtml(answerByTaskNum[displayNum] || ''));
+          const expected = answerByTaskNum[taskKey] || answerByTaskNum[displayNum];
+          if (expected != null && expected.trim() !== '') {
+            ok = normalizeAnswer(studentAnswer) === normalizeAnswer(stripHtml(expected));
           }
           const list = answersByTask[taskKey] || [];
           const idx = list.findIndex((r) => r.name === studentName);
@@ -2100,15 +2553,19 @@
           return;
         }
         if (msg.type === 'student_attachment' && isTeacher) {
-          const taskNum = normalizeTaskNumber(msg.task_number || msg.task || msg.number);
-          if (!taskNum || !msg.url) return;
+          const taskKey = (() => {
+            const tid = msg.task_id != null && String(msg.task_id).trim() !== '' ? String(msg.task_id).trim() : '';
+            if (tid && /^\d+$/.test(tid)) return 't' + tid;
+            return answerKeyFromStoredTaskNumber(msg.task_number || msg.task || msg.number);
+          })();
+          if (!taskKey || !msg.url) return;
           const row = {
             name: String(msg.name || 'Ученик').trim() || 'Ученик',
             url: String(msg.url || ''),
             filename: String(msg.filename || ''),
           };
-          attachmentsByTask[taskNum] = attachmentsByTask[taskNum] || [];
-          if (!attachmentsByTask[taskNum].some((x) => x.url === row.url)) attachmentsByTask[taskNum].push(row);
+          attachmentsByTask[taskKey] = attachmentsByTask[taskKey] || [];
+          if (!attachmentsByTask[taskKey].some((x) => x.url === row.url)) attachmentsByTask[taskKey].push(row);
           const doc = getDoc();
           if (doc) {
             withTeacherMutationsPaused(doc, () => {
@@ -2576,11 +3033,13 @@
 
       const openAddTaskModal = async () => {
         if (!addTaskModalEl) return;
-        addTaskModalEl.style.display = 'flex';
+        addTaskModalEl.style.display = 'block';
+        addTaskModalEl.style.alignItems = 'flex-start';
+        addTaskModalEl.style.justifyContent = 'center';
         document.body.style.overflow = 'hidden';
         if (!modalTaskItems && level && subject) {
           const slotsEl = document.getElementById('lesson-task-slots');
-          if (slotsEl) slotsEl.innerHTML = '<div style="color:#94a3b8;padding:8px;font-size:0.85rem;">Загрузка…</div>';
+          if (slotsEl) slotsEl.innerHTML = '<div class="lesson-modal-placeholder">Загрузка…</div>';
           try {
             const res = await fetch(`/api/${level}/${subject}/tasks/`, { credentials: 'include' });
             const data = await res.json();
@@ -2634,7 +3093,7 @@
             }
           } catch (_) {
             const slotsEl2 = document.getElementById('lesson-task-slots');
-            if (slotsEl2) slotsEl2.innerHTML = '<div style="color:#ef4444;padding:8px;font-size:0.85rem;">Ошибка загрузки</div>';
+            if (slotsEl2) slotsEl2.innerHTML = '<div class="lesson-modal-placeholder lesson-modal-placeholder--error">Ошибка загрузки</div>';
           }
         }
       };
@@ -2648,15 +3107,14 @@
         if (!slotsEl || !modalTaskItems) return;
         slotsEl.innerHTML = '';
         const hdr = document.createElement('div');
-        hdr.className = 'slots-header';
-        hdr.style.cssText = 'color:#94a3b8;padding:6px 8px 10px;font-size:0.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;font-family:\'Unbounded\',sans-serif;';
+        hdr.className = 'lesson-slot-header';
         hdr.textContent = 'Задание №';
         slotsEl.appendChild(hdr);
         modalTaskItems.forEach(item => {
           if (item.kind === 'single') {
             const btn = document.createElement('button');
             const sel = isModalItemSelected(item);
-            btn.style.cssText = `display:block;width:100%;text-align:left;padding:8px 10px;border:none;border-radius:8px;cursor:pointer;margin-bottom:3px;font-size:0.82rem;font-family:'Montserrat',sans-serif;background:${sel ? '#ede9fe' : 'transparent'};color:${sel ? '#7c3aed' : '#334155'};font-weight:${sel ? '700' : '500'};transition:background .15s;`;
+            btn.className = `lesson-slot-item${sel ? ' is-active' : ''}`;
             btn.textContent = `${item.num}. ${item.title}`;
             btn.onclick = () => {
               modalSelectedItem = item;
@@ -2669,16 +3127,16 @@
             slotsEl.appendChild(btn);
           } else {
             const wrap = document.createElement('div');
-            wrap.style.cssText = 'margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #f1f5f9;';
+            wrap.className = 'lesson-slot-group';
             const hdrG = document.createElement('div');
             hdrG.textContent = item.groupType === 'linked_group' ? 'Связанная группа' : 'Группа';
-            hdrG.style.cssText = 'font-size:0.65rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;font-family:\'Unbounded\',sans-serif;margin-bottom:6px;';
+            hdrG.className = 'lesson-slot-group-title';
             const btn = document.createElement('button');
             const selG = isModalItemSelected(item);
-            btn.style.cssText = `display:block;width:100%;text-align:left;padding:10px 10px;border:1px solid ${selG ? '#c4b5fd' : '#e2e8f0'};border-radius:10px;cursor:pointer;margin-bottom:0;font-size:0.8rem;font-family:'Montserrat',sans-serif;background:${selG ? '#ede9fe' : '#fafafa'};color:${selG ? '#5b21b6' : '#334155'};font-weight:600;transition:all .15s;`;
+            btn.className = `lesson-slot-item${selG ? ' is-active' : ''}`;
             const numsStr = item.taskNumbers.join(', ');
             const titlesPreview = (item.tasks || []).map(x => x.task_title).filter(Boolean).join(' · ');
-            btn.innerHTML = `<div style="font-family:'Unbounded',sans-serif;font-size:0.78rem;color:#7c3aed;margin-bottom:6px;">${safeHtml(item.label)}</div><div style="font-size:0.72rem;color:#64748b;line-height:1.4;font-weight:600;">Номера: ${safeHtml(numsStr)}</div>${titlesPreview ? `<div style="font-size:0.7rem;color:#94a3b8;margin-top:6px;line-height:1.35;max-height:3.9em;overflow:hidden;">${safeHtml(titlesPreview.length > 180 ? titlesPreview.slice(0, 180) + '…' : titlesPreview)}</div>` : ''}`;
+            btn.innerHTML = `<div class="lesson-slot-group-label">${safeHtml(item.label)}</div><div class="lesson-slot-group-meta">Номера: ${safeHtml(numsStr)}</div>${titlesPreview ? `<div class="lesson-slot-group-preview">${safeHtml(titlesPreview.length > 180 ? titlesPreview.slice(0, 180) + '…' : titlesPreview)}</div>` : ''}`;
             btn.onclick = () => {
               modalSelectedItem = item;
               modalSelectedSubtopic = null;
@@ -2704,18 +3162,18 @@
           const entry = (data2.subtopics_by_task || []).find(e => String(e.task_list_id) === String(taskListId));
           const subtopics = entry ? (entry.subtopics || []) : [];
           if (!subtopics.length) return;
-          bar.innerHTML = '<span style="font-size:0.7rem;font-weight:700;color:#94a3b8;margin-right:8px;text-transform:uppercase;letter-spacing:.08em;vertical-align:middle;font-family:\'Unbounded\',sans-serif;">Подтема:</span>';
+          bar.innerHTML = '<span class="lesson-subtopic-label">Подтема:</span>';
           const allChip = document.createElement('button');
           allChip.textContent = 'Все';
           allChip.dataset.stid = '';
-          allChip.style.cssText = `display:inline-block;margin-right:6px;padding:4px 12px;border-radius:20px;border:1.5px solid ${!modalSelectedSubtopic ? '#7c3aed' : '#e2e8f0'};background:${!modalSelectedSubtopic ? '#7c3aed' : '#fff'};color:${!modalSelectedSubtopic ? '#fff' : '#334155'};font-size:0.75rem;font-weight:600;cursor:pointer;font-family:'Montserrat',sans-serif;transition:all .15s;white-space:nowrap;vertical-align:middle;`;
+          allChip.className = `lesson-subtopic-chip${!modalSelectedSubtopic ? ' is-active' : ''}`;
           allChip.onclick = () => { modalSelectedSubtopic = null; loadSubtopicChips(subtopics); loadTaskBank(taskListId); };
           bar.appendChild(allChip);
           subtopics.forEach(st => {
             const chip = document.createElement('button');
             chip.textContent = st.title;
             chip.dataset.stid = st.id != null ? String(st.id) : '';
-            chip.style.cssText = `display:inline-block;margin-right:6px;padding:4px 12px;border-radius:20px;border:1.5px solid ${modalSelectedSubtopic === st.id ? '#7c3aed' : '#e2e8f0'};background:${modalSelectedSubtopic === st.id ? '#7c3aed' : '#fff'};color:${modalSelectedSubtopic === st.id ? '#fff' : '#334155'};font-size:0.75rem;font-weight:600;cursor:pointer;font-family:'Montserrat',sans-serif;transition:all .15s;white-space:nowrap;vertical-align:middle;`;
+            chip.className = `lesson-subtopic-chip${modalSelectedSubtopic === st.id ? ' is-active' : ''}`;
             chip.onclick = () => { modalSelectedSubtopic = st.id; loadSubtopicChips(subtopics); loadTaskBank(taskListId, 1); };
             bar.appendChild(chip);
           });
@@ -2730,11 +3188,11 @@
         bar.innerHTML = '';
         const subtopics = item.subtopics || [];
         if (!subtopics.length) return;
-        bar.innerHTML = '<span style="font-size:0.7rem;font-weight:700;color:#94a3b8;margin-right:8px;text-transform:uppercase;letter-spacing:.08em;vertical-align:middle;font-family:\'Unbounded\',sans-serif;">Подтема:</span>';
+        bar.innerHTML = '<span class="lesson-subtopic-label">Подтема:</span>';
         const allChip = document.createElement('button');
         allChip.textContent = 'Все';
         allChip.dataset.stid = '';
-        allChip.style.cssText = `display:inline-block;margin-right:6px;padding:4px 12px;border-radius:20px;border:1.5px solid ${modalSelectedSubtopic == null ? '#7c3aed' : '#e2e8f0'};background:${modalSelectedSubtopic == null ? '#7c3aed' : '#fff'};color:${modalSelectedSubtopic == null ? '#fff' : '#334155'};font-size:0.75rem;font-weight:600;cursor:pointer;font-family:'Montserrat',sans-serif;transition:all .15s;white-space:nowrap;vertical-align:middle;`;
+        allChip.className = `lesson-subtopic-chip${modalSelectedSubtopic == null ? ' is-active' : ''}`;
         allChip.onclick = () => { modalSelectedSubtopic = null; loadSubtopicChips(subtopics); loadGroupBank(item, 1); };
         bar.appendChild(allChip);
         subtopics.forEach(st => {
@@ -2742,7 +3200,7 @@
           chip.textContent = st.title;
           chip.dataset.stid = st.id != null ? String(st.id) : '';
           const active = modalSelectedSubtopic === st.id;
-          chip.style.cssText = `display:inline-block;margin-right:6px;padding:4px 12px;border-radius:20px;border:1.5px solid ${active ? '#7c3aed' : '#e2e8f0'};background:${active ? '#7c3aed' : '#fff'};color:${active ? '#fff' : '#334155'};font-size:0.75rem;font-weight:600;cursor:pointer;font-family:'Montserrat',sans-serif;transition:all .15s;white-space:nowrap;vertical-align:middle;`;
+          chip.className = `lesson-subtopic-chip${active ? ' is-active' : ''}`;
           chip.onclick = () => { modalSelectedSubtopic = st.id; loadSubtopicChips(subtopics); loadGroupBank(item, 1); };
           bar.appendChild(chip);
         });
@@ -2756,16 +3214,14 @@
           let active = false;
           if (chip.dataset.stid === '') active = modalSelectedSubtopic == null;
           else active = Number(chip.dataset.stid) === Number(modalSelectedSubtopic);
-          chip.style.background = active ? '#7c3aed' : '#fff';
-          chip.style.color = active ? '#fff' : '#334155';
-          chip.style.borderColor = active ? '#7c3aed' : '#e2e8f0';
+          chip.classList.toggle('is-active', active);
         });
       };
 
       const loadTaskBank = async (taskListId, page = 1) => {
         const bankEl = document.getElementById('lesson-task-bank');
         if (!bankEl) return;
-        bankEl.innerHTML = '<div style="color:#94a3b8;padding:16px;font-size:0.9rem;font-family:\'Montserrat\',sans-serif;">Загрузка задач…</div>';
+        bankEl.innerHTML = '<div class="lesson-modal-placeholder">Загрузка задач…</div>';
         try {
           let url = `/api/${level}/${subject}/task-bank/?task_list_id=${taskListId}&page=${page}&per_page=10`;
           if (modalSelectedSubtopic) url += `&subtopic_id=${modalSelectedSubtopic}`;
@@ -2774,24 +3230,24 @@
           modalBankTotal = data.total || 0;
           const tasks = data.tasks || [];
           if (!tasks.length) {
-            bankEl.innerHTML = '<div style="color:#94a3b8;padding:16px;font-family:\'Montserrat\',sans-serif;">Задачи не найдены</div>';
+            bankEl.innerHTML = '<div class="lesson-modal-placeholder">Задачи не найдены</div>';
             return;
           }
           bankEl.innerHTML = '';
           tasks.forEach(t => {
             const card = document.createElement('div');
-            card.style.cssText = 'border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:12px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.04);';
+            card.className = 'lesson-bank-card';
 
             // Top row: subtopic chip + add button
             const topRow = document.createElement('div');
-            topRow.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:10px;';
+            topRow.className = 'lesson-bank-card-header';
 
             const metaLeft = document.createElement('div');
-            metaLeft.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;';
+            metaLeft.className = 'lesson-bank-meta';
 
             // Task number badge
             const numBadge = document.createElement('span');
-            numBadge.style.cssText = 'font-size:0.7rem;font-weight:700;color:#7c3aed;background:#ede9fe;padding:2px 8px;border-radius:20px;font-family:\'Unbounded\',sans-serif;white-space:nowrap;';
+            numBadge.className = 'lesson-bank-badge lesson-bank-badge--num';
             numBadge.textContent = `Задание ${t.task_number}`;
             metaLeft.appendChild(numBadge);
 
@@ -2799,7 +3255,7 @@
             if (t.part_title) {
               const partBadge = document.createElement('span');
               const isPt2 = (t.max_score || 1) > 1 || (t.part_id != null && t.part_id !== 1);
-              partBadge.style.cssText = `font-size:0.7rem;font-weight:600;padding:2px 8px;border-radius:20px;white-space:nowrap;font-family:'Montserrat',sans-serif;background:${isPt2 ? '#fef9c3' : '#dcfce7'};color:${isPt2 ? '#854d0e' : '#166534'};`;
+              partBadge.className = `lesson-bank-badge ${isPt2 ? 'lesson-bank-badge--part2' : 'lesson-bank-badge--part1'}`;
               partBadge.textContent = t.part_title + (t.max_score > 1 ? ` · ${t.max_score} б.` : '');
               metaLeft.appendChild(partBadge);
             }
@@ -2807,7 +3263,7 @@
             // Subtopic chip
             if (t.subtopic) {
               const stChip = document.createElement('span');
-              stChip.style.cssText = 'font-size:0.72rem;font-weight:600;color:#0369a1;background:#e0f2fe;padding:2px 10px;border-radius:20px;font-family:\'Montserrat\',sans-serif;white-space:nowrap;max-width:280px;overflow:hidden;text-overflow:ellipsis;';
+              stChip.className = 'lesson-bank-badge lesson-bank-badge--subtopic';
               stChip.title = t.subtopic;
               stChip.textContent = t.subtopic;
               metaLeft.appendChild(stChip);
@@ -2815,8 +3271,7 @@
 
             const addBtn = document.createElement('button');
             addBtn.dataset.tid = t.id;
-            addBtn.className = 'lesson-modal-add-btn';
-            addBtn.style.cssText = 'flex-shrink:0;padding:6px 16px;background:#7c3aed;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:0.78rem;font-weight:700;white-space:nowrap;font-family:\'Montserrat\',sans-serif;letter-spacing:.02em;';
+            addBtn.className = 'lesson-modal-add-btn lesson-ui-btn lesson-ui-btn--primary';
             addBtn.textContent = 'Добавить';
             addBtn.onclick = () => addExtraTask(t);
 
@@ -2825,7 +3280,7 @@
 
             // Task text
             const textEl = document.createElement('div');
-            textEl.style.cssText = 'font-size:0.85rem;color:#0f172a;line-height:1.7;max-height:220px;overflow:hidden;font-family:\'Montserrat\',sans-serif;';
+            textEl.className = 'lesson-bank-task-text';
             textEl.innerHTML = t.text || '';
 
             card.appendChild(topRow);
@@ -2842,11 +3297,11 @@
           const totalPages = Math.ceil(modalBankTotal / 10);
           if (totalPages > 1) {
             const pag = document.createElement('div');
-            pag.style.cssText = 'display:flex;gap:6px;justify-content:center;margin-top:12px;flex-wrap:wrap;';
+            pag.className = 'lesson-bank-pagination';
             for (let p = 1; p <= totalPages; p++) {
               const pb = document.createElement('button');
               pb.textContent = p;
-              pb.style.cssText = `padding:5px 12px;border-radius:6px;border:1.5px solid ${p === page ? '#7c3aed' : '#e2e8f0'};cursor:pointer;background:${p === page ? '#7c3aed' : '#fff'};color:${p === page ? '#fff' : '#334155'};font-size:0.8rem;font-weight:600;font-family:'Montserrat',sans-serif;`;
+              pb.className = `lesson-page-btn${p === page ? ' is-active' : ''}`;
               pb.onclick = () => loadTaskBank(taskListId, p);
               pag.appendChild(pb);
             }
@@ -2854,7 +3309,7 @@
           }
         } catch (_) {
           const bankEl2 = document.getElementById('lesson-task-bank');
-          if (bankEl2) bankEl2.innerHTML = '<div style="color:#ef4444;padding:16px;font-family:\'Montserrat\',sans-serif;">Ошибка загрузки задач</div>';
+          if (bankEl2) bankEl2.innerHTML = '<div class="lesson-modal-placeholder lesson-modal-placeholder--error">Ошибка загрузки задач</div>';
         }
       };
 
@@ -2862,7 +3317,7 @@
       const loadGroupBank = async (item, page = 1) => {
         const bankEl = document.getElementById('lesson-task-bank');
         if (!bankEl || !item || item.kind !== 'group') return;
-        bankEl.innerHTML = '<div style="color:#94a3b8;padding:16px;font-size:0.9rem;font-family:\'Montserrat\',sans-serif;">Загрузка групп…</div>';
+        bankEl.innerHTML = '<div class="lesson-modal-placeholder">Загрузка групп…</div>';
         try {
           let url = `/api/${level}/${subject}/group-instances/?linked_key=${encodeURIComponent(item.linkedKey)}&page=${page}&per_page=10`;
           if (modalSelectedSubtopic != null && modalSelectedSubtopic !== '') url += `&subtopic_id=${modalSelectedSubtopic}`;
@@ -2871,34 +3326,34 @@
           modalBankTotal = data.total || 0;
           const instances = data.instances || [];
           if (!instances.length) {
-            bankEl.innerHTML = '<div style="color:#94a3b8;padding:16px;font-family:\'Montserrat\',sans-serif;">Группы не найдены</div>';
+            bankEl.innerHTML = '<div class="lesson-modal-placeholder">Группы не найдены</div>';
             return;
           }
           bankEl.innerHTML = '';
           instances.forEach(inst => {
             const card = document.createElement('div');
-            card.style.cssText = 'border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;margin-bottom:14px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.06);';
+            card.className = 'lesson-bank-card';
             card.dataset.groupId = String(inst.group_id || '');
 
             const topRow = document.createElement('div');
-            topRow.style.cssText = 'display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:12px;';
+            topRow.className = 'lesson-bank-card-header';
 
             const titleCol = document.createElement('div');
-            titleCol.style.cssText = 'flex:1;min-width:0;';
+            titleCol.style.minWidth = '0';
+            titleCol.style.flex = '1';
             const titleEl = document.createElement('div');
-            titleEl.style.cssText = 'font-family:\'Unbounded\',sans-serif;font-size:0.8rem;font-weight:700;color:#0f172a;margin-bottom:4px;';
+            titleEl.className = 'lesson-bank-group-title';
             titleEl.textContent = `Группа заданий · вариант #${inst.group_id}`;
             const subEl = document.createElement('div');
-            subEl.style.cssText = 'font-size:0.72rem;color:#64748b;font-family:\'Montserrat\',sans-serif;';
+            subEl.className = 'lesson-bank-group-subtitle';
             const nums = (inst.tasks || []).map(x => x.task_number).filter(Boolean).join(', ');
             subEl.textContent = nums ? `Номера: ${nums}` : '';
             titleCol.appendChild(titleEl);
             if (nums) titleCol.appendChild(subEl);
 
             const addBtn = document.createElement('button');
-            addBtn.className = 'lesson-modal-add-group-btn';
+            addBtn.className = 'lesson-modal-add-group-btn lesson-ui-btn lesson-ui-btn--primary';
             addBtn.dataset.gid = String(inst.group_id || '');
-            addBtn.style.cssText = 'flex-shrink:0;padding:8px 14px;background:#7c3aed;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:0.78rem;font-weight:700;white-space:nowrap;font-family:\'Montserrat\',sans-serif;';
             addBtn.textContent = 'Добавить группу';
             addBtn.onclick = () => addExtraGroup(inst, addBtn, card);
 
@@ -2907,26 +3362,29 @@
             card.appendChild(topRow);
 
             const tasksWrap = document.createElement('div');
-            tasksWrap.style.cssText = 'display:flex;flex-direction:column;gap:12px;border-top:1px solid #f1f5f9;padding-top:12px;';
+            tasksWrap.className = 'lesson-bank-group-items';
             (inst.tasks || []).forEach((sub, idx) => {
               const row = document.createElement('div');
-              row.style.cssText = 'padding:10px 12px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0;';
+              row.className = 'lesson-bank-group-item';
               const meta = document.createElement('div');
-              meta.style.cssText = 'display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;';
+              meta.className = 'lesson-bank-meta';
+              meta.style.marginBottom = '8px';
               const nb = document.createElement('span');
-              nb.style.cssText = 'font-size:0.68rem;font-weight:700;color:#7c3aed;background:#ede9fe;padding:2px 8px;border-radius:20px;font-family:\'Unbounded\',sans-serif;';
+              nb.className = 'lesson-bank-badge lesson-bank-badge--num';
               nb.textContent = `Задание ${sub.task_number}`;
               meta.appendChild(nb);
               if (sub.part_title) {
                 const pb = document.createElement('span');
                 const isPt2 = (sub.max_score || 1) > 1 || (sub.part_id != null && sub.part_id !== 1);
-                pb.style.cssText = `font-size:0.68rem;font-weight:600;padding:2px 8px;border-radius:20px;white-space:nowrap;font-family:'Montserrat',sans-serif;background:${isPt2 ? '#fef9c3' : '#dcfce7'};color:${isPt2 ? '#854d0e' : '#166534'};`;
+                pb.className = `lesson-bank-badge ${isPt2 ? 'lesson-bank-badge--part2' : 'lesson-bank-badge--part1'}`;
                 pb.textContent = sub.part_title + (sub.max_score > 1 ? ` · ${sub.max_score} б.` : '');
                 meta.appendChild(pb);
               }
               row.appendChild(meta);
               const textEl = document.createElement('div');
-              textEl.style.cssText = 'font-size:0.85rem;color:#0f172a;line-height:1.7;max-height:200px;overflow:auto;font-family:\'Montserrat\',sans-serif;';
+              textEl.className = 'lesson-bank-task-text';
+              textEl.style.maxHeight = '200px';
+              textEl.style.overflow = 'auto';
               textEl.innerHTML = sub.text || '';
               row.appendChild(textEl);
               tasksWrap.appendChild(row);
@@ -2943,11 +3401,11 @@
           const totalPages = Math.ceil(modalBankTotal / perPage);
           if (totalPages > 1) {
             const pag = document.createElement('div');
-            pag.style.cssText = 'display:flex;gap:6px;justify-content:center;margin-top:12px;flex-wrap:wrap;';
+            pag.className = 'lesson-bank-pagination';
             for (let p = 1; p <= totalPages; p++) {
               const pb = document.createElement('button');
               pb.textContent = p;
-              pb.style.cssText = `padding:5px 12px;border-radius:6px;border:1.5px solid ${p === page ? '#7c3aed' : '#e2e8f0'};cursor:pointer;background:${p === page ? '#7c3aed' : '#fff'};color:${p === page ? '#fff' : '#334155'};font-size:0.8rem;font-weight:600;font-family:'Montserrat',sans-serif;`;
+              pb.className = `lesson-page-btn${p === page ? ' is-active' : ''}`;
               pb.onclick = () => loadGroupBank(item, p);
               pag.appendChild(pb);
             }
@@ -2955,7 +3413,7 @@
           }
         } catch (_) {
           const bankEl2 = document.getElementById('lesson-task-bank');
-          if (bankEl2) bankEl2.innerHTML = '<div style="color:#ef4444;padding:16px;font-family:\'Montserrat\',sans-serif;">Ошибка загрузки групп</div>';
+          if (bankEl2) bankEl2.innerHTML = '<div class="lesson-modal-placeholder lesson-modal-placeholder--error">Ошибка загрузки групп</div>';
         }
       };
 
@@ -3041,7 +3499,7 @@
 
       const loadLessonResultsModal = async () => {
         if (!finishModalBody) return;
-        finishModalBody.innerHTML = '<p style="color:#64748b;font-size:0.9rem;">Загрузка…</p>';
+        finishModalBody.innerHTML = '<p class="lesson-modal-placeholder">Загрузка…</p>';
         const params = new URLSearchParams();
         if (lessonPageToken) {
           params.set('token', lessonPageToken);
@@ -3054,25 +3512,25 @@
           const res = await fetch(`/api/lesson/results/?${params.toString()}`, { credentials: 'include' });
           const data = await res.json();
           if (!res.ok || !data.ok) {
-            finishModalBody.innerHTML = `<p style="color:#b91c1c;font-size:0.9rem;">${safeHtml(data.error || 'Не удалось загрузить результаты')}</p>`;
+            finishModalBody.innerHTML = `<p class="lesson-modal-placeholder lesson-modal-placeholder--error">${safeHtml(data.error || 'Не удалось загрузить результаты')}</p>`;
             return;
           }
           const rows = data.results || [];
           if (!rows.length) {
-            finishModalBody.innerHTML = '<p style="color:#64748b;font-size:0.9rem;">Пока нет записей в базе результатов. Они появятся после ответов учеников и синхронизации с сервером.</p>';
+            finishModalBody.innerHTML = '<p class="lesson-modal-placeholder">Пока нет записей в базе результатов. Они появятся после ответов учеников и синхронизации с сервером.</p>';
             return;
           }
           finishModalBody.innerHTML = rows.map((r) => {
             const st = String(r.student || '').trim();
             return (
-              `<div class="lesson-result-card" data-student="${escAttr(st)}" style="margin-bottom:16px;padding:14px 16px;border:1px solid #e2e8f0;border-radius:12px;background:#fff;">` +
-                `<div style="font-weight:700;font-size:0.95rem;color:#0f172a;margin-bottom:4px;font-family:'Unbounded',sans-serif;">${safeHtml(st)}</div>` +
-                `<div style="font-size:0.8rem;color:#64748b;margin-bottom:10px;">` +
+              `<div class="lesson-result-card" data-student="${escAttr(st)}">` +
+                `<div class="lesson-result-student">${safeHtml(st)}</div>` +
+                `<div class="lesson-result-meta">` +
                 `Всего задач: <b>${r.total_tasks ?? '—'}</b> · верно: <b style="color:#15803d;">${r.correct_count ?? 0}</b> · неверно: <b style="color:#b91c1c;">${r.wrong_count ?? 0}</b> · пусто: <b>${r.empty_count ?? 0}</b>` +
                 `</div>` +
-                `<label style="display:block;font-size:0.75rem;font-weight:600;color:#475569;margin-bottom:6px;">Комментарий учителя</label>` +
-                `<textarea class="lesson-teacher-comment-ta" rows="3" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:0.88rem;font-family:'Montserrat',sans-serif;resize:vertical;"></textarea>` +
-                `<button type="button" class="lesson-save-comment-btn" style="margin-top:8px;padding:8px 16px;background:#f1f5f9;color:#0f172a;border:1px solid #e2e8f0;border-radius:8px;cursor:pointer;font-size:0.82rem;font-weight:600;font-family:'Montserrat',sans-serif;">Сохранить комментарий</button>` +
+                `<label class="lesson-result-label">Комментарий учителя</label>` +
+                `<textarea class="lesson-teacher-comment-ta lesson-result-comment" rows="3"></textarea>` +
+                `<button type="button" class="lesson-save-comment-btn">Сохранить комментарий</button>` +
               `</div>`
             );
           }).join('');

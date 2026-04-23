@@ -1354,10 +1354,12 @@ def api_variant_from_ids(request, level, subject):
     try:
         data = json.loads(request.body)
     except (json.JSONDecodeError, TypeError):
+        logger.warning("api_variant_from_ids: Invalid JSON")
         return JsonResponse({'error': 'Invalid JSON'}, status=400)
 
     task_ids = data.get('task_ids') or []
     if not task_ids:
+        logger.warning("api_variant_from_ids: task_ids is required and must be non-empty")
         return JsonResponse({'error': 'task_ids is required and must be non-empty'}, status=400)
 
     subject_instance = get_subject_for_api(subject)
@@ -1387,6 +1389,7 @@ def api_variant_from_ids(request, level, subject):
 
     if not vc_objects:
         variant.delete()
+        logger.warning(f"api_variant_from_ids: No valid tasks found for this subject/level. task_ids={task_ids}, task_map={task_map}")
         return JsonResponse({'error': 'No valid tasks found for this subject/level'}, status=400)
 
     VariantContent.objects.bulk_create(vc_objects)
@@ -3885,7 +3888,7 @@ def api_lesson_report_download(request):
 def api_lesson_attachment_upload(request):
     """
     Загрузка файла-решения от ученика (изображение, файл, голосовое).
-    POST multipart: поля lesson_token, task_number, file.
+    POST multipart: поля lesson_token, task_number, file; опционально task_id (id задания в варианте — Task.id).
     Файл хранится в MEDIA_ROOT/lesson_attachments/<safe_room>/<file_token><ext>.
     """
     lesson_token = (
@@ -3922,6 +3925,10 @@ def api_lesson_attachment_upload(request):
         for chunk in uploaded.chunks():
             f.write(chunk)
 
+    _tid_raw = (request.POST.get("task_id") or "").strip()
+    task_id_meta = ""
+    if _tid_raw.isdigit():
+        task_id_meta = _tid_raw
     meta = {
         "original_name": uploaded.name[:200],
         "content_type": uploaded.content_type or "application/octet-stream",
@@ -3929,6 +3936,7 @@ def api_lesson_attachment_upload(request):
         "safe_room": safe_room,
         "participant": normalized.get("participant_name", ""),
         "task_number": request.POST.get("task_number", ""),
+        "task_id": task_id_meta,
         "created_at": time.time(),
     }
     with open(filepath + ".meta.json", "w", encoding="utf-8") as f:
@@ -3947,17 +3955,20 @@ def api_lesson_attachment_upload(request):
 
         channel_layer = get_channel_layer()
         if channel_layer and room_id:
+            ws_payload = {
+                "type": "student_attachment",
+                "task_number": task_num,
+                "name": student_label,
+                "url": serve_url,
+                "filename": uploaded.name[:200],
+            }
+            if task_id_meta:
+                ws_payload["task_id"] = task_id_meta
             async_to_sync(channel_layer.group_send)(
                 f"lesson_{room_id}",
                 {
                     "type": "lesson_message",
-                    "payload": {
-                        "type": "student_attachment",
-                        "task_number": task_num,
-                        "name": student_label,
-                        "url": serve_url,
-                        "filename": uploaded.name[:200],
-                    },
+                    "payload": ws_payload,
                 },
             )
     except Exception:
@@ -4006,14 +4017,16 @@ def api_lesson_attachments_list(request):
             if not stem or ".." in stem or "/" in stem:
                 continue
             serve_url = f"/api/lesson/attachment/{safe_room}/{stem}"
-            items.append(
-                {
-                    "task_number": str(meta.get("task_number") or ""),
-                    "student": str(meta.get("participant") or ""),
-                    "url": serve_url,
-                    "filename": str(meta.get("original_name") or ""),
-                }
-            )
+            item = {
+                "task_number": str(meta.get("task_number") or ""),
+                "student": str(meta.get("participant") or ""),
+                "url": serve_url,
+                "filename": str(meta.get("original_name") or ""),
+            }
+            tid = str(meta.get("task_id") or "").strip()
+            if tid:
+                item["task_id"] = tid
+            items.append(item)
     return JsonResponse({"ok": True, "items": items})
 
 
@@ -4207,6 +4220,8 @@ def lesson_join(request):
             client_payload["lesson_format"] = lt_eff
     normalized["lesson_payload_json"] = json.dumps(client_payload, ensure_ascii=False)
     normalized["lk_public_url"] = lk_user_nav_url()
+    # Для редиректа после завершения урока нужен именно корень ЛК, а не /dashboard или /app.
+    normalized["lk_home_url"] = lk_site_base_url()
     normalized["lk_nav_password_required"] = lk_nav_password_configured()
     normalized["lk_nav_unlocked"] = (not normalized["lk_nav_password_required"]) or lk_nav_cookie_is_valid(
         request

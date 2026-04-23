@@ -68,7 +68,7 @@ function TaskReportErrorButton({ taskId, taskNumber, onClick }) {
 }
 
 /** Урок в iframe: ученик прикрепляет изображение решения (часть 2). */
-function LessonSolutionUpload({ taskNumber, lessonToken, enabled }) {
+function LessonSolutionUpload({ taskNumber, taskId, lessonToken, enabled }) {
   const fileInputRef = useRef(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
@@ -108,6 +108,7 @@ function LessonSolutionUpload({ taskNumber, lessonToken, enabled }) {
     const fd = new FormData();
     fd.append("lesson_token", lessonToken);
     fd.append("task_number", String(taskNumber));
+    if (taskId != null && String(taskId).trim() !== "") fd.append("task_id", String(taskId));
     fd.append("file", pendingFile);
     try {
       const res = await fetch("/api/lesson/attachment/", {
@@ -2615,6 +2616,7 @@ function ExamPage() {
                             </div>
                             <LessonSolutionUpload
                               taskNumber={task.number}
+                              taskId={task.id}
                               lessonToken={lessonEmbedParams.token}
                               enabled={
                                 showLessonSolutionUpload && (!isHomework || (!hRead && !numLocked(task.number)))
@@ -2656,6 +2658,7 @@ function ExamPage() {
                       {task.author && <div className="task-author">{task.author}</div>}
                       <LessonSolutionUpload
                         taskNumber={task.number}
+                        taskId={task.id}
                         lessonToken={lessonEmbedParams.token}
                         enabled={
                           showLessonSolutionUpload && (!isHomework || (!hRead && !numLocked(task.number)))
