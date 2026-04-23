@@ -4,7 +4,7 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Готово! — Кабинет учителя</title>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Unbounded:wght@600;700;800&display=swap" rel="stylesheet"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -14,6 +14,7 @@
       display: flex; align-items: center; justify-content: center;
       padding: 20px;
     }
+    h1, h2, h3, h4, h5, h6 { font-family: 'Unbounded', sans-serif; }
     .card {
       background: #fff;
       border-radius: 20px;
@@ -83,7 +84,7 @@
     </div>
     <p class="hint">Сохраните его — восстановить логин нельзя</p>
 
-    <a class="btn" href="{% url 'react-app' %}">Перейти в кабинет →</a>
+    <a class="btn" href="/">Перейти в кабинет →</a>
   </div>
 </body>
 </html>

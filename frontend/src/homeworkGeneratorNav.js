@@ -177,37 +177,20 @@ export async function openHomeworkOnGenerator(assignmentId, { newTab = false } =
 }
 
 /**
- * Базовый путь SPA ЛК (с `homepage: /app` в CRA → `/app/`, иначе `/`).
+ * Базовый путь SPA ЛК.
  * Нужен, чтобы проверка ДЗ открывалась как отдельная «страница плеера», а не
- * `.../app/?page=homework&variant_play=...` с лишними query от дашборда.
+ * `...?page=homework&variant_play=...` с лишними query от дашборда.
  */
 export function cabinetSpaBasePathname() {
-  const raw = (process.env.PUBLIC_URL || '').trim().replace(/\/$/, '');
-  if (!raw) return '/';
-  return raw.startsWith('/') ? `${raw}/` : `/${raw}/`;
+  return '/';
 }
 
 /**
- * Origin SPA, где реально открывается VariantPlayPage (полноэкранное ДЗ / проверка).
- * В dev часто ЛК смотрят через Django (:8001), а CRA — на :3000; assign на :8001/app/ без dev-сервера
- * не поднимает плеер. Тогда ведём на :3000 (или REACT_APP_CABINET_SPA_ORIGIN).
+ * Origin SPA, где открывается VariantPlayPage (полноэкранное ДЗ / проверка).
+ * Всегда используем текущий origin страницы, чтобы не было лишних редиректов между 8001/3000.
  */
 export function cabinetSpaPlayerOrigin() {
   if (typeof window === 'undefined') return '';
-  const env = (process.env.REACT_APP_CABINET_SPA_ORIGIN || '').trim();
-  if (env) {
-    try {
-      const base = /^https?:\/\//i.test(env) ? env : `http://${env}`;
-      return new URL(base).origin;
-    } catch {
-      /* fall through */
-    }
-  }
-  const { protocol, hostname, port } = window.location;
-  const h = (hostname || '').toLowerCase();
-  if ((h === 'localhost' || h === '127.0.0.1') && port === '8001') {
-    return `${protocol}//${hostname}:3000`;
-  }
   return window.location.origin;
 }
 

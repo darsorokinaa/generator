@@ -521,7 +521,7 @@ function TaskCard({
 
         {task.author && !homeworkDraftPart1 && <div className="task-author">{task.author}</div>}
 
-        {!(readOnly && showTeacherReviewBlock) && !homeworkDraftPart1 && (
+        {!homeworkDraftPart1 && (
           <TaskAnswerUploads
             taskNum={num}
             assignmentId={assignmentId}
@@ -615,7 +615,7 @@ function TaskCard({
           </div>
         )}
 
-        {homeworkDraftPart1 && !readOnlyForAnswer && !(readOnly && showTeacherReviewBlock) && (
+        {homeworkDraftPart1 && !readOnlyForAnswer && (
           <TaskAnswerUploads
             taskNum={num}
             assignmentId={assignmentId}
@@ -693,7 +693,7 @@ function TaskCard({
           </div>
         )}
 
-        {homeworkDraftPart1 && readOnlyForAnswer && !(readOnly && showTeacherReviewBlock) && (
+        {homeworkDraftPart1 && readOnlyForAnswer && (
           <TaskAnswerUploads
             taskNum={num}
             assignmentId={assignmentId}

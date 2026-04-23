@@ -9,6 +9,19 @@ export function generatorPublicBaseUrl() {
   return GEN_RAW.replace(/\/api$/, '');
 }
 
+/**
+ * Публичная страница варианта (кнопка «Предпросмотр»): основной домен, а не API/test.
+ * REACT_APP_VARIANT_PREVIEW_ORIGIN — при необходимости https://genurok.ru и т.п.
+ * По умолчанию — https://генурок.рф
+ */
+export function variantPreviewSiteBaseUrl() {
+  const raw = (process.env.REACT_APP_VARIANT_PREVIEW_ORIGIN || '').trim().replace(/\/$/, '');
+  if (raw) {
+    return raw.replace(/\/api$/, '');
+  }
+  return 'https://генурок.рф';
+}
+
 export async function fetchGeneratorVariantMeta(variantId) {
   const vid = Number(variantId);
   if (!Number.isFinite(vid) || vid <= 0) throw new Error('Некорректный вариант');

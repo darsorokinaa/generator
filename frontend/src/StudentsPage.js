@@ -16,6 +16,23 @@ function initials(name) {
   return (name || '').split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?';
 }
 
+function getStudentSubjectLabel(student, subjects) {
+  const direct =
+    student?.subject_name
+    || student?.subject_title
+    || student?.subject_label
+    || student?.subject_rus
+    || '';
+  if (direct) return String(direct);
+
+  const sid = Number(student?.subject_id ?? student?.subject);
+  if (Number.isFinite(sid) && Array.isArray(subjects)) {
+    const found = subjects.find((s) => Number(s.id) === sid);
+    if (found?.subject_name) return String(found.subject_name);
+  }
+  return '—';
+}
+
 // ── Вспомогательные ──────────────────────────────────────────────────
 function getCookie(name) {
   return document.cookie.split(';').map(c => c.trim()).find(c => c.startsWith(name + '='))?.split('=')[1] || '';
@@ -24,7 +41,6 @@ function getCookie(name) {
 const GRADE_CHOICES    = ['7','8','9','10','11'].map(v => ({ value: v, label: `${v} класс` }));
 const STATUS_CHOICES   = [{ value: '1', label: 'Активный' },{ value: '2', label: 'На паузе' },{ value: '3', label: 'Завершил' },{ value: '4', label: 'Пробный' }];
 const GENDER_CHOICES   = [{ value: 'other', label: 'Не указан' },{ value: 'female', label: 'Женский' },{ value: 'male', label: 'Мужской' }];
-const EMPTY_STUDENT    = { name:'', surname:'', email:'', phone:'', subject:'', level:'', grade:'9', status:'1', lesson_type:'individual', group:'', gender:'other', birth_date:'', goal:'' };
 
 // ── Toast ─────────────────────────────────────────────────────────────
 function Toast({ msg }) {
@@ -32,7 +48,7 @@ function Toast({ msg }) {
 }
 
 // ── Строка ученика ────────────────────────────────────────────────────
-function StudentRow({ student, dragging, onDragStart, onDragEnd, onOpenProfile, onArchive, onDelete }) {
+function StudentRow({ student, dragging, onDragStart, onDragEnd, onOpenProfile, onArchive, onDelete, showSubject = false, subjectLabel = '—' }) {
   const name   = `${student.student_name || ''} ${student.student_surname || ''}`.trim();
   const color  = avatarColor(name);
   const active = student.status === '1';
@@ -60,18 +76,19 @@ function StudentRow({ student, dragging, onDragStart, onDragEnd, onOpenProfile, 
       onDragEnd={onDragEnd}
       onClick={() => onOpenProfile && onOpenProfile(student)}
     >
-      <td className="sp-td sp-td--student">
+      <td className="sp-td sp-td--student" data-label="Ученик">
         <span className="sp-drag-handle" title="Перетащить">⠿</span>
         <span className="sp-avatar" style={{ background: color }}>{initials(name)}</span>
         <span className="sp-name">{name || '—'}</span>
       </td>
-      <td className="sp-td sp-td--grade">{student.grade ? `${student.grade} кл.` : '—'}</td>
-      <td className="sp-td sp-td--status">
+      {showSubject && <td className="sp-td sp-td--subject" data-label="Предмет">{subjectLabel}</td>}
+      <td className="sp-td sp-td--grade" data-label="Класс">{student.grade ? `${student.grade} кл.` : '—'}</td>
+      <td className="sp-td sp-td--status" data-label="Статус">
         <span className={`sp-status ${active ? 'sp-status--active' : 'sp-status--pause'}`}>
           {active ? 'Активен' : 'Пауза'}
         </span>
       </td>
-      <td className="sp-td sp-td--actions" onClick={e => e.stopPropagation()}>
+      <td className="sp-td sp-td--actions" data-label="Действия" onClick={e => e.stopPropagation()}>
         <button className="sp-row-menu-btn" title="Действия" onClick={openMenu}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
         </button>
@@ -97,8 +114,40 @@ function StudentRow({ student, dragging, onDragStart, onDragEnd, onOpenProfile, 
 }
 
 // ── Карточка-секция (индивид. или группа) ────────────────────────────
-function SectionCard({ id, title, dot, dotColor, students, draggingId, dragOver, onDragOver, onDragLeave, onDrop, onAddStudent, onOpenProfile, onDragStart, onDragEnd, onArchive, onDelete, onDeleteGroup }) {
+function SectionCard({
+  id, title, dot, dotColor, students, draggingId, dragOver, onDragOver, onDragLeave, onDrop, onAddStudent, onOpenProfile, onDragStart, onDragEnd, onArchive, onDelete, onDeleteGroup, showSubject = false, subjects = [],
+  canRenameGroup = false, onRenameGroup,
+}) {
   const isOver = dragOver === id;
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(title || '');
+  const [renameBusy, setRenameBusy] = useState(false);
+  const titleInputRef = useRef(null);
+
+  useEffect(() => { setTitleDraft(title || ''); }, [title]);
+  useEffect(() => {
+    if (editingTitle && titleInputRef.current) {
+      titleInputRef.current.focus();
+      titleInputRef.current.select();
+    }
+  }, [editingTitle]);
+
+  async function handleRenameSave() {
+    if (!canRenameGroup || !onRenameGroup) return;
+    const next = String(titleDraft || '').trim();
+    if (!next || next === String(title || '').trim()) {
+      setEditingTitle(false);
+      setTitleDraft(title || '');
+      return;
+    }
+    setRenameBusy(true);
+    const ok = await onRenameGroup(next);
+    setRenameBusy(false);
+    if (ok) {
+      setEditingTitle(false);
+    }
+  }
+
   return (
     <div
       className={`sp-section-card${isOver ? ' sp-section-card--over' : ''}`}
@@ -109,7 +158,41 @@ function SectionCard({ id, title, dot, dotColor, students, draggingId, dragOver,
       <div className="sp-card-header">
         <div className="sp-card-header-left">
           {dot && <span className="sp-group-dot" style={{ background: dotColor }} />}
-          <span className="sp-card-title">{title}</span>
+          {canRenameGroup && editingTitle ? (
+            <div className="sp-group-rename-inline" onClick={(e) => e.stopPropagation()}>
+              <input
+                ref={titleInputRef}
+                className="sp-group-rename-input"
+                value={titleDraft}
+                onChange={(e) => setTitleDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') { e.preventDefault(); handleRenameSave(); }
+                  if (e.key === 'Escape') { e.preventDefault(); setEditingTitle(false); setTitleDraft(title || ''); }
+                }}
+                disabled={renameBusy}
+              />
+              <button type="button" className="sp-group-icon-btn" title="Сохранить" onClick={handleRenameSave} disabled={renameBusy}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+              </button>
+              <button type="button" className="sp-group-icon-btn" title="Отмена" onClick={() => { setEditingTitle(false); setTitleDraft(title || ''); }} disabled={renameBusy}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+          ) : (
+            <>
+              <span className="sp-card-title">{title}</span>
+              {canRenameGroup && (
+                <button
+                  type="button"
+                  className="sp-group-icon-btn"
+                  title="Переименовать группу"
+                  onClick={(e) => { e.stopPropagation(); setEditingTitle(true); }}
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+                </button>
+              )}
+            </>
+          )}
           <span className="sp-card-pill">{students.length}</span>
         </div>
         <div className="sp-card-header-actions">
@@ -122,7 +205,7 @@ function SectionCard({ id, title, dot, dotColor, students, draggingId, dragOver,
               Удалить группу
             </button>
           )}
-          <button type="button" className="sp-add-student-btn" onClick={() => onAddStudent(id)}>+ Добавить ученика</button>
+          <button type="button" className="sp-add-student-btn" onClick={() => onAddStudent(id)}>+ Пригласить ученика</button>
         </div>
       </div>
 
@@ -133,6 +216,7 @@ function SectionCard({ id, title, dot, dotColor, students, draggingId, dragOver,
           <thead>
             <tr>
               <th className="sp-th sp-th--student">Ученик</th>
+              {showSubject && <th className="sp-th sp-th--subject">Предмет</th>}
               <th className="sp-th sp-th--grade">Класс</th>
               <th className="sp-th sp-th--status">Статус</th>
               <th className="sp-th sp-th--actions"></th>
@@ -149,6 +233,8 @@ function SectionCard({ id, title, dot, dotColor, students, draggingId, dragOver,
                 onOpenProfile={onOpenProfile}
                 onArchive={onArchive}
                 onDelete={onDelete}
+                showSubject={showSubject}
+                subjectLabel={showSubject ? getStudentSubjectLabel(s, subjects) : '—'}
               />
             ))}
           </tbody>
@@ -177,16 +263,18 @@ export default function StudentsPage({ onOpenProfile }) {
   const [showArchive, setShowArchive] = useState(false);
 
   // Modals
-  const [addModal, setAddModal]         = useState(null); // null | section-id (for context)
-  const [form, setForm]                 = useState(EMPTY_STUDENT);
-  const [formError, setFormError]       = useState('');
-  const [saving, setSaving]             = useState(false);
-  const [credentials, setCredentials]   = useState(null);
-
   const [groupModal, setGroupModal]     = useState(false);
   const [groupForm, setGroupForm]       = useState({ group_name: '', subject: '', level: '' });
   const [groupError, setGroupError]     = useState('');
   const [groupSaving, setGroupSaving]   = useState(false);
+
+  const [inviteModal, setInviteModal] = useState(null); // null | { lesson_type, group_id? }
+  const [inviteForm, setInviteForm] = useState({ subject: '', level: '' });
+  const [inviteError, setInviteError] = useState('');
+  const [inviteLoading, setInviteLoading] = useState(false);
+  const [inviteUrl, setInviteUrl] = useState('');
+  const [inviteCopied, setInviteCopied] = useState(false);
+  const inviteCopiedTimer = useRef(null);
 
   // ── Data loading ─────────────────────────────────────────────────
   const loadAll = useCallback((opts = {}) => {
@@ -209,11 +297,6 @@ export default function StudentsPage({ onOpenProfile }) {
     fetch(`${API}/api/subjects/`, { credentials: 'include' }).then(r => r.ok ? r.json() : []).then(d => setSubjects(Array.isArray(d) ? d : [])).catch(() => {});
     fetch(`${API}/api/levels/`,   { credentials: 'include' }).then(r => r.ok ? r.json() : []).then(d => setLevels(Array.isArray(d) ? d : [])).catch(() => {});
   }, [loadAll]);
-
-  useEffect(() => {
-    if (addModal !== null && levels.length && !form.level)
-      setForm(f => ({ ...f, level: String(levels[0].id) }));
-  }, [addModal, levels, form.level]);
 
   // ── Toast helper ─────────────────────────────────────────────────
   function showToast(msg) {
@@ -281,52 +364,67 @@ export default function StudentsPage({ onOpenProfile }) {
     setDraggingFrom(null);
   }
 
-  // ── Add student modal ────────────────────────────────────────────
+  // ── Invite student modal ─────────────────────────────────────────
   function openAddModal(sectionId) {
     const isGroup = sectionId && sectionId !== 'individual';
     const groupId = isGroup ? Number(sectionId.replace('group:', '')) : null;
-    setForm({
-      ...EMPTY_STUDENT,
+    setInviteModal({ lesson_type: isGroup ? 'group' : 'individual', group_id: groupId });
+    setInviteForm({
       subject: subjects[0]?.id ? String(subjects[0].id) : '',
-      level:   levels[0]?.id   ? String(levels[0].id)   : '',
-      lesson_type: isGroup ? 'group' : 'individual',
-      group: groupId ? String(groupId) : '',
+      level: levels[0]?.id ? String(levels[0].id) : '',
     });
-    setFormError('');
-    setAddModal(sectionId ?? 'individual');
+    setInviteError('');
+    setInviteUrl('');
+    setInviteCopied(false);
   }
 
-  function handleField(e) { setForm(f => ({ ...f, [e.target.name]: e.target.value })); }
-
-  async function handleSubmit(e) {
+  async function handleInviteSubmit(e) {
     e.preventDefault();
-    if (!form.name.trim())  { setFormError('Введите имя ученика'); return; }
-    if (!form.subject)       { setFormError('Выберите предмет'); return; }
-    if (!form.level)         { setFormError('Выберите уровень'); return; }
-    setSaving(true); setFormError('');
+    if (!inviteModal) return;
+    const isGroup = inviteModal.lesson_type === 'group';
+    if (!isGroup && !inviteForm.subject) { setInviteError('Выберите предмет'); return; }
+    if (!isGroup && !inviteForm.level) { setInviteError('Выберите уровень'); return; }
+
+    setInviteLoading(true);
+    setInviteError('');
+    setInviteUrl('');
     try {
       let csrf = getCookie('csrftoken');
       if (!csrf) { await fetch(`${API}/api/students/`, { credentials: 'include' }); csrf = getCookie('csrftoken'); }
-      const payload = {
-        name: form.name.trim(), surname: (form.surname || '').trim(),
-        email: (form.email || '').trim(), phone: (form.phone || '').trim(),
-        subject: Number(form.subject), level: Number(form.level),
-        grade: form.grade, goal: (form.goal || '').trim(),
-        status: form.status, lesson_type: form.lesson_type,
-        group: form.lesson_type === 'group' && form.group ? Number(form.group) : null,
-        gender: form.gender,
-      };
-      if (form.birth_date) payload.birth_date = form.birth_date;
-      const r = await fetch(`${API}/api/students/`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf }, body: JSON.stringify(payload) });
-      if (r.ok) {
-        const created = await r.json();
-        setAddModal(null); setLoading(true); loadAll();
-        if (created.credentials) setCredentials(created.credentials);
+      const payload = isGroup
+        ? { lesson_type: 'group', group_id: inviteModal.group_id }
+        : { lesson_type: 'individual', subject: Number(inviteForm.subject), level: Number(inviteForm.level) };
+      const r = await fetch(`${API}/api/students/invite-link/`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+        body: JSON.stringify(payload),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (r.ok && d.invite_url) {
+        setInviteUrl(d.invite_url);
+        setInviteCopied(false);
       } else {
-        let err = {}; try { err = await r.json(); } catch { /**/ }
-        setFormError((typeof err.detail === 'string' && err.detail) || (typeof err.error === 'string' && err.error) || `Ошибка (${r.status})`);
+        setInviteError(d.error || 'Не удалось создать ссылку');
       }
-    } catch { setFormError('Нет связи с сервером'); } finally { setSaving(false); }
+    } catch {
+      setInviteError('Нет связи с сервером');
+    } finally {
+      setInviteLoading(false);
+    }
+  }
+
+  async function handleCopyInviteUrl() {
+    if (!inviteUrl) return;
+    const inviteMessage = `Добро пожаловать! Мы рады пригласить вас на занятия.\nПереходите по ссылке и присоединяйтесь:\n${inviteUrl}`;
+    try {
+      await navigator.clipboard.writeText(inviteMessage);
+      setInviteCopied(true);
+      clearTimeout(inviteCopiedTimer.current);
+      inviteCopiedTimer.current = setTimeout(() => setInviteCopied(false), 1800);
+    } catch {
+      setInviteError('Не удалось скопировать ссылку');
+    }
   }
 
   // ── Create group modal ───────────────────────────────────────────
@@ -416,6 +514,34 @@ export default function StudentsPage({ onOpenProfile }) {
     }
   }
 
+  async function handleRenameGroup(groupId, newName) {
+    try {
+      let csrf = getCookie('csrftoken');
+      if (!csrf) { await fetch(`${API}/api/groups/`, { credentials: 'include' }); csrf = getCookie('csrftoken'); }
+      const r = await fetch(`${API}/api/groups/${groupId}/`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
+        body: JSON.stringify({ group_name: newName }),
+      });
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) {
+        showToast((typeof data.error === 'string' && data.error) || 'Не удалось переименовать группу');
+        return false;
+      }
+      const updatedName = data.group_name || newName;
+      setGroups(prev => prev.map(g => (g.id === groupId ? { ...g, group_name: updatedName } : g)));
+      setStudents(prev => prev.map(s => (
+        Number(s.group) === Number(groupId) ? { ...s, group_name: updatedName } : s
+      )));
+      showToast(`Группа переименована: ${updatedName}`);
+      return true;
+    } catch {
+      showToast('Нет связи с сервером');
+      return false;
+    }
+  }
+
   // ── Derived ──────────────────────────────────────────────────────
   const activeStudents  = students.filter(s => s.status !== '3');
   const archivedStudents = students.filter(s => s.status === '3');
@@ -427,9 +553,9 @@ export default function StudentsPage({ onOpenProfile }) {
     students: activeStudents.filter(s => s.group_name === g.group_name),
   }));
 
-  const addModalIsGroup   = addModal && addModal !== 'individual';
-  const addModalGroupName = addModalIsGroup ? groups.find(g => String(g.id) === addModal.replace('group:', ''))?.group_name : null;
-  const addModalTitle     = addModalIsGroup ? `Добавить в «${addModalGroupName || 'группу'}»` : 'Добавить ученика';
+  const addModalIsGroup   = inviteModal?.lesson_type === 'group';
+  const addModalGroupName = addModalIsGroup ? groups.find(g => g.id === inviteModal?.group_id)?.group_name : null;
+  const addModalTitle     = addModalIsGroup ? `Пригласить в «${addModalGroupName || 'группу'}»` : 'Пригласить ученика';
 
   // ── Render ───────────────────────────────────────────────────────
   if (loading) return (
@@ -444,7 +570,6 @@ export default function StudentsPage({ onOpenProfile }) {
 
       {/* ── TOP BAR ── */}
       <div className="sp-topbar">
-        <h1 className="sp-h1">Мои ученики</h1>
         <div className="sp-topbar-actions">
           <button
             className={`sp-btn-archive${showArchive ? ' sp-btn-archive--active' : ''}`}
@@ -472,6 +597,8 @@ export default function StudentsPage({ onOpenProfile }) {
         title="Индивидуальные занятия"
         dot={false}
         students={indStudents}
+        showSubject
+        subjects={subjects}
         draggingId={draggingStudent?.id}
         dragOver={dragOver}
         onDragOver={handleDragOver}
@@ -494,6 +621,8 @@ export default function StudentsPage({ onOpenProfile }) {
           dot={true}
           dotColor={g.color}
           students={g.students}
+          showSubject
+          subjects={subjects}
           draggingId={draggingStudent?.id}
           dragOver={dragOver}
           onDragOver={handleDragOver}
@@ -506,6 +635,8 @@ export default function StudentsPage({ onOpenProfile }) {
           onArchive={handleArchive}
           onDelete={handleDelete}
           onDeleteGroup={() => handleDeleteGroup(g)}
+          canRenameGroup
+          onRenameGroup={(name) => handleRenameGroup(g.id, name)}
         />
       ))}
 
@@ -582,52 +713,56 @@ export default function StudentsPage({ onOpenProfile }) {
         </div>
       )}
 
-      {/* ── MODAL: ДОБАВИТЬ УЧЕНИКА ── */}
-      {addModal !== null && (
-        <div className="modal-overlay" onClick={() => setAddModal(null)}>
+      {/* ── MODAL: ПРИГЛАШЕНИЕ УЧЕНИКА ── */}
+      {inviteModal !== null && (
+        <div className="modal-overlay" onClick={() => setInviteModal(null)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <span className="modal-title">{addModalTitle}</span>
-              <button className="modal-close" onClick={() => setAddModal(null)}>
+              <button className="modal-close" onClick={() => setInviteModal(null)}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
-            <form className="modal-form" onSubmit={handleSubmit}>
-              <div className="modal-section-label">Личные данные</div>
-              <div className="modal-row">
-                <div className="modal-field"><label>Имя <span className="modal-required">*</span></label><input name="name" value={form.name} onChange={handleField} placeholder="Анна" autoFocus /></div>
-                <div className="modal-field"><label>Фамилия</label><input name="surname" value={form.surname} onChange={handleField} placeholder="Козлова" /></div>
-              </div>
-              <div className="modal-row">
-                <div className="modal-field"><label>Email</label><input name="email" type="email" value={form.email} onChange={handleField} placeholder="anna@mail.ru" /></div>
-                <div className="modal-field"><label>Телефон</label><input name="phone" value={form.phone} onChange={handleField} placeholder="+7 900 000-00-00" /></div>
-              </div>
-              <div className="modal-section-label" style={{ marginTop: 16 }}>Обучение</div>
-              <div className="modal-row">
-                <div className="modal-field"><label>Предмет <span className="modal-required">*</span></label><select name="subject" value={form.subject} onChange={handleField}><option value="">— выберите —</option>{subjects.map(s => <option key={s.id} value={s.id}>{s.subject_name}</option>)}</select></div>
-                <div className="modal-field"><label>Уровень <span className="modal-required">*</span></label><select name="level" value={form.level} onChange={handleField}><option value="">— выберите —</option>{levels.map(l => <option key={l.id} value={l.id}>{l.level}</option>)}</select></div>
-              </div>
-              <div className="modal-row">
-                <div className="modal-field"><label>Класс</label><select name="grade" value={form.grade} onChange={handleField}>{GRADE_CHOICES.map(g => <option key={g.value} value={g.value}>{g.label}</option>)}</select></div>
-                <div className="modal-field"><label>Статус</label><select name="status" value={form.status} onChange={handleField}>{STATUS_CHOICES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}</select></div>
+            <form className="modal-form" onSubmit={handleInviteSubmit}>
+              <div
+                style={{
+                  marginBottom: 10,
+                  padding: '10px 12px',
+                  borderRadius: 10,
+                  border: '1px solid #dbeafe',
+                  background: '#eff6ff',
+                  color: '#1e3a8a',
+                  fontSize: 12,
+                  lineHeight: 1.5,
+                }}
+              >
+                {addModalIsGroup
+                  ? 'Инструкция: нажмите «Создать ссылку», затем «Скопировать ссылку» и отправьте сообщение ученику. По этой ссылке ученик автоматически попадёт в выбранную группу.'
+                  : 'Инструкция: выберите предмет и уровень, нажмите «Создать ссылку», затем «Скопировать ссылку» и отправьте сообщение ученику.'}
               </div>
               {!addModalIsGroup && (
-                <div className="modal-row">
-                  <div className="modal-field"><label>Тип занятий</label>
-                    <select name="lesson_type" value={form.lesson_type} onChange={handleField}>
-                      <option value="individual">Индивидуальное</option>
-                      <option value="group">Групповое</option>
-                    </select>
+                <>
+                  <div className="modal-row">
+                    <div className="modal-field"><label>Предмет <span className="modal-required">*</span></label><select value={inviteForm.subject} onChange={e => setInviteForm(f => ({ ...f, subject: e.target.value }))}><option value="">— выберите —</option>{subjects.map(s => <option key={s.id} value={s.id}>{s.subject_name}</option>)}</select></div>
+                    <div className="modal-field"><label>Уровень <span className="modal-required">*</span></label><select value={inviteForm.level} onChange={e => setInviteForm(f => ({ ...f, level: e.target.value }))}><option value="">— выберите —</option>{levels.map(l => <option key={l.id} value={l.id}>{l.level}</option>)}</select></div>
                   </div>
-                  {form.lesson_type === 'group' && (
-                    <div className="modal-field"><label>Группа</label><select name="group" value={form.group} onChange={handleField}><option value="">— выберите —</option>{groups.map(g => <option key={g.id} value={g.id}>{g.group_name}</option>)}</select></div>
-                  )}
+                </>
+              )}
+              {inviteError && <div className="modal-error">{inviteError}</div>}
+              {inviteUrl && (
+                <div className="credentials-message" style={{ marginTop: 10 }}>
+                  <span className="credentials-message-label">Сообщение для ученика:</span>
+                  <pre className="credentials-message-text">{`Добро пожаловать! Мы рады пригласить вас на занятия.
+Переходите по ссылке и присоединяйтесь:
+${inviteUrl}`}</pre>
+                  <button type="button" className="credentials-copy-all" onClick={handleCopyInviteUrl}>
+                    {inviteCopied ? '✓ Скопировано' : 'Скопировать ссылку'}
+                  </button>
                 </div>
               )}
-              {formError && <div className="modal-error">{formError}</div>}
               <div className="modal-actions">
-                <button type="button" className="modal-btn modal-btn--cancel" onClick={() => setAddModal(null)}>Отмена</button>
-                <button type="submit" className="modal-btn modal-btn--save" disabled={saving}>{saving ? 'Сохранение…' : 'Добавить'}</button>
+                <button type="button" className="modal-btn modal-btn--cancel" onClick={() => setInviteModal(null)}>Закрыть</button>
+                <button type="submit" className="modal-btn modal-btn--save" disabled={inviteLoading}>{inviteLoading ? 'Создание…' : (inviteUrl ? 'Новая ссылка' : 'Создать ссылку')}</button>
               </div>
             </form>
           </div>
@@ -662,35 +797,6 @@ export default function StudentsPage({ onOpenProfile }) {
           </div>
         </div>
       )}
-
-      {/* ── MODAL: CREDENTIALS ── */}
-      {credentials && (() => {
-        const isFemale = credentials.gender === 'female';
-        const isMale   = credentials.gender === 'male';
-        const added2 = isFemale ? 'зарегистрировала' : isMale ? 'зарегистрировал' : 'зарегистрировал(а)';
-        const glad   = isFemale ? 'буду рада тебя видеть' : isMale ? 'буду рад тебя видеть' : 'буду рад(а) тебя видеть';
-        const msg = `Привет! 👋\nЯ ${added2} тебя на платформе ГенУрок.рф.\n\nТвои данные для входа:\n🔑 Логин: ${credentials.login}\n🔒 Пароль: ${credentials.password}\n\n🌐 https://генурок.рф/login/\n\nЗаходи, ${glad}!`;
-        return (
-          <div className="modal-overlay" onClick={() => setCredentials(null)}>
-            <div className="modal modal--credentials" onClick={e => e.stopPropagation()}>
-              <div className="modal-header">
-                <span className="modal-title">Ученик добавлен</span>
-                <button className="modal-close" onClick={() => setCredentials(null)}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
-              </div>
-              <div className="credentials-body">
-                <div className="credentials-hint"><span className="credentials-hint-icon">⚠️</span><span>Пароль показывается только один раз.</span></div>
-                <div className="credentials-row"><span className="credentials-label">Логин</span><span className="credentials-value">{credentials.login}</span></div>
-                <div className="credentials-row"><span className="credentials-label">Пароль</span><span className="credentials-value credentials-value--password">{credentials.password}</span></div>
-                <div className="credentials-message"><span className="credentials-message-label">Сообщение для ученика:</span><pre className="credentials-message-text">{msg}</pre></div>
-                <button className="credentials-copy-all" onClick={() => navigator.clipboard.writeText(msg)}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: 6 }}><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                  Скопировать сообщение
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
     </div>
   );
 }

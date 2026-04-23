@@ -78,8 +78,15 @@ class UserProfile(models.Model):
     birth_date = models.DateField(null=True, blank=True)
 
     avatar = models.ImageField(null=True, blank=True)
+    avatar_emoji = models.CharField(max_length=16, null=True, blank=True, default='')
+    avatar_bg = models.CharField(max_length=32, null=True, blank=True, default='')
 
     last_activity = models.DateTimeField(null=True, blank=True)
+
+    vk_user_id = models.CharField(
+        max_length=32, null=True, blank=True, unique=True, db_index=True,
+        verbose_name='VK ID',
+    )
 
     tariff = models.ForeignKey(Tariff, on_delete=models.SET_NULL, null=True, blank=True)
 
@@ -314,47 +321,6 @@ class TeacherVariant(models.Model):
         constraints = [
             models.UniqueConstraint(fields=['teacher', 'variant_id'], name='uniq_teacher_variant_pair'),
         ]
-
-
-class TeacherVariantStudents(models.Model):
-    TYPE_CHOICE = [
-        ('1', "Урок"),
-        ('2', "Домашнее задание")
-    ]
-    variant_id = models.ForeignKey(TeacherVariant, on_delete=models.CASCADE, related_name='given_to')
-    student = models.ForeignKey(UserProfile, on_delete=models.CASCADE)
-    variant_type = models.CharField(choices=TYPE_CHOICE, default='1')
-
-    def __str__(self):
-        return f'Вариант: {self.variant_id} задан {self.student} ({variant_type})'
-
-    class Meta:
-        verbose_name = "Заданный вариант"
-        verbose_name_plural = "Заданные варианты"
-        ordering = ['-variant_id']
-
-
-# ── Старые модели оставлены для совместимости с существующими данными ──────────
-
-class StudentsHomework(models.Model):
-    HOMEWORK_STATUS_CHOICES = [
-        ('1', 'Проверено'),
-        ('2', 'Ждёт проверки'),
-        ('3', 'Просрочено'),
-    ]
-    student  = models.ForeignKey(UserProfile, on_delete=models.CASCADE)
-    homework = models.ForeignKey(Homework, on_delete=models.CASCADE)
-    status   = models.CharField(max_length=100, choices=HOMEWORK_STATUS_CHOICES, default='2')
-
-    class Meta:
-        verbose_name = "ДЗ заданное (старое)"
-        verbose_name_plural = "ДЗ заданные (старые)"
-
-
-class StudentsAnswerImg(models.Model):
-    student  = models.ForeignKey(UserProfile, on_delete=models.CASCADE)
-    homework = models.ForeignKey(Homework, on_delete=models.CASCADE)
-    img      = models.ImageField(null=True, blank=True)
 
 
 class Notification(models.Model):

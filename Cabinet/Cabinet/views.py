@@ -1,4 +1,6 @@
 from django.shortcuts import render, redirect          # render — рендер шаблона, redirect — перенаправление
+from django.http import JsonResponse                    # JSON для VK ID обмена токена → сессия
+from django.views.decorators.http import require_POST  # только POST для /api/auth/vkid/
 from django.contrib.auth import authenticate, login, logout  # стандартная аутентификация Django
 from django.contrib.auth.models import User            # встроенная модель пользователя Django
 from django.contrib.auth.password_validation import validate_password  # валидатор надёжности пароля
@@ -20,6 +22,7 @@ import json
 import requests                                    # HTTP-клиент для проксирования запросов к генератору
 import urllib.request                                  # HTTP-запросы без сторонних библиотек
 import urllib.error                                    # HTTPError при проксировании запросов
+import urllib.parse
 import jwt                                             # PyJWT — создание и верификация JWT-токенов
 from .models import (                                  # импорт всех моделей приложения
     UserProfile,                                       # профиль пользователя (учитель / ученик)
@@ -74,7 +77,35 @@ FRONTEND_URL = getattr(settings, 'FRONTEND_URL', 'http://localhost:3000')   # UR
 GENUROK_URL  = getattr(settings, 'GENUROK_URL',  'https://test.genurok.ru')  # URL сервиса генератора заданий
 LESSON_SECRET = getattr(settings, 'LESSON_SECRET', settings.SECRET_KEY)     # секрет для подписи JWT урока
 LESSON_TTL    = 60 * 60 * 2  # время жизни токена урока — 2 часа в секундах
+STUDENT_INVITE_TTL = 60 * 60 * 24 * 7  # срок жизни ссылки-приглашения ученика — 7 дней
 HW_ROOM_TTL   = int(getattr(settings, 'HOMEWORK_ROOM_TTL', 60 * 60 * 24 * 30))  # JWT «комнаты» ДЗ для генератора
+
+AVATAR_EMOJI_POOL = {
+    # Еда
+    '🍎', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🍒', '🍑', '🥝', '🍍', '🥑',
+    # Животные
+    '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐼', '🐨', '🐯', '🦁', '🐸', '🐧', '🦉',
+    # Растения
+    '🌵', '🌿', '🍀', '🌱', '🌷', '🌸', '🌺', '🌻', '🌼', '🌴', '🍁', '🍃',
+}
+AVATAR_BG_POOL = {'violet', 'ocean', 'mint', 'sunset', 'peach', 'forest'}
+
+
+def _random_avatar_emoji():
+    return random.choice(tuple(AVATAR_EMOJI_POOL))
+
+
+def _random_avatar_bg():
+    return random.choice(tuple(AVATAR_BG_POOL))
+
+
+def _ensure_profile_avatar(profile):
+    if not getattr(profile, 'avatar_emoji', ''):
+        profile.avatar_emoji = _random_avatar_emoji()
+    if not getattr(profile, 'avatar_bg', ''):
+        profile.avatar_bg = _random_avatar_bg()
+    profile.save(update_fields=['avatar_emoji', 'avatar_bg'])
+    return profile
 
 
 def _normalize_revision_task_ids(raw):
@@ -156,14 +187,14 @@ def _ensure_homework_room_credentials(assignment, save=True):
 def _local_dev_generator_fallback_base():
     """
     Локальная отладка: если GENUROK_URL ошибочно указывает на Cabinet (8001),
-    то ссылки /lesson/join/ будут открывать SPA ЛК и редиректить на /app/.
+    то ссылки /lesson/join/ будут открывать SPA ЛК.
     В DEBUG режиме подменяем базу на локальный генератор (по умолчанию 127.0.0.1:8000).
     """
     return str(getattr(settings, 'LOCAL_GENUROK_URL', '') or os.environ.get('LOCAL_GENUROK_URL') or 'http://127.0.0.1:8000').strip().rstrip('/')
 
 
 def _strip_generator_base_app_suffix(base: str) -> str:
-    """GENUROK_URL иногда копируют из ЛК с /app — иначе путь /app/lesson/join не попадает в генератор."""
+    """GENUROK_URL иногда копируют из ЛК с /app — убираем этот префикс для корректных ссылок генератора."""
     b = (base or '').strip().rstrip('/')
     low = b.lower()
     if low.endswith('/app'):
@@ -255,10 +286,14 @@ def _homework_room_join_urls(assignment, request=None):
     from urllib.parse import quote
 
     token, _rid = _ensure_homework_room_credentials(assignment, save=True)
-    genurok_url = _generator_base_for_links(request).rstrip('/')
     aid = assignment.pk
     tok_q = quote(str(token), safe='')
-    base = f'{genurok_url}/lesson/join/?token={tok_q}&cabinet_session=homework&cabinet_assignment={aid}'
+    if request is not None:
+        join_base = request.build_absolute_uri('/lesson/join/').rstrip('/')
+    else:
+        # Fallback для случаев без request (не должен срабатывать для обычного API /join-url).
+        join_base = f'{_generator_base_for_links(request).rstrip("/")}/lesson/join'
+    base = f'{join_base}/?token={tok_q}&cabinet_session=homework&cabinet_assignment={aid}'
     return {
         'teacher': f'{base}&role=teacher',
         'student': f'{base}&role=student',
@@ -387,6 +422,38 @@ def _lesson_pending_cache_delete_user_keys(user_id=None, profile_id=None, profil
         cache.delete(f'lesson_pending_invite_username:{uu}')
 
 
+def _lesson_personalize_student_join_url(student_url: str, student_user_id: int):
+    """
+    Делает персональную student-ссылку с токеном, где зафиксирован student_user_id.
+    Это нужно для группового урока, чтобы генератор различал участников (курсоры/ответы).
+    """
+    raw_url = (student_url or '').strip()
+    if not raw_url:
+        return raw_url, ''
+    try:
+        parts = urllib.parse.urlsplit(raw_url)
+        qs = urllib.parse.parse_qs(parts.query, keep_blank_values=True)
+        token = (qs.get('token') or [''])[0].strip()
+        if not token:
+            return raw_url, ''
+        payload = jwt.decode(
+            token,
+            LESSON_SECRET,
+            algorithms=['HS256'],
+            options={'require': ['exp']},
+        )
+        if payload.get('iss') != 'cabinet':
+            return raw_url, token
+        payload['student_user_id'] = int(student_user_id)
+        per_token = jwt.encode(payload, LESSON_SECRET, algorithm='HS256')
+        qs['token'] = [per_token]
+        per_query = urllib.parse.urlencode(qs, doseq=True)
+        per_url = urllib.parse.urlunsplit((parts.scheme, parts.netloc, parts.path, per_query, parts.fragment))
+        return per_url, per_token
+    except Exception:
+        return raw_url, ''
+
+
 def _ws_notify_users_payload(user_ids, payload_dict):
     if not user_ids:
         return
@@ -435,11 +502,11 @@ def _lesson_jwt_recipients_for_ring_stop(lesson_type, target_id, teacher_uid=Non
         if grp:
             if teacher_uid is not None and int(grp.teacher.user_id) != int(teacher_uid):
                 return None, None, None
-            for row in TeachersGroup.objects.filter(group_id=target_id).select_related('student', 'student__user'):
-                sid = getattr(row.student, 'id', None)
-                uid = getattr(row.student, 'user_id', None)
-                susername = getattr(row.student, 'username', None)
-                uusername = getattr(getattr(row.student, 'user', None), 'username', None)
+            for student in _group_students_for_lesson(target_id):
+                sid = getattr(student, 'id', None)
+                uid = getattr(student, 'user_id', None)
+                susername = getattr(student, 'username', None)
+                uusername = getattr(getattr(student, 'user', None), 'username', None)
                 if sid:
                     notify_profile_ids.append(int(sid))
                 if uid:
@@ -452,6 +519,24 @@ def _lesson_jwt_recipients_for_ring_stop(lesson_type, target_id, teacher_uid=Non
     notify_profile_ids = list(dict.fromkeys(notify_profile_ids))
     notify_usernames = list(dict.fromkeys(notify_usernames))
     return notify_user_ids, notify_profile_ids, notify_usernames
+
+
+def _group_students_for_lesson(group_id):
+    """
+    Участники группы для звонков.
+    Источники:
+    - актуальная связь TeachersStudent.group,
+    - legacy-связь TeachersGroup (для обратной совместимости).
+    """
+    student_ids = set(
+        TeachersStudent.objects.filter(group_id=group_id).values_list('student_id', flat=True),
+    )
+    student_ids.update(
+        TeachersGroup.objects.filter(group_id=group_id).values_list('student_id', flat=True),
+    )
+    if not student_ids:
+        return UserProfile.objects.none()
+    return UserProfile.objects.filter(id__in=student_ids).select_related('user')
 
 # Глобальный флаг: проверены ли нужные колонки миграции 0016 в БД.
 # None — ещё не проверялось; True/False — результат проверки.
@@ -540,16 +625,92 @@ def get_user_by_login(login_str):
 def _dashboard_url(request):
     """
     URL дашборда (React SPA).
-    В проде SPA отдаётся Django с path /app/; CRA dev — http://localhost:3000/app/ (homepage /app).
+    В проде SPA отдаётся Django на корне /.
     """
-    fe = (FRONTEND_URL or '').rstrip('/')
-    if fe and ':3000' in fe:
-        return f'{fe}/app/' if not fe.endswith('/app') else f'{fe}/'
-    return request.build_absolute_uri('/app/')
+    return request.build_absolute_uri('/')
+
+
+def lesson_join_spa_redirect(request):
+    """
+    /lesson/join/ -> /?variant_play=<assignment_id>...
+    Для ДЗ-ссылок из генератора приводим оба пути (join и variant_play) к одному экрану ExamPage в SPA.
+    """
+    role = str(request.GET.get('role') or '').strip().lower()
+    assignment_raw = request.GET.get('cabinet_assignment')
+    assignment_id = None
+    try:
+        assignment_id = int(assignment_raw)
+    except (TypeError, ValueError):
+        token = str(request.GET.get('token') or '').strip()
+        if token:
+            try:
+                payload = jwt.decode(token, LESSON_SECRET, algorithms=['HS256'])
+                assignment_id = int(payload.get('homework_assignment_id'))
+            except Exception:
+                assignment_id = None
+
+    base = request.build_absolute_uri('/')
+    if assignment_id is None:
+        return redirect(base)
+
+    params = {'variant_play': str(assignment_id)}
+    # Учитель открывает режим проверки, ученик — локальный exam-view (без повторного редиректа на join-url).
+    if role == 'teacher':
+        params['hw_review'] = '1'
+    else:
+        params['hw_local'] = '1'
+    return redirect(f'{base}?{urllib.parse.urlencode(params)}')
 
 
 def _login_rate_limit_key(request):
     return f'cabinet:login_fail:{request.META.get("REMOTE_ADDR", "unknown")}'  # ключ кэша: провалы входа по IP
+
+
+def _forgot_password_rate_limit_key(request):
+    return f'cabinet:forgot_fail:{request.META.get("REMOTE_ADDR", "unknown")}'
+
+
+def _mint_student_invite_token(*, teacher_profile_id, subject_id, level_id, lesson_type, group_id=None):
+    now = int(time.time())
+    payload = {
+        'iss': 'cabinet_student_invite',
+        'iat': now,
+        'exp': now + STUDENT_INVITE_TTL,
+        'teacher_profile_id': int(teacher_profile_id),
+        'subject_id': int(subject_id),
+        'level_id': int(level_id),
+        'lesson_type': str(lesson_type),
+    }
+    if group_id:
+        payload['group_id'] = int(group_id)
+    return jwt.encode(payload, LESSON_SECRET, algorithm='HS256')
+
+
+def _decode_student_invite_token(token_raw):
+    try:
+        payload = jwt.decode(
+            str(token_raw or '').strip(),
+            LESSON_SECRET,
+            algorithms=['HS256'],
+            options={'require': ['exp']},
+        )
+    except Exception:
+        return None
+    if payload.get('iss') != 'cabinet_student_invite':
+        return None
+    return payload
+
+
+def _login_page_context(request):
+    """Контекст страницы входа: настройки виджета VK ID (если задан VKID_APP_ID)."""
+    ctx = {}
+    app_id = getattr(settings, 'VKID_APP_ID', '').strip()
+    if app_id:
+        ctx['vkid_app_id'] = app_id
+        redir = getattr(settings, 'VKID_REDIRECT_URL', '').strip()
+        ctx['vkid_redirect_url'] = redir or request.build_absolute_uri('/login/')
+        ctx['vkid_scope'] = getattr(settings, 'VKID_SCOPE', 'email') or 'email'
+    return ctx
 
 
 def login_view(request):
@@ -565,7 +726,7 @@ def login_view(request):
                 request,
                 'Слишком много неудачных попыток входа с этого адреса. Подождите около 15 минут.',
             )
-            return render(request, 'login.html')                           # показываем форму с ошибкой блокировки
+            return render(request, 'login.html', _login_page_context(request))  # показываем форму с ошибкой блокировки
 
         login_str = (request.POST.get('username') or '').strip()[:254]    # читаем логин, ограничиваем длину
         password  = (request.POST.get('password') or '')[:128]            # читаем пароль, ограничиваем длину
@@ -593,7 +754,150 @@ def login_view(request):
                 cache.set(rl_key, 1, timeout=900)                          # ключ не существует — создаём с TTL 15 минут
             messages.error(request, 'Неверный логин / email или пароль')   # сообщение об ошибке для шаблона
 
-    return render(request, 'login.html')                                    # GET-запрос или ошибка → рендерим форму
+    return render(request, 'login.html', _login_page_context(request))      # GET-запрос или ошибка → рендерим форму
+
+
+@require_POST
+def forgot_password_view(request):
+    rl_key = _forgot_password_rate_limit_key(request)
+    if cache.get(rl_key, 0) >= 12:
+        return JsonResponse({'error': 'Слишком много попыток. Попробуйте позже.'}, status=429)
+
+    try:
+        body = json.loads(request.body.decode('utf-8') or '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Некорректный запрос.'}, status=400)
+
+    login_str = (body.get('login') or '').strip()[:254]
+    email = (body.get('email') or '').strip()[:254].lower()
+    if not login_str or not email:
+        return JsonResponse({'error': 'Укажите логин (или email) и email для подтверждения.'}, status=400)
+
+    generic_error = {'error': 'Пользователь не найден или данные не совпадают.'}
+    user_obj = get_user_by_login(login_str)
+    user_email = (getattr(user_obj, 'email', '') or '').strip().lower() if user_obj else ''
+    if not user_obj or not user_email or user_email != email:
+        try:
+            cache.incr(rl_key)
+        except ValueError:
+            cache.set(rl_key, 1, timeout=900)
+        return JsonResponse(generic_error, status=400)
+
+    try:
+        profile = user_obj.profile
+    except UserProfile.DoesNotExist:
+        profile = None
+    if not profile or profile.role == 'student' or user_obj.is_superuser:
+        try:
+            cache.incr(rl_key)
+        except ValueError:
+            cache.set(rl_key, 1, timeout=900)
+        return JsonResponse(generic_error, status=400)
+
+    alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'
+    new_password = ''.join(random.choices(alphabet, k=10))
+    user_obj.set_password(new_password)
+    user_obj.save(update_fields=['password'])
+    cache.delete(rl_key)
+    return JsonResponse({'ok': True, 'login': user_obj.username, 'password': new_password})
+
+
+@require_POST
+def vkid_login_view(request):
+    """
+    Обмен access_token VK ID на сессию Django: user_info → UserProfile (vk_user_id или email учителя).
+    """
+    if request.user.is_authenticated and user_can_use_lk(request.user):
+        next_raw = request.GET.get('next')
+        safe = safe_redirect_target(next_raw, request) if next_raw else None
+        return JsonResponse({'redirect': safe or _dashboard_url(request)})
+
+    app_id = getattr(settings, 'VKID_APP_ID', '').strip()
+    if not app_id:
+        return JsonResponse({'error': 'Вход через VK не настроен.'}, status=503)
+
+    try:
+        body = json.loads(request.body.decode('utf-8') or '{}')
+    except json.JSONDecodeError:
+        return JsonResponse({'error': 'Некорректный запрос.'}, status=400)
+
+    access_token = (body.get('access_token') or '').strip()
+    if not access_token:
+        return JsonResponse({'error': 'Нет токена доступа.'}, status=400)
+
+    try:
+        r = requests.post(
+            'https://id.vk.ru/oauth2/user_info',
+            data={'client_id': app_id, 'access_token': access_token},
+            headers={'Content-Type': 'application/x-www-form-urlencoded'},
+            timeout=12,
+        )
+    except requests.RequestException:
+        return JsonResponse({'error': 'Не удалось связаться с VK ID. Попробуйте позже.'}, status=502)
+
+    try:
+        vi = r.json()
+    except ValueError:
+        return JsonResponse({'error': 'Некорректный ответ VK ID.'}, status=502)
+
+    if r.status_code != 200:
+        err = vi.get('error_description') or vi.get('error') or 'Ошибка VK ID'
+        return JsonResponse({'error': str(err)}, status=400)
+
+    user_blob = vi.get('user') if isinstance(vi.get('user'), dict) else vi
+    vk_id = user_blob.get('user_id')
+    if vk_id is None or vk_id == '':
+        return JsonResponse({'error': 'VK ID не вернул идентификатор пользователя.'}, status=400)
+    vk_id = str(vk_id)
+
+    email = (user_blob.get('email') or '').strip().lower()
+
+    profile = UserProfile.objects.select_related('user').filter(vk_user_id=vk_id).first()
+
+    if not profile and email:
+        q = UserProfile.objects.select_related('user').filter(user__email__iexact=email)
+        n = q.count()
+        if n > 1:
+            return JsonResponse(
+                {'error': 'Несколько учётных записей с таким email. Обратитесь в поддержку.'},
+                status=409,
+            )
+        profile = q.first()
+
+    if not profile:
+        return JsonResponse(
+            {
+                'error': (
+                    'Аккаунт не найден. Зарегистрируйтесь в кабинете, затем войдите через VK '
+                    '(email в VK должен совпадать с email в кабинете) или обратитесь в поддержку.'
+                ),
+            },
+            status=404,
+        )
+
+    if profile.role == 'student':
+        return JsonResponse({'error': 'Вход через VK доступен только учителям.'}, status=403)
+
+    if profile.vk_user_id and profile.vk_user_id != vk_id:
+        return JsonResponse({'error': 'Этот аккаунт уже привязан к другому профилю VK.'}, status=409)
+
+    if UserProfile.objects.exclude(pk=profile.pk).filter(vk_user_id=vk_id).exists():
+        return JsonResponse({'error': 'Этот аккаунт VK уже привязан к другому пользователю.'}, status=409)
+
+    if not profile.vk_user_id:
+        profile.vk_user_id = vk_id
+        profile.save(update_fields=['vk_user_id'])
+    if not profile.avatar_emoji or not profile.avatar_bg:
+        _ensure_profile_avatar(profile)
+
+    user = profile.user
+    if not user_can_use_lk(user):
+        return JsonResponse({'error': 'У этой учётной записи нет доступа к кабинету.'}, status=403)
+
+    login(request, user)
+    next_raw = request.GET.get('next')
+    safe = safe_redirect_target(next_raw, request) if next_raw else None
+    return JsonResponse({'redirect': safe or _dashboard_url(request)})
 
 
 def register_view(request):
@@ -658,6 +962,8 @@ def register_view(request):
                 surname=surname,
                 email=email,
                 role='teacher',                                             # при регистрации через форму — всегда учитель
+                avatar_emoji=_random_avatar_emoji(),
+                avatar_bg=_random_avatar_bg(),
             )
             selected = Subject.objects.filter(id__in=subj_ints)            # queryset выбранных предметов
             TeacherSubject.objects.bulk_create([                           # массово создаём связи учитель → предмет
@@ -667,6 +973,108 @@ def register_view(request):
             return render(request, 'register_success.html', {'username': username})  # страница с логином
 
     return render(request, 'register.html', {'subjects': subjects})        # GET или ошибки → форма регистрации
+
+
+def register_student_invite_view(request):
+    """
+    Саморегистрация ученика по персональной ссылке от учителя.
+    GET /register/student/?token=...
+    """
+    token = (request.GET.get('token') or request.POST.get('token') or '').strip()
+    payload = _decode_student_invite_token(token)
+    if not payload:
+        return render(request, 'register_student.html', {'invite_invalid': True})
+
+    teacher_profile = UserProfile.objects.filter(id=payload.get('teacher_profile_id')).first()
+    subject = Subject.objects.filter(id=payload.get('subject_id')).first()
+    level = Level.objects.filter(id=payload.get('level_id')).first()
+    lesson_type = str(payload.get('lesson_type') or 'individual')
+    group_id = payload.get('group_id')
+    group = None
+    if lesson_type == 'group':
+        group = Group.objects.filter(id=group_id, teacher=teacher_profile).first()
+        if not group:
+            return render(request, 'register_student.html', {'invite_invalid': True})
+
+    if not teacher_profile or not subject or not level:
+        return render(request, 'register_student.html', {'invite_invalid': True})
+
+    if request.method == 'POST':
+        name = (request.POST.get('name') or '').strip()[:100]
+        surname = (request.POST.get('surname') or '').strip()[:100]
+        email = (request.POST.get('email') or '').strip()[:254]
+        phone = (request.POST.get('phone') or '').strip()[:64]
+        grade = (request.POST.get('grade') or '').strip()
+        password1 = (request.POST.get('password1') or '')[:128]
+        password2 = (request.POST.get('password2') or '')[:128]
+
+        valid_grades = {c[0] for c in TeachersStudent.GRADE_CHOICES}
+        if not name:
+            messages.error(request, 'Введите имя')
+        elif grade not in valid_grades:
+            messages.error(request, 'Выберите корректный класс')
+        elif password1 != password2:
+            messages.error(request, 'Пароли не совпадают')
+        elif len(password1) < 8:
+            messages.error(request, 'Пароль должен быть не менее 8 символов')
+        elif email and User.objects.filter(email=email).exists():
+            messages.error(request, 'Email уже используется')
+        else:
+            try:
+                validate_password(password1, user=User(email=email, username=email[:30] or 'student'))
+            except ValidationError as e:
+                for err in e.messages:
+                    messages.error(request, err)
+            else:
+                username = generate_username()
+                user = User.objects.create_user(
+                    username=username,
+                    email=email,
+                    password=password1,
+                    first_name=name,
+                    last_name=surname,
+                    is_staff=False,
+                    is_superuser=False,
+                )
+                profile = UserProfile.objects.create(
+                    user=user,
+                    username=username,
+                    name=name,
+                    surname=surname,
+                    email=email,
+                    phone=phone or None,
+                    role='student',
+                    avatar_emoji=_random_avatar_emoji(),
+                    avatar_bg=_random_avatar_bg(),
+                )
+                TeachersStudent.objects.create(
+                    teacher=teacher_profile,
+                    student=profile,
+                    subject=subject,
+                    level=level,
+                    grade=grade,
+                    goal='',
+                    status='1',
+                    lesson_type='group' if lesson_type == 'group' else 'individual',
+                    group=group if lesson_type == 'group' else None,
+                )
+                login(request, user)
+                return redirect(_dashboard_url(request))
+
+    return render(
+        request,
+        'register_student.html',
+        {
+            'invite_invalid': False,
+            'token': token,
+            'teacher_name': f'{teacher_profile.name} {teacher_profile.surname}'.strip() or teacher_profile.username,
+            'subject_name': subject.subject_name,
+            'level_name': level.level,
+            'group_name': group.group_name if group else '',
+            'is_group': lesson_type == 'group',
+            'grade_choices': [c[0] for c in TeachersStudent.GRADE_CHOICES],
+        },
+    )
 
 
 def logout_view(request):
@@ -701,6 +1109,8 @@ class TeacherProfileMixin:
                     'surname':  request.user.last_name or '',
                     'email':    request.user.email or '',
                     'role':     'teacher',
+                    'avatar_emoji': _random_avatar_emoji(),
+                    'avatar_bg': _random_avatar_bg(),
                 },
             )
             return profile
@@ -749,76 +1159,70 @@ class StudentsView(TeacherProfileMixin, APIView):
         return Response(TeachersStudentSerializer(qs, many=True).data)    # сериализуем список учеников
 
     def post(self, request):
-        """Создаёт ученика (UserProfile) и связь с учителем (TeachersStudent)."""
-        ser = StudentCreateSerializer(data=request.data)                   # валидируем входящие данные
-        if not ser.is_valid():
-            return Response({'error': ser.errors}, status=status.HTTP_400_BAD_REQUEST)  # ошибки валидации
+        """Прямое создание ученика учителем отключено — только инвайт-ссылки."""
+        return Response(
+            {
+                'error': 'Регистрация ученика учителем отключена. Используйте приглашение по ссылке.',
+                'code': 'student_direct_create_disabled',
+            },
+            status=status.HTTP_410_GONE,
+        )
 
-        vd = ser.validated_data                                            # валидированные данные
-        name        = vd['name']                                           # имя ученика
-        surname     = vd['surname']                                        # фамилия
-        email       = vd['email']                                          # email (может быть пустым)
-        phone       = vd['phone']                                          # телефон
-        subject_id  = vd['subject']                                        # ID предмета
-        level_id    = vd['level']                                          # ID уровня
-        grade       = vd['grade']                                          # класс (7-11)
-        goal        = vd['goal']                                           # цель обучения
-        st_status   = vd['status']                                         # статус ученика (активен / пауза / …)
-        lesson_type = vd['lesson_type']                                    # тип занятия: individual / group
-        group_id    = vd.get('group')                                      # ID группы (если lesson_type='group')
-        gender      = vd['gender']                                         # пол
-        birth_date  = vd.get('birth_date')                                 # дата рождения (опционально)
 
-        teacher_profile = self.get_teacher_profile(request)               # профиль учителя из запроса
+class StudentInviteLinkView(TeacherProfileMixin, APIView):
+    """
+    POST /api/students/invite-link/
+    Генерация персональной ссылки регистрации ученика:
+    - individual: teacher выбирает subject + level
+    - group: привязка к конкретной группе
+    """
+    permission_classes = [IsCabinetTeacher]
 
-        try:
-            subject = Subject.objects.get(id=subject_id)                  # проверяем существование предмета
-            level   = Level.objects.get(id=level_id)                      # проверяем существование уровня
-        except (Subject.DoesNotExist, Level.DoesNotExist):
-            return Response({'error': 'Предмет или уровень не найден'}, status=status.HTTP_400_BAD_REQUEST)
+    def post(self, request):
+        teacher_profile = self.get_teacher_profile(request)
+        lesson_type = str(request.data.get('lesson_type') or 'individual').strip().lower()
+        if lesson_type not in ('individual', 'group'):
+            return Response({'error': 'lesson_type: individual или group'}, status=status.HTTP_400_BAD_REQUEST)
 
-        group = None                                                        # группа по умолчанию отсутствует
-        if lesson_type == 'group' and group_id:                           # если групповое занятие и указана группа
+        subject = None
+        level = None
+        group = None
+
+        if lesson_type == 'group':
+            group_id = request.data.get('group_id')
             try:
-                group = Group.objects.get(id=group_id, teacher=teacher_profile)  # группа должна принадлежать учителю
-            except Group.DoesNotExist:
-                return Response({'error': 'Группа не найдена'}, status=status.HTTP_400_BAD_REQUEST)
+                group = Group.objects.select_related('subject', 'level').get(
+                    id=int(group_id),
+                    teacher=teacher_profile,
+                )
+            except (Group.DoesNotExist, TypeError, ValueError):
+                return Response({'error': 'Группа не найдена'}, status=status.HTTP_404_NOT_FOUND)
+            subject = group.subject
+            level = group.level
+        else:
+            try:
+                subject = Subject.objects.get(id=int(request.data.get('subject')))
+                level = Level.objects.get(id=int(request.data.get('level')))
+            except (Subject.DoesNotExist, Level.DoesNotExist, TypeError, ValueError):
+                return Response({'error': 'Предмет или уровень не найден'}, status=status.HTTP_400_BAD_REQUEST)
 
-        username = generate_username()                                     # случайный логин для ученика
-        password = ''.join(random.choices(string.ascii_letters + string.digits, k=10))  # случайный пароль 10 символов
-        user = User.objects.create_user(                                  # создаём Django-пользователя ученика
-            username=username,
-            email=email or f"{username}@noemail.local",                   # заглушка если email не указан
-            password=password,
-            first_name=name,
-            last_name=surname,
-        )
-        student_profile = UserProfile.objects.create(                     # профиль ученика в ЛК
-            user=user,
-            username=username,
-            name=name,
-            surname=surname,
-            email=email or '',
-            phone=phone or None,
-            gender=gender,
-            birth_date=birth_date,
-            role='student',                                                # роль — ученик
-        )
-
-        ts = TeachersStudent.objects.create(                               # создаём связь учитель-ученик
-            teacher=teacher_profile,
-            student=student_profile,
-            subject=subject,
-            level=level,
-            grade=grade,
-            goal=goal,
-            status=st_status,
+        token = _mint_student_invite_token(
+            teacher_profile_id=teacher_profile.id,
+            subject_id=subject.id,
+            level_id=level.id,
             lesson_type=lesson_type,
-            group=group,
+            group_id=group.id if group else None,
         )
-        data = TeachersStudentSerializer(ts).data                         # сериализуем созданную связь
-        data['credentials'] = {'login': username, 'password': password, 'gender': gender}  # добавляем учётные данные в ответ
-        return Response(data, status=status.HTTP_201_CREATED)             # 201 Created
+        token_q = urllib.parse.quote(str(token), safe='')
+        invite_url = request.build_absolute_uri(f'/register/student/?token={token_q}')
+        return Response({
+            'invite_url': invite_url,
+            'expires_in': STUDENT_INVITE_TTL,
+            'lesson_type': lesson_type,
+            'subject_name': subject.subject_name,
+            'level_name': level.level,
+            'group_name': group.group_name if group else '',
+        })
 
 
 class StudentDetailView(TeacherProfileMixin, APIView):
@@ -945,8 +1349,10 @@ class StudentDetailView(TeacherProfileMixin, APIView):
             ts.status = st
             ts_fields.append('status')
 
-        if 'group_id' in data:                                           # явное указание group_id
-            group_id = data.get('group_id')
+        # Совместимость: фронт может присылать `group` вместо `group_id`.
+        has_group_key = 'group_id' in data or 'group' in data
+        if has_group_key:                                                # явное указание группы
+            group_id = data.get('group_id') if 'group_id' in data else data.get('group')
             if group_id:                                                 # перемещаем в группу
                 try:
                     group = Group.objects.get(id=int(group_id), teacher=teacher_profile)  # группа принадлежит учителю
@@ -1008,8 +1414,12 @@ class MeProfile(APIView):
                 'email': request.user.email or '',
                 'role': 'teacher',
                 'subjects': [],
+                'avatar_emoji': '',
+                'avatar_bg': '',
             })
         if profile.role == 'student':                                   # профиль ученика — без предметов
+            if not profile.avatar_emoji or not profile.avatar_bg:
+                _ensure_profile_avatar(profile)
             return Response({
                 'username': profile.username,
                 'name': profile.name,
@@ -1017,7 +1427,11 @@ class MeProfile(APIView):
                 'email': profile.email,
                 'role': profile.role,
                 'subjects': [],                                         # у ученика нет предметов в этом контексте
+                'avatar_emoji': profile.avatar_emoji or '',
+                'avatar_bg': profile.avatar_bg or '',
             })
+        if not profile.avatar_emoji or not profile.avatar_bg:
+            _ensure_profile_avatar(profile)
         return Response({                                               # профиль учителя — с предметами
             'username': profile.username,
             'name': profile.name,
@@ -1025,6 +1439,67 @@ class MeProfile(APIView):
             'email': profile.email,
             'role': profile.role,
             'subjects': subject_names,                                  # список предметов учителя
+            'avatar_emoji': profile.avatar_emoji or '',
+            'avatar_bg': profile.avatar_bg or '',
+        })
+
+    def patch(self, request):
+        avatar_emoji_raw = request.data.get('avatar_emoji', None)
+        avatar_bg_raw = request.data.get('avatar_bg', None)
+        if avatar_emoji_raw is None and avatar_bg_raw is None:
+            return Response({'error': 'Нужно передать avatar_emoji или avatar_bg'}, status=status.HTTP_400_BAD_REQUEST)
+
+        avatar_emoji = str(avatar_emoji_raw or '').strip() if avatar_emoji_raw is not None else None
+        avatar_bg = str(avatar_bg_raw or '').strip() if avatar_bg_raw is not None else None
+
+        if avatar_emoji is not None and avatar_emoji and avatar_emoji not in AVATAR_EMOJI_POOL:
+            return Response(
+                {'error': 'Недопустимый аватар. Используйте emoji из списка еды, животных или растений.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if avatar_bg is not None and avatar_bg and avatar_bg not in AVATAR_BG_POOL:
+            return Response(
+                {'error': 'Недопустимый фон аватара.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        profile, _ = UserProfile.objects.get_or_create(
+            user=request.user,
+            defaults={
+                'username': request.user.username,
+                'name': request.user.first_name or request.user.username,
+                'surname': request.user.last_name or '',
+                'email': request.user.email or '',
+                'role': 'teacher',
+                'avatar_emoji': _random_avatar_emoji(),
+                'avatar_bg': _random_avatar_bg(),
+            },
+        )
+        update_fields = []
+        if avatar_emoji is not None:
+            profile.avatar_emoji = avatar_emoji
+            update_fields.append('avatar_emoji')
+        if avatar_bg is not None:
+            profile.avatar_bg = avatar_bg
+            update_fields.append('avatar_bg')
+        if update_fields:
+            profile.save(update_fields=update_fields)
+
+        subject_names = []
+        if profile.role != 'student':
+            subject_names = list(
+                TeacherSubject.objects.filter(teacher=profile)
+                .values_list('subject__subject_name', flat=True)
+            )
+        return Response({
+            'username': profile.username,
+            'name': profile.name,
+            'surname': profile.surname,
+            'email': profile.email,
+            'role': profile.role,
+            'subjects': subject_names if profile.role != 'student' else [],
+            'avatar_emoji': profile.avatar_emoji or '',
+            'avatar_bg': profile.avatar_bg or '',
         })
 
 
@@ -1061,6 +1536,24 @@ class GroupDetailView(TeacherProfileMixin, APIView):
     """DELETE: удалить группу; ученики с этой группой → архив (статус 3), без группы, индив. занятия."""
 
     permission_classes = [IsCabinetTeacher]
+
+    def patch(self, request, pk):
+        teacher_profile = self.get_teacher_profile(request)
+        try:
+            group = Group.objects.get(pk=pk, teacher=teacher_profile)
+        except Group.DoesNotExist:
+            return Response({'error': 'Группа не найдена'}, status=status.HTTP_404_NOT_FOUND)
+
+        raw_name = request.data.get('group_name')
+        new_name = str(raw_name or '').strip()
+        if not new_name:
+            return Response({'error': 'Введите название группы'}, status=status.HTTP_400_BAD_REQUEST)
+        if len(new_name) > 120:
+            return Response({'error': 'Название группы слишком длинное'}, status=status.HTTP_400_BAD_REQUEST)
+
+        group.group_name = new_name
+        group.save(update_fields=['group_name'])
+        return Response(GroupSerializer(group).data)
 
     def delete(self, request, pk):
         teacher_profile = self.get_teacher_profile(request)
@@ -1296,11 +1789,11 @@ class LessonStart(APIView):
         else:
             grp_exists = Group.objects.filter(id=target_id, teacher=profile).exists()
             if grp_exists:
-                for row in TeachersGroup.objects.filter(group_id=target_id).select_related('student', 'student__user'):
-                    sid = getattr(row.student, 'id', None)
-                    uid = getattr(row.student, 'user_id', None)
-                    susername = getattr(row.student, 'username', None)
-                    uusername = getattr(getattr(row.student, 'user', None), 'username', None)
+                for student in _group_students_for_lesson(target_id):
+                    sid = getattr(student, 'id', None)
+                    uid = getattr(student, 'user_id', None)
+                    susername = getattr(student, 'username', None)
+                    uusername = getattr(getattr(student, 'user', None), 'username', None)
                     if sid:
                         notify_profile_ids.append(int(sid))
                     if uid:
@@ -1314,30 +1807,66 @@ class LessonStart(APIView):
         notify_profile_ids = list(dict.fromkeys(notify_profile_ids))
         notify_usernames = list(dict.fromkeys(notify_usernames))
 
-        for uid in notify_user_ids:
-            cache.set(f'lesson_pending_invite_user:{uid}', invite_payload, timeout=LESSON_TTL)
-        for pid in notify_profile_ids:
-            cache.set(f'lesson_pending_invite_profile:{pid}', invite_payload, timeout=LESSON_TTL)
-        for uname in notify_usernames:
-            cache.set(f'lesson_pending_invite_username:{uname}', invite_payload, timeout=LESSON_TTL)
-
         ws_sent = False
-        if notify_user_ids:
+        if lesson_type == 'group':
+            # Для группы шлём персональный токен/URL каждому ученику.
             try:
                 from channels.layers import get_channel_layer
                 from asgiref.sync import async_to_sync
                 channel_layer = get_channel_layer()
-                for uid in notify_user_ids:
-                    async_to_sync(channel_layer.group_send)(
-                        f"user_{uid}",
-                        {
-                            "type": "notify_message",
-                            "data": invite_payload,
-                        },
-                    )
-                ws_sent = True
             except Exception:
-                ws_sent = False
+                channel_layer = None
+
+            for student in _group_students_for_lesson(target_id):
+                uid = getattr(student, 'user_id', None)
+                if not uid:
+                    continue
+                per_url, per_token = _lesson_personalize_student_join_url(data.get('student_url') or '', uid)
+                per_payload = {
+                    **invite_payload,
+                    'student_url': per_url or invite_payload.get('student_url'),
+                    'token': per_token or token,
+                }
+                cache.set(f'lesson_pending_invite_user:{uid}', per_payload, timeout=LESSON_TTL)
+                if getattr(student, 'id', None):
+                    cache.set(f'lesson_pending_invite_profile:{student.id}', per_payload, timeout=LESSON_TTL)
+                if getattr(student, 'username', None):
+                    cache.set(f'lesson_pending_invite_username:{student.username}', per_payload, timeout=LESSON_TTL)
+                if getattr(getattr(student, 'user', None), 'username', None):
+                    cache.set(f'lesson_pending_invite_username:{student.user.username}', per_payload, timeout=LESSON_TTL)
+                if channel_layer:
+                    try:
+                        async_to_sync(channel_layer.group_send)(
+                            f"user_{uid}",
+                            {"type": "notify_message", "data": per_payload},
+                        )
+                        ws_sent = True
+                    except Exception:
+                        pass
+        else:
+            for uid in notify_user_ids:
+                cache.set(f'lesson_pending_invite_user:{uid}', invite_payload, timeout=LESSON_TTL)
+            for pid in notify_profile_ids:
+                cache.set(f'lesson_pending_invite_profile:{pid}', invite_payload, timeout=LESSON_TTL)
+            for uname in notify_usernames:
+                cache.set(f'lesson_pending_invite_username:{uname}', invite_payload, timeout=LESSON_TTL)
+
+            if notify_user_ids:
+                try:
+                    from channels.layers import get_channel_layer
+                    from asgiref.sync import async_to_sync
+                    channel_layer = get_channel_layer()
+                    for uid in notify_user_ids:
+                        async_to_sync(channel_layer.group_send)(
+                            f"user_{uid}",
+                            {
+                                "type": "notify_message",
+                                "data": invite_payload,
+                            },
+                        )
+                    ws_sent = True
+                except Exception:
+                    ws_sent = False
 
         if variant_id is not None:
             data['variant_id'] = int(variant_id)
@@ -1464,13 +1993,11 @@ class LessonTeacherJoinedView(APIView):
             if grp:
                 if teacher_uid is not None and int(teacher_uid) != grp.teacher.user_id:  # проверяем владельца группы
                     return Response({'error': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
-                for row in TeachersGroup.objects.filter(group_id=target_id).select_related(
-                    'student', 'student__user'
-                ):
-                    sid = getattr(row.student, 'id', None)
-                    uid = getattr(row.student, 'user_id', None)      # user_id каждого члена группы
-                    susername = getattr(row.student, 'username', None)
-                    uusername = getattr(getattr(row.student, 'user', None), 'username', None)
+                for student in _group_students_for_lesson(target_id):
+                    sid = getattr(student, 'id', None)
+                    uid = getattr(student, 'user_id', None)          # user_id каждого члена группы
+                    susername = getattr(student, 'username', None)
+                    uusername = getattr(getattr(student, 'user', None), 'username', None)
                     if sid:
                         notify_profile_ids.append(int(sid))
                     if uid:
@@ -1484,30 +2011,65 @@ class LessonTeacherJoinedView(APIView):
         notify_user_ids = list(dict.fromkeys(notify_user_ids))
         notify_profile_ids = list(dict.fromkeys(notify_profile_ids))
         notify_usernames = list(dict.fromkeys(notify_usernames))
-        for uid in notify_user_ids:
-            cache.set(f'lesson_pending_invite_user:{uid}', invite_payload, timeout=LESSON_TTL)
-        for pid in notify_profile_ids:
-            cache.set(f'lesson_pending_invite_profile:{pid}', invite_payload, timeout=LESSON_TTL)
-        for uname in notify_usernames:
-            cache.set(f'lesson_pending_invite_username:{uname}', invite_payload, timeout=LESSON_TTL)
 
         ws_sent = False                                               # флаг: отправлено ли через WebSocket
-        if notify_user_ids:
+        if lesson_type == 'group':
             try:
-                from channels.layers import get_channel_layer        # Django Channels для WebSocket
-                from asgiref.sync import async_to_sync               # запуск async-кода из sync-контекста
-                channel_layer = get_channel_layer()                  # получаем channel layer (Redis)
-                for uid in notify_user_ids:
-                    async_to_sync(channel_layer.group_send)(         # отправляем сообщение в WS-группу пользователя
-                        f"user_{uid}",                               # имя WS-группы: user_<id>
-                        {
-                            "type": "notify_message",                # тип обработчика в consumer
-                            "data": invite_payload,                  # данные приглашения
-                        },
-                    )
-                ws_sent = True                                        # WebSocket-отправка успешна
+                from channels.layers import get_channel_layer
+                from asgiref.sync import async_to_sync
+                channel_layer = get_channel_layer()
             except Exception:
-                ws_sent = False                                       # Channels не настроен или ошибка
+                channel_layer = None
+
+            for student in _group_students_for_lesson(target_id):
+                uid = getattr(student, 'user_id', None)
+                if not uid:
+                    continue
+                per_url, per_token = _lesson_personalize_student_join_url(student_url, uid)
+                per_payload = {
+                    **invite_payload,
+                    'student_url': per_url or student_url,
+                    'token': per_token or token,
+                }
+                cache.set(f'lesson_pending_invite_user:{uid}', per_payload, timeout=LESSON_TTL)
+                if getattr(student, 'id', None):
+                    cache.set(f'lesson_pending_invite_profile:{student.id}', per_payload, timeout=LESSON_TTL)
+                if getattr(student, 'username', None):
+                    cache.set(f'lesson_pending_invite_username:{student.username}', per_payload, timeout=LESSON_TTL)
+                if getattr(getattr(student, 'user', None), 'username', None):
+                    cache.set(f'lesson_pending_invite_username:{student.user.username}', per_payload, timeout=LESSON_TTL)
+                if channel_layer:
+                    try:
+                        async_to_sync(channel_layer.group_send)(
+                            f"user_{uid}",
+                            {"type": "notify_message", "data": per_payload},
+                        )
+                        ws_sent = True
+                    except Exception:
+                        pass
+        else:
+            for uid in notify_user_ids:
+                cache.set(f'lesson_pending_invite_user:{uid}', invite_payload, timeout=LESSON_TTL)
+            for pid in notify_profile_ids:
+                cache.set(f'lesson_pending_invite_profile:{pid}', invite_payload, timeout=LESSON_TTL)
+            for uname in notify_usernames:
+                cache.set(f'lesson_pending_invite_username:{uname}', invite_payload, timeout=LESSON_TTL)
+            if notify_user_ids:
+                try:
+                    from channels.layers import get_channel_layer        # Django Channels для WebSocket
+                    from asgiref.sync import async_to_sync               # запуск async-кода из sync-контекста
+                    channel_layer = get_channel_layer()                  # получаем channel layer (Redis)
+                    for uid in notify_user_ids:
+                        async_to_sync(channel_layer.group_send)(         # отправляем сообщение в WS-группу пользователя
+                            f"user_{uid}",                               # имя WS-группы: user_<id>
+                            {
+                                "type": "notify_message",                # тип обработчика в consumer
+                                "data": invite_payload,                  # данные приглашения
+                            },
+                        )
+                    ws_sent = True                                        # WebSocket-отправка успешна
+                except Exception:
+                    ws_sent = False                                       # Channels не настроен или ошибка
 
         return Response({
             'ok':           True,                                    # успешная обработка
@@ -1748,6 +2310,8 @@ class LessonStudentJoinedView(APIView):
             return Response({'error': 'forbidden'}, status=status.HTTP_403_FORBIDDEN)
 
         student_user_id_raw = request.data.get('student_user_id')
+        if (student_user_id_raw is None or str(student_user_id_raw).strip() == '') and lesson_type == 'group':
+            student_user_id_raw = payload.get('student_user_id')
         ws_user_ids = []
 
         if lesson_type == 'group':
@@ -1892,11 +2456,11 @@ class LessonTeacherLeftView(APIView):
                 if ts.student.user and ts.student.user.username:
                     notify_usernames.append(str(ts.student.user.username))
         elif target_id is not None and lesson_type == 'group':
-            for row in TeachersGroup.objects.filter(group_id=target_id).select_related('student', 'student__user'):
-                sid = getattr(row.student, 'id', None)
-                uid = getattr(row.student, 'user_id', None)
-                susername = getattr(row.student, 'username', None)
-                uusername = getattr(getattr(row.student, 'user', None), 'username', None)
+            for student in _group_students_for_lesson(target_id):
+                sid = getattr(student, 'id', None)
+                uid = getattr(student, 'user_id', None)
+                susername = getattr(student, 'username', None)
+                uusername = getattr(getattr(student, 'user', None), 'username', None)
                 if sid:
                     notify_profile_ids.append(int(sid))
                 if uid:
@@ -2480,9 +3044,49 @@ class HomeworkAssignmentMetaPatchView(APIView):
             strokes = request.data.get('whiteboard_strokes')
             if not isinstance(strokes, list):
                 return Response({'error': 'whiteboard_strokes должен быть массивом'}, status=status.HTTP_400_BAD_REQUEST)
-            if len(strokes) > 800:
-                strokes = strokes[-800:]                           # ограничиваем хранение до 800 последних штрихов
-            obj.whiteboard_strokes = strokes
+            existing = obj.whiteboard_strokes if isinstance(obj.whiteboard_strokes, list) else []
+
+            if is_teacher_owner:
+                normalized = []
+                for s in strokes:
+                    if not isinstance(s, dict):
+                        continue
+                    item = dict(s)
+                    item.setdefault('_author_role', 'teacher')
+                    if item.get('_author_role') == 'teacher':
+                        item['_author_profile_id'] = profile.pk
+                    normalized.append(item)
+                if len(normalized) > 800:
+                    normalized = normalized[-800:]                 # ограничиваем хранение до 800 последних штрихов
+                obj.whiteboard_strokes = normalized
+            else:
+                # Ученик не может перезаписывать/удалять учительские штрихи:
+                # сохраняем teacher-слой и обновляем только его собственные.
+                teacher_layer = []
+                for s in existing:
+                    if isinstance(s, dict) and s.get('_author_role') == 'teacher':
+                        teacher_layer.append(dict(s))
+
+                student_layer = []
+                for s in strokes:
+                    if not isinstance(s, dict):
+                        continue
+                    role = s.get('_author_role')
+                    author_pid = s.get('_author_profile_id')
+                    # Блокируем попытки ученика сохранить чужие student-штрихи или teacher-штрихи.
+                    if role == 'teacher':
+                        continue
+                    if role == 'student' and author_pid not in (None, profile.pk):
+                        continue
+                    item = dict(s)
+                    item['_author_role'] = 'student'
+                    item['_author_profile_id'] = profile.pk
+                    student_layer.append(item)
+
+                merged = teacher_layer + student_layer
+                if len(merged) > 800:
+                    merged = merged[-800:]
+                obj.whiteboard_strokes = merged
             update_fields.append('whiteboard_strokes')
 
         if 'task_teacher_comments' in request.data:
@@ -2981,7 +3585,7 @@ class NotificationListView(APIView):
 class NotificationReadView(APIView):
     """
     POST /api/notifications/<id>/read/
-    Отметить уведомление прочитанным.
+    Отметить уведомление прочитанным (теперь удаляет его).
     """
     permission_classes = [IsLKTeacher]
 
@@ -2994,15 +3598,14 @@ class NotificationReadView(APIView):
             notif = Notification.objects.get(pk=pk, user=profile) # уведомление принадлежит текущему пользователю
         except Notification.DoesNotExist:
             return Response({'error': 'Не найдено'}, status=status.HTTP_404_NOT_FOUND)
-        notif.read = True
-        notif.save(update_fields=['read'])                         # сохраняем только флаг прочтения
+        notif.delete()                                             # удаляем уведомление
         return Response({'ok': True})
 
 
 class NotificationReadAllView(APIView):
     """
     POST /api/notifications/read-all/
-    Отметить все уведомления прочитанными.
+    Отметить все уведомления прочитанными (теперь удаляет их).
     """
     permission_classes = [IsLKTeacher]
 
@@ -3011,7 +3614,7 @@ class NotificationReadAllView(APIView):
             profile = request.user.profile
         except Exception:
             return Response({'error': 'Профиль не найден'}, status=status.HTTP_400_BAD_REQUEST)
-        Notification.objects.filter(user=profile, read=False).update(read=True)  # массовое обновление непрочитанных
+        Notification.objects.filter(user=profile).delete()         # массовое удаление всех уведомлений
         return Response({'ok': True})
 
 
@@ -3115,22 +3718,48 @@ from rest_framework.decorators import api_view, permission_classes as drf_permis
 def save_teacher_variant(request):
     """
     POST /api/variants/save/
-    Body: { level, subject, task_ids: number[], title? }
+    Body: { level, subject, task_ids: number[], tasks?: [{ task_id, task_number? }], title? }
     Создаёт вариант в генераторе и сохраняет связку variant_id↔учитель в БД кабинета.
     """
     level = str(request.data.get('level') or '').strip()
     subject = str(request.data.get('subject') or '').strip()
     task_ids = request.data.get('task_ids') or []
+    tasks = request.data.get('tasks') or []
     title = str(request.data.get('title') or '').strip()
 
     if not level or not subject:
         return Response({'error': 'level и subject обязательны'}, status=status.HTTP_400_BAD_REQUEST)
-    if not isinstance(task_ids, list) or not task_ids:
+    if not isinstance(task_ids, list):
+        return Response({'error': 'task_ids должен быть массивом'}, status=status.HTTP_400_BAD_REQUEST)
+    if tasks and not isinstance(tasks, list):
+        return Response({'error': 'tasks должен быть массивом'}, status=status.HTTP_400_BAD_REQUEST)
+    if not task_ids and not tasks:
         return Response({'error': 'task_ids должен быть непустым массивом'}, status=status.HTTP_400_BAD_REQUEST)
-    try:
-        task_ids_int = [int(x) for x in task_ids]
-    except (TypeError, ValueError):
-        return Response({'error': 'task_ids должен содержать только числа'}, status=status.HTTP_400_BAD_REQUEST)
+    task_pairs = []
+    if tasks:
+        for item in tasks:
+            if not isinstance(item, dict):
+                return Response({'error': 'tasks должен содержать объекты {task_id, task_number?}'}, status=status.HTTP_400_BAD_REQUEST)
+            raw_id = item.get('task_id', item.get('id'))
+            try:
+                task_id_int = int(raw_id)
+            except (TypeError, ValueError):
+                return Response({'error': 'tasks[].task_id должен быть числом'}, status=status.HTTP_400_BAD_REQUEST)
+            task_number_raw = item.get('task_number')
+            if task_number_raw is None or str(task_number_raw).strip() == '':
+                task_number_int = None
+            else:
+                try:
+                    task_number_int = int(task_number_raw)
+                except (TypeError, ValueError):
+                    return Response({'error': 'tasks[].task_number должен быть числом'}, status=status.HTTP_400_BAD_REQUEST)
+            task_pairs.append({'task_id': task_id_int, 'task_number': task_number_int})
+        task_ids_int = [row['task_id'] for row in task_pairs]
+    else:
+        try:
+            task_ids_int = [int(x) for x in task_ids]
+        except (TypeError, ValueError):
+            return Response({'error': 'task_ids должен содержать только числа'}, status=status.HTTP_400_BAD_REQUEST)
 
     try:
         teacher = request.user.profile
@@ -3148,9 +3777,14 @@ def save_teacher_variant(request):
 
     create_url = _build_generator_url(f'api/{level}/{subject}/variant-from-ids/')
     try:
+        gen_payload = {'task_ids': task_ids_int}
+        if task_pairs:
+            # Передаём исходные номера заданий отдельным полем для генератора (если поддерживается),
+            # при этом task_ids остаётся обязательным для обратной совместимости.
+            gen_payload['tasks'] = task_pairs
         gen_resp = requests.post(
             create_url,
-            json={'task_ids': task_ids_int},
+            json=gen_payload,
             timeout=20,
             verify=False,
         )

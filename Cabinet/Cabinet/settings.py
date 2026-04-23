@@ -73,7 +73,7 @@ _genurok_raw = (os.environ.get('GENUROK_URL') or os.environ.get(_LEGACY_GENUROK_
 GENUROK_URL = _genurok_raw.strip().rstrip('/')
 # Локальная отладка: запасной URL генератора для ссылок, если GENUROK_URL указывает на Cabinet (часто 8001).
 LOCAL_GENUROK_URL = os.environ.get('LOCAL_GENUROK_URL', 'http://127.0.0.1:8000').strip().rstrip('/')
-# Ссылки «Комната ДЗ» (join/exam): при DEBUG=True по умолчанию всегда LOCAL_GENUROK_URL (иначе редирект на :8001/app/).
+# Ссылки «Комната ДЗ» (join/exam): при DEBUG=True по умолчанию всегда LOCAL_GENUROK_URL.
 # В DEBUG использовать GENUROK из .env: HOMEWORK_USE_ENV_GENUROK_URL=1
 # При DEBUG=False принудительно локальный генератор: FORCE_LOCAL_GENERATOR_LINKS=1
 HOMEWORK_LINKS_USE_LOCAL_GENERATOR = (
@@ -97,6 +97,12 @@ JITSI_BASE_URL = os.environ.get('JITSI_BASE_URL', 'https://lesson.genurok.ru').r
 # Для meet.jit.si оставьте пустыми (JWT встроенный не поддерживается).
 JITSI_APP_ID     = os.environ.get('JITSI_APP_ID', '').strip()
 JITSI_JWT_SECRET = os.environ.get('JITSI_JWT_SECRET', '').strip()
+
+# VK ID (вход учителя через ВКонтакте). redirectUrl в кабинете VK должен совпадать с VKID_REDIRECT_URL
+# или с URL страницы /login/ этого сайта.
+VKID_APP_ID = os.environ.get('VKID_APP_ID', '').strip()
+VKID_REDIRECT_URL = os.environ.get('VKID_REDIRECT_URL', '').strip()
+VKID_SCOPE = (os.environ.get('VKID_SCOPE', 'email') or 'email').strip()
 
 
 # Application definition
@@ -169,23 +175,21 @@ else:
 # Database — PostgreSQL в проде, SQLite локально (если DB_PASSWORD не задан)
 _db_password = os.environ.get('DB_PASSWORD', '')
 if _db_password:
-    DATABASES = {
-        'default': {
-            'ENGINE':   'django.db.backends.postgresql',
-            'NAME':     os.environ.get('DB_NAME', 'lk_cabinet'),
-            'USER':     os.environ.get('DB_USER', 'lk_user'),
-            'PASSWORD': _db_password,
-            'HOST':     os.environ.get('DB_HOST', 'localhost'),
-            'PORT':     os.environ.get('DB_PORT', '5432'),
-        }
+    _default_database = {
+        'ENGINE':   'django.db.backends.postgresql',
+        'NAME':     os.environ.get('DB_NAME', 'lk_cabinet'),
+        'USER':     os.environ.get('DB_USER', 'lk_user'),
+        'PASSWORD': _db_password,
+        'HOST':     os.environ.get('DB_HOST', 'localhost'),
+        'PORT':     os.environ.get('DB_PORT', '5432'),
     }
 else:
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME':   BASE_DIR / os.environ.get('SQLITE_NAME', 'db.sqlite3'),
-        }
+    _default_database = {
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME':   BASE_DIR / os.environ.get('SQLITE_NAME', 'db.sqlite3'),
     }
+
+DATABASES = {'default': _default_database}
 
 # Вторая БД — Генератор (только чтение, опционально)
 # Заполните GEN_DB_PASSWORD в .env чтобы включить прямые запросы к БД генератора.
@@ -256,15 +260,12 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 admin.AdminSite.enable_nav_sidebar = True
 
 LOGIN_URL = '/login/'
-# Редирект после входа (в т.ч. @login_required): дашборд SPA = /app/ на том же хосте или полный URL CRA в dev.
+# Редирект после входа (в т.ч. @login_required): дашборд SPA на корне /.
 _login_redirect = os.environ.get('LOGIN_REDIRECT_URL', '').strip()
 if _login_redirect:
     LOGIN_REDIRECT_URL = _login_redirect.rstrip('/')
-elif ':3000' in FRONTEND_URL:
-    _fe = FRONTEND_URL.rstrip('/')
-    LOGIN_REDIRECT_URL = f'{_fe}/app/' if not _fe.endswith('/app') else f'{_fe}/'
 else:
-    LOGIN_REDIRECT_URL = '/app/'
+    LOGIN_REDIRECT_URL = '/'
 
 # CORS / CSRF — в проде задайте явно; иначе добавляем origin из FRONTEND_URL, чтобы не ломать сессию
 _cors_origins = _split_origins(os.environ.get('CORS_ALLOWED_ORIGINS', 'http://localhost:3000'))

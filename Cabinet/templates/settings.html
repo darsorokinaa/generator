@@ -4,7 +4,7 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Настройки — Кабинет учителя</title>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=Unbounded:wght@600;700;800&display=swap" rel="stylesheet"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -32,6 +32,8 @@
       color: var(--text-1);
       min-height: 100vh;
     }
+
+    h1, h2, h3, h4, h5, h6 { font-family: 'Unbounded', sans-serif; }
 
     a { text-decoration: none; color: inherit; }
     button { font-family: 'Montserrat', sans-serif; cursor: pointer; border: none; background: none; }
@@ -209,6 +211,39 @@
       border: 1.5px solid var(--border);
     }
     .btn-sm.ghost:hover { border-color: var(--red); color: var(--red); }
+    .emoji-grid {
+      display: grid;
+      grid-template-columns: repeat(8, minmax(0, 1fr));
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .bg-grid {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    .emoji-btn {
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      background: #fff;
+      height: 38px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 19px;
+      cursor: pointer;
+      transition: border-color .13s, background .13s, transform .1s;
+    }
+    .emoji-btn:hover { border-color: var(--blue-mid); background: var(--blue-lt); }
+    .emoji-btn:active { transform: translateY(1px); }
+    .bg-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 999px;
+      border: 2px solid transparent;
+      cursor: pointer;
+    }
 
     /* ── Fields ── */
     .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
@@ -390,13 +425,13 @@
     <div class="nav-divider"></div>
     <span class="nav-section-label">Кабинет</span>
 
-    <a class="nav-link" href="{% url 'react-app' %}">
+    <a class="nav-link" href="/">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
       </svg>
       <span>Дашборд</span>
     </a>
-    <a class="nav-link" href="{% url 'react-app' %}">
+    <a class="nav-link" href="/">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
       </svg>
@@ -434,12 +469,14 @@
       </div>
 
       <div class="avatar-row">
-        <div class="avatar">ДС</div>
+        <div class="avatar" id="avatar-emoji">🙂</div>
         <div class="avatar-btns">
-          <button class="btn-sm primary">Загрузить фото</button>
-          <button class="btn-sm ghost">Удалить</button>
+          <button class="btn-sm primary" type="button" id="avatar-random-btn">Случайный emoji</button>
+          <button class="btn-sm ghost" type="button" id="avatar-clear-btn">Сбросить</button>
         </div>
       </div>
+      <div class="bg-grid" id="avatar-bg-grid"></div>
+      <div class="emoji-grid" id="avatar-emoji-grid"></div>
 
       <form>
         <div class="form-row">
@@ -619,6 +656,40 @@
 </div>
 
 <script>
+  const AVATAR_EMOJI_POOL = [
+    '🍎','🍊','🍋','🍌','🍉','🍇','🍓','🍒','🍑','🥝','🍍','🥑',
+    '🐶','🐱','🐭','🐹','🐰','🦊','🐼','🐨','🐯','🦁','🐸','🐧','🦉',
+    '🌵','🌿','🍀','🌱','🌷','🌸','🌺','🌻','🌼','🌴','🍁','🍃'
+  ];
+  const AVATAR_BG_OPTIONS = [
+    { id: 'violet', css: 'linear-gradient(135deg,#6D5EF8 0%,#9A8BFF 100%)' },
+    { id: 'ocean', css: 'linear-gradient(135deg,#0EA5E9 0%,#2563EB 100%)' },
+    { id: 'mint', css: 'linear-gradient(135deg,#10B981 0%,#34D399 100%)' },
+    { id: 'sunset', css: 'linear-gradient(135deg,#F59E0B 0%,#FB7185 100%)' },
+    { id: 'peach', css: 'linear-gradient(135deg,#FB7185 0%,#FDBA74 100%)' },
+    { id: 'forest', css: 'linear-gradient(135deg,#15803D 0%,#65A30D 100%)' },
+  ];
+
+  function randomAvatarEmoji() {
+    return AVATAR_EMOJI_POOL[Math.floor(Math.random() * AVATAR_EMOJI_POOL.length)];
+  }
+
+  function getCsrf() {
+    return (document.cookie.match(/(?:^|; )csrftoken=([^;]*)/) || [,''])[1];
+  }
+
+  function saveAvatarProfile(emoji, bg) {
+    return fetch('/api/me/', {
+      method: 'PATCH',
+      credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': getCsrf(),
+      },
+      body: JSON.stringify({ avatar_emoji: emoji || '', avatar_bg: bg || AVATAR_BG_OPTIONS[0].id }),
+    }).then(r => r.json().then(j => ({ ok: r.ok, j })).catch(() => ({ ok: r.ok, j: {} })));
+  }
+
   function togglePw(id, btn) {
     const inp = document.getElementById(id);
     const show = inp.type === 'password';
@@ -640,6 +711,84 @@
   }, { threshold: 0.5 });
 
   document.querySelectorAll('.card[id]').forEach(s => observer.observe(s));
+
+  (function initAvatarEditor() {
+    const avatarEl = document.getElementById('avatar-emoji');
+    const gridEl = document.getElementById('avatar-emoji-grid');
+    const bgGridEl = document.getElementById('avatar-bg-grid');
+    const randomBtn = document.getElementById('avatar-random-btn');
+    const clearBtn = document.getElementById('avatar-clear-btn');
+    if (!avatarEl || !gridEl || !bgGridEl || !randomBtn || !clearBtn) return;
+
+    function fallbackInitials(data) {
+      const n = (data?.name || '')[0] || '';
+      const s = (data?.surname || '')[0] || '';
+      return (n + s).toUpperCase() || '🙂';
+    }
+    let selectedEmoji = '';
+    let selectedBg = AVATAR_BG_OPTIONS[0].id;
+    function applyAvatarStyle(bgId) {
+      const css = (AVATAR_BG_OPTIONS.find(x => x.id === bgId) || AVATAR_BG_OPTIONS[0]).css;
+      avatarEl.style.background = css;
+      avatarEl.style.color = '#fff';
+    }
+    function renderAvatar(data) {
+      avatarEl.textContent = (data?.avatar_emoji || '').trim() || fallbackInitials(data);
+      selectedEmoji = (data?.avatar_emoji || '').trim() || selectedEmoji || randomAvatarEmoji();
+      selectedBg = (data?.avatar_bg || '').trim() || selectedBg;
+      applyAvatarStyle(selectedBg);
+    }
+
+    fetch('/api/me/', { credentials: 'same-origin' })
+      .then(r => r.ok ? r.json() : null)
+      .then((me) => { if (me) renderAvatar(me); })
+      .catch(() => {});
+
+    AVATAR_EMOJI_POOL.forEach((emoji) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'emoji-btn';
+      btn.textContent = emoji;
+      btn.title = 'Выбрать ' + emoji;
+      btn.addEventListener('click', () => {
+        selectedEmoji = emoji;
+        saveAvatarProfile(selectedEmoji, selectedBg).then((res) => {
+          if (res.ok) renderAvatar(res.j);
+        }).catch(() => {});
+      });
+      gridEl.appendChild(btn);
+    });
+
+    AVATAR_BG_OPTIONS.forEach((bg) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'bg-btn';
+      btn.style.background = bg.css;
+      btn.title = bg.id;
+      btn.addEventListener('click', () => {
+        selectedBg = bg.id;
+        saveAvatarProfile(selectedEmoji || randomAvatarEmoji(), selectedBg).then((res) => {
+          if (res.ok) renderAvatar(res.j);
+        }).catch(() => {});
+      });
+      bgGridEl.appendChild(btn);
+    });
+
+    randomBtn.addEventListener('click', () => {
+      selectedEmoji = randomAvatarEmoji();
+      selectedBg = AVATAR_BG_OPTIONS[Math.floor(Math.random() * AVATAR_BG_OPTIONS.length)].id;
+      saveAvatarProfile(selectedEmoji, selectedBg).then((res) => {
+        if (res.ok) renderAvatar(res.j);
+      }).catch(() => {});
+    });
+    clearBtn.addEventListener('click', () => {
+      selectedEmoji = randomAvatarEmoji();
+      selectedBg = AVATAR_BG_OPTIONS[0].id;
+      saveAvatarProfile(selectedEmoji, selectedBg).then((res) => {
+        if (res.ok) renderAvatar(res.j);
+      }).catch(() => {});
+    });
+  })();
 </script>
 </body>
 </html>

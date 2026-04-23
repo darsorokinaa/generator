@@ -1,8 +1,40 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { variantPreviewSiteBaseUrl } from './generatorVariantUrl';
+import { ResponsivePageHeader } from './components/ResponsiveUi';
 
 const GEN_RAW = (process.env.REACT_APP_GENERATOR_URL || 'https://test.genurok.ru').replace(/\/$/, '');
 const GEN = GEN_RAW.replace(/\/api$/, '');
+const VARIANT_PREVIEW_SITE = variantPreviewSiteBaseUrl();
 const TASK_BANK_PAGE = 100;
+
+
+const LEVEL_LABELS = {
+  oge: 'ОГЭ',
+  ege: 'ЕГЭ',
+  base: 'База',
+  basic: 'База',
+  profile: 'Профиль',
+  profi: 'Профиль',
+};
+
+function formatLevelLabel(rawLevel) {
+  const key = String(rawLevel || '').trim().toLowerCase();
+  if (!key) return '';
+  return LEVEL_LABELS[key] || String(rawLevel).toUpperCase();
+}
+
+function getVariantCardTitle(variant) {
+  const fallback = `Вариант #${variant.variant_id}`;
+  const baseTitle = variant.title || fallback;
+  const rawLevel = String(variant.level || '').trim();
+  if (!rawLevel) return baseTitle;
+
+  const escaped = rawLevel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const levelInParens = new RegExp(`\\(\\s*${escaped}\\s*\\)`, 'i');
+  if (!levelInParens.test(baseTitle)) return baseTitle;
+
+  return baseTitle.replace(levelInParens, `(${formatLevelLabel(rawLevel)})`);
+}
 
 function getCookie(name) {
   const value = `; ${document.cookie}`;
@@ -161,16 +193,31 @@ function VariantItem({ item, index, onRemove, onDragStart, onDragEnter, onDrop, 
       <div className="vp-vi-head">
         <span className="vp-vi-drag">⠿</span>
         <span className="vp-vi-num">{index + 1}</span>
+        {item.task_number != null && (
+          <span className="vp-task-badge">Задание {item.task_number}</span>
+        )}
         <span className="vp-vi-text">{plain.slice(0, 45) || `Задача #${item.id}`}</span>
         <button
           className="vp-vi-expand"
           type="button"
+          aria-label={expanded ? 'Свернуть' : 'Развернуть'}
+          title={expanded ? 'Свернуть' : 'Развернуть'}
           onClick={e => {
             e.stopPropagation();
             setExpanded(prev => !prev);
           }}
         >
-          {expanded ? 'Свернуть' : 'Развернуть'}
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s ease' }}
+            aria-hidden="true"
+          >
+            <path d="M6 9L12 15L18 9" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
         </button>
         <button
           className="vp-vi-remove"
@@ -337,11 +384,166 @@ function normalizeEntry(item) {
   return null;
 }
 
+function classifyVariantStatus(variant) {
+  if ((variant?.assigned_count || 0) > 0) return { key: 'assigned', label: 'Задан как ДЗ' };
+  const createdTs = Date.parse(String(variant?.created_at || ''));
+  if (Number.isFinite(createdTs) && (Date.now() - createdTs) < (1000 * 60 * 60 * 48)) {
+    return { key: 'new', label: 'Новый' };
+  }
+  return { key: 'used', label: 'Использовался' };
+}
+
+function detectCoverTheme(variant) {
+  const level = String(variant?.level || '').toLowerCase();
+  const title = String(variant?.title || '').toLowerCase();
+  if (title.includes('космос')) return 'space';
+  if (title.includes('весна')) return 'spring';
+  if (level.includes('oge')) return 'oge';
+  if (level.includes('ege')) return 'ege';
+  return 'default';
+}
+
+function VariantActionsMenu({ onPreview, onPdf, onDuplicate }) {
+  return (
+    <details className="vp-actions-menu">
+      <summary className="vp-actions-menu-btn" title="Ещё действия" aria-label="Ещё действия">⋯</summary>
+      <div className="vp-actions-menu-list">
+        <button type="button" className="vp-actions-menu-item" onClick={onPreview}>Предпросмотр</button>
+        <button type="button" className="vp-actions-menu-item" onClick={onPdf}>Скачать PDF</button>
+        <button type="button" className="vp-actions-menu-item" onClick={onDuplicate}>Дублировать</button>
+        <button type="button" className="vp-actions-menu-item vp-actions-menu-item--disabled" disabled title="Скоро">Удалить (скоро)</button>
+      </div>
+    </details>
+  );
+}
+
+function VariantsToolbar({
+  mySearch,
+  setMySearch,
+  mySubjectFilter,
+  setMySubjectFilter,
+  myLevelFilter,
+  setMyLevelFilter,
+  mySort,
+  setMySort,
+  mySubjects,
+  myLevels,
+}) {
+  return (
+    <div className="vp-my-toolbar">
+      <div className="vp-my-search-wrap">
+        <input
+          className="vp-my-search-input"
+          type="text"
+          placeholder="Поиск по названию, ID, предмету"
+          value={mySearch}
+          onChange={(e) => setMySearch(e.target.value)}
+        />
+      </div>
+      <select className="vp-my-select" value={mySubjectFilter} onChange={(e) => setMySubjectFilter(e.target.value)}>
+        <option value="all">Все предметы</option>
+        {mySubjects.map((s) => <option key={s} value={s}>{String(s).toUpperCase()}</option>)}
+      </select>
+      <select className="vp-my-select" value={myLevelFilter} onChange={(e) => setMyLevelFilter(e.target.value)}>
+        <option value="all">Все уровни</option>
+        {myLevels.map((l) => <option key={l} value={l}>{formatLevelLabel(l)}</option>)}
+      </select>
+      <select className="vp-my-select" value={mySort} onChange={(e) => setMySort(e.target.value)}>
+        <option value="newest">Сначала новые</option>
+        <option value="oldest">Сначала старые</option>
+      </select>
+    </div>
+  );
+}
+
+function VariantCard({
+  variant,
+  viewMode,
+  onStartLesson,
+  onAssignHomework,
+  onDuplicate,
+  formatSavedAt,
+}) {
+  const status = classifyVariantStatus(variant);
+  const coverTheme = detectCoverTheme(variant);
+  return (
+    <div className={`vp-my-card vp-my-card--${viewMode}`}>
+      {viewMode === 'cover' && (
+        <div className={`vp-my-card-cover vp-my-card-cover--${coverTheme}`}>
+          <div className="vp-my-card-cover-chip">{String(variant.subject || '').toUpperCase() || 'ПРЕДМЕТ'}</div>
+          <div className="vp-my-card-cover-level">{formatLevelLabel(variant.level) || 'Уровень'}</div>
+        </div>
+      )}
+      <div className="vp-my-card-head">
+        <div className="vp-my-card-title">{getVariantCardTitle(variant)}</div>
+        <span className="vp-my-card-id">#{variant.variant_id}</span>
+      </div>
+      <div className="vp-my-card-meta">
+        <span>{String(variant.subject || '').toUpperCase()}</span>
+        <span>{formatLevelLabel(variant.level)}</span>
+        <span>{formatSavedAt(variant.created_at)}</span>
+        <span>Задач: {(variant.task_ids || []).length}</span>
+      </div>
+      <div className="vp-my-card-status-row">
+        <span className={`vp-my-status-badge vp-my-status-badge--${status.key}`}>{status.label}</span>
+      </div>
+      <div className="vp-my-card-actions">
+        <button
+          type="button"
+          className="vp-my-action-btn vp-my-action-btn--lesson"
+          onClick={() => onStartLesson(variant)}
+        >
+          {status.key === 'used' ? 'Продолжить урок' : 'Начать урок'}
+        </button>
+        <button
+          type="button"
+          className="vp-my-action-btn vp-my-action-btn--hw"
+          onClick={() => onAssignHomework(variant)}
+        >
+          Задать как ДЗ
+        </button>
+        <VariantActionsMenu
+          onPreview={() => window.open(`${VARIANT_PREVIEW_SITE}/${variant.level}/${variant.subject}/variant/${variant.variant_id}/`, '_blank', 'noopener,noreferrer')}
+          onPdf={() => window.open(`${GEN}/api/${variant.level}/${variant.subject}/variant/${variant.variant_id}/pdf/`, '_blank', 'noopener,noreferrer')}
+          onDuplicate={() => onDuplicate(variant)}
+        />
+      </div>
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════════════════════════════════════════
    VariantsPage
 ═══════════════════════════════════════════════════════════════════════════════ */
 export default function VariantsPage() {
   const [mode, setMode] = useState('mine');
+
+  // Resizing sidebar
+  const [sidebarWidth, setSidebarWidth] = useState(320);
+  const isResizing = useRef(false);
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isResizing.current) return;
+      const newWidth = document.documentElement.clientWidth - e.clientX;
+      if (newWidth > 250 && newWidth < 800) {
+        setSidebarWidth(newWidth);
+      }
+    };
+    const handleMouseUp = () => {
+      if (isResizing.current) {
+        isResizing.current = false;
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+    };
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, []);
 
   // Catalog
   const [catalog, setCatalog]               = useState([]);
@@ -370,6 +572,11 @@ export default function VariantsPage() {
   const [myVariants, setMyVariants]         = useState([]);
   const [myVariantsLoading, setMyVariantsLoading] = useState(false);
   const [myVariantsError, setMyVariantsError] = useState('');
+  const [mySearch, setMySearch] = useState('');
+  const [mySubjectFilter, setMySubjectFilter] = useState('all');
+  const [myLevelFilter, setMyLevelFilter] = useState('all');
+  const [mySort, setMySort] = useState('newest');
+  const [myViewMode, setMyViewMode] = useState('cover');
 
   // Drag
   const dragFrom = useRef(null);
@@ -388,7 +595,7 @@ export default function VariantsPage() {
   const [assignTargetVariant, setAssignTargetVariant] = useState(null);
   const [assignStudents, setAssignStudents] = useState([]);
   const [assignGroups, setAssignGroups] = useState([]);
-  const [assignTargetKey, setAssignTargetKey] = useState('');
+  const [assignTargetKeys, setAssignTargetKeys] = useState([]);
   const [assignDeadline, setAssignDeadline] = useState('');
   const [assignComment, setAssignComment] = useState('');
   const [assignStudentsLoading, setAssignStudentsLoading] = useState(false);
@@ -554,7 +761,7 @@ export default function VariantsPage() {
     if (!variant?.variant_id) return;
     setAssignTargetVariant(variant);
     setAssignModalOpen(true);
-    setAssignTargetKey('');
+    setAssignTargetKeys([]);
     setAssignDeadline('');
     setAssignComment('');
     setAssignError('');
@@ -583,7 +790,7 @@ export default function VariantsPage() {
     if (assignSaving) return;
     setAssignModalOpen(false);
     setAssignTargetVariant(null);
-    setAssignTargetKey('');
+    setAssignTargetKeys([]);
     setAssignDeadline('');
     setAssignComment('');
     setAssignError('');
@@ -594,34 +801,43 @@ export default function VariantsPage() {
 
   const submitAssignHomework = useCallback(async () => {
     if (!assignTargetVariant?.variant_id) return;
-    if (!assignTargetKey) {
-      setAssignError('Выберите, кому задать');
+    if (!assignTargetKeys.length) {
+      setAssignError('Выберите хотя бы одного ученика или группу');
       return;
     }
-    const [targetType, rawId] = String(assignTargetKey).split(':');
-    const targetId = Number(rawId);
     let studentIds = [];
-    if (targetType === 'student' && Number.isFinite(targetId)) {
-      const selectedStudent = assignStudents.find(
-        s => Number(s.student ?? s.id) === targetId || Number(s.id) === targetId
-      );
-      if (selectedStudent && !isActiveStudent(selectedStudent)) {
-        setAssignError('Ученик в архиве. Нельзя назначить ДЗ архивному ученику.');
-        return;
+    for (const key of assignTargetKeys) {
+      const [targetType, rawId] = String(key).split(':');
+      const targetId = Number(rawId);
+      if (!Number.isFinite(targetId)) continue;
+      if (targetType === 'student') {
+        const selectedStudent = assignStudents.find(
+          s => Number(s.student ?? s.id) === targetId || Number(s.id) === targetId
+        );
+        if (!selectedStudent) continue;
+        if (!isActiveStudent(selectedStudent)) {
+          setAssignError('Нельзя назначить ДЗ архивным ученикам. Снимите их из выбора.');
+          return;
+        }
+        studentIds.push(targetId);
+        continue;
       }
-      studentIds = [targetId];
-    } else if (targetType === 'group' && Number.isFinite(targetId)) {
-      const group = assignGroups.find(g => Number(g.id) === targetId);
-      studentIds = assignStudents
-        .filter(s => (
-          isActiveStudent(s) && (
-          Number(s.group) === targetId
-          || Number(s.group_id) === targetId
-          || (group?.group_name && String(s.group_name || '') === String(group.group_name))
-        )))
-        .map(s => Number(s.student ?? s.id))
-        .filter(Number.isFinite);
+      if (targetType === 'group') {
+        const group = assignGroups.find(g => Number(g.id) === targetId);
+        const groupStudents = assignStudents
+          .filter(s => (
+            isActiveStudent(s) && (
+              Number(s.group) === targetId
+              || Number(s.group_id) === targetId
+              || (group?.group_name && String(s.group_name || '') === String(group.group_name))
+            )
+          ))
+          .map(s => Number(s.student ?? s.id))
+          .filter(Number.isFinite);
+        studentIds.push(...groupStudents);
+      }
     }
+    studentIds = Array.from(new Set(studentIds));
     if (!studentIds.length) {
       setAssignError('Для выбранного пункта не найдено учеников');
       return;
@@ -681,7 +897,7 @@ export default function VariantsPage() {
     }
   }, [
     assignTargetVariant,
-    assignTargetKey,
+    assignTargetKeys,
     assignStudents,
     assignGroups,
     isActiveStudent,
@@ -690,6 +906,12 @@ export default function VariantsPage() {
     showToast,
     closeAssignModal,
   ]);
+
+  const toggleAssignTargetKey = useCallback((key) => {
+    setAssignTargetKeys((prev) => (
+      prev.includes(key) ? prev.filter((item) => item !== key) : [...prev, key]
+    ));
+  }, []);
 
   const loadMyVariants = useCallback(async () => {
     setMyVariantsLoading(true);
@@ -961,7 +1183,11 @@ export default function VariantsPage() {
           level: lv.level,
           subject: subj.subject_short,
           task_ids: variantItems.map(i => i.id),
-          title: `Вариант ${subj.subject_name || subj.subject_short} (${lv.level})`,
+          tasks: variantItems.map(i => ({
+            task_id: i.id,
+            task_number: i.task_number ?? null,
+          })),
+          title: `Вариант ${subj.subject_name || subj.subject_short} (${formatLevelLabel(lv.level)})`,
         }),
       });
       if (r.ok) {
@@ -972,6 +1198,7 @@ export default function VariantsPage() {
         } else {
           loadMyVariants();
         }
+        setMode('mine');
         showToast(`✓ Вариант #${d.variant_id} сохранён и привязан к учителю`);
       } else {
         const err = await r.json().catch(() => ({}));
@@ -1121,6 +1348,68 @@ export default function VariantsPage() {
     }
   };
 
+  const mySubjects = useMemo(() => {
+    const set = new Set();
+    myVariants.forEach((v) => {
+      const s = String(v.subject || '').trim();
+      if (s) set.add(s);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'ru'));
+  }, [myVariants]);
+
+  const myLevels = useMemo(() => {
+    const set = new Set();
+    myVariants.forEach((v) => {
+      const s = String(v.level || '').trim();
+      if (s) set.add(s);
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'ru'));
+  }, [myVariants]);
+
+  const visibleMyVariants = useMemo(() => {
+    const search = String(mySearch || '').trim().toLowerCase();
+    const arr = myVariants.filter((v) => {
+      const subject = String(v.subject || '').trim();
+      const level = String(v.level || '').trim();
+      if (mySubjectFilter !== 'all' && subject !== mySubjectFilter) return false;
+      if (myLevelFilter !== 'all' && level !== myLevelFilter) return false;
+      if (!search) return true;
+      const hay = `${v.title || ''} ${v.variant_id || ''} ${subject} ${formatLevelLabel(level)}`.toLowerCase();
+      return hay.includes(search);
+    });
+    arr.sort((a, b) => {
+      const ta = Date.parse(String(a.created_at || '')) || 0;
+      const tb = Date.parse(String(b.created_at || '')) || 0;
+      return mySort === 'oldest' ? (ta - tb) : (tb - ta);
+    });
+    return arr;
+  }, [myVariants, mySearch, mySubjectFilter, myLevelFilter, mySort]);
+
+  const handleDuplicateVariant = useCallback(async (v) => {
+    try {
+      const r = await fetch('/api/variants/save/', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+        body: JSON.stringify({
+          level: v.level,
+          subject: v.subject,
+          task_ids: Array.isArray(v.task_ids) ? v.task_ids : [],
+          title: `${v.title || `Вариант #${v.variant_id}`} (копия)`,
+        }),
+      });
+      if (r.ok) {
+        const saved = await r.json();
+        setMyVariants((prev) => [saved, ...prev]);
+        showToast('Вариант продублирован');
+      } else {
+        showToast('Не удалось дублировать вариант', 'error');
+      }
+    } catch {
+      showToast('Ошибка сети при дублировании', 'error');
+    }
+  }, [showToast]);
+
   /* ── helpers for current entry display ── */
   const isGroup = selEntry && selEntry.type !== 'single';
 
@@ -1141,11 +1430,14 @@ export default function VariantsPage() {
           Создать вручную
         </button>
         <button className={`vp-mode-tab${mode === 'random' ? ' vp-mode-tab--on' : ''}`} onClick={() => setMode('random')}>
-          Случайный вариант
+          Сгенерировать вариант
         </button>
       </div>
 
-      <div className={`vp-layout${mode === 'mine' ? ' vp-layout--my' : ''}`}>
+      <div 
+        className={`vp-layout${mode === 'mine' ? ' vp-layout--my' : ''}`}
+        style={{ '--vp-sidebar-width': `${sidebarWidth}px` }}
+      >
 
         {/* ── LEFT zone ── */}
         <div className="vp-left">
@@ -1452,12 +1744,47 @@ export default function VariantsPage() {
           {/* ══ MY VARIANTS ══ */}
           {mode === 'mine' && (
             <div className="vp-my-wrap">
-              <div className="vp-my-header">
-                <div className="vp-my-title">Мои варианты</div>
-                <button className="vp-my-refresh" type="button" onClick={loadMyVariants} disabled={myVariantsLoading}>
-                  {myVariantsLoading ? 'Обновление…' : 'Обновить'}
-                </button>
-              </div>
+              <ResponsivePageHeader
+                className="vp-my-header"
+                title="Мои варианты"
+                subtitle="Быстрый доступ к урокам, ДЗ и экспорту"
+                right={(
+                  <div className="vp-my-header-actions">
+                    <div className="vp-view-segmented">
+                      <button
+                        type="button"
+                        className={`vp-view-segmented-btn${myViewMode === 'cover' ? ' vp-view-segmented-btn--active' : ''}`}
+                        onClick={() => setMyViewMode('cover')}
+                      >
+                        С обложкой
+                      </button>
+                      <button
+                        type="button"
+                        className={`vp-view-segmented-btn${myViewMode === 'minimal' ? ' vp-view-segmented-btn--active' : ''}`}
+                        onClick={() => setMyViewMode('minimal')}
+                      >
+                        Минимальный
+                      </button>
+                    </div>
+                    <button className="vp-my-refresh" type="button" onClick={loadMyVariants} disabled={myVariantsLoading} title="Обновить список">
+                      {myVariantsLoading ? 'Обновление…' : '↻'}
+                    </button>
+                  </div>
+                )}
+              />
+
+              <VariantsToolbar
+                mySearch={mySearch}
+                setMySearch={setMySearch}
+                mySubjectFilter={mySubjectFilter}
+                setMySubjectFilter={setMySubjectFilter}
+                myLevelFilter={myLevelFilter}
+                setMyLevelFilter={setMyLevelFilter}
+                mySort={mySort}
+                setMySort={setMySort}
+                mySubjects={mySubjects}
+                myLevels={myLevels}
+              />
 
               {myVariantsError && <div className="vp-hint vp-hint--err">{myVariantsError}</div>}
               {myVariantsLoading && !myVariants.length && (
@@ -1466,55 +1793,21 @@ export default function VariantsPage() {
               {!myVariantsLoading && !myVariantsError && myVariants.length === 0 && (
                 <div className="vp-hint vp-hint--compact">У вас пока нет сохранённых вариантов.</div>
               )}
+              {!myVariantsLoading && !myVariantsError && myVariants.length > 0 && visibleMyVariants.length === 0 && (
+                <div className="vp-hint vp-hint--compact">Ничего не найдено по текущим фильтрам.</div>
+              )}
 
-              <div className="vp-my-list">
-                {myVariants.map(v => (
-                  <div className="vp-my-card" key={v.id || `${v.variant_id}-${v.created_at}`}>
-                    <div className="vp-my-card-head">
-                      <div className="vp-my-card-title">
-                        {v.title || `Вариант #${v.variant_id}`}
-                      </div>
-                      <span className="vp-my-card-id">#{v.variant_id}</span>
-                    </div>
-                    <div className="vp-my-card-meta">
-                      <span>{String(v.subject || '').toUpperCase()}</span>
-                      <span>{String(v.level || '').toUpperCase()}</span>
-                      <span>{formatSavedAt(v.created_at)}</span>
-                      <span>Задач: {(v.task_ids || []).length}</span>
-                    </div>
-                    <div className="vp-my-card-actions">
-                      <button
-                        type="button"
-                        className="vp-my-action-btn vp-my-action-btn--lesson"
-                        onClick={() => startLessonForVariant(v)}
-                      >
-                        Начать урок
-                      </button>
-                      <button
-                        type="button"
-                        className="vp-my-action-btn vp-my-action-btn--hw"
-                        onClick={() => assignVariantAsHomework(v)}
-                      >
-                        Задать как ДЗ
-                      </button>
-                      <a
-                        href={`${GEN}/${v.level}/${v.subject}/variant/${v.variant_id}/`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="vp-my-link"
-                      >
-                        Предпросмотр
-                      </a>
-                      <a
-                        href={`${GEN}/api/${v.level}/${v.subject}/variant/${v.variant_id}/pdf/`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="vp-my-link"
-                      >
-                        PDF
-                      </a>
-                    </div>
-                  </div>
+              <div className={`vp-my-list${myViewMode === 'minimal' ? ' vp-my-list--minimal' : ''}`}>
+                {visibleMyVariants.map(v => (
+                  <VariantCard
+                    key={v.id || `${v.variant_id}-${v.created_at}`}
+                    variant={v}
+                    viewMode={myViewMode}
+                    onStartLesson={startLessonForVariant}
+                    onAssignHomework={assignVariantAsHomework}
+                    onDuplicate={handleDuplicateVariant}
+                    formatSavedAt={formatSavedAt}
+                  />
                 ))}
               </div>
             </div>
@@ -1523,6 +1816,14 @@ export default function VariantsPage() {
 
         {/* ── RIGHT panel — variant ── */}
         {mode !== 'mine' && <div className="vp-right">
+          <div 
+            className="vp-resizer" 
+            onMouseDown={() => {
+              isResizing.current = true;
+              document.body.style.cursor = 'col-resize';
+              document.body.style.userSelect = 'none';
+            }} 
+          />
           <div className="vp-panel-top">
             <div className="vp-panel-title-row">
               <span className="vp-panel-title">Вариант</span>
@@ -1582,7 +1883,7 @@ export default function VariantsPage() {
             </button>
             {savedVariantId && lv && subj && (
               <div className="vp-panel-ghost-row">
-                <a href={`${GEN}/${lv.level}/${subj.subject_short}/variant/${savedVariantId}/`}
+                <a href={`${VARIANT_PREVIEW_SITE}/${lv.level}/${subj.subject_short}/variant/${savedVariantId}/`}
                   target="_blank" rel="noopener noreferrer" className="vp-ghost-btn">
                   Предпросмотр
                 </a>
@@ -1637,28 +1938,70 @@ export default function VariantsPage() {
                 {assignStudentsLoading ? (
                   <div className="vp-assign-empty">Загрузка учеников и групп...</div>
                 ) : (
-                  <select
-                    value={assignTargetKey}
-                    onChange={e => setAssignTargetKey(e.target.value)}
-                  >
-                    <option value="">— выберите ученика или группу —</option>
-                    <optgroup label="Индивидуальные ученики">
-                      {assignStudents
-                        .filter(s => isIndividualStudent(s) && isActiveStudent(s))
-                        .map(s => (
-                          <option key={`student-${s.id}`} value={`student:${s.student || s.id}`}>
-                            {`${s.name || s.student_name || ''} ${s.surname || s.student_surname || ''}`.trim() || `Ученик #${s.student || s.id}`}
-                          </option>
-                        ))}
-                    </optgroup>
-                    <optgroup label="Группы">
-                      {assignGroups.map(g => (
-                        <option key={`group-${g.id}`} value={`group:${g.id}`}>
-                          {g.group_name || `Группа #${g.id}`}
-                        </option>
-                      ))}
-                    </optgroup>
-                  </select>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div>
+                      <div className="vp-assign-empty" style={{ marginBottom: 6 }}>Индивидуальные ученики</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                        {assignStudents
+                          .filter(s => isIndividualStudent(s) && isActiveStudent(s))
+                          .map((s) => {
+                            const sid = Number(s.student ?? s.id);
+                            const key = `student:${sid}`;
+                            const selected = assignTargetKeys.includes(key);
+                            return (
+                              <button
+                                type="button"
+                                key={key}
+                                onClick={() => toggleAssignTargetKey(key)}
+                                style={{
+                                  padding: '6px 12px',
+                                  borderRadius: 999,
+                                  border: `1px solid ${selected ? '#4F6EF7' : '#dbe3f0'}`,
+                                  background: selected ? '#EEF2FF' : '#fff',
+                                  color: selected ? '#1e40af' : '#334155',
+                                  cursor: 'pointer',
+                                  fontSize: 12,
+                                  fontWeight: selected ? 700 : 500,
+                                }}
+                              >
+                                {`${s.name || s.student_name || ''} ${s.surname || s.student_surname || ''}`.trim() || `Ученик #${sid}`}
+                              </button>
+                            );
+                          })}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="vp-assign-empty" style={{ marginBottom: 6 }}>Группы</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                        {assignGroups.map((g) => {
+                          const key = `group:${g.id}`;
+                          const selected = assignTargetKeys.includes(key);
+                          return (
+                            <button
+                              type="button"
+                              key={key}
+                              onClick={() => toggleAssignTargetKey(key)}
+                              style={{
+                                padding: '6px 12px',
+                                borderRadius: 999,
+                                border: `1px solid ${selected ? '#4F6EF7' : '#dbe3f0'}`,
+                                background: selected ? '#EEF2FF' : '#fff',
+                                color: selected ? '#1e40af' : '#334155',
+                                cursor: 'pointer',
+                                fontSize: 12,
+                                fontWeight: selected ? 700 : 500,
+                              }}
+                            >
+                              {g.group_name || `Группа #${g.id}`}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    {!!assignTargetKeys.length && (
+                      <div className="vp-assign-empty">Выбрано пунктов: {assignTargetKeys.length}</div>
+                    )}
+                  </div>
                 )}
               </div>
 

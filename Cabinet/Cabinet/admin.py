@@ -5,17 +5,16 @@ from .models import (
     UserProfile, TeacherSubject,
     TeachersStudent, Group, TeachersGroup,
     Homework, HomeworkAttachment, HomeworkAssignment, HomeworkAnswerFile, HomeworkTeacherFeedbackFile,
-    StudentsHomework, StudentsAnswerImg,
-    TeacherVariant, TeacherVariantStudents,
+    TeacherVariant,
     Notification, LessonInvite, Lesson,
 )
 
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display   = ('id', 'name', 'surname', 'username', 'role', 'email', 'tariff', 'last_activity')
+    list_display   = ('id', 'name', 'surname', 'username', 'role', 'email', 'vk_user_id', 'tariff', 'last_activity')
     list_filter    = ('role', 'tariff')
-    search_fields  = ('name', 'surname', 'username', 'email')
+    search_fields  = ('name', 'surname', 'username', 'email', 'vk_user_id')
     ordering       = ('surname', 'name')
     list_display_links = ('id', 'name')
 
@@ -71,22 +70,6 @@ class HomeworkTeacherFeedbackFileAdmin(admin.ModelAdmin):
     list_filter = ('file_type', 'created_at')
     search_fields = ('filename', 'assignment__student__name', 'assignment__student__surname')
     ordering = ('-created_at',)
-
-
-@admin.register(StudentsHomework)
-class StudentsHomeworkAdmin(admin.ModelAdmin):
-    list_display = ('id', 'student', 'homework', 'status')
-    list_display_links = ('id', 'student')
-    list_filter = ('status', 'homework')
-    search_fields = ('student__name', 'student__surname', 'homework__title')
-
-
-@admin.register(StudentsAnswerImg)
-class StudentsAnswerImgAdmin(admin.ModelAdmin):
-    list_display   = ('id', 'student', 'homework', 'img')
-    list_filter    = ('homework',)
-    search_fields  = ('student__name', 'student__surname')
-    list_display_links = ('id', 'student')
 
 
 @admin.register(Group)
@@ -149,17 +132,6 @@ class TeacherVariantAdmin(admin.ModelAdmin):
     )
     list_filter = ('level', 'subject', 'created_at')
     ordering = ('-created_at',)
-
-
-@admin.register(TeacherVariantStudents)
-class TeacherVariantStudentsAdmin(admin.ModelAdmin):
-    list_display = ('id', 'variant_id', 'student')
-    list_display_links = ('id', 'variant_id', 'student')
-    search_fields = (
-        'variant_id',
-        'student__username',   # или другое поле
-        'student__email',
-    )
 
 
 @admin.register(Notification)

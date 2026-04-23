@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Вход — Кабинет учителя</title>
-  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Unbounded:wght@600;700;800&display=swap" rel="stylesheet"/>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -16,6 +16,7 @@
       justify-content: center;
       padding: 20px;
     }
+    h1, h2, h3, h4, h5, h6 { font-family: 'Unbounded', sans-serif; }
     .card {
       background: #fff;
       border-radius: 20px;
@@ -64,6 +65,23 @@
     }
     input:focus { border-color: #4B65F5; }
     input::placeholder { color: #9CA3AF; }
+    .forgot-row {
+      display: flex;
+      justify-content: flex-end;
+      margin: -6px 0 2px;
+    }
+    .forgot-link {
+      border: none;
+      background: transparent;
+      color: #4B65F5;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: 'Montserrat', sans-serif;
+      cursor: pointer;
+      padding: 0;
+      text-decoration: none;
+    }
+    .forgot-link:hover { text-decoration: underline; }
 
     .btn {
       width: 100%;
@@ -90,6 +108,102 @@
     }
     .footer-link a { color: #4B65F5; font-weight: 600; text-decoration: none; }
     .footer-link a:hover { text-decoration: underline; }
+
+    .vkid-divider {
+      display: flex; align-items: center; gap: 12px;
+      margin: 22px 0 16px;
+      font-size: 12px; font-weight: 600; color: #9CA3AF;
+    }
+    .vkid-divider::before, .vkid-divider::after {
+      content: ''; flex: 1; height: 1px; background: #E8EBF5;
+    }
+    .vkid-wrap { min-height: 44px; }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, .45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      z-index: 30;
+    }
+    .modal-overlay--open { display: flex; }
+    .modal-card {
+      width: 100%;
+      max-width: 420px;
+      background: #fff;
+      border-radius: 16px;
+      box-shadow: 0 18px 48px rgba(15, 23, 42, .2);
+      border: 1px solid #E8EBF5;
+      overflow: hidden;
+    }
+    .modal-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 16px 18px 12px;
+      border-bottom: 1px solid #EEF1F8;
+    }
+    .modal-title { font-size: 15px; font-weight: 700; color: #0F1733; }
+    .modal-close {
+      border: none;
+      background: transparent;
+      color: #64748b;
+      font-size: 20px;
+      line-height: 1;
+      cursor: pointer;
+    }
+    .modal-body {
+      padding: 14px 18px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .modal-hint {
+      font-size: 12.5px;
+      color: #64748b;
+      line-height: 1.5;
+    }
+    .modal-field { display: flex; flex-direction: column; gap: 6px; }
+    .modal-field label { margin: 0; }
+    .modal-error {
+      background: #FEF2F2;
+      border: 1px solid #FECACA;
+      color: #DC2626;
+      font-size: 12px;
+      border-radius: 10px;
+      padding: 9px 12px;
+    }
+    .modal-success {
+      background: #EEFDF3;
+      border: 1px solid #BBF7D0;
+      color: #166534;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 12px;
+      line-height: 1.45;
+    }
+    .modal-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 4px;
+    }
+    .btn-ghost {
+      border: 1px solid #D8DEEC;
+      background: #fff;
+      color: #475569;
+      border-radius: 10px;
+      padding: 9px 14px;
+      font-size: 12.5px;
+      font-weight: 600;
+      font-family: 'Montserrat', sans-serif;
+      cursor: pointer;
+    }
+    .btn-ghost:hover { background: #F8FAFC; }
 
   </style>
 </head>
@@ -125,12 +239,217 @@
         <label for="password">Пароль</label>
         <input id="password" name="password" type="password" placeholder="Введите пароль" autocomplete="current-password" maxlength="128" required />
       </div>
+      <div class="forgot-row">
+        <button type="button" class="forgot-link" id="forgot-open">Забыли пароль?</button>
+      </div>
       <button class="btn" type="submit">Войти</button>
     </form>
+
+    {% if vkid_app_id %}
+    {{ vkid_redirect_url|json_script:"vkid-redirect-url" }}
+    <div class="vkid-divider"><span>или</span></div>
+    <div id="vkid-onetap" class="vkid-wrap"></div>
+    <script src="https://unpkg.com/@vkid/sdk@2.6.5/dist-sdk/umd/index.js"></script>
+    <script>
+    (function () {
+      function getCookie(name) {
+        var m = document.cookie.match('(?:^|; )' + name.replace(/([.$?*|{}()[\]\\/+^])/g, '\\$1') + '=([^;]*)');
+        return m ? decodeURIComponent(m[1]) : '';
+      }
+      function showVkidError(msg) {
+        var box = document.querySelector('.messages');
+        if (!box) {
+          box = document.createElement('div');
+          box.className = 'messages';
+          var form = document.querySelector('form');
+          form.parentNode.insertBefore(box, form.nextSibling);
+        }
+        var d = document.createElement('div');
+        d.className = 'msg-error';
+        d.textContent = msg || 'Ошибка входа через VK';
+        box.appendChild(d);
+      }
+      function boot() {
+        if (!('VKIDSDK' in window)) return;
+        var el = document.getElementById('vkid-redirect-url');
+        var redirectUrl = el ? JSON.parse(el.textContent) : window.location.href;
+        var VKID = window.VKIDSDK;
+        VKID.Config.init({
+          app: {{ vkid_app_id|default:"0" }},
+          redirectUrl: redirectUrl,
+          responseMode: VKID.ConfigResponseMode.Callback,
+          source: VKID.ConfigSource.LOWCODE,
+          scope: '{{ vkid_scope|escapejs }}',
+        });
+        var oneTap = new VKID.OneTap();
+        oneTap.render({
+          container: document.getElementById('vkid-onetap'),
+          fastAuthEnabled: false,
+          showAlternativeLogin: true,
+        })
+          .on(VKID.WidgetEvents.ERROR, function (err) {
+            showVkidError(err && (err.message || err.toString()) || 'Ошибка виджета VK ID');
+          })
+          .on(VKID.OneTapInternalEvents.LOGIN_SUCCESS, function (payload) {
+            var code = payload.code;
+            var deviceId = payload.device_id;
+            VKID.Auth.exchangeCode(code, deviceId)
+              .then(function (data) {
+                var token = data && (data.access_token || (data.token && data.token.access_token));
+                if (!token) {
+                  showVkidError('Не удалось получить токен VK');
+                  return;
+                }
+                var nextParam = new URLSearchParams(window.location.search).get('next');
+                var url = '/api/auth/vkid/' + (nextParam ? ('?next=' + encodeURIComponent(nextParam)) : '');
+                fetch(url, {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCookie('csrftoken'),
+                  },
+                  credentials: 'same-origin',
+                  body: JSON.stringify({ access_token: token }),
+                })
+                  .then(function (r) { return r.json().then(function (j) { return { ok: r.ok, j: j }; }); })
+                  .then(function (_ref) {
+                    if (_ref.ok && _ref.j.redirect) window.location.href = _ref.j.redirect;
+                    else showVkidError((_ref.j && _ref.j.error) || 'Ошибка входа');
+                  })
+                  .catch(function () { showVkidError('Сеть недоступна'); });
+              })
+              .catch(function (err) {
+                showVkidError(err && (err.message || err.toString()) || 'Ошибка обмена кода VK');
+              });
+          });
+      }
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+      else boot();
+    })();
+    </script>
+    {% endif %}
 
     <div class="footer-link">
       Нет аккаунта? <a href="{% url 'register' %}">Зарегистрироваться</a>
     </div>
   </div>
+
+  <div class="modal-overlay" id="forgot-modal" aria-hidden="true">
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="forgot-title">
+      <div class="modal-head">
+        <span id="forgot-title" class="modal-title">Восстановление пароля</span>
+        <button type="button" class="modal-close" id="forgot-close" aria-label="Закрыть">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-hint">Введите логин (или email) и email аккаунта. Если данные совпадут, мы сразу сгенерируем новый пароль.</div>
+        <div id="forgot-error" class="modal-error" style="display:none;"></div>
+        <div id="forgot-success" class="modal-success" style="display:none;"></div>
+        <div class="modal-field">
+          <label for="forgot-login">Логин или email</label>
+          <input id="forgot-login" type="text" maxlength="254" placeholder="Например: teacher@example.com" />
+        </div>
+        <div class="modal-field">
+          <label for="forgot-email">Email для подтверждения</label>
+          <input id="forgot-email" type="email" maxlength="254" placeholder="teacher@example.com" />
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-ghost" id="forgot-cancel">Отмена</button>
+          <button type="button" class="btn" id="forgot-submit" style="width:auto; margin-top:0; padding: 10px 15px;">Сбросить пароль</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  (function () {
+    function getCookie(name) {
+      var m = document.cookie.match('(?:^|; )' + name.replace(/([.$?*|{}()[\]\\/+^])/g, '\\$1') + '=([^;]*)');
+      return m ? decodeURIComponent(m[1]) : '';
+    }
+    var modal = document.getElementById('forgot-modal');
+    var openBtn = document.getElementById('forgot-open');
+    var closeBtn = document.getElementById('forgot-close');
+    var cancelBtn = document.getElementById('forgot-cancel');
+    var submitBtn = document.getElementById('forgot-submit');
+    var loginInput = document.getElementById('forgot-login');
+    var emailInput = document.getElementById('forgot-email');
+    var errBox = document.getElementById('forgot-error');
+    var okBox = document.getElementById('forgot-success');
+
+    function clearState() {
+      errBox.style.display = 'none';
+      okBox.style.display = 'none';
+      errBox.textContent = '';
+      okBox.textContent = '';
+    }
+    function openModal() {
+      clearState();
+      modal.classList.add('modal-overlay--open');
+      modal.setAttribute('aria-hidden', 'false');
+      setTimeout(function () { loginInput.focus(); }, 0);
+    }
+    function closeModal() {
+      modal.classList.remove('modal-overlay--open');
+      modal.setAttribute('aria-hidden', 'true');
+    }
+    function showError(msg) {
+      errBox.textContent = msg || 'Не удалось сбросить пароль';
+      errBox.style.display = 'block';
+      okBox.style.display = 'none';
+    }
+    function showSuccess(msg) {
+      okBox.textContent = msg;
+      okBox.style.display = 'block';
+      errBox.style.display = 'none';
+    }
+
+    openBtn.addEventListener('click', openModal);
+    closeBtn.addEventListener('click', closeModal);
+    cancelBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && modal.classList.contains('modal-overlay--open')) closeModal();
+    });
+
+    submitBtn.addEventListener('click', function () {
+      clearState();
+      var loginVal = (loginInput.value || '').trim();
+      var emailVal = (emailInput.value || '').trim();
+      if (!loginVal || !emailVal) {
+        showError('Заполните логин и email.');
+        return;
+      }
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Сброс...';
+      fetch('/api/auth/forgot-password/', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie('csrftoken'),
+        },
+        body: JSON.stringify({ login: loginVal, email: emailVal }),
+      })
+        .then(function (r) {
+          return r.json().catch(function () { return {}; }).then(function (j) { return { ok: r.ok, j: j }; });
+        })
+        .then(function (res) {
+          if (!res.ok || !res.j || !res.j.password) {
+            showError((res.j && res.j.error) || 'Не удалось сбросить пароль.');
+            return;
+          }
+          var text = 'Новый пароль сгенерирован.\nЛогин: ' + (res.j.login || loginVal) + '\nПароль: ' + res.j.password;
+          showSuccess(text + '\nСкопируйте данные и сохраните их.');
+        })
+        .catch(function () {
+          showError('Сеть недоступна. Попробуйте снова.');
+        })
+        .finally(function () {
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Сбросить пароль';
+        });
+    });
+  })();
+  </script>
 </body>
 </html>

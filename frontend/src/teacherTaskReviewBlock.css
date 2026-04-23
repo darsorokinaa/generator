@@ -73,7 +73,7 @@
 }
 
 .vp-exam .teacher-block {
-  font-family: 'Onest', 'Montserrat', system-ui, sans-serif;
+  font-family: 'Montserrat', sans-serif;
   border-top: 1px solid var(--tb-border);
   width: 100%;
   max-width: 100%;
@@ -339,7 +339,7 @@
   min-width: 0;
   min-height: 64px;
   padding: 9px 11px;
-  font-family: 'Onest', 'Montserrat', system-ui, sans-serif;
+  font-family: 'Montserrat', sans-serif;
   font-size: 13.5px;
   line-height: 1.55;
   /* Светлый фон независимо от --bg страницы */
@@ -385,7 +385,7 @@
 }
 
 .vp-exam .task-shell .teacher-block .tb-save-btn {
-  font-family: 'Onest', 'Montserrat', system-ui, sans-serif;
+  font-family: 'Montserrat', sans-serif;
   font-size: 13px;
   font-weight: 600;
   background: var(--tb-accent);

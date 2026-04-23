@@ -167,7 +167,37 @@ class HomeworkAssignmentSerializer(serializers.ModelSerializer):
     def get_whiteboard_strokes(self, obj):
         try:
             v = obj.whiteboard_strokes
-            return list(v) if isinstance(v, list) else []
+            strokes = list(v) if isinstance(v, list) else []
+            request = self.context.get('request')
+            if not request:
+                return strokes
+            try:
+                profile = request.user.profile
+            except Exception:
+                return []
+
+            # Учитель видит все штрихи.
+            if getattr(profile, 'role', None) != 'student':
+                return strokes
+
+            # Ученик видит только рисунки учителя + свои собственные.
+            if obj.student_id != profile.id:
+                return []
+
+            visible = []
+            for s in strokes:
+                if not isinstance(s, dict):
+                    continue
+                role = s.get('_author_role')
+                author_pid = s.get('_author_profile_id')
+                if role == 'teacher':
+                    visible.append(s)
+                elif role == 'student' and (author_pid is None or int(author_pid) == int(profile.id)):
+                    visible.append(s)
+                elif role is None:
+                    # Legacy-штрихи (до введения авторства): показываем владельцу назначения.
+                    visible.append(s)
+            return visible
         except Exception:
             return []
 

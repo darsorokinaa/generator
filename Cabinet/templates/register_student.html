@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Регистрация ученика</title>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Unbounded:wght@600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Montserrat', sans-serif;
+      background: #F5F6FB;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 20px;
+    }
+    h1, h2, h3, h4, h5, h6 { font-family: 'Unbounded', sans-serif; }
+    .card {
+      background: #fff;
+      border-radius: 20px;
+      box-shadow: 0 4px 32px rgba(75,101,245,.10);
+      padding: 36px 32px;
+      width: 100%;
+      max-width: 520px;
+    }
+    .subtitle { font-size: 13px; color: #6B7280; margin-top: 6px; margin-bottom: 18px; line-height: 1.45; }
+    .meta {
+      background: #F8FAFF;
+      border: 1px solid #E5E7EB;
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 16px;
+      font-size: 12.5px;
+      color: #374151;
+      display: grid;
+      gap: 6px;
+    }
+    .messages { margin-bottom: 14px; }
+    .msg-error {
+      background: #FEF2F2; border: 1px solid #FECACA;
+      border-radius: 10px; padding: 9px 12px;
+      font-size: 12.5px; font-weight: 500; color: #DC2626;
+      margin-bottom: 8px;
+    }
+    .field { margin-bottom: 12px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    label { display: block; font-size: 12px; font-weight: 600; color: #4B5563; margin-bottom: 6px; }
+    input, select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1.5px solid #E8EBF5;
+      border-radius: 10px;
+      font-size: 13px;
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 500;
+      color: #0F1733;
+      outline: none;
+      transition: border-color .15s;
+      background: #fff;
+    }
+    input:focus, select:focus { border-color: #4B65F5; }
+    .btn {
+      width: 100%;
+      padding: 12px;
+      background: #4B65F5;
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      font-family: 'Montserrat', sans-serif;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+    .invalid {
+      text-align: center;
+      color: #6B7280;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    {% if invite_invalid %}
+      <h1>Ссылка недействительна</h1>
+      <p class="subtitle invalid">Проверьте ссылку приглашения или попросите учителя отправить новую.</p>
+    {% else %}
+      <h1>Регистрация ученика</h1>
+      <p class="subtitle">Заполните данные, чтобы присоединиться к учителю.</p>
+
+      <div class="meta">
+        <div><strong>Учитель:</strong> {{ teacher_name }}</div>
+        <div><strong>Предмет:</strong> {{ subject_name }}</div>
+        <div><strong>Уровень:</strong> {{ level_name }}</div>
+        {% if is_group %}<div><strong>Группа:</strong> {{ group_name }}</div>{% else %}<div><strong>Формат:</strong> Индивидуально</div>{% endif %}
+      </div>
+
+      {% if messages %}
+      <div class="messages">
+        {% for msg in messages %}
+        <div class="msg-error">{{ msg }}</div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="token" value="{{ token }}" />
+        <div class="row">
+          <div class="field">
+            <label for="name">Имя *</label>
+            <input id="name" name="name" type="text" maxlength="100" required />
+          </div>
+          <div class="field">
+            <label for="surname">Фамилия</label>
+            <input id="surname" name="surname" type="text" maxlength="100" />
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" maxlength="254" />
+          </div>
+          <div class="field">
+            <label for="phone">Телефон</label>
+            <input id="phone" name="phone" type="text" maxlength="64" />
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="grade">Класс *</label>
+            <select id="grade" name="grade" required>
+              {% for g in grade_choices %}
+              <option value="{{ g }}">{{ g }} класс</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="field"></div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="password1">Пароль *</label>
+            <input id="password1" name="password1" type="password" minlength="8" maxlength="128" required />
+          </div>
+          <div class="field">
+            <label for="password2">Повторите пароль *</label>
+            <input id="password2" name="password2" type="password" minlength="8" maxlength="128" required />
+          </div>
+        </div>
+
+        <button class="btn" type="submit">Зарегистрироваться</button>
+      </form>
+    {% endif %}
+  </div>
+</body>
+</html>

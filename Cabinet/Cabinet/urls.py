@@ -62,11 +62,14 @@ def react_app(request):
         return FileResponse(open(REACT_INDEX, 'rb'), content_type='text/html')
     return HttpResponseNotFound('React build not found. Run: cd frontend && npm run build')
 
+def legacy_app_redirect(request):
+    return redirect('/')
+
 def home_view(request):
     if request.user.is_authenticated:
         if user_can_use_lk(request.user):
-            # Корень не отдаёт SPA — только /app/ (см. react_app)
-            return redirect('react-app')
+            # ЛК открывается на корне без префикса /app.
+            return react_app(request)
         return redirect('/admin/')
     return redirect('login')
 
@@ -75,7 +78,10 @@ urlpatterns = [
     path('admin/',    admin.site.urls),
     path('',          home_view, name='home'),
     path('login/',    views.login_view,    name='login'),
+    path('api/auth/forgot-password/', views.forgot_password_view, name='api-auth-forgot-password'),
+    path('api/auth/vkid/', views.vkid_login_view, name='api-auth-vkid'),
     path('register/', views.register_view, name='register'),
+    path('register/student/', views.register_student_invite_view, name='register-student-invite'),
     path('logout/',   views.logout_view,   name='logout'),
     path('settings/', views.settings_view, name='settings'),
 
@@ -83,6 +89,7 @@ urlpatterns = [
     path('api/', include(router.urls)),
     path('api/students/',          StudentsView.as_view(),       name='api-students'),
     path('api/students/<int:pk>/', StudentDetailView.as_view(),  name='api-student-detail'),
+    path('api/students/invite-link/', views.StudentInviteLinkView.as_view(), name='api-students-invite-link'),
     path('api/subjects/',          SubjectListView.as_view(),    name='api-subjects'),
     path('api/levels/',            LevelListView.as_view(),      name='api-levels'),
     path('api/me/',                MeProfile.as_view(),          name='api-me'),
@@ -134,8 +141,14 @@ urlpatterns = [
     path('api/variants/save/',        views.save_teacher_variant),
     path('api/variants/',             views.teacher_variants),
 
-    # React SPA (prod) — ловим все остальные пути
-    path('app/', react_app, name='react-app'),
+    # Совместимость с join-ссылками генератора:
+    # приводим /lesson/join/ к тому же экрану, что /?variant_play=...
+    path('lesson/join/',              views.lesson_join_spa_redirect, name='lesson-join-spa-redirect'),
+
+    # Техмаршрут SPA (без /app/).
+    path('lk/', react_app, name='react-dashboard'),
+    # Legacy: старые ссылки /app/... больше не используются.
+    path('app/', legacy_app_redirect, name='legacy-app-redirect'),
 ]
 
 # В dev-режиме отдаём статику и медиафайлы через Django

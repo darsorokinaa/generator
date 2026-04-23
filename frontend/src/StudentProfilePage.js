@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import API from './api';
+import { MobileStickyActions, BottomSheet } from './components/ResponsiveUi';
 
 const SUBJECT_COLOR = {
   'Математика': 'math', 'Алгебра': 'math', 'Геометрия': 'math',
@@ -27,6 +28,7 @@ const GENDER_CHOICES = [
   { value: 'male', label: 'Мужской' },
   { value: 'other', label: 'Не указан' },
 ];
+const GENDER_LABELS = { female: 'Женский', male: 'Мужской', other: 'Не указан' };
 
 function mapFromStudent(st) {
   return {
@@ -46,6 +48,47 @@ function mapFromStudent(st) {
 
 function GroupPickerModal({ groups, currentGroupId, onClose, onSave }) {
   const [selected, setSelected] = useState(currentGroupId ?? '');
+  const [isMobile, setIsMobile] = useState(() => (typeof window !== 'undefined' ? window.innerWidth <= 768 : false));
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const onResize = () => setIsMobile(window.innerWidth <= 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const content = (
+    <>
+      <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '8px 12px', borderRadius: 8, border: selected === '' ? '1.5px solid var(--accent)' : '1.5px solid var(--border)', background: selected === '' ? 'var(--accent-lt)' : 'transparent' }}>
+          <input type="radio" name="group" value="" checked={selected === ''} onChange={() => setSelected('')} style={{ accentColor: 'var(--accent)' }} />
+          <span style={{ fontSize: 14, color: 'var(--text-2)' }}>Без группы (индивидуальные занятия)</span>
+        </label>
+        {groups.map(g => (
+          <label key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '8px 12px', borderRadius: 8, border: String(selected) === String(g.id) ? '1.5px solid var(--accent)' : '1.5px solid var(--border)', background: String(selected) === String(g.id) ? 'var(--accent-lt)' : 'transparent' }}>
+            <input type="radio" name="group" value={g.id} checked={String(selected) === String(g.id)} onChange={() => setSelected(g.id)} style={{ accentColor: 'var(--accent)' }} />
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-1)' }}>{g.group_name}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{g.subject_name} · {g.level_name}</div>
+            </div>
+          </label>
+        ))}
+      </div>
+      <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+        <button type="button" className="btn-page-secondary" onClick={onClose}>Отмена</button>
+        <button type="button" className="btn-page-primary" onClick={() => onSave(selected === '' ? null : selected)}>Сохранить</button>
+      </div>
+    </>
+  );
+
+  if (isMobile) {
+    return (
+      <BottomSheet open onClose={onClose} title="Добавить в группу">
+        {content}
+      </BottomSheet>
+    );
+  }
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" style={{ maxWidth: 400 }} onClick={e => e.stopPropagation()}>
@@ -57,25 +100,7 @@ function GroupPickerModal({ groups, currentGroupId, onClose, onSave }) {
             </svg>
           </button>
         </div>
-        <div style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '8px 12px', borderRadius: 8, border: selected === '' ? '1.5px solid var(--accent)' : '1.5px solid var(--border)', background: selected === '' ? 'var(--accent-lt)' : 'transparent' }}>
-            <input type="radio" name="group" value="" checked={selected === ''} onChange={() => setSelected('')} style={{ accentColor: 'var(--accent)' }} />
-            <span style={{ fontSize: 14, color: 'var(--text-2)' }}>Без группы (индивидуальные занятия)</span>
-          </label>
-          {groups.map(g => (
-            <label key={g.id} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', padding: '8px 12px', borderRadius: 8, border: String(selected) === String(g.id) ? '1.5px solid var(--accent)' : '1.5px solid var(--border)', background: String(selected) === String(g.id) ? 'var(--accent-lt)' : 'transparent' }}>
-              <input type="radio" name="group" value={g.id} checked={String(selected) === String(g.id)} onChange={() => setSelected(g.id)} style={{ accentColor: 'var(--accent)' }} />
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-1)' }}>{g.group_name}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-3)' }}>{g.subject_name} · {g.level_name}</div>
-              </div>
-            </label>
-          ))}
-        </div>
-        <div style={{ padding: '12px 20px', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-          <button type="button" className="btn-page-secondary" onClick={onClose}>Отмена</button>
-          <button type="button" className="btn-page-primary" onClick={() => onSave(selected === '' ? null : selected)}>Сохранить</button>
-        </div>
+        {content}
       </div>
     </div>
   );
@@ -102,8 +127,6 @@ function getCookie(name) {
 }
 
 export default function StudentProfilePage({ student: s, groups = [], onBack, backLabel = 'Назад к ученикам', onStudentUpdated }) {
-  const [resetBusy, setResetBusy] = useState(false);
-  const [resetCreds, setResetCreds] = useState(null);
   const [showGroupPicker, setShowGroupPicker] = useState(false);
   const [groupBusy, setGroupBusy] = useState(false);
   const [saveBusy, setSaveBusy] = useState(false);
@@ -134,6 +157,9 @@ export default function StudentProfilePage({ student: s, groups = [], onBack, ba
   const statusCls = STATUS_CLASS[edit.status] || 'warning';
   const subjLabel = subjects.find(x => String(x.id) === String(edit.subject))?.subject_name || cur.subject_name || '—';
   const levelLabel = levels.find(x => String(x.id) === String(edit.level))?.level || cur.level_name || '—';
+  const ageLabel = age(edit.birth_date);
+  const lessonTypeLabel = cur.lesson_type === 'group' ? (cur.group_name || 'Групповое') : 'Индивидуальное';
+  const genderLabel = GENDER_LABELS[edit.gender] || 'Не указан';
 
   async function saveProfile() {
     if (!edit.subject || !edit.level) {
@@ -212,36 +238,8 @@ export default function StudentProfilePage({ student: s, groups = [], onBack, ba
     finally { setGroupBusy(false); }
   }
 
-  async function resetPassword() {
-    if (!window.confirm('Сгенерировать новый пароль для ученика? Старый перестанет действовать.')) return;
-    setResetBusy(true);
-    try {
-      let csrf = getCookie('csrftoken');
-      if (!csrf) {
-        await fetch(`${API}/api/me/`, { credentials: 'include' });
-        csrf = getCookie('csrftoken');
-      }
-      const r = await fetch(`${API}/api/students/${s.id}/`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
-        body: JSON.stringify({ action: 'reset_password' }),
-      });
-      const data = await r.json().catch(() => ({}));
-      if (!r.ok) {
-        alert(data.error || 'Не удалось сбросить пароль');
-        return;
-      }
-      setResetCreds({ login: data.login, password: data.password });
-    } catch {
-      alert('Нет связи с сервером');
-    } finally {
-      setResetBusy(false);
-    }
-  }
-
   return (
-    <div className="page-content">
+    <div className="page-content sp-profile-shell sp-profile-v2">
       <button type="button" className="profile-back-btn" onClick={onBack}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="15 18 9 12 15 6" />
@@ -249,43 +247,47 @@ export default function StudentProfilePage({ student: s, groups = [], onBack, ba
         {backLabel}
       </button>
 
-      <div className="sp-hero">
-        <div className="sp-avatar">{av}</div>
-        <div className="sp-hero-info">
-          <h1 className="sp-name">{fullName || '—'}</h1>
-          <div className="sp-hero-badges">
-            <span className={`status-badge status-badge--${statusCls}`}>{STATUS_LABELS[edit.status] || '—'}</span>
-            <span className={`subject-badge subject-badge--${SUBJECT_COLOR[subjLabel] || 'default'}`}>{subjLabel}</span>
-            <span className={`level-badge level-badge--${LEVEL_COLOR[levelLabel] || 'default'}`}>{levelLabel}</span>
-            {cur.lesson_type === 'group' ? (
-              <span className="sp-inline-group">
-                <span className="lesson-type-badge lesson-type-badge--group">Группа</span>
-                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)' }}>{cur.group_name || '—'}</span>
-              </span>
-            ) : (
-              <span className="lesson-type-badge lesson-type-badge--individual">Индивидуальное</span>
-            )}
+      <section className="sp-profile-hero">
+        <div className="sp-profile-hero-main">
+          <div className="sp-avatar">{av}</div>
+          <div className="sp-profile-hero-title-wrap">
+            <h1 className="sp-name">{fullName || '—'}</h1>
+            <div className="sp-hero-badges">
+              <span className={`status-badge status-badge--${statusCls}`}>{STATUS_LABELS[edit.status] || '—'}</span>
+              <span className={`subject-badge subject-badge--${SUBJECT_COLOR[subjLabel] || 'default'}`}>{subjLabel}</span>
+              <span className={`level-badge level-badge--${LEVEL_COLOR[levelLabel] || 'default'}`}>{levelLabel}</span>
+              {cur.lesson_type === 'group' ? (
+                <span className="sp-inline-group">
+                  <span className="lesson-type-badge lesson-type-badge--group">Группа</span>
+                  <span className="sp-inline-group-name">{cur.group_name || '—'}</span>
+                </span>
+              ) : (
+                <span className="lesson-type-badge lesson-type-badge--individual">Индивидуальное</span>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+        <div className="sp-profile-kpis">
+          <div className="sp-profile-kpi">
+            <span className="sp-profile-kpi-label">Класс</span>
+            <span className="sp-profile-kpi-value">{edit.grade ? `${edit.grade} класс` : '—'}</span>
+          </div>
+          <div className="sp-profile-kpi">
+            <span className="sp-profile-kpi-label">Возраст</span>
+            <span className="sp-profile-kpi-value">{ageLabel || '—'}</span>
+          </div>
+          <div className="sp-profile-kpi">
+            <span className="sp-profile-kpi-label">Формат</span>
+            <span className="sp-profile-kpi-value">{lessonTypeLabel}</span>
+          </div>
+          <div className="sp-profile-kpi">
+            <span className="sp-profile-kpi-label">Логин</span>
+            <span className="sp-profile-kpi-value">{cur.student_username || '—'}</span>
+          </div>
+        </div>
+      </section>
 
-      <div className="sp-actions-row" style={{ marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
-        <button
-          type="button"
-          className="btn-page-primary"
-          onClick={saveProfile}
-          disabled={saveBusy}
-        >
-          {saveBusy ? 'Сохранение…' : 'Сохранить изменения'}
-        </button>
-        <button
-          type="button"
-          className="btn-page-secondary"
-          onClick={resetPassword}
-          disabled={resetBusy}
-        >
-          {resetBusy ? 'Сброс…' : 'Сбросить пароль'}
-        </button>
+      <MobileStickyActions className="sp-profile-actions">
         <button
           type="button"
           className="btn-page-secondary"
@@ -294,17 +296,23 @@ export default function StudentProfilePage({ student: s, groups = [], onBack, ba
         >
           {cur.lesson_type === 'group' && cur.group_name ? `Группа: ${cur.group_name}` : '+ В группу'}
         </button>
-        {cur.student_username && (
-          <span style={{ marginLeft: 4, color: 'var(--text-3)', fontSize: 13, alignSelf: 'center' }}>
-            Логин: <strong style={{ color: 'var(--text-1)' }}>{cur.student_username}</strong>
-          </span>
-        )}
-      </div>
+        <button
+          type="button"
+          className="btn-page-primary"
+          onClick={saveProfile}
+          disabled={saveBusy}
+        >
+          {saveBusy ? 'Сохранение…' : 'Сохранить изменения'}
+        </button>
+      </MobileStickyActions>
 
-      <div className="sp-grid">
-        <div className="sp-card">
-          <div className="sp-card-title">Личные данные</div>
-          <div className="sp-rows">
+      <div className="sp-profile-main-grid">
+        <section className="sp-profile-section-card">
+          <header className="sp-profile-section-head">
+            <h2 className="sp-profile-section-title">Основная информация</h2>
+            <p className="sp-profile-section-subtitle">Редактируемые контактные и персональные данные ученика</p>
+          </header>
+          <div className="sp-profile-fields-grid">
             <div className="sp-row sp-row--stack">
               <span className="sp-row-label">Имя</span>
               <input className="sp-input" value={edit.student_name} onChange={e => setEdit(v => ({ ...v, student_name: e.target.value }))} />
@@ -325,12 +333,6 @@ export default function StudentProfilePage({ student: s, groups = [], onBack, ba
               <span className="sp-row-label">Дата рождения</span>
               <input className="sp-input" type="date" value={edit.birth_date || ''} onChange={e => setEdit(v => ({ ...v, birth_date: e.target.value }))} />
             </div>
-            {edit.birth_date && (
-              <div className="sp-row">
-                <span className="sp-row-label">Возраст</span>
-                <span className="sp-row-value">{age(edit.birth_date)}</span>
-              </div>
-            )}
             <div className="sp-row sp-row--stack">
               <span className="sp-row-label">Пол</span>
               <select className="sp-select" value={edit.gender} onChange={e => setEdit(v => ({ ...v, gender: e.target.value }))}>
@@ -338,11 +340,14 @@ export default function StudentProfilePage({ student: s, groups = [], onBack, ba
               </select>
             </div>
           </div>
-        </div>
+        </section>
 
-        <div className="sp-card">
-          <div className="sp-card-title">Обучение</div>
-          <div className="sp-rows">
+        <section className="sp-profile-section-card">
+          <header className="sp-profile-section-head">
+            <h2 className="sp-profile-section-title">Учебный профиль</h2>
+            <p className="sp-profile-section-subtitle">Параметры обучения, которые влияют на работу учителя с учеником</p>
+          </header>
+          <div className="sp-profile-fields-grid">
             <div className="sp-row sp-row--stack">
               <span className="sp-row-label">Предмет</span>
               <select className="sp-select" value={edit.subject} onChange={e => setEdit(v => ({ ...v, subject: e.target.value }))}>
@@ -364,46 +369,44 @@ export default function StudentProfilePage({ student: s, groups = [], onBack, ba
               </select>
             </div>
             <div className="sp-row sp-row--stack">
-              <span className="sp-row-label">Тип занятий</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                {cur.lesson_type === 'group' ? (
-                  <span className="sp-inline-group">
-                    <span className="lesson-type-badge lesson-type-badge--group">Группа</span>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-2)' }}>{cur.group_name || '—'}</span>
-                  </span>
-                ) : (
-                  <span className="lesson-type-badge lesson-type-badge--individual">Индивидуальное</span>
-                )}
-                <button
-                  type="button"
-                  onClick={() => setShowGroupPicker(true)}
-                  disabled={groupBusy}
-                  title="Изменить группу"
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', color: 'var(--accent)', fontSize: 12, textDecoration: 'underline', textUnderlineOffset: 2 }}
-                >
-                  изменить
-                </button>
-              </div>
-            </div>
-            <div className="sp-row sp-row--stack">
               <span className="sp-row-label">Статус</span>
               <select className="sp-select" value={edit.status} onChange={e => setEdit(v => ({ ...v, status: e.target.value }))}>
                 {ST_STATUS_CHOICES.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
           </div>
-        </div>
+          <div className="sp-profile-readonly-block">
+            <div className="sp-profile-readonly-title">Системная информация</div>
+            <div className="sp-profile-readonly-grid">
+              <div className="sp-profile-readonly-item">
+                <span className="sp-profile-readonly-label">Формат занятий</span>
+                <span className="sp-profile-readonly-value">{lessonTypeLabel}</span>
+              </div>
+              <div className="sp-profile-readonly-item">
+                <span className="sp-profile-readonly-label">Пол (текущий)</span>
+                <span className="sp-profile-readonly-value">{genderLabel}</span>
+              </div>
+              <div className="sp-profile-readonly-item sp-profile-readonly-item--wide">
+                <span className="sp-profile-readonly-label">Логин ученика</span>
+                <span className="sp-profile-readonly-value">{cur.student_username || '—'}</span>
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
 
-      <div className="sp-card sp-card--full">
-        <div className="sp-card-title">Цель обучения</div>
+      <section className="sp-profile-goal-card">
+        <header className="sp-profile-section-head">
+          <h2 className="sp-profile-section-title">Цель обучения</h2>
+          <p className="sp-profile-section-subtitle">Ключевая заметка для планирования траектории и коммуникации с учеником</p>
+        </header>
         <textarea
-          className="sp-textarea"
-          placeholder="Цель или комментарий для ученика…"
+          className="sp-textarea sp-profile-goal-textarea"
+          placeholder="Например: подготовка к ОГЭ на 4+, закрыть пробелы по задачам 1–12, выстроить регулярный график."
           value={edit.goal}
           onChange={e => setEdit(v => ({ ...v, goal: e.target.value }))}
         />
-      </div>
+      </section>
 
       {showGroupPicker && (
         <GroupPickerModal
@@ -414,41 +417,6 @@ export default function StudentProfilePage({ student: s, groups = [], onBack, ba
         />
       )}
 
-      {resetCreds && (
-        <div className="modal-overlay" onClick={() => setResetCreds(null)}>
-          <div className="modal modal--credentials" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <span className="modal-title">Новый пароль</span>
-              <button type="button" className="modal-close" onClick={() => setResetCreds(null)}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </div>
-            <div className="credentials-body">
-              <div className="credentials-hint">
-                <span className="credentials-hint-icon">⚠️</span>
-                <span>Сохраните пароль и передайте ученику — при закрытии окна он не отобразится снова.</span>
-              </div>
-              <div className="credentials-row">
-                <span className="credentials-label">Логин</span>
-                <span className="credentials-value">{resetCreds.login}</span>
-              </div>
-              <div className="credentials-row">
-                <span className="credentials-label">Пароль</span>
-                <span className="credentials-value credentials-value--password">{resetCreds.password}</span>
-              </div>
-              <button
-                type="button"
-                className="credentials-copy-all"
-                onClick={() => navigator.clipboard.writeText(`Логин: ${resetCreds.login}\nПароль: ${resetCreds.password}`)}
-              >
-                Скопировать логин и пароль
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

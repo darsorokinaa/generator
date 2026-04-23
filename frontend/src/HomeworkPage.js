@@ -7,6 +7,7 @@ import {
   cabinetSpaPlayerOrigin,
 } from './homeworkGeneratorNav';
 import ImageAnnotationCanvas from './ImageAnnotationCanvas';
+import { ResponsivePageHeader, MobileStickyActions } from './components/ResponsiveUi';
 
 function getCookie(name) {
   const value = `; ${document.cookie}`;
@@ -1057,19 +1058,13 @@ export default function HomeworkPage({ isStudent = false }) {
   return (
     <div style={{ fontFamily: 'Montserrat, sans-serif', padding: '0 0 32px' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
-        <div>
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: '#1a1a2e', fontFamily: 'Unbounded, sans-serif' }}>
-            {isStudent ? 'Мои задания' : 'Домашние задания'}
-          </h2>
-          <p style={{ margin: '4px 0 0', fontSize: 12, color: '#9ca3af' }}>
-            {isStudent
-              ? (() => { const n = assignments.filter(a => a.status !== 'cancelled').length; return `${n} активн${n === 1 ? 'ое' : 'ых'}`; })()
-              : (() => { const n = homeworks.filter(h => !h.all_cancelled).length; return `${n} активн${n === 1 ? 'ое' : 'ых'}`; })()
-            }
-          </p>
-        </div>
-        {!isStudent && (
+      <ResponsivePageHeader
+        title={isStudent ? 'Мои задания' : 'Домашние задания'}
+        subtitle={isStudent
+          ? (() => { const n = assignments.filter(a => a.status !== 'cancelled').length; return `${n} активн${n === 1 ? 'ое' : 'ых'}`; })()
+          : (() => { const n = homeworks.filter(h => !h.all_cancelled).length; return `${n} активн${n === 1 ? 'ое' : 'ых'}`; })()
+        }
+        right={!isStudent ? (
           <button
             onClick={() => setCreateOpen(true)}
             style={{ ...primaryBtn, display: 'flex', alignItems: 'center', gap: 6 }}
@@ -1079,8 +1074,8 @@ export default function HomeworkPage({ isStudent = false }) {
             </svg>
             Создать ДЗ
           </button>
-        )}
-      </div>
+        ) : null}
+      />
 
       {/* Tabs */}
       <div style={{ display: 'flex', gap: 4, marginBottom: 20, flexWrap: 'wrap' }}>
@@ -1157,6 +1152,19 @@ export default function HomeworkPage({ isStudent = false }) {
             setCreateOpen(false);
           }}
         />
+      )}
+      {!isStudent && (
+        <MobileStickyActions className="hw-mobile-create">
+          <button
+            onClick={() => setCreateOpen(true)}
+            style={{ ...primaryBtn, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%' }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Создать ДЗ
+          </button>
+        </MobileStickyActions>
       )}
     </div>
   );

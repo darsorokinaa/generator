@@ -41,7 +41,7 @@ function placeDropdown(btnEl) {
   return { top, left, width };
 }
 
-export default function NotificationBell({ onGoToAssignment }) {
+export default function NotificationBell() {
   const [notifs, setNotifs] = useState([]);
   const [open, setOpen] = useState(false);
   const [panelPos, setPanelPos] = useState({ top: 0, left: 0, width: 320 });
@@ -90,7 +90,7 @@ export default function NotificationBell({ onGoToAssignment }) {
       credentials: 'include',
       headers: { 'X-CSRFToken': getCookie('csrftoken') },
     }).then(() => {
-      setNotifs(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+      setNotifs(prev => prev.filter(n => n.id !== id));
     });
   };
 
@@ -100,16 +100,8 @@ export default function NotificationBell({ onGoToAssignment }) {
       credentials: 'include',
       headers: { 'X-CSRFToken': getCookie('csrftoken') },
     }).then(() => {
-      setNotifs(prev => prev.map(n => ({ ...n, read: true })));
+      setNotifs([]);
     });
-  };
-
-  const handleClick = (n) => {
-    if (!n.read) markRead(n.id);
-    if (n.assignment_id && onGoToAssignment) {
-      onGoToAssignment(n.assignment_id);
-      setOpen(false);
-    }
   };
 
   const panel = open && (
@@ -161,37 +153,35 @@ export default function NotificationBell({ onGoToAssignment }) {
             key={n.id}
             role="button"
             tabIndex={0}
-            onClick={() => handleClick(n)}
-            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick(n); } }}
+            onClick={() => markRead(n.id)}
+            onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); markRead(n.id); } }}
             style={{
               display: 'flex',
               alignItems: 'flex-start',
               gap: 10,
               padding: '10px 16px',
-              background: n.read ? 'transparent' : 'rgba(79,110,247,0.05)',
-              cursor: n.assignment_id ? 'pointer' : 'default',
+              background: 'rgba(79,110,247,0.05)',
+              cursor: 'pointer',
               transition: 'background .15s',
             }}
-            onMouseEnter={e => { if (n.assignment_id) e.currentTarget.style.background = 'rgba(79,110,247,0.1)'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = n.read ? 'transparent' : 'rgba(79,110,247,0.05)'; }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(79,110,247,0.1)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(79,110,247,0.05)'; }}
           >
             <span style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>
               {TYPE_ICON[n.notification_type] || '🔔'}
             </span>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12, color: '#1a1a2e', lineHeight: 1.45, fontWeight: n.read ? 400 : 600, wordBreak: 'break-word' }}>
+              <div style={{ fontSize: 12, color: '#1a1a2e', lineHeight: 1.45, fontWeight: 600, wordBreak: 'break-word' }}>
                 {n.text}
               </div>
               <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>
                 {timeAgo(n.created_at)}
               </div>
             </div>
-            {!n.read && (
-              <div style={{
-                width: 8, height: 8, borderRadius: '50%',
-                background: '#4F6EF7', flexShrink: 0, marginTop: 4,
-              }} />
-            )}
+            <div style={{
+              width: 8, height: 8, borderRadius: '50%',
+              background: '#4F6EF7', flexShrink: 0, marginTop: 4,
+            }} />
           </div>
         ))
       )}

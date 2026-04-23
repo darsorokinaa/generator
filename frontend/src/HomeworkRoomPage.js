@@ -85,7 +85,7 @@ export default function HomeworkRoomPage({ assignmentId }) {
             </a>
           )}
           <div style={{ marginTop: 16 }}>
-            <a href="/app/" style={{ color: '#64748b', fontSize: 13 }}>← В личный кабинет</a>
+            <a href="/" style={{ color: '#64748b', fontSize: 13 }}>← В личный кабинет</a>
           </div>
         </div>
       </div>

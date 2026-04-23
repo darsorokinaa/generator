@@ -7,19 +7,6 @@ import API from './api';
 import { fetchHomeworkGeneratorJoinUrl, cabinetSpaBasePathname } from './homeworkGeneratorNav';
 import VariantPlayer from './VariantPlayer';
 
-/** Фон как в 01 generator: Generator/static/img/bg.png (тайл 600×600) */
-const VARIANT_PLAY_BG_URL = `${(process.env.PUBLIC_URL || '').replace(/\/$/, '')}/img/bg.png`;
-const variantPlayPageShellStyle = {
-  minHeight: '100vh',
-  width: '100%',
-  fontFamily: 'Montserrat, sans-serif',
-  backgroundColor: '#f4f4f5',
-  backgroundImage: `url("${VARIANT_PLAY_BG_URL}")`,
-  backgroundRepeat: 'repeat',
-  backgroundSize: '600px 600px',
-  backgroundAttachment: 'fixed',
-};
-
 function getCookie(name) {
   const value = `; ${document.cookie}`;
   const parts = value.split(`; ${name}=`);
@@ -135,7 +122,8 @@ export default function VariantPlayPage({ assignmentId }) {
   if (loading) {
     return (
       <div style={{
-        ...variantPlayPageShellStyle,
+        minHeight: '100vh',
+        width: '100%',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
         <div style={{ textAlign: 'center', color: '#94a3b8' }}>
@@ -154,7 +142,8 @@ export default function VariantPlayPage({ assignmentId }) {
   if (error || !assignment) {
     return (
       <div style={{
-        ...variantPlayPageShellStyle,
+        minHeight: '100vh',
+        width: '100%',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         padding: 24,
       }}>
@@ -192,7 +181,8 @@ export default function VariantPlayPage({ assignmentId }) {
   if (!assignment.variant_id) {
     return (
       <div style={{
-        ...variantPlayPageShellStyle,
+        minHeight: '100vh',
+        width: '100%',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         padding: 24,
       }}>
@@ -214,7 +204,8 @@ export default function VariantPlayPage({ assignmentId }) {
   if (!isTeacher && redirectBusy && !useLocalPlayer) {
     return (
       <div style={{
-        ...variantPlayPageShellStyle,
+        minHeight: '100vh',
+        width: '100%',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
       }}>
         <div style={{ textAlign: 'center', color: '#94a3b8' }}>
@@ -293,9 +284,5 @@ export default function VariantPlayPage({ assignmentId }) {
   );
 
   /* Разметка как ExamPage.jsx (01 generator): только VariantPlayer, без отдельной шапки ЛК */
-  return (
-    <div style={variantPlayPageShellStyle}>
-      {variantPlayer}
-    </div>
-  );
+  return variantPlayer;
 }

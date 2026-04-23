@@ -14,6 +14,25 @@ import {
   cabinetSpaPlayerOrigin,
 } from './homeworkGeneratorNav';
 
+const AVATAR_EMOJI_GROUPS = {
+  food: ['🍎', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🍒', '🍑', '🥝', '🍍', '🥑'],
+  animals: ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐼', '🐨', '🐯', '🦁', '🐸', '🐧', '🦉'],
+  plants: ['🌵', '🌿', '🍀', '🌱', '🌷', '🌸', '🌺', '🌻', '🌼', '🌴', '🍁', '🍃'],
+};
+const AVATAR_EMOJI_POOL = [
+  ...AVATAR_EMOJI_GROUPS.food,
+  ...AVATAR_EMOJI_GROUPS.animals,
+  ...AVATAR_EMOJI_GROUPS.plants,
+];
+const AVATAR_BG_OPTIONS = [
+  { id: 'violet', label: 'Фиолетовый', css: 'linear-gradient(135deg, #6D5EF8 0%, #9A8BFF 100%)' },
+  { id: 'ocean', label: 'Океан', css: 'linear-gradient(135deg, #0EA5E9 0%, #2563EB 100%)' },
+  { id: 'mint', label: 'Мята', css: 'linear-gradient(135deg, #10B981 0%, #34D399 100%)' },
+  { id: 'sunset', label: 'Закат', css: 'linear-gradient(135deg, #F59E0B 0%, #FB7185 100%)' },
+  { id: 'peach', label: 'Персик', css: 'linear-gradient(135deg, #FB7185 0%, #FDBA74 100%)' },
+  { id: 'forest', label: 'Лес', css: 'linear-gradient(135deg, #15803D 0%, #65A30D 100%)' },
+];
+
 // const GENUROK_URL = (process.env.REACT_APP_GENERATOR_URL || 'https://test.genurok.ru').replace(/\/$/, '');
 
 function getCookie(name) {
@@ -60,6 +79,9 @@ export default function Dashboard() {
   const [reviewShowAll, setReviewShowAll] = useState(false);
   const [createDone, setCreateDone] = useState(false);
   const [weather, setWeather] = useState(null);
+  const [avatarBusy, setAvatarBusy] = useState(false);
+  const [avatarEditorOpen, setAvatarEditorOpen] = useState(false);
+  const [avatarDraft, setAvatarDraft] = useState({ emoji: '', bg: AVATAR_BG_OPTIONS[0].id });
   const [incomingLesson, setIncomingLesson] = useState(null);
   const incomingLessonRef = useRef(null);
   const notifyWsRef = useRef(null);
@@ -617,7 +639,7 @@ export default function Dashboard() {
   })();
 
   const PAGE_TITLES = {
-    dashboard: 'Дашборд', students: 'Ученики', homework: 'Задания',
+    dashboard: 'Дашборд', students: 'Мои ученики', homework: 'Задания',
     schedule: 'Расписание', analytics: 'Аналитика', // generator: 'AI-Генератор',
     variants: 'Варианты',
     'student-profile': 'Профиль ученика', 'group-detail': 'Группа',
@@ -655,6 +677,49 @@ export default function Dashboard() {
     );
   }
 
+  const avatarFallback = user ? (user.name?.[0] || '') + (user.surname?.[0] || '') : '??';
+  const avatarToken = user?.avatar_emoji || avatarFallback;
+  const avatarBgId = user?.avatar_bg || AVATAR_BG_OPTIONS[0].id;
+  const avatarBgCss = AVATAR_BG_OPTIONS.find(x => x.id === avatarBgId)?.css || AVATAR_BG_OPTIONS[0].css;
+
+  const updateAvatarProfile = async ({ emoji, bg }) => {
+    if (!user) return;
+    setAvatarBusy(true);
+    try {
+      const resp = await fetch(`${API}/api/me/`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie('csrftoken'),
+        },
+        body: JSON.stringify({
+          avatar_emoji: emoji || '',
+          avatar_bg: bg || AVATAR_BG_OPTIONS[0].id,
+        }),
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        alert(data.error || 'Не удалось обновить аватар');
+        return;
+      }
+      setUser((prev) => ({ ...(prev || {}), ...data }));
+      setAvatarEditorOpen(false);
+    } catch {
+      alert('Нет связи с сервером');
+    } finally {
+      setAvatarBusy(false);
+    }
+  };
+
+  const openAvatarEditor = () => {
+    setAvatarDraft({
+      emoji: user?.avatar_emoji || AVATAR_EMOJI_POOL[Math.floor(Math.random() * AVATAR_EMOJI_POOL.length)],
+      bg: user?.avatar_bg || AVATAR_BG_OPTIONS[0].id,
+    });
+    setAvatarEditorOpen(true);
+  };
+
   return (
     <div className="app-shell">
 
@@ -669,10 +734,10 @@ export default function Dashboard() {
           <span className="mobile-logo-text">ГенУрок</span>
           </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <NotificationBell onGoToAssignment={goToStudentAssignment} />
-          <div className="mobile-avatar">
-              {user ? (user.name?.[0] || '') + (user.surname?.[0] || '') : '??'}
-            </div>
+          <NotificationBell />
+          <div className="mobile-avatar" style={{ background: avatarBgCss }}>
+            {avatarToken}
+          </div>
           </div>
         </header>
 
@@ -737,6 +802,29 @@ export default function Dashboard() {
               </span>
               <span className="nav-item-label">Варианты</span>
             </a>
+
+            <div className="nav-item nav-item--disabled" aria-disabled="true">
+              <span className="nav-item-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" />
+                  <line x1="16" y1="2" x2="16" y2="6" />
+                  <line x1="8" y1="2" x2="8" y2="6" />
+                  <line x1="3" y1="10" x2="21" y2="10" />
+                </svg>
+              </span>
+              <span className="nav-item-label">Расписание</span>
+              <span className="nav-badge-soon">Скоро</span>
+            </div>
+
+            <div className="nav-item nav-item--disabled" aria-disabled="true">
+              <span className="nav-item-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 6a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6z" />
+                </svg>
+              </span>
+              <span className="nav-item-label">Мои материалы</span>
+              <span className="nav-badge-soon">Скоро</span>
+            </div>
             {/* AI-Генератор — скрыт */}
             {/* {[
               { id: 'generator', label: 'AI-Генератор', isNew: true, icon: (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>) },
@@ -783,7 +871,9 @@ export default function Dashboard() {
             Выйти из профиля
           </a>
           <div className="sidebar-user-row">
-            <div className="sidebar-user-avatar">{user ? (user.name?.[0] || '') + (user.surname?.[0] || '') : '??'}</div>
+            <div className="sidebar-user-avatar" style={{ background: avatarBgCss }}>
+              {avatarToken}
+            </div>
             <div className="sidebar-user-info">
               <div className="sidebar-user-name">{user ? `${user.name} ${user.surname}` : '…'}</div>
               <div className="sidebar-user-role">{isStudent ? 'Ученик' : (user?.subjects?.join(', ') || 'Учитель')}</div>
@@ -821,7 +911,7 @@ export default function Dashboard() {
             </div>
               )}
             </div>
-            <NotificationBell onGoToAssignment={goToStudentAssignment} />
+            <NotificationBell />
             {/* isTeacher && <button className="topbar-add-btn" onClick={() => setPage('homework')} title="Создать задание">+</button> */}
           </div>
         </header>
@@ -856,9 +946,12 @@ export default function Dashboard() {
               {/* ── БЛОК 1: HERO ── */}
               <div className="hero-card">
                 <div className="hero-avatar-wrap">
-                  <div className="hero-avatar-lg">
-                    {user ? (user.name?.[0] || '') + (user.surname?.[0] || '') : '??'}
-                          </div>
+                  <div className="hero-avatar-lg" style={{ background: avatarBgCss, color: '#fff' }}>
+                    {avatarToken}
+                  </div>
+                  <button type="button" className="hero-avatar-edit-btn" title="Изменить аватар" onClick={openAvatarEditor}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+                  </button>
                         </div>
                 <div className="hero-content">
                   <div className="hero-greeting">{greeting}, {user?.name}!</div>
@@ -1033,9 +1126,12 @@ export default function Dashboard() {
             <div className="dash-new">
               <div className="hero-card">
                 <div className="hero-avatar-wrap">
-                  <div className="hero-avatar-lg">
-                    {user ? (user.name?.[0] || '') + (user.surname?.[0] || '') : '??'}
+                  <div className="hero-avatar-lg" style={{ background: avatarBgCss, color: '#fff' }}>
+                    {avatarToken}
                   </div>
+                  <button type="button" className="hero-avatar-edit-btn" title="Изменить аватар" onClick={openAvatarEditor}>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/></svg>
+                  </button>
                 </div>
                 <div className="hero-content">
                   <div className="hero-greeting">{greeting}, {user?.name}!</div>
@@ -1124,7 +1220,7 @@ export default function Dashboard() {
             { id: 'homework', label: 'Задания', badge: studentHwActionCount > 0 ? studentHwActionCount : null, icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>) },
           ] : [
             { id: 'dashboard', label: 'Главная',  icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>) },
-            { id: 'students', label: 'Ученики',   icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>) },
+            { id: 'students', label: 'Мои ученики',   icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>) },
             // { id: 'homework', label: 'Задания', icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>) },
             { id: 'variants', label: 'Варианты',  icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="4" rx="1"/><rect x="2" y="10" width="20" height="4" rx="1"/><rect x="2" y="17" width="20" height="4" rx="1"/></svg>) },
           ]).map(item => (
@@ -1156,6 +1252,63 @@ export default function Dashboard() {
                 </button>
                 <button type="button" className="modal-btn modal-btn--save" onClick={acceptIncomingLesson}>
                   Присоединиться
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {avatarEditorOpen && (
+        <div className="modal-overlay" role="dialog" aria-modal="true" onClick={() => setAvatarEditorOpen(false)}>
+          <div className="modal modal--avatar-editor" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title">Редактировать аватар</div>
+              <button className="modal-close" type="button" onClick={() => setAvatarEditorOpen(false)}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <div className="modal-form">
+              <div className="avatar-editor-preview">
+                <div className="avatar-editor-preview-circle" style={{ background: AVATAR_BG_OPTIONS.find(x => x.id === avatarDraft.bg)?.css || AVATAR_BG_OPTIONS[0].css }}>
+                  {avatarDraft.emoji || avatarFallback}
+                </div>
+              </div>
+              <div className="avatar-editor-title">Emoji</div>
+              <div className="avatar-editor-grid">
+                {AVATAR_EMOJI_POOL.map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    className={`avatar-editor-emoji-btn${avatarDraft.emoji === emoji ? ' avatar-editor-emoji-btn--active' : ''}`}
+                    onClick={() => setAvatarDraft((v) => ({ ...v, emoji }))}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+              <div className="avatar-editor-title">Фон</div>
+              <div className="avatar-editor-bg-row">
+                {AVATAR_BG_OPTIONS.map((bg) => (
+                  <button
+                    key={bg.id}
+                    type="button"
+                    className={`avatar-editor-bg-btn${avatarDraft.bg === bg.id ? ' avatar-editor-bg-btn--active' : ''}`}
+                    style={{ background: bg.css }}
+                    title={bg.label}
+                    onClick={() => setAvatarDraft((v) => ({ ...v, bg: bg.id }))}
+                  />
+                ))}
+              </div>
+              <div className="modal-actions">
+                <button type="button" className="modal-btn modal-btn--cancel" onClick={() => setAvatarEditorOpen(false)}>Отмена</button>
+                <button
+                  type="button"
+                  className="modal-btn modal-btn--save"
+                  onClick={() => updateAvatarProfile({ emoji: avatarDraft.emoji, bg: avatarDraft.bg })}
+                  disabled={avatarBusy}
+                >
+                  {avatarBusy ? 'Сохранение…' : 'Сохранить'}
                 </button>
               </div>
             </div>
