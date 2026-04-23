@@ -166,6 +166,10 @@ export default function StudentProfilePage({ student: s, groups = [], onBack, ba
       alert('Выберите предмет и уровень');
       return;
     }
+    if (!edit.student_email.trim()) {
+      alert('Email обязателен');
+      return;
+    }
     setSaveBusy(true);
     try {
       let csrf = getCookie('csrftoken');

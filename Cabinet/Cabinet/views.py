@@ -1011,6 +1011,8 @@ def register_student_invite_view(request):
         valid_grades = {c[0] for c in TeachersStudent.GRADE_CHOICES}
         if not name:
             messages.error(request, 'Введите имя')
+        elif not email:
+            messages.error(request, 'Введите email')
         elif grade not in valid_grades:
             messages.error(request, 'Выберите корректный класс')
         elif password1 != password2:
@@ -1286,10 +1288,11 @@ class StudentDetailView(TeacherProfileMixin, APIView):
                 profile.surname = str(data.get('student_surname') or '')[:100]  # обновляем фамилию
             if 'student_email' in data:
                 em = str(data.get('student_email') or '').strip()[:254]  # новый email
-                if em:                                                    # обновляем только если не пустой
-                    profile.email = em
-                    if user:
-                        user.email = em                                   # синхронизируем email в User
+                if not em:
+                    return Response({'error': 'Email обязателен'}, status=status.HTTP_400_BAD_REQUEST)
+                profile.email = em
+                if user:
+                    user.email = em                                       # синхронизируем email в User
             if 'student_phone' in data:
                 ph = data.get('student_phone')
                 profile.phone = (str(ph).strip() if ph else '') or None  # None если пустая строка
@@ -2126,6 +2129,9 @@ class LessonPendingInviteView(APIView):
             )
             student_target_ids = student_link_ids + [int(profile_id)]
             group_ids = list(
+                TeachersStudent.objects.filter(student_id=profile_id, group_id__isnull=False).values_list('group_id', flat=True)
+            )
+            group_ids += list(
                 TeachersGroup.objects.filter(student_id=profile_id).values_list('group_id', flat=True)
             )
         elif user_id:
@@ -2137,8 +2143,12 @@ class LessonPendingInviteView(APIView):
             )
             student_target_ids = student_link_ids + student_profile_ids
             group_ids = list(
+                TeachersStudent.objects.filter(student__user_id=user_id, group_id__isnull=False).values_list('group_id', flat=True)
+            )
+            group_ids += list(
                 TeachersGroup.objects.filter(student__user_id=user_id).values_list('group_id', flat=True)
             )
+        group_ids = list(dict.fromkeys(group_ids))
         qs = LessonInvite.objects.filter(expires_at__gt=now, status='pending')
         if student_target_ids or group_ids:
             from django.db.models import Q
@@ -2228,6 +2238,9 @@ class LessonStudentJoinedView(APIView):
             )
             student_target_ids = student_link_ids + [int(profile_id)]
             group_ids = list(
+                TeachersStudent.objects.filter(student_id=profile_id, group_id__isnull=False).values_list('group_id', flat=True)
+            )
+            group_ids += list(
                 TeachersGroup.objects.filter(student_id=profile_id).values_list('group_id', flat=True)
             )
         elif user_id:
@@ -2239,8 +2252,12 @@ class LessonStudentJoinedView(APIView):
             )
             student_target_ids = student_link_ids + student_profile_ids
             group_ids = list(
+                TeachersStudent.objects.filter(student__user_id=user_id, group_id__isnull=False).values_list('group_id', flat=True)
+            )
+            group_ids += list(
                 TeachersGroup.objects.filter(student__user_id=user_id).values_list('group_id', flat=True)
             )
+        group_ids = list(dict.fromkeys(group_ids))
         qs = LessonInvite.objects.filter(expires_at__gt=now)
         if token:
             qs = qs.filter(token=token)
@@ -2268,9 +2285,19 @@ class LessonStudentJoinedView(APIView):
             _lesson_ring_dismiss_mark(
                 user_id, profile_id, profile_username, user_username, eff_token,
             )
+            notify_user_ids = []
             if user_id:
+                notify_user_ids.append(int(user_id))
+            teacher_user_ids = [
+                int(uid) for uid in set(
+                    inv.teacher.user_id for inv in pending_rows if getattr(inv.teacher, 'user_id', None)
+                )
+            ]
+            notify_user_ids.extend(teacher_user_ids)
+            notify_user_ids = list(dict.fromkeys(notify_user_ids))
+            if notify_user_ids:
                 _ws_notify_users_payload(
-                    [user_id],
+                    notify_user_ids,
                     {'event': 'student_joined_lesson', 'token': eff_token},
                 )
 
