@@ -23,6 +23,8 @@ function Layout() {
     query.get("lesson_embed") === "1" &&
     query.get("homework_mode") !== "1" &&
     String(query.get("cabinet_session") || "").toLowerCase() !== "homework";
+  const isLessonTeacherEmbedContext =
+    isLessonEmbedContext && query.get("lesson_student") !== "1";
 
   const handleLessonFinishClick = () => {
     if (window.parent && window.parent !== window) {
@@ -264,12 +266,20 @@ function Layout() {
         </Link>
       </div>
       <nav className="header-nav">
-        {isLessonEmbedContext ? (
+        {isLessonTeacherEmbedContext ? (
           <button
             type="button"
             className="header-nav-cabinet"
             onClick={handleLessonFinishClick}
-            style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              background: "#dc2626",
+              borderColor: "#dc2626",
+              color: "#fff",
+              boxShadow: "0 8px 18px rgba(220, 38, 38, 0.24)",
+            }}
           >
             Завершить
           </button>

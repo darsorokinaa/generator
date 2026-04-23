@@ -2790,7 +2790,7 @@ function ExamPage() {
             )}
 
             {/* Кнопка Завершить — в обычном экзамене, не в ДЗ */}
-            {!isHomework && (
+            {!isHomework && !lessonEmbedParams.embed && (
             <div className="exam-finish-section">
               <button
                 id="finish-btn"

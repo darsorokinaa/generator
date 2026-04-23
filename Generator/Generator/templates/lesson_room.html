@@ -721,6 +721,7 @@
       </div>
       <div id="lesson-finish-modal-body" style="padding:16px 20px;max-height:min(70vh,620px);overflow-y:auto;"></div>
       <div class="lesson-modal-actions">
+        <button type="button" id="lesson-finish-download-pdf" class="lesson-ui-btn lesson-ui-btn--primary">Сохранить PDF</button>
         <button type="button" id="lesson-finish-close-session" class="lesson-ui-btn lesson-ui-btn--danger" style="margin-left:auto;">Закрыть урок для всех</button>
       </div>
     </div>
@@ -900,8 +901,11 @@
         p.set('format', format);
         return `/api/lesson/report/download/?${p.toString()}`;
       };
-      /** После окончания урока: без автопереадресации. */
-      const afterLessonEndNoRedirect = () => {};
+      /** После окончания урока: переход на главную ЛК. */
+      const redirectToLkAfterLessonEnd = () => {
+        const target = lkHomeUrl || '/';
+        setTimeout(() => { window.location.href = target; }, 450);
+      };
 
       let src = (directUrl && !/\/lesson\/join\/?/i.test(directUrl))
         ? directUrl
@@ -2347,6 +2351,12 @@
         frame.addEventListener('load', () => {
           const doc = getDoc();
           if (!doc) return;
+          const lessonStudentStartedAt = Date.now();
+          const addElapsedToPayload = (pl) => {
+            if (!pl || typeof pl !== 'object') return;
+            const sec = Math.max(0, Math.round((Date.now() - lessonStudentStartedAt) / 1000));
+            pl.elapsed_seconds = sec;
+          };
 
           const lockCheckButton = (task) => {
             if (!task) return;
@@ -2397,6 +2407,7 @@
               answer: readTaskAnswer(task),
               name: participantName || 'Ученик'
             };
+            addElapsedToPayload(pl);
             if (taskIdAttr) pl.task_id = taskIdAttr;
             const sent = sendWs(pl);
             if (!sent) return;
@@ -2419,6 +2430,7 @@
               answer: readTaskAnswer(task),
               name: participantName || 'Ученик',
             };
+            addElapsedToPayload(pl);
             if (taskIdAttr) pl.task_id = taskIdAttr;
             const sent = sendWs(pl);
             if (!sent) return;
@@ -2460,7 +2472,14 @@
         try { msg = JSON.parse(event.data || '{}'); } catch (_) { return; }
 
         if (msg.type === 'lesson_ended') {
-          redirectToLkAfterLessonEnd();
+          if (isTeacher) {
+            showLessonStatusToast('Работы сохранены. Показываю результаты учеников.');
+            openFinishModal();
+          } else {
+            const btn = document.getElementById('lesson-student-results-top-btn');
+            if (btn) btn.style.display = 'inline-flex';
+            showLessonStatusToast('Работа проверена. Нажмите «Результаты».');
+          }
           return;
         }
 
@@ -2616,17 +2635,6 @@
             msg.variant_id || msg.variantId || msg.id
           );
           if (openVariantIfReady(nextSrc)) return;
-        }
-        if (msg.type === 'lesson_ended') {
-          if (isTeacher) {
-            showLessonStatusToast('Работы сохранены. Показываю результаты учеников.');
-            openFinishModal();
-          } else {
-            const btn = document.getElementById('lesson-student-results-top-btn');
-            if (btn) btn.style.display = 'inline-flex';
-            showLessonStatusToast('Работа проверена. Нажмите «Результаты».');
-          }
-          return;
         }
         if (msg.type === 'student_answer' && isTeacher) {
           const taskKey = (() => {
@@ -3800,6 +3808,10 @@
         }
       };
 
+      const downloadLessonPdf = () => {
+        window.open(buildLessonReportDownloadUrl('pdf'), '_blank', 'noopener');
+      };
+
       const closeLessonSession = async () => {
         if (!lessonPageToken) {
           alert('Нужен токен урока для закрытия комнаты.');
@@ -3821,7 +3833,10 @@
           closeFinishModal();
           showLessonStatusToast('Проверено. Результаты сохранены.');
           openFinishModal();
-          afterLessonEndNoRedirect();
+          try {
+            downloadLessonPdf();
+          } catch (_) {}
+          redirectToLkAfterLessonEnd();
         } catch (_) {
           alert('Ошибка сети');
         }
@@ -3837,6 +3852,7 @@
       finishTopBtn?.addEventListener('click', openFinishModal);
       document.getElementById('lesson-finish-modal-close')?.addEventListener('click', closeFinishModal);
       finishModalEl?.addEventListener('click', (e) => { if (e.target === finishModalEl) closeFinishModal(); });
+      document.getElementById('lesson-finish-download-pdf')?.addEventListener('click', downloadLessonPdf);
       document.getElementById('lesson-finish-close-session')?.addEventListener('click', closeLessonSession);
       studentResultsBtn?.addEventListener('click', async () => {
         openStudentResultsModal();

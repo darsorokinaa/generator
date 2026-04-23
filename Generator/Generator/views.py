@@ -3715,10 +3715,100 @@ def api_lesson_student_comment(request):
 
 def _lesson_report_pdf_response(request, room_id: str, variant_id: int | None, results, answers) -> HttpResponse:
     """PDF-отчёт по уроку (WeasyPrint)."""
+    by_task_id = {}
+    by_task_number = {}
+    if variant_id and int(variant_id) > 0:
+        vcs = (
+            VariantContent.objects.select_related("task", "task__task", "task__subtopic")
+            .filter(variant_id=int(variant_id))
+            .order_by("order", "id")
+        )
+        for vc in vcs:
+            t = vc.task
+            if not t:
+                continue
+            disp_num = ""
+            try:
+                disp_num = str(int(getattr(getattr(t, "task", None), "task_number", 0) or 0))
+            except (TypeError, ValueError):
+                disp_num = ""
+            if not disp_num:
+                disp_num = str(int(getattr(vc, "order", 0) or 0))
+            meta = {
+                "display_number": disp_num,
+                "subtopic_title": str(getattr(getattr(t, "subtopic", None), "title", "") or "").strip(),
+                "correct_answer": str(getattr(t, "answer", "") or "").strip(),
+            }
+            by_task_id[int(t.id)] = meta
+            if disp_num and disp_num not in by_task_number:
+                by_task_number[disp_num] = meta
+
+    def _answer_meta(raw_task_number: str) -> dict:
+        raw = str(raw_task_number or "").strip()
+        if not raw:
+            return {"display_number": "—", "subtopic_title": "", "correct_answer": ""}
+        if len(raw) >= 2 and raw[0] == "t" and raw[1:].isdigit():
+            tid = int(raw[1:])
+            m = by_task_id.get(tid)
+            if m:
+                return m
+            return {"display_number": f"#{tid}", "subtopic_title": "", "correct_answer": ""}
+        digits = re.sub(r"[^\d]+", "", raw)
+        if digits:
+            m = by_task_number.get(digits)
+            if m:
+                return m
+            return {"display_number": digits, "subtopic_title": "", "correct_answer": ""}
+        return {"display_number": raw[:32], "subtopic_title": "", "correct_answer": ""}
+
+    def _elapsed_seconds(payload: dict) -> int | None:
+        if not isinstance(payload, dict):
+            return None
+        direct = payload.get("elapsed_seconds")
+        if direct is None and isinstance(payload.get("raw"), dict):
+            direct = payload["raw"].get("elapsed_seconds")
+        if direct is None:
+            return None
+        try:
+            v = int(direct)
+        except (TypeError, ValueError):
+            return None
+        return max(0, v)
+
     by_student: dict[str, list] = {}
     for a in answers:
-        by_student.setdefault(str(a.student or "").strip() or "student", []).append(a)
-    answers_sections = [{"student": k, "rows": v} for k, v in sorted(by_student.items())]
+        student = str(a.student or "").strip() or "student"
+        meta = _answer_meta(a.task_number)
+        elapsed = _elapsed_seconds(a.payload if isinstance(a.payload, dict) else {})
+        by_student.setdefault(student, []).append(
+            {
+                "task_number": meta["display_number"],
+                "subtopic_title": meta["subtopic_title"],
+                "answer": str(a.answer or ""),
+                "correct_answer": str(meta["correct_answer"] or ""),
+                "is_correct": bool(a.is_correct),
+                "is_empty": bool(a.is_empty),
+                "elapsed_seconds": elapsed,
+                "updated_at": a.updated_at,
+            }
+        )
+
+    answers_sections = []
+    for student_name in sorted(by_student.keys()):
+        rows = sorted(by_student[student_name], key=lambda r: (str(r["task_number"]), str(r["updated_at"] or "")))
+        student_elapsed = None
+        for r in rows:
+            es = r.get("elapsed_seconds")
+            if es is None:
+                continue
+            student_elapsed = es if student_elapsed is None else max(student_elapsed, es)
+        answers_sections.append(
+            {
+                "student": student_name,
+                "rows": rows,
+                "total_elapsed_seconds": student_elapsed,
+            }
+        )
     context = {
         "room_id": room_id,
         "variant_id": variant_id,

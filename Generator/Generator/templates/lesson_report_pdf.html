@@ -13,8 +13,14 @@
     .num { text-align: center; width: 44px; }
     .comment { font-size: 10px; color: #334155; white-space: pre-wrap; }
     h2 { font-size: 13px; margin: 18px 0 8px 0; color: #334155; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
-    .ans { font-size: 10px; margin-bottom: 6px; }
+    .ans { font-size: 10px; margin-bottom: 8px; padding: 6px 8px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; }
     .ans-num { font-weight: 700; color: #7c3aed; }
+    .ans-status-ok { color: #166534; font-weight: 700; }
+    .ans-status-bad { color: #991b1b; font-weight: 700; }
+    .ans-meta { color: #475569; margin-top: 2px; }
+    .ans-answer { margin-top: 2px; }
+    .ans-correct { margin-top: 2px; color: #334155; }
+    .ans-time { margin-top: 2px; color: #475569; }
   </style>
 </head>
 <body>
@@ -52,14 +58,32 @@
   </table>
 
   {% if answers_sections %}
-  <h2>Ответы по заданиям</h2>
+  <h2>Подробные результаты по ученикам</h2>
   {% for sec in answers_sections %}
-  <h2 style="font-size:12px;margin-top:12px;">{{ sec.student }}</h2>
+  <h2 style="font-size:12px;margin-top:12px;">
+    {{ sec.student }}
+    {% if sec.total_elapsed_seconds != None %}
+      <span style="font-size:10px;color:#64748b;font-weight:400;">(время: {{ sec.total_elapsed_seconds }} сек.)</span>
+    {% endif %}
+  </h2>
   {% for a in sec.rows %}
   <div class="ans">
     <span class="ans-num">№{{ a.task_number }}</span>
-    — {% if a.is_correct %}верно{% else %}не верно{% endif %}{% if a.is_empty %}, пусто{% endif %}
-    <br/>Ответ: {{ a.answer|truncatechars:400 }}
+    —
+    {% if a.is_correct %}
+      <span class="ans-status-ok">верно</span>
+    {% else %}
+      <span class="ans-status-bad">неверно</span>
+    {% endif %}
+    {% if a.is_empty %}, пусто{% endif %}
+    {% if a.subtopic_title %}
+      <div class="ans-meta">Подтема: {{ a.subtopic_title }}</div>
+    {% endif %}
+    <div class="ans-answer">Ответ ученика: {{ a.answer|default:"—"|truncatechars:400 }}</div>
+    <div class="ans-correct">Правильный ответ: {{ a.correct_answer|default:"—"|truncatechars:400 }}</div>
+    {% if a.elapsed_seconds != None %}
+      <div class="ans-time">Время на момент ответа: {{ a.elapsed_seconds }} сек.</div>
+    {% endif %}
   </div>
   {% endfor %}
   {% endfor %}
