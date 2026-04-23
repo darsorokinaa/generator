@@ -3527,6 +3527,8 @@ def api_lesson_results(request):
     variant_raw = request.GET.get("variant_id")
     role_override = str(request.GET.get("role") or "").strip().lower()
     normalized = None
+    lesson_type = ""
+    student_name_filter = ""
     if token:
         try:
             payload = verify_lesson_token(token)
@@ -3539,11 +3541,19 @@ def api_lesson_results(request):
             lesson_type = "teacher"
         elif role_override in ("student", "pupil"):
             lesson_type = "student"
-        if lesson_type != "teacher":
-            return JsonResponse({"ok": False, "error": "teacher token required"}, status=403)
+        if lesson_type not in ("teacher", "student"):
+            return JsonResponse({"ok": False, "error": "invalid role"}, status=403)
+        if lesson_type == "student":
+            student_name_filter = str(
+                normalized.get("participant_name")
+                or normalized.get("target_name")
+                or ""
+            ).strip()[:200]
     if not room_id:
         return JsonResponse({"ok": False, "error": "room_id required"}, status=400)
     qs = LessonStudentResult.objects.filter(room_id=room_id[:200])
+    if student_name_filter:
+        qs = qs.filter(student=student_name_filter)
     try:
         variant_id = int(variant_raw) if variant_raw not in (None, "") else None
     except (TypeError, ValueError):
@@ -3601,12 +3611,19 @@ def api_lesson_task_answers(request):
     if not room_id:
         return JsonResponse({"ok": False, "error": "room_id required"}, status=400)
     lesson_type = str(normalized.get("lesson_type") or "")
+    student_name_filter = ""
     if role_override in ("teacher", "tutor"):
         lesson_type = "teacher"
     elif role_override in ("student", "pupil"):
         lesson_type = "student"
-    if lesson_type != "teacher":
-        return JsonResponse({"ok": False, "error": "teacher token required"}, status=403)
+    if lesson_type not in ("teacher", "student"):
+        return JsonResponse({"ok": False, "error": "invalid role"}, status=403)
+    if lesson_type == "student":
+        student_name_filter = str(
+            normalized.get("participant_name")
+            or normalized.get("target_name")
+            or ""
+        ).strip()[:200]
 
     try:
         variant_id = int(variant_raw) if variant_raw not in (None, "") else None
@@ -3614,6 +3631,8 @@ def api_lesson_task_answers(request):
         variant_id = None
 
     qs = LessonStudentsAnswer.objects.filter(room_id=room_id[:200])
+    if student_name_filter:
+        qs = qs.filter(student=student_name_filter)
     if variant_id is not None:
         vid = max(0, variant_id)
         if vid > 0:

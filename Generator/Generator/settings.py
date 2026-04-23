@@ -210,27 +210,27 @@ else:
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 # В systemd задают PGDATABASE/PGUSER/... — обязательно читаем их (раньше были захардкожены generatordb).
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ.get("PGDATABASE", "generatordb"),
-        "USER": os.environ.get("PGUSER", "generator_user"),
-        "PASSWORD": os.environ.get("PGPASSWORD", "StrongPass123"),
-        "HOST": os.environ.get("PGHOST", "localhost"),
-        "PORT": os.environ.get("PGPORT", "5432"),
-    }
-}
-
 # DATABASES = {
 #     "default": {
 #         "ENGINE": "django.db.backends.postgresql",
 #         "NAME": os.environ.get("PGDATABASE", "generatordb"),
-#         "USER": os.environ.get("PGUSER", "postgres"),
-#         "PASSWORD": os.environ.get("PGPASSWORD", "postgres"),
+#         "USER": os.environ.get("PGUSER", "generator_user"),
+#         "PASSWORD": os.environ.get("PGPASSWORD", "StrongPass123"),
 #         "HOST": os.environ.get("PGHOST", "localhost"),
 #         "PORT": os.environ.get("PGPORT", "5432"),
 #     }
 # }
+
+DATABASES = {
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.environ.get("PGDATABASE", "generatordb"),
+        "USER": os.environ.get("PGUSER", "postgres"),
+        "PASSWORD": os.environ.get("PGPASSWORD", "postgres"),
+        "HOST": os.environ.get("PGHOST", "localhost"),
+        "PORT": os.environ.get("PGPORT", "5432"),
+    }
+}
 
 
 # Password validation

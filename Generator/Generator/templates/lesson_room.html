@@ -371,6 +371,90 @@
       right: 12px;
       z-index: 240;
     }
+    #lesson-student-ui {
+      display: none;
+      position: fixed;
+      top: 12px;
+      right: 12px;
+      z-index: 240;
+    }
+    #lesson-student-results-body {
+      padding: 16px 20px;
+      max-height: min(70vh, 620px);
+      overflow-y: auto;
+    }
+    .lesson-student-results-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: .88rem;
+    }
+    .lesson-student-results-table th {
+      text-align: left;
+      color: #334155;
+      padding: 8px 10px;
+      border-bottom: 1px solid #e2e8f0;
+      background: #f8fafc;
+    }
+    .lesson-student-results-table td {
+      padding: 8px 10px;
+      border-bottom: 1px solid #eef2f7;
+      color: #0f172a;
+    }
+    .lesson-student-results-badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 2px 9px;
+      font-size: .74rem;
+      font-weight: 700;
+    }
+    .lesson-student-results-badge--ok { background: #dcfce7; color: #166534; }
+    .lesson-student-results-badge--bad { background: #fee2e2; color: #991b1b; }
+    .lesson-student-results-summary {
+      margin-top: 14px;
+      border: 1px solid #dbeafe;
+      background: #f8fbff;
+      border-radius: 12px;
+      padding: 10px 12px;
+      color: #1e3a8a;
+      font-size: .86rem;
+      line-height: 1.45;
+    }
+    .lesson-status-toast {
+      position: fixed;
+      left: 50%;
+      transform: translateX(-50%);
+      top: 18px;
+      z-index: 620;
+      min-width: min(520px, calc(100vw - 24px));
+      max-width: min(680px, calc(100vw - 24px));
+      border-radius: 14px;
+      border: 1px solid #c7d2fe;
+      background: #eef2ff;
+      color: #1e3a8a;
+      box-shadow: 0 14px 32px rgba(30, 58, 138, .22);
+      padding: 10px 14px;
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      font-family: "Montserrat", sans-serif;
+      font-size: .86rem;
+      font-weight: 600;
+    }
+    .lesson-status-toast.show { display: flex; }
+    .lesson-status-toast__close {
+      border: 1px solid #c7d2fe;
+      background: #fff;
+      color: #4338ca;
+      border-radius: 8px;
+      width: 28px;
+      height: 28px;
+      cursor: pointer;
+      line-height: 1;
+      font-size: 1rem;
+    }
     #lesson-finish-modal-body .lesson-result-card {
       margin-bottom: 14px;
       border: 1px solid var(--lesson-ui-border);
@@ -625,6 +709,9 @@
   <div id="lesson-teacher-ui">
     <button type="button" id="lesson-finish-top-btn" class="lesson-ui-btn lesson-ui-btn--danger">Завершить урок</button>
   </div>
+  <div id="lesson-student-ui">
+    <button type="button" id="lesson-student-results-top-btn" class="lesson-ui-btn lesson-ui-btn--primary" style="display:none;">Результаты</button>
+  </div>
 
   <div id="lesson-finish-modal" class="lesson-modal-overlay lesson-modal-font">
     <div class="lesson-modal-card lesson-modal-card--finish">
@@ -634,11 +721,22 @@
       </div>
       <div id="lesson-finish-modal-body" style="padding:16px 20px;max-height:min(70vh,620px);overflow-y:auto;"></div>
       <div class="lesson-modal-actions">
-        <button type="button" id="lesson-finish-download-pdf" class="lesson-ui-btn lesson-ui-btn--primary">Скачать PDF</button>
-        <button type="button" id="lesson-finish-download-zip" class="lesson-ui-btn lesson-ui-btn--ghost">Архив CSV</button>
         <button type="button" id="lesson-finish-close-session" class="lesson-ui-btn lesson-ui-btn--danger" style="margin-left:auto;">Закрыть урок для всех</button>
       </div>
     </div>
+  </div>
+  <div id="lesson-student-results-modal" class="lesson-modal-overlay lesson-modal-font">
+    <div class="lesson-modal-card lesson-modal-card--finish">
+      <div class="lesson-modal-header">
+        <h2 class="lesson-modal-title" style="font-size:1.08rem;color:#0f172a;">Результаты ученика</h2>
+        <button type="button" id="lesson-student-results-modal-close" class="lesson-modal-close">✕</button>
+      </div>
+      <div id="lesson-student-results-body"></div>
+    </div>
+  </div>
+  <div id="lesson-status-toast" class="lesson-status-toast" role="status" aria-live="polite">
+    <span id="lesson-status-toast-text"></span>
+    <button type="button" id="lesson-status-toast-close" class="lesson-status-toast__close" aria-label="Закрыть">✕</button>
   </div>
 
   <div id="lesson-page-root">
@@ -802,16 +900,8 @@
         p.set('format', format);
         return `/api/lesson/report/download/?${p.toString()}`;
       };
-      /** После окончания урока: PDF для учителя, затем переход в ЛК */
-      const redirectToLkAfterLessonEnd = () => {
-        const target = lkHomeUrl || '/';
-        if (isTeacher && lessonPageToken) {
-          try {
-            window.open(buildLessonReportDownloadUrl('pdf'), '_blank', 'noopener');
-          } catch (_) {}
-        }
-        setTimeout(() => { window.location.href = target; }, 450);
-      };
+      /** После окончания урока: без автопереадресации. */
+      const afterLessonEndNoRedirect = () => {};
 
       let src = (directUrl && !/\/lesson\/join\/?/i.test(directUrl))
         ? directUrl
@@ -1778,7 +1868,7 @@
 
       const fetchTeacherResults = async () => {
         if (!isTeacher) return;
-        const token = String(qs.get('token') || '').trim();
+        const token = String(qs.get('token') || lessonPageToken || '').trim();
         const params = new URLSearchParams();
         if (token) params.set('token', token);
         else params.set('room_id', roomId);
@@ -2527,6 +2617,17 @@
           );
           if (openVariantIfReady(nextSrc)) return;
         }
+        if (msg.type === 'lesson_ended') {
+          if (isTeacher) {
+            showLessonStatusToast('Работы сохранены. Показываю результаты учеников.');
+            openFinishModal();
+          } else {
+            const btn = document.getElementById('lesson-student-results-top-btn');
+            if (btn) btn.style.display = 'inline-flex';
+            showLessonStatusToast('Работа проверена. Нажмите «Результаты».');
+          }
+          return;
+        }
         if (msg.type === 'student_answer' && isTeacher) {
           const taskKey = (() => {
             const tid = msg.task_id != null && String(msg.task_id).trim() !== '' ? String(msg.task_id).trim() : '';
@@ -2581,6 +2682,10 @@
       window.addEventListener('message', (ev) => {
         if (!frame || ev.source !== frame.contentWindow) return;
         const d = ev.data;
+        if (d && d.source === 'exam-embedded-lesson' && d.type === 'lesson_finish_click') {
+          if (isTeacher) openFinishModal();
+          return;
+        }
         if (!d || d.source !== 'exam-embedded-board') return;
 
         if (d.type === 'board_add' || d.type === 'board_remove' || d.type === 'board_clear') {
@@ -3482,6 +3587,121 @@
       const finishModalBody = document.getElementById('lesson-finish-modal-body');
       const teacherUiEl = document.getElementById('lesson-teacher-ui');
       const finishTopBtn = document.getElementById('lesson-finish-top-btn');
+      const studentUiEl = document.getElementById('lesson-student-ui');
+      const studentResultsBtn = document.getElementById('lesson-student-results-top-btn');
+      const studentResultsModalEl = document.getElementById('lesson-student-results-modal');
+      const studentResultsModalBody = document.getElementById('lesson-student-results-body');
+      const statusToastEl = document.getElementById('lesson-status-toast');
+      const statusToastTextEl = document.getElementById('lesson-status-toast-text');
+
+      const showLessonStatusToast = (text) => {
+        if (!statusToastEl || !statusToastTextEl) return;
+        statusToastTextEl.textContent = String(text || '').trim() || 'Статус обновлён';
+        statusToastEl.classList.add('show');
+      };
+      const hideLessonStatusToast = () => {
+        statusToastEl?.classList.remove('show');
+      };
+      document.getElementById('lesson-status-toast-close')?.addEventListener('click', hideLessonStatusToast);
+
+      const resolveTaskLabel = (taskNumberRaw) => {
+        const raw = String(taskNumberRaw || '').trim();
+        if (!raw) return '—';
+        if (raw.startsWith('t') && /^\d+$/.test(raw.slice(1))) {
+          const tid = raw.slice(1);
+          const doc = getDoc();
+          const numEl = doc?.querySelector(`.task[data-task-id="${tid}"] .task-number`);
+          const n = normalizeTaskNumber(numEl ? numEl.textContent : "");
+          return n ? `Задание ${n}` : `Задание #${tid}`;
+        }
+        const n = normalizeTaskNumber(raw);
+        return n ? `Задание ${n}` : `Задание ${safeHtml(raw)}`;
+      };
+
+      const openStudentResultsModal = () => {
+        if (!studentResultsModalEl) return;
+        studentResultsModalEl.style.display = 'block';
+        studentResultsModalEl.style.alignItems = 'flex-start';
+        studentResultsModalEl.style.justifyContent = 'center';
+        document.body.style.overflow = 'hidden';
+      };
+      const closeStudentResultsModal = () => {
+        if (!studentResultsModalEl) return;
+        studentResultsModalEl.style.display = 'none';
+        document.body.style.overflow = '';
+      };
+
+      const loadStudentResultsModal = async () => {
+        if (!studentResultsModalBody) return;
+        if (!lessonPageToken) {
+          studentResultsModalBody.innerHTML = '<p class="lesson-modal-placeholder lesson-modal-placeholder--error">Токен урока не найден.</p>';
+          return;
+        }
+        studentResultsModalBody.innerHTML = '<p class="lesson-modal-placeholder">Загрузка…</p>';
+        try {
+          const base = new URLSearchParams();
+          base.set('token', lessonPageToken);
+          base.set('role', 'student');
+          if (variantId) base.set('variant_id', String(variantId));
+
+          const [resSummary, resAnswers] = await Promise.all([
+            fetch(`/api/lesson/results/?${base.toString()}`, { credentials: 'include' }),
+            fetch(`/api/lesson/task-answers/?${base.toString()}`, { credentials: 'include' }),
+          ]);
+          const summaryData = await resSummary.json().catch(() => ({}));
+          const answersData = await resAnswers.json().catch(() => ({}));
+          if (!resSummary.ok || !summaryData.ok) {
+            throw new Error(summaryData.error || 'Не удалось загрузить сводные результаты');
+          }
+          if (!resAnswers.ok || !answersData.ok) {
+            throw new Error(answersData.error || 'Не удалось загрузить ответы');
+          }
+
+          const summary = Array.isArray(summaryData.results) ? summaryData.results[0] : null;
+          const answers = Array.isArray(answersData.answers) ? answersData.answers : [];
+
+          let html = '';
+          if (summary) {
+            html += `
+              <div class="lesson-student-results-summary">
+                <div><b>Всего задач:</b> ${summary.total_tasks ?? 0}</div>
+                <div><b>Верно:</b> ${summary.correct_count ?? 0} · <b>Неверно:</b> ${summary.wrong_count ?? 0} · <b>Пусто:</b> ${summary.empty_count ?? 0}</div>
+                ${summary.teacher_comment ? `<div style="margin-top:6px;"><b>Комментарий учителя:</b> ${safeHtml(summary.teacher_comment)}</div>` : ''}
+              </div>
+            `;
+          }
+          if (answers.length) {
+            html += `
+              <table class="lesson-student-results-table">
+                <thead>
+                  <tr>
+                    <th>Задание</th>
+                    <th>Ваш ответ</th>
+                    <th>Статус</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${answers.map((a) => {
+                    const status = a.is_correct
+                      ? '<span class="lesson-student-results-badge lesson-student-results-badge--ok">Правильно</span>'
+                      : '<span class="lesson-student-results-badge lesson-student-results-badge--bad">Неправильно</span>';
+                    return `<tr>
+                      <td>${resolveTaskLabel(a.task_number)}</td>
+                      <td>${safeHtml(a.answer || '—')}</td>
+                      <td>${status}</td>
+                    </tr>`;
+                  }).join('')}
+                </tbody>
+              </table>
+            `;
+          } else if (!summary) {
+            html = '<p class="lesson-modal-placeholder">Пока нет результатов.</p>';
+          }
+          studentResultsModalBody.innerHTML = html;
+        } catch (e) {
+          studentResultsModalBody.innerHTML = `<p class="lesson-modal-placeholder lesson-modal-placeholder--error">${safeHtml(e?.message || 'Ошибка сети')}</p>`;
+        }
+      };
 
       const openFinishModal = () => {
         if (!finishModalEl || !isTeacher) return;
@@ -3576,15 +3796,8 @@
             }
           });
         } catch (_) {
-          finishModalBody.innerHTML = '<p style="color:#b91c1c;font-size:0.9rem;">Ошибка сети</p>';
+          finishModalBody.innerHTML = '<p class="lesson-modal-placeholder lesson-modal-placeholder--error">Ошибка сети</p>';
         }
-      };
-
-      const downloadLessonPdf = () => {
-        window.open(buildLessonReportDownloadUrl('pdf'), '_blank', 'noopener');
-      };
-      const downloadLessonZip = () => {
-        window.open(buildLessonReportDownloadUrl('zip'), '_blank', 'noopener');
       };
 
       const closeLessonSession = async () => {
@@ -3606,7 +3819,9 @@
             return;
           }
           closeFinishModal();
-          redirectToLkAfterLessonEnd();
+          showLessonStatusToast('Проверено. Результаты сохранены.');
+          openFinishModal();
+          afterLessonEndNoRedirect();
         } catch (_) {
           alert('Ошибка сети');
         }
@@ -3616,12 +3831,19 @@
         teacherUiEl.style.display = 'block';
         if (finishTopBtn) finishTopBtn.style.display = 'inline-block';
       }
+      if (!isTeacher && studentUiEl) {
+        studentUiEl.style.display = 'block';
+      }
       finishTopBtn?.addEventListener('click', openFinishModal);
       document.getElementById('lesson-finish-modal-close')?.addEventListener('click', closeFinishModal);
       finishModalEl?.addEventListener('click', (e) => { if (e.target === finishModalEl) closeFinishModal(); });
-      document.getElementById('lesson-finish-download-pdf')?.addEventListener('click', downloadLessonPdf);
-      document.getElementById('lesson-finish-download-zip')?.addEventListener('click', downloadLessonZip);
       document.getElementById('lesson-finish-close-session')?.addEventListener('click', closeLessonSession);
+      studentResultsBtn?.addEventListener('click', async () => {
+        openStudentResultsModal();
+        await loadStudentResultsModal();
+      });
+      document.getElementById('lesson-student-results-modal-close')?.addEventListener('click', closeStudentResultsModal);
+      studentResultsModalEl?.addEventListener('click', (e) => { if (e.target === studentResultsModalEl) closeStudentResultsModal(); });
 
       setupTeacher();
       setupCursorBroadcast();

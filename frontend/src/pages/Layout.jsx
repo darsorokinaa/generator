@@ -10,7 +10,25 @@ import { LK_PUBLIC_URL } from "../config/publicUrls";
 const COOKIE_CONSENT_KEY = "cookie_consent_accepted";
 
 function Layout() {
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
+  const lessonJoinMode = pathname.startsWith("/lesson/join");
+  const query = new URLSearchParams(search || "");
+  const isLessonOrHomeworkContext =
+    lessonJoinMode ||
+    query.get("lesson_embed") === "1" ||
+    query.get("homework_mode") === "1" ||
+    String(query.get("cabinet_session") || "").toLowerCase() === "homework" ||
+    !!query.get("cabinet_assignment");
+  const isLessonEmbedContext =
+    query.get("lesson_embed") === "1" &&
+    query.get("homework_mode") !== "1" &&
+    String(query.get("cabinet_session") || "").toLowerCase() !== "homework";
+
+  const handleLessonFinishClick = () => {
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ source: "exam-embedded-lesson", type: "lesson_finish_click" }, "*");
+    }
+  };
   /** URL ЛК: сначала из сборки (VITE_LK_PUBLIC_URL / VITE_LK_URL), после запроса — с сервера (Django LK_PUBLIC_URL), чтобы не открывалась главная генератора по ошибке. */
   const [lkHref, setLkHref] = useState(LK_PUBLIC_URL);
   const [lkNavGateRequired, setLkNavGateRequired] = useState(false);
@@ -246,61 +264,78 @@ function Layout() {
         </Link>
       </div>
       <nav className="header-nav">
-        {activeThemeId && (
+        {isLessonEmbedContext ? (
           <button
             type="button"
-            className="theme-toggle theme-toggle-reset"
-            onClick={() => {
-              clearPersistedTheme();
-              setActiveThemeId(null);
-              setThemeData(null);
-              const e = new Event("theme-change");
-              e.resetToDefault = true;
-              window.dispatchEvent(e);
-            }}
-            aria-label="Обычный стиль"
-            title="Обычный стиль"
+            className="header-nav-cabinet"
+            onClick={handleLessonFinishClick}
+            style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
           >
-            <span aria-hidden="true">🏠</span>
+            Завершить
           </button>
+        ) : (
+          <>
+            {activeThemeId && (
+              <button
+                type="button"
+                className="theme-toggle theme-toggle-reset"
+                onClick={() => {
+                  clearPersistedTheme();
+                  setActiveThemeId(null);
+                  setThemeData(null);
+                  const e = new Event("theme-change");
+                  e.resetToDefault = true;
+                  window.dispatchEvent(e);
+                }}
+                aria-label="Обычный стиль"
+                title="Обычный стиль"
+              >
+                <span aria-hidden="true">🏠</span>
+              </button>
+            )}
+            {easterSlide && (
+              <button
+                type="button"
+                className={`theme-toggle${activeThemeId === String(easterSlide.id) ? " theme-toggle--active" : ""}`}
+                onClick={() => toggleTheme(easterSlide)}
+                aria-pressed={activeThemeId === String(easterSlide.id)}
+                aria-label="Пасхальная тема"
+                title="Пасхальная тема"
+              >
+                <span aria-hidden="true">🐣</span>
+              </button>
+            )}
+            {cosmosSlide && (
+              <button
+                type="button"
+                className={`theme-toggle${activeThemeId === String(cosmosSlide.id) ? " theme-toggle--active" : ""}`}
+                onClick={() => toggleTheme(cosmosSlide)}
+                aria-pressed={activeThemeId === String(cosmosSlide.id)}
+                aria-label="Космическая тема"
+                title="Космическая тема"
+              >
+                <span aria-hidden="true">🪐</span>
+              </button>
+            )}
+            {!lessonJoinMode ? (
+              <>
+                <Link to="/about" className="header-nav-link">От авторов</Link>
+                <button
+                  type="button"
+                  className="header-nav-cabinet"
+                  onClick={handleCabinetClick}
+                  style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <circle cx="12" cy="8" r="4" />
+                    <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+                  </svg>
+                  Личный кабинет
+                </button>
+              </>
+            ) : null}
+          </>
         )}
-        {easterSlide && (
-          <button
-            type="button"
-            className={`theme-toggle${activeThemeId === String(easterSlide.id) ? " theme-toggle--active" : ""}`}
-            onClick={() => toggleTheme(easterSlide)}
-            aria-pressed={activeThemeId === String(easterSlide.id)}
-            aria-label="Пасхальная тема"
-            title="Пасхальная тема"
-          >
-            <span aria-hidden="true">🐣</span>
-          </button>
-        )}
-        {cosmosSlide && (
-          <button
-            type="button"
-            className={`theme-toggle${activeThemeId === String(cosmosSlide.id) ? " theme-toggle--active" : ""}`}
-            onClick={() => toggleTheme(cosmosSlide)}
-            aria-pressed={activeThemeId === String(cosmosSlide.id)}
-            aria-label="Космическая тема"
-            title="Космическая тема"
-          >
-            <span aria-hidden="true">🪐</span>
-          </button>
-        )}
-        <Link to="/about" className="header-nav-link">От авторов</Link>
-        <button
-          type="button"
-          className="header-nav-cabinet"
-          onClick={handleCabinetClick}
-          style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-            <circle cx="12" cy="8" r="4" />
-            <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
-          </svg>
-          Личный кабинет
-        </button>
       </nav>
     </div>
 </header>
@@ -409,7 +444,7 @@ function Layout() {
         </div>
       )}
 
-      {!cookieAccepted && (
+      {!cookieAccepted && !isLessonOrHomeworkContext && (
         <div className="cookie-banner" role="alertdialog" aria-label="Уведомление об использовании файлов cookie">
           <div className="cookie-banner-inner">
             <p className="cookie-banner-text">

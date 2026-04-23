@@ -1992,6 +1992,7 @@ function ExamPage() {
         </div>
       )}
       {/* Фиксированный блок: таймер решения, до экзамена, баллы, справка — перетаскивание за ручку */}
+      {!lessonEmbedParams.embed && (
       <div
         ref={fixedCornerRef}
         className={`exam-fixed-corner${examFixedPanelOpen ? "" : " exam-fixed-corner--all-collapsed"}`}
@@ -2120,6 +2121,7 @@ function ExamPage() {
           </>
         )}
       </div>
+      )}
       {pdfLoading && (
         <div className="pdf-loading-overlay" role="status" aria-live="polite">
           <div className="pdf-loading-toast">
@@ -2793,7 +2795,13 @@ function ExamPage() {
               <button
                 id="finish-btn"
                 className="exam-finish-btn exam-finish-btn-inline"
-                onClick={handleFinish}
+                onClick={() => {
+                  if (lessonEmbedParams.embed && window.parent && window.parent !== window) {
+                    window.parent.postMessage({ source: "exam-embedded-lesson", type: "lesson_finish_click" }, "*");
+                    return;
+                  }
+                  handleFinish();
+                }}
               >
                 Завершить
               </button>
