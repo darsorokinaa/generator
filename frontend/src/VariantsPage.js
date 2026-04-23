@@ -1289,10 +1289,15 @@ export default function VariantsPage() {
 
     setRandLoading(partMode ?? 'full');
     try {
-      const r = await fetch(`${GEN}/api/${randLevel.level}/${randSubject.subject_short}/variant/`, {
+      const r = await fetch('/api/gen/variant/', {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          level: randLevel.level,
+          subject: randSubject.subject_short,
+          ...payload,
+        }),
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok || !d.variant_id) {
@@ -1301,7 +1306,7 @@ export default function VariantsPage() {
         return;
       }
 
-      const vr = await fetch(`${GEN}/api/${randLevel.level}/${randSubject.subject_short}/variant/${d.variant_id}/`);
+      const vr = await fetch(`/api/homework/variant/${d.variant_id}/`, { credentials: 'include' });
       if (vr.ok) {
         const vd = await vr.json();
         const items = (vd.tasks || []).map((t, i) => normalizeOneTask({

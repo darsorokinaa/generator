@@ -792,7 +792,43 @@ input, select, textarea { font-family: var(--font); }
 .divider { height: 1px; background: var(--border); }
 
 /* Notifications (used by NotificationBell) */
-.notif-btn { position: relative; }
+.notif-btn {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-2);
+  background: #fff;
+  border: 1.5px solid var(--border);
+  transition: background .15s, color .15s, border-color .15s;
+}
+.notif-btn:hover {
+  background: var(--bg);
+  color: var(--text-1);
+}
+.notif-btn svg { display: block; }
+.notif-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #fff;
+  border: 2px solid #fff;
+  font-size: 9px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, .18);
+}
 .notif-dot { position: absolute; top: 5px; right: 5px; width: 7px; height: 7px; border-radius: 50%; background: var(--red); border: 1.5px solid var(--surface); }
 .notif-section { display: flex; flex-direction: column; gap: 8px; }
 .notif-header { display: flex; align-items: center; justify-content: space-between; }
@@ -5655,6 +5691,21 @@ input, select, textarea { font-family: var(--font); }
   .vp-my-card-head { flex-direction: column; align-items: flex-start; }
   .vp-my-card-id { align-self: flex-start; }
   .sp-name { font-size: 12.5px; }
+}
+
+/* Notification button contrast on dark mobile topbar */
+.mobile-topbar .notif-btn {
+  color: #f8fafc;
+  background: rgba(255, 255, 255, .14);
+  border-color: rgba(255, 255, 255, .26);
+}
+.mobile-topbar .notif-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, .22);
+  border-color: rgba(255, 255, 255, .34);
+}
+.mobile-topbar .notif-badge {
+  border-color: #4f6ef7;
 }
 
 /* ==========================================================================

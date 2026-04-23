@@ -6,7 +6,7 @@ from .models import (
     TeachersStudent, Group, TeachersGroup,
     Homework, HomeworkAttachment, HomeworkAssignment, HomeworkAnswerFile, HomeworkTeacherFeedbackFile,
     TeacherVariant,
-    Notification, LessonInvite, Lesson,
+    Notification, UserPlatformConsent, LessonInvite, Lesson,
 )
 
 
@@ -141,6 +141,15 @@ class NotificationAdmin(admin.ModelAdmin):
     list_filter = ('notification_type', 'read', 'created_at')
     search_fields = ('text', 'user__name', 'user__surname', 'user__email')
     ordering = ('-created_at',)
+
+
+@admin.register(UserPlatformConsent)
+class UserPlatformConsentAdmin(admin.ModelAdmin):
+    list_display = ('id', 'user', 'consent_code', 'accepted', 'version', 'updated_at')
+    list_display_links = ('id', 'user')
+    list_filter = ('consent_code', 'accepted', 'updated_at')
+    search_fields = ('user__name', 'user__surname', 'user__email', 'consent_code', 'version')
+    ordering = ('-updated_at',)
 
 
 @admin.register(LessonInvite)

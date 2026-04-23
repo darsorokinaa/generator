@@ -14,6 +14,7 @@ from .views import (
     StudentsView,
     StudentDetailView,
     MeProfile,
+    MePlatformConsentView,
     GroupView,
     GroupDetailView,
     LessonTokenView,
@@ -93,6 +94,7 @@ urlpatterns = [
     path('api/subjects/',          SubjectListView.as_view(),    name='api-subjects'),
     path('api/levels/',            LevelListView.as_view(),      name='api-levels'),
     path('api/me/',                MeProfile.as_view(),          name='api-me'),
+    path('api/me/consents/',       MePlatformConsentView.as_view(), name='api-me-consents'),
     path('api/groups/',              GroupView.as_view(),        name='api-groups'),
     path('api/groups/<int:pk>/',     GroupDetailView.as_view(),  name='api-group-detail'),
     path('api/lesson/token/',      LessonTokenView.as_view(),    name='api-lesson-token'),
@@ -132,6 +134,7 @@ urlpatterns = [
 
     path('api/get-all-tasks/',        views.get_all_tasks),
     path('api/gen/variant-lookup/<int:variant_id>/', views.gen_variant_lookup),
+    path('api/gen/variant/',          views.gen_generate_variant),
     path('api/gen/criteria/',         views.gen_criteria),
     path('api/gen/catalog/',          views.gen_catalog),
     path('api/gen/tasks/',            views.gen_tasks),

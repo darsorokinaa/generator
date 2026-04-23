@@ -19,6 +19,7 @@ export default function VariantPlayPage({ assignmentId }) {
   const [profile,    setProfile]    = useState(null);
   const [loading, setLoading]       = useState(true);
   const [error, setError]           = useState('');
+  const [forbidden, setForbidden]   = useState(false);
   const [saved, setSaved]           = useState(false);
   const [redirectBusy, setRedirectBusy] = useState(false);
   const [useLocalPlayer, setUseLocalPlayer] = useState(false);
@@ -30,7 +31,11 @@ export default function VariantPlayPage({ assignmentId }) {
     Promise.all([
       fetch(`${API}/api/homework/assignment/${assignmentId}/`, { credentials: 'include' })
         .then((r) => {
-          if (r.status === 403) throw new Error('Нет доступа — войдите в личный кабинет.');
+          if (r.status === 403) {
+            const e = new Error('Вход сюда запрещен');
+            e.status = 403;
+            throw e;
+          }
           if (r.status === 404) throw new Error('Назначение ДЗ не найдено.');
           if (!r.ok) throw new Error(`Ошибка сервера: ${r.status}`);
           return r.json();
@@ -39,8 +44,18 @@ export default function VariantPlayPage({ assignmentId }) {
         .then((r) => (r.ok ? r.json() : null))
         .catch(() => null),
     ])
-      .then(([asgn, prof]) => { setAssignment(asgn); setProfile(prof); setLoading(false); })
-      .catch((e) => { setError(e.message); setLoading(false); });
+      .then(([asgn, prof]) => {
+        setForbidden(false);
+        setAssignment(asgn);
+        setProfile(prof);
+        setLoading(false);
+      })
+      .catch((e) => {
+        const isForbidden = Number(e?.status) === 403;
+        setForbidden(isForbidden);
+        setError(isForbidden ? 'Вход сюда запрещен' : e.message);
+        setLoading(false);
+      });
   }, [assignmentId]);
 
   // Ученик: не остаёмся на «голом» variant_play — сразу join-url → генератор (без страницы ?homework_room= в ЛК).
@@ -140,6 +155,39 @@ export default function VariantPlayPage({ assignmentId }) {
   }
 
   if (error || !assignment) {
+    if (forbidden) {
+      return (
+        <div style={{
+          minHeight: '100vh',
+          width: '100%',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: 24,
+        }}>
+          <div style={{
+            background: '#fff', borderRadius: 16, padding: '32px 40px', maxWidth: 480, width: '100%',
+            boxShadow: '0 4px 24px rgba(0,0,0,.08)', textAlign: 'center',
+          }}>
+            <div style={{ fontSize: 36, marginBottom: 16 }}>🚫</div>
+            <div style={{ fontWeight: 700, fontSize: 16, color: '#1e293b', marginBottom: 8 }}>
+              Вход сюда запрещен
+            </div>
+            <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.6 }}>
+              У вас нет доступа к этой странице.
+            </div>
+            <a
+              href={`${API}/login/`}
+              style={{
+                display: 'inline-block', marginTop: 24, padding: '10px 24px',
+                borderRadius: 10, background: '#4F6EF7', color: '#fff',
+                fontWeight: 700, fontSize: 13, textDecoration: 'none',
+              }}
+            >
+              Перейти ко входу
+            </a>
+          </div>
+        </div>
+      );
+    }
     return (
       <div style={{
         minHeight: '100vh',

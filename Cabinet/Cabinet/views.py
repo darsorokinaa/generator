@@ -19,6 +19,8 @@ import string                                          # наборы симво
 import time                                            # time.time() — текущий Unix-timestamp
 import re                                              # регулярные выражения
 import json       
+import hashlib
+import uuid
 import logging
 import requests                                    # HTTP-клиент для проксирования запросов к генератору
 import urllib.request                                  # HTTP-запросы без сторонних библиотек
@@ -41,6 +43,7 @@ from .models import (                                  # импорт всех �
     HomeworkTeacherFeedbackFile,                       # файл обратной связи от учителя
     Notification,                                      # уведомление пользователю
     TeacherVariant,                                    # сохранённый вариант учителя
+    UserPlatformConsent,                               # согласия пользователя с платформой
 )
 from rest_framework import viewsets, status            # ViewSet-базы и HTTP-коды статусов
 from rest_framework.views import APIView               # базовый класс для API-представлений
@@ -81,6 +84,10 @@ LESSON_SECRET = getattr(settings, 'LESSON_SECRET', settings.SECRET_KEY)     # с
 LESSON_TTL    = 60 * 60 * 2  # время жизни токена урока — 2 часа в секундах
 STUDENT_INVITE_TTL = 60 * 60 * 24 * 7  # срок жизни ссылки-приглашения ученика — 7 дней
 HW_ROOM_TTL   = int(getattr(settings, 'HOMEWORK_ROOM_TTL', 60 * 60 * 24 * 30))  # JWT «комнаты» ДЗ для генератора
+CONSENT_CODE_PLATFORM_USAGE = 'platform_usage'
+ALLOWED_PLATFORM_CONSENT_CODES = {
+    CONSENT_CODE_PLATFORM_USAGE,
+}
 
 AVATAR_EMOJI_POOL = {
     # Еда
@@ -678,6 +685,7 @@ def _mint_student_invite_token(*, teacher_profile_id, subject_id, level_id, less
         'iss': 'cabinet_student_invite',
         'iat': now,
         'exp': now + STUDENT_INVITE_TTL,
+        'jti': uuid.uuid4().hex,  # одноразовый идентификатор инвайта
         'teacher_profile_id': int(teacher_profile_id),
         'subject_id': int(subject_id),
         'level_id': int(level_id),
@@ -701,6 +709,34 @@ def _decode_student_invite_token(token_raw):
     if payload.get('iss') != 'cabinet_student_invite':
         return None
     return payload
+
+
+def _student_invite_unique_key(payload, token_raw):
+    """Стабильный ключ одноразовой ссылки: jti (новые токены) или hash токена (legacy)."""
+    jti = str((payload or {}).get('jti') or '').strip()
+    if jti:
+        return jti
+    token = str(token_raw or '').strip()
+    if not token:
+        return ''
+    return hashlib.sha256(token.encode('utf-8')).hexdigest()
+
+
+def _student_invite_used_cache_key(invite_key):
+    return f'cabinet:student_invite:used:{invite_key}'
+
+
+def _student_invite_lock_cache_key(invite_key):
+    return f'cabinet:student_invite:lock:{invite_key}'
+
+
+def _student_invite_used_ttl(payload):
+    try:
+        exp = int((payload or {}).get('exp') or 0)
+    except Exception:
+        exp = 0
+    now = int(time.time())
+    return max(300, exp - now + 300)
 
 
 def _login_page_context(request):
@@ -991,6 +1027,12 @@ def register_student_invite_view(request):
     payload = _decode_student_invite_token(token)
     if not payload:
         return render(request, 'register_student.html', {'invite_invalid': True})
+    invite_key = _student_invite_unique_key(payload, token)
+    if not invite_key:
+        return render(request, 'register_student.html', {'invite_invalid': True})
+    used_cache_key = _student_invite_used_cache_key(invite_key)
+    if cache.get(used_cache_key):
+        return render(request, 'register_student.html', {'invite_invalid': True})
 
     teacher_profile = UserProfile.objects.filter(id=payload.get('teacher_profile_id')).first()
     subject = Subject.objects.filter(id=payload.get('subject_id')).first()
@@ -1035,40 +1077,52 @@ def register_student_invite_view(request):
                 for err in e.messages:
                     messages.error(request, err)
             else:
-                username = generate_username()
-                user = User.objects.create_user(
-                    username=username,
-                    email=email,
-                    password=password1,
-                    first_name=name,
-                    last_name=surname,
-                    is_staff=False,
-                    is_superuser=False,
-                )
-                profile = UserProfile.objects.create(
-                    user=user,
-                    username=username,
-                    name=name,
-                    surname=surname,
-                    email=email,
-                    phone=phone or None,
-                    role='student',
-                    avatar_emoji=_random_avatar_emoji(),
-                    avatar_bg=_random_avatar_bg(),
-                )
-                TeachersStudent.objects.create(
-                    teacher=teacher_profile,
-                    student=profile,
-                    subject=subject,
-                    level=level,
-                    grade=grade,
-                    goal='',
-                    status='1',
-                    lesson_type='group' if lesson_type == 'group' else 'individual',
-                    group=group if lesson_type == 'group' else None,
-                )
-                login(request, user)
-                return redirect(_dashboard_url(request))
+                lock_cache_key = _student_invite_lock_cache_key(invite_key)
+                got_lock = cache.add(lock_cache_key, 1, timeout=30)
+                if not got_lock:
+                    messages.error(request, 'Ссылка уже используется. Обновите страницу или попросите новую ссылку.')
+                elif cache.get(used_cache_key):
+                    messages.error(request, 'Ссылка уже была использована. Попросите учителя отправить новую.')
+                else:
+                    try:
+                        with transaction.atomic():
+                            username = generate_username()
+                            user = User.objects.create_user(
+                                username=username,
+                                email=email,
+                                password=password1,
+                                first_name=name,
+                                last_name=surname,
+                                is_staff=False,
+                                is_superuser=False,
+                            )
+                            profile = UserProfile.objects.create(
+                                user=user,
+                                username=username,
+                                name=name,
+                                surname=surname,
+                                email=email,
+                                phone=phone or None,
+                                role='student',
+                                avatar_emoji=_random_avatar_emoji(),
+                                avatar_bg=_random_avatar_bg(),
+                            )
+                            TeachersStudent.objects.create(
+                                teacher=teacher_profile,
+                                student=profile,
+                                subject=subject,
+                                level=level,
+                                grade=grade,
+                                goal='',
+                                status='1',
+                                lesson_type='group' if lesson_type == 'group' else 'individual',
+                                group=group if lesson_type == 'group' else None,
+                            )
+                            cache.set(used_cache_key, 1, timeout=_student_invite_used_ttl(payload))
+                    finally:
+                        cache.delete(lock_cache_key)
+                    login(request, user)
+                    return redirect(_dashboard_url(request))
 
     return render(
         request,
@@ -1430,6 +1484,8 @@ class MeProfile(APIView):
         if profile.role == 'student':                                   # профиль ученика — без предметов
             if not profile.avatar_emoji or not profile.avatar_bg:
                 _ensure_profile_avatar(profile)
+            consent_rows = UserPlatformConsent.objects.filter(user=profile)
+            consents = {row.consent_code: bool(row.accepted) for row in consent_rows}
             return Response({
                 'username': profile.username,
                 'name': profile.name,
@@ -1439,9 +1495,12 @@ class MeProfile(APIView):
                 'subjects': [],                                         # у ученика нет предметов в этом контексте
                 'avatar_emoji': profile.avatar_emoji or '',
                 'avatar_bg': profile.avatar_bg or '',
+                'consents': consents,
             })
         if not profile.avatar_emoji or not profile.avatar_bg:
             _ensure_profile_avatar(profile)
+        consent_rows = UserPlatformConsent.objects.filter(user=profile)
+        consents = {row.consent_code: bool(row.accepted) for row in consent_rows}
         return Response({                                               # профиль учителя — с предметами
             'username': profile.username,
             'name': profile.name,
@@ -1451,6 +1510,7 @@ class MeProfile(APIView):
             'subjects': subject_names,                                  # список предметов учителя
             'avatar_emoji': profile.avatar_emoji or '',
             'avatar_bg': profile.avatar_bg or '',
+            'consents': consents,
         })
 
     def patch(self, request):
@@ -1510,7 +1570,119 @@ class MeProfile(APIView):
             'subjects': subject_names if profile.role != 'student' else [],
             'avatar_emoji': profile.avatar_emoji or '',
             'avatar_bg': profile.avatar_bg or '',
+            'consents': {
+                row.consent_code: bool(row.accepted)
+                for row in UserPlatformConsent.objects.filter(user=profile)
+            },
         })
+
+
+class MePlatformConsentView(APIView):
+    """
+    GET /api/me/consents/
+    PATCH /api/me/consents/
+    Хранит и возвращает состояние согласий пользователя по использованию платформы.
+    """
+    permission_classes = [IsLKTeacher]
+
+    @staticmethod
+    def _serialize(row):
+        return {
+            'consent_code': row.consent_code,
+            'accepted': bool(row.accepted),
+            'accepted_at': row.accepted_at,
+            'revoked_at': row.revoked_at,
+            'version': row.version or '',
+            'source': row.source or '',
+            'updated_at': row.updated_at,
+        }
+
+    def _ensure_profile(self, request):
+        profile, _ = UserProfile.objects.get_or_create(
+            user=request.user,
+            defaults={
+                'username': request.user.username,
+                'name': request.user.first_name or request.user.username,
+                'surname': request.user.last_name or '',
+                'email': request.user.email or '',
+                'role': 'teacher',
+                'avatar_emoji': _random_avatar_emoji(),
+                'avatar_bg': _random_avatar_bg(),
+            },
+        )
+        return profile
+
+    def get(self, request):
+        profile = self._ensure_profile(request)
+        rows = {
+            row.consent_code: row
+            for row in UserPlatformConsent.objects.filter(user=profile)
+        }
+
+        # Отдаём стандартное согласие даже если запись ещё не создана.
+        out = []
+        for code in sorted(ALLOWED_PLATFORM_CONSENT_CODES):
+            row = rows.get(code)
+            if row is None:
+                out.append({
+                    'consent_code': code,
+                    'accepted': False,
+                    'accepted_at': None,
+                    'revoked_at': None,
+                    'version': '',
+                    'source': '',
+                    'updated_at': None,
+                })
+            else:
+                out.append(self._serialize(row))
+        return Response({'consents': out})
+
+    def patch(self, request):
+        profile = self._ensure_profile(request)
+        now = timezone.now()
+
+        if isinstance(request.data.get('consents'), list):
+            raw_items = request.data.get('consents') or []
+        else:
+            raw_items = [request.data]
+
+        if not raw_items:
+            return Response({'error': 'Передайте consent_code и accepted'}, status=status.HTTP_400_BAD_REQUEST)
+
+        updated_rows = []
+        for item in raw_items:
+            if not isinstance(item, dict):
+                return Response({'error': 'Каждый элемент consents должен быть объектом'}, status=status.HTTP_400_BAD_REQUEST)
+
+            code = str(item.get('consent_code') or '').strip().lower()
+            if not code:
+                return Response({'error': 'consent_code обязателен'}, status=status.HTTP_400_BAD_REQUEST)
+            if code not in ALLOWED_PLATFORM_CONSENT_CODES:
+                return Response({'error': f'Недопустимый consent_code: {code}'}, status=status.HTTP_400_BAD_REQUEST)
+            if 'accepted' not in item:
+                return Response({'error': f'accepted обязателен для {code}'}, status=status.HTTP_400_BAD_REQUEST)
+
+            accepted = bool(item.get('accepted'))
+            version = str(item.get('version') or '').strip()[:32]
+            source = str(item.get('source') or 'lk').strip()[:32] or 'lk'
+
+            row, _ = UserPlatformConsent.objects.get_or_create(
+                user=profile,
+                consent_code=code,
+                defaults={'accepted': False},
+            )
+            row.accepted = accepted
+            row.version = version
+            row.source = source
+            if accepted:
+                row.accepted_at = now
+                row.revoked_at = None
+            else:
+                row.revoked_at = now
+            row.save()
+            updated_rows.append(row)
+
+        return Response({'consents': [self._serialize(r) for r in updated_rows]})
 
 
 class GroupView(TeacherProfileMixin, APIView):
@@ -3948,6 +4120,57 @@ def gen_criteria(request):
         except requests.exceptions.RequestException as e:
             last_err = e
     return Response({'error': str(last_err)}, status=status.HTTP_502_BAD_GATEWAY)
+
+
+@api_view(['POST'])
+@drf_permission_classes([IsCabinetTeacher])
+def gen_generate_variant(request):
+    """
+    POST /api/gen/variant/
+    Body: { level, subject, ...payload }
+    Проксирует генерацию варианта через backend, чтобы не было CORS/SSL проблем на фронте.
+    """
+    level = str(request.data.get('level') or '').strip()
+    subject = str(request.data.get('subject') or '').strip()
+    if not level or not subject:
+        return Response({'error': 'level и subject обязательны'}, status=status.HTTP_400_BAD_REQUEST)
+
+    payload = dict(request.data)
+    payload.pop('level', None)
+    payload.pop('subject', None)
+    if not payload:
+        payload = {'content': {}}
+
+    url = _build_generator_url(f'api/{level}/{subject}/variant/')
+    try:
+        resp = requests.post(
+            url,
+            json=payload,
+            headers={'Accept': 'application/json'},
+            verify=False,
+            timeout=25,
+            allow_redirects=True,
+        )
+        ct = (resp.headers.get('Content-Type') or '').lower()
+        if resp.status_code >= 400:
+            msg = ''
+            if 'json' in ct:
+                try:
+                    msg = (resp.json() or {}).get('error', '')
+                except Exception:
+                    msg = ''
+            return Response(
+                {'error': msg or f'Ошибка генератора ({resp.status_code})'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+        data = resp.json() if 'json' in ct else {}
+        if not isinstance(data, dict):
+            data = {}
+        if not data.get('variant_id'):
+            return Response({'error': 'Генератор не вернул variant_id'}, status=status.HTTP_502_BAD_GATEWAY)
+        return Response(data)
+    except requests.exceptions.RequestException as e:
+        return Response({'error': f'Генератор недоступен: {e}'}, status=status.HTTP_502_BAD_GATEWAY)
 
 
 @api_view(['GET'])

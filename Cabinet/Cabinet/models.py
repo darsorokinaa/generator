@@ -345,7 +345,32 @@ class Notification(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
 
+class UserPlatformConsent(models.Model):
+    """
+    Состояние пользовательских согласий по использованию платформы.
+    Одна запись = один тип согласия для одного пользователя.
+    """
+    user = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='platform_consents')
+    consent_code = models.CharField(max_length=64, db_index=True)
+    accepted = models.BooleanField(default=False)
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    version = models.CharField(max_length=32, blank=True, default='')
+    source = models.CharField(max_length=32, blank=True, default='lk')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
+    def __str__(self):
+        status = 'accepted' if self.accepted else 'revoked'
+        return f'{self.user_id}:{self.consent_code} [{status}]'
+
+    class Meta:
+        verbose_name = "Согласие пользователя"
+        verbose_name_plural = "Согласия пользователей"
+        ordering = ['-updated_at']
+        constraints = [
+            models.UniqueConstraint(fields=['user', 'consent_code'], name='uniq_user_platform_consent'),
+        ]
 
 
 class LessonInvite(models.Model):
