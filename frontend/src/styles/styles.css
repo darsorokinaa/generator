@@ -665,6 +665,189 @@ header {
     }
 }
 
+/* Главная: широкие и очень широкие экраны */
+@media (min-width: 1440px) {
+    body.index .container {
+        max-width: 1320px;
+        padding: 2rem 2.25rem;
+        gap: 2.25rem;
+    }
+
+    body.index .index-desktop-wrap {
+        gap: 2rem;
+    }
+
+    body.index .index-main {
+        gap: 1.5rem;
+    }
+
+    body.index .index-updates-block {
+        width: 360px;
+    }
+
+    body.index .hero.hero--index-welcome {
+        padding: 2.65rem clamp(1.15rem, 2.8vw, 2.25rem);
+        --welcome-owl-reserve: max(0.75rem, calc(min(58vw, 302px, 286px) - var(--welcome-owl-outset) + 0.85rem));
+    }
+
+    body.index .hero.hero--index-welcome h1 {
+        font-size: clamp(1rem, 0.42rem + 1.5vw, 1.52rem);
+    }
+
+    body.index .hero.hero--index-welcome .hero-index-platform-text {
+        font-size: 1.0625rem;
+        max-width: none;
+    }
+
+    body.subject-page .hero.hero--subject-welcome h1 {
+        font-size: clamp(1rem, 0.42rem + 1.5vw, 1.52rem);
+    }
+
+    body.subject-page .hero.hero--subject-welcome .hero-subject-platform-text {
+        font-size: 1.0625rem;
+        max-width: none;
+    }
+
+    body.index .hero-owl {
+        width: 286px;
+        height: 286px;
+        bottom: -53px;
+    }
+
+    body.index .exam-grid {
+        gap: 2rem;
+    }
+
+    body.index .exam-card {
+        padding: 1.85rem 1.75rem 1.55rem;
+    }
+
+    body.index .exam-grid .exam-card {
+        min-height: 190px;
+    }
+
+    body.index .exam-title {
+        font-size: 1.35rem;
+    }
+
+    body.index .exam-description {
+        font-size: 0.8125rem;
+    }
+
+    body.index .exam-icon {
+        width: 54px;
+        height: 54px;
+        font-size: 1.65rem;
+    }
+
+    .steps-block {
+        padding: 1.2rem 1.35rem 1.2rem 1.45rem;
+    }
+}
+
+@media (min-width: 1600px) {
+    body.index .container {
+        max-width: 1440px;
+        padding: 2.25rem 2.5rem;
+        gap: 2.5rem;
+    }
+
+    body.index .index-desktop-wrap {
+        gap: 2.25rem;
+    }
+
+    body.index .index-main {
+        gap: 1.65rem;
+    }
+
+    body.index .index-updates-block {
+        width: 384px;
+    }
+
+    body.index .hero.hero--index-welcome {
+        padding: 2.85rem clamp(1.2rem, 2.8vw, 2.5rem);
+    }
+
+    body.index .hero.hero--index-welcome h1 {
+        font-size: clamp(1.05rem, 0.45rem + 1.35vw, 1.58rem);
+    }
+
+    body.index .hero.hero--index-welcome .hero-index-platform-text {
+        font-size: 1.125rem;
+        max-width: none;
+    }
+
+    body.subject-page .hero.hero--subject-welcome h1 {
+        font-size: clamp(1.05rem, 0.45rem + 1.35vw, 1.58rem);
+    }
+
+    body.subject-page .hero.hero--subject-welcome .hero-subject-platform-text {
+        font-size: 1.125rem;
+        max-width: none;
+    }
+
+    body.index .exam-grid {
+        gap: 2.25rem;
+    }
+
+    body.index .exam-card {
+        padding: 2rem 1.85rem 1.65rem;
+    }
+
+    body.index .exam-grid .exam-card {
+        min-height: 200px;
+    }
+
+    body.index .exam-title {
+        font-size: 1.45rem;
+    }
+
+    body.index .exam-description {
+        font-size: 0.875rem;
+    }
+
+    body.index .exam-icon {
+        width: 58px;
+        height: 58px;
+        font-size: 1.75rem;
+    }
+
+    .steps-block {
+        padding: 1.35rem 1.5rem 1.35rem 1.65rem;
+    }
+}
+
+@media (min-width: 1920px) {
+    body.index .container {
+        max-width: 1560px;
+        padding: 2.5rem 3rem;
+        gap: 2.75rem;
+    }
+
+    body.index .index-desktop-wrap {
+        gap: 2.5rem;
+    }
+
+    body.index .index-main {
+        gap: 1.75rem;
+    }
+
+    body.index .index-updates-block {
+        width: 400px;
+    }
+
+    body.index .hero-owl {
+        width: 312px;
+        height: 312px;
+        bottom: -63px;
+    }
+
+    body.index .hero.hero--index-welcome {
+        padding: 2.95rem clamp(1.25rem, 2.8vw, 2.65rem);
+        --welcome-owl-reserve: max(0.75rem, calc(min(58vw, 320px, 312px) - var(--welcome-owl-outset) + 0.85rem));
+    }
+}
+
 /* ========================================
    ЭТАПЫ (STEPS)
 ======================================== */
@@ -678,7 +861,7 @@ header {
 }
 
 .steps-block-title {
-    font-size: 0.95rem;
+    font-size: var(--idx-section-title-size);
     font-weight: 700;
     color: #4169e1;
     margin: 0 0 0.75rem 0;
@@ -692,6 +875,9 @@ header {
     padding: 0;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    /* было по строкам: 1|2 / 3|4; теперь по столбцам: 1|3 / 2|4 */
+    grid-template-rows: repeat(2, minmax(0, auto));
+    grid-auto-flow: column;
     gap: 0.5rem 0.9rem;
 }
 
@@ -705,14 +891,14 @@ header {
 
 .steps-num {
     flex-shrink: 0;
-    width: 1.6rem;
-    height: 1.6rem;
+    width: 1.45rem;
+    height: 1.45rem;
     display: flex;
     align-items: center;
     justify-content: center;
     background: linear-gradient(135deg, #3e73ef 0%, #5b9cf7 100%);
     color: white;
-    font-size: 0.75rem;
+    font-size: 0.625rem;
     font-weight: 700;
     border-radius: 50%;
     box-shadow: 0 2px 8px rgba(62, 115, 239, 0.35);
@@ -724,17 +910,17 @@ header {
 }
 
 .steps-item-title {
-    font-size: 0.78rem;
-    font-weight: 600;
+    font-size: var(--idx-item-title-size);
+    font-weight: 700;
     color: #1e293b;
-    margin: 0 0 0.1rem 0;
-    line-height: 1.25;
+    margin: 0 0 0.28rem 0;
+    line-height: 1.35;
 }
 
 .steps-item-text {
-    font-size: 0.68rem;
-    line-height: 1.3;
-    color: #64748b;
+    font-size: var(--idx-body-size);
+    line-height: var(--idx-body-line-height);
+    color: #1e293b;
     margin: 0;
 }
 
@@ -781,6 +967,331 @@ header {
     z-index: 1;
 }
 
+/* Главная: приветствие — цвета/шрифты как у карточки «Выбор предмета» (синий акцент #3b66d6, Montserrat; блок инвертирован: заливка синим, текст белый) */
+body.index .hero.hero--index-welcome {
+    background: linear-gradient(90deg, #3e73ef 0%, #4b91f7 100%);
+    color: #ffffff;
+    font-family: "Montserrat", system-ui, sans-serif;
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    box-shadow: none;
+    border-radius: 28px;
+    overflow: visible;
+    text-align: left;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    align-self: stretch;
+    /* одинаковые поля сверху/снизу (над текстом и под кнопкой); сова выступает за счёт position + отрицательный bottom */
+    padding: 2.35rem clamp(1rem, 3.2vw, 1.9rem);
+    /* отступ до карточек ОГЭ/ЕГЭ — только gap у .index-main, без двойного margin */
+    margin-bottom: 0;
+    position: relative;
+    container-type: inline-size;
+    container-name: index-welcome;
+    /* запас под сову справа: ширина картинки минус выступ за край (right отрицательный) + зазор */
+    --welcome-owl-outset: 40px;
+    --welcome-owl-reserve: max(0.75rem, calc(min(58vw, 302px, 262px) - var(--welcome-owl-outset) + 0.85rem));
+}
+
+body.index .hero.hero--index-welcome p {
+    max-width: none;
+    width: 100%;
+}
+
+body.index .hero.hero--index-welcome::before {
+    display: none;
+}
+
+/* Главный заголовок блока — «Платформа…» в h1 */
+body.index .hero.hero--index-welcome h1 {
+    color: #ffffff;
+    font-family: "Unbounded", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 700;
+    font-size: clamp(0.88rem, 0.32rem + 1.85vw, 1.38rem);
+    letter-spacing: -0.06em;
+    line-height: 1.2;
+    margin-bottom: 0.85rem;
+    text-align: left;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    box-sizing: border-box;
+    position: relative;
+    z-index: 2;
+}
+
+/* Перенос перед «к» только на мобильных; на широких экранах — одна строка с nowrap */
+body.index .hero.hero--index-welcome h1 .hero-index-welcome-br-mobile {
+    display: none;
+}
+
+@media (max-width: 767px) {
+    body.index .hero.hero--index-welcome h1 .hero-index-welcome-br-mobile {
+        display: block;
+    }
+}
+
+@media (min-width: 720px) {
+    body.index .hero.hero--index-welcome h1 {
+        white-space: nowrap;
+    }
+}
+
+/* Заголовок по ширине карточки (container query) */
+@container index-welcome (max-width: 560px) {
+    body.index .hero.hero--index-welcome h1 {
+        font-size: clamp(0.78rem, 0.28rem + 2.4vw, 1.05rem);
+    }
+}
+
+@container index-welcome (min-width: 900px) {
+    body.index .hero.hero--index-welcome h1 {
+        font-size: clamp(1rem, 0.38rem + 1.35vw, 1.48rem);
+    }
+}
+
+body.index .hero.hero--index-welcome .hero-index-platform-title {
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.35;
+    letter-spacing: -0.02em;
+    color: rgba(255, 255, 255, 0.95);
+    margin: 0 0 0.35rem 0;
+    text-align: left;
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    max-width: none;
+    box-sizing: border-box;
+}
+
+body.index .hero.hero--index-welcome .hero-index-platform-text {
+    color: rgba(255, 255, 255, 0.96);
+    width: 100%;
+    max-width: none;
+    margin: 0 0 1.4rem 0;
+    text-align: left;
+    font-size: 1rem;
+    font-weight: 400;
+    line-height: 1.62;
+    position: relative;
+    z-index: 2;
+    min-width: 0;
+    text-wrap: pretty;
+    box-sizing: border-box;
+}
+
+body.index .hero-index-welcome-inner {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    box-sizing: border-box;
+    padding-inline-end: var(--welcome-owl-reserve);
+}
+
+body.index .hero-owl {
+    position: absolute;
+    left: auto;
+    top: auto;
+    right: -40px;
+    bottom: 0px;
+    width: 262px;
+    height: 262px;
+    max-width: min(58vw, 302px);
+    object-fit: contain;
+    object-position: right bottom;
+    pointer-events: none;
+    z-index: 1;
+}
+
+body.index .hero-index-cta {
+    position: relative;
+    z-index: 2;
+    align-self: flex-start;
+    width: auto;
+    max-width: 100%;
+    margin-top: 1.35rem;
+    display: inline-block;
+    appearance: none;
+    -webkit-appearance: none;
+    font-family: "Montserrat", system-ui, sans-serif;
+    text-transform: lowercase;
+    background: #ffffff;
+    color: #3b66d6;
+    border: 2px solid #ffffff;
+    outline: none;
+    padding: 0.5rem 1.1rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    line-height: 1.25;
+    border-radius: 14px;
+    cursor: pointer;
+    box-sizing: border-box;
+    box-shadow: none;
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+body.index .hero-index-cta:hover {
+    background: rgba(255, 255, 255, 0.92);
+    color: #2f52ad;
+    border-color: rgba(255, 255, 255, 0.92);
+    transform: translateY(-1px);
+}
+
+/* Страница выбора предмета: те же кегли, что у баннера «Платформа…» на главной */
+body.subject-page .hero.hero--subject-welcome {
+    container-type: inline-size;
+    container-name: subject-welcome;
+}
+
+body.subject-page .hero-subject-welcome-inner {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+body.subject-page .hero.hero--subject-welcome h1 {
+    font-family: "Unbounded", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 700;
+    font-size: clamp(0.88rem, 0.32rem + 1.85vw, 1.38rem);
+    letter-spacing: -0.06em;
+    line-height: 1.2;
+    margin-bottom: 0.85rem;
+    color: #2563eb;
+    text-align: left;
+    width: 100%;
+    max-width: none;
+    min-width: 0;
+    position: relative;
+    z-index: 2;
+}
+
+body.subject-page .hero.hero--subject-welcome .hero-subject-platform-text {
+    font-family: "Montserrat", system-ui, sans-serif;
+    color: rgba(37, 99, 235, 0.92);
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    text-align: left;
+    font-size: 1rem;
+    font-weight: 500;
+    line-height: 1.62;
+    position: relative;
+    z-index: 2;
+    min-width: 0;
+    text-wrap: pretty;
+    box-sizing: border-box;
+    opacity: 1;
+}
+
+@media (min-width: 720px) {
+    body.subject-page .hero.hero--subject-welcome h1 {
+        white-space: nowrap;
+    }
+}
+
+@container subject-welcome (max-width: 560px) {
+    body.subject-page .hero.hero--subject-welcome h1 {
+        font-size: clamp(0.78rem, 0.28rem + 2.4vw, 1.05rem);
+    }
+}
+
+@container subject-welcome (min-width: 900px) {
+    body.subject-page .hero.hero--subject-welcome h1 {
+        font-size: clamp(1rem, 0.38rem + 1.35vw, 1.48rem);
+    }
+}
+
+@media (max-width: 719px) {
+    body.subject-page .hero.hero--subject-welcome h1 {
+        font-size: clamp(0.92rem, 0.52rem + 2.1vw, 1.2rem);
+        white-space: normal;
+        letter-spacing: -0.045em;
+        margin-bottom: 1.05rem;
+    }
+
+    body.subject-page .hero.hero--subject-welcome .hero-subject-platform-text {
+        font-size: 0.8125rem;
+        line-height: 1.58;
+        color: rgba(37, 99, 235, 0.9);
+    }
+}
+
+/* Мобильный баннер: текст на всю ширину (без padding-inline-end под сову — сова absolute) */
+@media (max-width: 719px) {
+    body.index .hero.hero--index-welcome {
+        padding: 1.45rem 1.15rem 1.2rem;
+        border-radius: 22px;
+        overflow: visible;
+        --welcome-owl-outset: 0px;
+        --welcome-owl-reserve: 0px;
+    }
+
+    body.index .hero-index-welcome-inner {
+        padding-inline-end: 0;
+        width: 100%;
+        max-width: none;
+        box-sizing: border-box;
+    }
+
+    body.index .hero.hero--index-welcome h1 {
+        font-size: clamp(0.92rem, 0.52rem + 2.1vw, 1.2rem);
+        white-space: normal;
+        letter-spacing: -0.045em;
+        width: 100%;
+        max-width: none;
+        margin-bottom: 1.05rem;
+    }
+
+    body.index .hero.hero--index-welcome .hero-index-platform-title {
+        font-size: 0.9375rem;
+        line-height: 1.35;
+        margin-bottom: 0;
+        text-align: left;
+        width: 100%;
+        max-width: none;
+    }
+
+    body.index .hero.hero--index-welcome .hero-index-platform-text {
+        max-width: none;
+        width: 100%;
+        margin-bottom: 1.05rem;
+        font-size: 0.8125rem;
+        line-height: 1.58;
+        text-align: left;
+    }
+
+    body.index .hero-index-cta {
+        align-self: flex-start;
+        margin-top: 1.1rem;
+    }
+
+    body.index .hero-owl {
+        position: absolute;
+        left: auto;
+        top: auto;
+        right: -12px;
+        bottom: 18px;
+        transform: translateY(36%);
+        width: min(140px, 40vw);
+        height: auto;
+        aspect-ratio: 1;
+        max-width: none;
+        margin: 0;
+        object-fit: contain;
+        object-position: right bottom;
+        pointer-events: none;
+        z-index: 1;
+    }
+}
+
 /* Блок обновлений — стили как у блока "Инструкция" */
 .index-updates-block {
     margin-top: 0;
@@ -795,7 +1306,8 @@ header {
 
 @media (max-width: 1023px) {
     .index-updates-block {
-        margin-top: 1.5rem;
+        /* как вертикальный gap у .index-main между блоками (карточки → инструкция) — только gap у .index-desktop-wrap */
+        margin-top: 0;
         margin-left: 0;
         margin-right: 0;
         width: 100%;
@@ -804,13 +1316,20 @@ header {
         padding-left: 1.25rem;
         padding-right: 1.25rem;
     }
+
+    body.index .steps-block .steps-list {
+        grid-template-columns: 1fr;
+        grid-template-rows: none;
+        grid-auto-flow: row;
+        gap: 0.65rem;
+    }
 }
 
 .index-updates-block .index-updates-title {
-    font-size: 0.95rem;
+    font-size: var(--idx-section-title-size);
     font-weight: 700;
     color: #4169e1;
-    margin: 0 0 0.6rem 0;
+    margin: 0 0 0.75rem 0;
 }
 
 .index-updates-block .index-updates-item {
@@ -827,26 +1346,31 @@ header {
 }
 
 .index-updates-block .index-updates-date {
-    font-size: 0.7rem;
-    margin-bottom: 0.15rem;
+    font-size: var(--idx-meta-size);
+    font-weight: 600;
+    color: #64748b;
+    margin-bottom: 0.28rem;
 }
 
 .index-updates-block .index-updates-item-title {
-    font-size: 0.85rem;
-    margin: 0 0 0.2rem 0;
+    font-size: var(--idx-item-title-size);
+    font-weight: 700;
+    color: #1e293b;
+    margin: 0 0 0.28rem 0;
 }
 
 .index-updates-block .index-updates-text {
-    font-size: 0.8rem;
-    line-height: 1.45;
+    font-size: var(--idx-body-size);
+    line-height: var(--idx-body-line-height);
+    color: #1e293b;
     margin: 0;
 }
 
 .index-updates-title {
-    font-size: 1.1rem;
+    font-size: var(--idx-section-title-size);
     font-weight: 700;
     color: #4169e1;
-    margin: 0 0 1rem 0;
+    margin: 0 0 0.75rem 0;
 }
 
 .index-updates-list {
@@ -870,22 +1394,22 @@ header {
 
 .index-updates-date {
     display: block;
-    font-size: 0.8rem;
+    font-size: var(--idx-meta-size);
     font-weight: 600;
     color: #64748b;
-    margin-bottom: 0.35rem;
+    margin-bottom: 0.28rem;
 }
 
 .index-updates-item-title {
-    font-size: 1rem;
+    font-size: var(--idx-item-title-size);
     font-weight: 700;
     color: #1e293b;
-    margin: 0 0 0.35rem 0;
+    margin: 0 0 0.28rem 0;
 }
 
 .index-updates-text {
-    font-size: 0.95rem;
-    line-height: 1.55;
+    font-size: var(--idx-body-size);
+    line-height: var(--idx-body-line-height);
     color: #1e293b;
     margin: 0;
 }
@@ -897,7 +1421,7 @@ header {
 .exam-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-    gap: 2rem;
+    gap: 1rem;
 }
 
 .exam-card {
@@ -1014,6 +1538,8 @@ header {
 }
 
 .exam-title {
+    font-family: "Unbounded", sans-serif;
+    font-optical-sizing: auto;
     font-size: 1.2rem;
     font-weight: 700;
     margin: 0;
@@ -1151,36 +1677,6 @@ header {
     border-top-color: rgba(0, 0, 0, 0.1);
 }
 
-/* Математика базовая — бирюзовый, отличается от профильной (#D0D64E) */
-.exam-card.exam-card-math-base {
-    background: #3d8f9a;
-    border: none;
-}
-
-.exam-card.exam-card-math-base .exam-title,
-.exam-card.exam-card-math-base .exam-description {
-    color: #fff;
-}
-
-.exam-card.exam-card-math-base .exam-icon {
-    background: rgba(255, 255, 255, 0.85);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-.exam-card.exam-card-math-base .exam-badge {
-    background: rgba(255, 255, 255, 0.9);
-    color: #0f3d44;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.exam-card.exam-card-math-base .exam-card-arrow-wrap .exam-arrow {
-    color: #fff;
-}
-
-.exam-card.exam-card-math-base .exam-card-footer {
-    border-top-color: rgba(0, 0, 0, 0.12);
-}
-
 /* Информатика — фиолетовый #A99AF7 */
 .exam-card.exam-card-inf {
     background: #A99AF7;
@@ -1209,192 +1705,6 @@ header {
 
 .exam-card.exam-card-inf .exam-card-footer {
     border-top-color: rgba(0, 0, 0, 0.12);
-}
-
-/* История */
-.exam-card.exam-card-history {
-    background: #c9a227;
-    border: none;
-}
-
-.exam-card.exam-card-history .exam-title,
-.exam-card.exam-card-history .exam-description {
-    color: #fff;
-}
-
-.exam-card.exam-card-history .exam-icon {
-    background: rgba(255, 255, 255, 0.88);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-.exam-card.exam-card-history .exam-badge {
-    background: rgba(255, 255, 255, 0.92);
-    color: #6b4f0a;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-.exam-card.exam-card-history .exam-card-footer {
-    border-top-color: rgba(0, 0, 0, 0.1);
-}
-
-.exam-card.exam-card-history .exam-card-arrow-wrap .exam-arrow {
-    color: #fff;
-}
-
-/* Русский язык */
-.exam-card.exam-card-rus {
-    background: #7eb8da;
-    border: none;
-}
-.exam-card.exam-card-rus .exam-title,
-.exam-card.exam-card-rus .exam-description {
-    color: #fff;
-}
-.exam-card.exam-card-rus .exam-icon {
-    background: rgba(255, 255, 255, 0.88);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-.exam-card.exam-card-rus .exam-badge {
-    background: rgba(255, 255, 255, 0.92);
-    color: #1e4d6b;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-.exam-card.exam-card-rus .exam-card-footer {
-    border-top-color: rgba(0, 0, 0, 0.1);
-}
-.exam-card.exam-card-rus .exam-card-arrow-wrap .exam-arrow {
-    color: #fff;
-}
-
-/* Химия — бирюзовый teal, отдельно от зелёной биологии */
-.exam-card.exam-card-chem {
-    background: #0d9488;
-    border: none;
-}
-.exam-card.exam-card-chem .exam-title,
-.exam-card.exam-card-chem .exam-description {
-    color: #f0fdfa;
-}
-.exam-card.exam-card-chem .exam-icon {
-    background: rgba(255, 255, 255, 0.9);
-    box-shadow: 0 2px 10px rgba(15, 118, 110, 0.35);
-}
-.exam-card.exam-card-chem .exam-badge {
-    background: rgba(240, 253, 250, 0.95);
-    color: #115e59;
-    box-shadow: 0 1px 3px rgba(15, 118, 110, 0.2);
-}
-.exam-card.exam-card-chem .exam-card-footer {
-    border-top-color: rgba(255, 255, 255, 0.2);
-}
-.exam-card.exam-card-chem .exam-card-arrow-wrap .exam-arrow {
-    color: #f0fdfa;
-}
-
-/* Физика */
-.exam-card.exam-card-phys {
-    background: #9aa3e8;
-    border: none;
-}
-.exam-card.exam-card-phys .exam-title,
-.exam-card.exam-card-phys .exam-description {
-    color: #fff;
-}
-.exam-card.exam-card-phys .exam-icon {
-    background: rgba(255, 255, 255, 0.88);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-.exam-card.exam-card-phys .exam-badge {
-    background: rgba(255, 255, 255, 0.92);
-    color: #312c85;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-.exam-card.exam-card-phys .exam-card-footer {
-    border-top-color: rgba(0, 0, 0, 0.1);
-}
-.exam-card.exam-card-phys .exam-card-arrow-wrap .exam-arrow {
-    color: #fff;
-}
-
-/* Литература */
-.exam-card.exam-card-lit {
-    background: #e88fa3;
-    border: none;
-}
-.exam-card.exam-card-lit .exam-title,
-.exam-card.exam-card-lit .exam-description {
-    color: #fff;
-}
-.exam-card.exam-card-lit .exam-icon {
-    background: rgba(255, 255, 255, 0.88);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-.exam-card.exam-card-lit .exam-badge {
-    background: rgba(255, 255, 255, 0.92);
-    color: #7a1f36;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-.exam-card.exam-card-lit .exam-card-footer {
-    border-top-color: rgba(0, 0, 0, 0.1);
-}
-.exam-card.exam-card-lit .exam-card-arrow-wrap .exam-arrow {
-    color: #fff;
-}
-
-/* Обществознание */
-.exam-card.exam-card-soc-studies {
-    background: #c4a574;
-    border: none;
-}
-.exam-card.exam-card-soc-studies .exam-title,
-.exam-card.exam-card-soc-studies .exam-description {
-    color: #fff;
-}
-
-.exam-card.exam-card-soc-studies .exam-title {
-    font-size: 1.05rem;
-    line-height: 1.2;
-}
-
-.exam-card.exam-card-soc-studies .exam-icon {
-    background: rgba(255, 255, 255, 0.88);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-.exam-card.exam-card-soc-studies .exam-badge {
-    background: rgba(255, 255, 255, 0.92);
-    color: #4a3418;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-.exam-card.exam-card-soc-studies .exam-card-footer {
-    border-top-color: rgba(0, 0, 0, 0.1);
-}
-.exam-card.exam-card-soc-studies .exam-card-arrow-wrap .exam-arrow {
-    color: #fff;
-}
-
-/* Биология */
-.exam-card.exam-card-bio {
-    background: #8fd4a8;
-    border: none;
-}
-.exam-card.exam-card-bio .exam-title,
-.exam-card.exam-card-bio .exam-description {
-    color: #fff;
-}
-.exam-card.exam-card-bio .exam-icon {
-    background: rgba(255, 255, 255, 0.88);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-.exam-card.exam-card-bio .exam-badge {
-    background: rgba(255, 255, 255, 0.92);
-    color: #1a5c2e;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-.exam-card.exam-card-bio .exam-card-footer {
-    border-top-color: rgba(0, 0, 0, 0.1);
-}
-.exam-card.exam-card-bio .exam-card-arrow-wrap .exam-arrow {
-    color: #fff;
 }
 
 /* ========================================
@@ -1498,17 +1808,6 @@ header {
 /* TasksPage — два блока как на макете */
 .tasks-page .page-header {
     margin-bottom: 1.5rem;
-}
-
-.tasks-page-empty-hint {
-    margin: 0 0 1.25rem;
-    padding: 0.85rem 1rem;
-    border-radius: 12px;
-    background: rgba(251, 191, 36, 0.14);
-    border: 1px solid rgba(180, 130, 20, 0.22);
-    color: #713f12;
-    font-size: 0.9375rem;
-    line-height: 1.45;
 }
 
 /* SearchTaskPage */
@@ -2342,262 +2641,12 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
     padding-top: 0.5rem;
 }
 
-/* Домашнее задание (из ЛК): отличимая шапка и панель действий */
-.main-wrapper.exam-page--homework {
-    --homework-amber: #f59e0b;
-    --homework-bg: #fffbeb;
-    --homework-border: #fde68a;
-    /* Тулбар доски в lesson_room (снаружи iframe) перекрывает ~76px снизу — иначе клики попадают в него, а не в кнопки ДЗ */
-    padding-bottom: 6rem;
-}
-.exam-homework-bar {
-    position: sticky;
-    top: 0;
-    z-index: 30;
-    background: var(--homework-bg, #fffbeb);
-    border-bottom: 1px solid var(--homework-border, #fde68a);
-    box-shadow: 0 2px 12px rgba(180, 83, 9, 0.08);
-}
-.exam-homework-bar__inner {
-    max-width: 1100px;
-    margin: 0 auto;
-    padding: 10px 16px;
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px 16px;
-}
-.exam-homework-bar__title {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: baseline;
-    gap: 8px 12px;
-    font-size: 0.95rem;
-    color: #713f12;
-}
-.exam-homework-bar__badge {
-    display: inline-block;
-    font-family: "Unbounded", system-ui, sans-serif;
-    font-weight: 700;
-    font-size: 0.9rem;
-    color: #92400e;
-    letter-spacing: 0.02em;
-}
-.exam-homework-bar__meta {
-    font-size: 0.8rem;
-    color: #a16207;
-    font-weight: 600;
-}
-.exam-homework-bar__actions {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 8px 10px;
-}
-.exam-homework-bar__btn {
-    border-radius: 10px;
-    font-family: "Montserrat", system-ui, sans-serif;
-    font-size: 0.82rem;
-    font-weight: 600;
-    padding: 8px 16px;
-    cursor: pointer;
-    border: none;
-    transition: opacity 0.15s ease, transform 0.1s ease;
-}
-.exam-homework-bar__btn:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-}
-.exam-homework-bar__btn--primary {
-    background: #ea580c;
-    color: #fff;
-    box-shadow: 0 2px 8px rgba(234, 88, 12, 0.35);
-}
-.exam-homework-bar__btn--secondary {
-    background: #fff;
-    color: #78350f;
-    border: 1.5px solid #fcd34d;
-}
-.exam-homework-bar__hint,
-.exam-homework-bar__err {
-    font-size: 0.8rem;
-    color: #92400e;
-    max-width: 420px;
-    line-height: 1.45;
-}
-.exam-homework-bar__err a {
-    color: #7c3aed;
-    text-decoration: underline;
-}
-.exam-homework-bar__link {
-    color: #7c3aed;
-    font-weight: 600;
-    font-size: 0.85rem;
-    text-decoration: none;
-    border-bottom: 1px solid rgba(124, 58, 237, 0.35);
-}
-.exam-homework-bar__link:hover {
-    border-bottom-color: #7c3aed;
-}
-.exam-homework-bar__notice {
-    font-size: 0.8rem;
-    color: #15803d;
-    font-weight: 600;
-}
-.exam-page--homework .variant-hero {
-    background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 50%, #fff 100%) !important;
-}
-.exam-page--homework .part-divider h2 {
-    color: #9a3412;
-}
-
-.exam-hw-save-btn {
-    background: #fff7ed !important;
-    border: 1.5px solid #fb923c !important;
-    color: #9a3412 !important;
-    font-weight: 600 !important;
-}
-
-.exam-homework-finish {
-    margin: 2rem auto 2.5rem;
-    max-width: 640px;
-    padding: 1.25rem 1.5rem;
-    border-radius: 16px;
-    border: 1.5px solid #fde68a;
-    background: linear-gradient(180deg, #fffbeb 0%, #fff 100%);
-    box-shadow: 0 4px 20px rgba(180, 83, 9, 0.08);
-}
-.exam-homework-finish__hint {
-    font-size: 0.88rem;
-    color: #78350f;
-    line-height: 1.5;
-    margin: 0 0 1rem;
-}
-.exam-homework-finish__row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    justify-content: center;
-}
-.exam-homework-finish__btn {
-    border-radius: 12px;
-    font-family: "Montserrat", system-ui, sans-serif;
-    font-size: 0.95rem;
-    font-weight: 700;
-    padding: 12px 22px;
-    cursor: pointer;
-    border: none;
-    min-width: 200px;
-}
-.exam-homework-finish__btn:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-}
-.exam-homework-finish__btn--primary {
-    background: #ea580c;
-    color: #fff;
-    box-shadow: 0 4px 14px rgba(234, 88, 12, 0.35);
-}
-.exam-homework-finish__btn--secondary {
-    background: #fff;
-    color: #92400e;
-    border: 1.5px solid #fcd34d !important;
-}
-
-.exam-homework-reviewed {
-    margin: 2rem auto 2.5rem;
-    max-width: 900px;
-    padding: 1.15rem 1.25rem;
-    border-radius: 16px;
-    border: 1.5px solid #c7d2fe;
-    background: #fff;
-    box-shadow: 0 4px 20px rgba(37, 99, 235, 0.08);
-}
-
-.exam-homework-reviewed__title {
-    margin: 0 0 0.8rem;
-    font-family: "Unbounded", system-ui, sans-serif;
-    font-size: 1rem;
-    color: #1e3a8a;
-}
-
-.exam-homework-reviewed__teacher-comment {
-    margin: 0 0 0.9rem;
-    padding: 0.72rem 0.82rem;
-    border-radius: 10px;
-    background: #eff6ff;
-    border: 1px solid #bfdbfe;
-    color: #1e40af;
-    line-height: 1.5;
-}
-
-.exam-homework-reviewed__table-wrap {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-}
-
-.exam-homework-reviewed__table {
-    width: 100%;
-    border-collapse: collapse;
-    min-width: 640px;
-}
-
-.exam-homework-reviewed__table th,
-.exam-homework-reviewed__table td {
-    border-bottom: 1px solid #e2e8f0;
-    text-align: left;
-    vertical-align: top;
-    padding: 0.62rem 0.55rem;
-    font-size: 0.9rem;
-    color: #0f172a;
-}
-
-.exam-homework-reviewed__table th {
-    font-weight: 700;
-    color: #1e293b;
-    background: #f8fafc;
-}
-
-.exam-homework-reviewed__badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 999px;
-    padding: 4px 10px;
-    font-size: 0.78rem;
-    font-weight: 700;
-    line-height: 1;
-    white-space: nowrap;
-}
-
-.exam-homework-reviewed__badge--correct {
-    background: #dcfce7;
-    color: #166534;
-}
-
-.exam-homework-reviewed__badge--wrong {
-    background: #fee2e2;
-    color: #991b1b;
-}
-
-.exam-homework-reviewed__badge--pending {
-    background: #e2e8f0;
-    color: #334155;
-}
-
 .subject-page {
     margin-top: -2rem;
 }
 
 .subject-page .subject-page-container {
-    padding: 0 0 10vh;
-}
-
-@media (max-width: 768px) {
-    .subject-page .subject-page-container {
-        padding: 0 0 6vh;
-    }
+    padding: 0.75rem 0;
 }
 
 .subject-page-layout {
@@ -2606,209 +2655,22 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
     gap: 1.5rem;
 }
 
-/* Плашка «Выбор предмета»: одинаковый внутренний отступ сверху (до заголовка) и снизу (после текста) */
-.subject-page .hero {
-    padding: 2.35rem 1.5rem 2.35rem;
+.subject-page .exam-grid {
+    margin-top: 1.25rem;
 }
 
-.subject-page .hero h1 {
-    font-size: 1.45rem;
-    font-weight: 600;
-    margin-bottom: 0.45rem;
-    line-height: 1.22;
-}
-
-.subject-page .hero p {
-    font-size: 0.875rem;
-    line-height: 1.45;
-    margin: 0;
-    max-width: 52rem;
-}
-
-/* Ячейка сетки: карточка предмета */
-.subject-page-subject-pair {
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-    align-items: stretch;
-    gap: 0.75rem;
-    min-width: 0;
-    align-self: start;
-}
-
-.subject-page-subject-pair .exam-card {
-    flex: 1 1 auto;
-    min-height: 0;
-}
-
-/* Типографика и плотность карточек на странице предмета */
-.subject-page .exam-card {
-    padding: 1.35rem 1.25rem 1.15rem;
-    min-height: 148px;
-}
-
-.subject-page .exam-card-main {
-    gap: 0.75rem;
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-}
-
-.subject-page .exam-card-left {
-    gap: 0.875rem;
-    align-items: center;
-}
-
-.subject-page .exam-icon {
-    width: 42px;
-    height: 42px;
-    font-size: 1.35rem;
-    border-radius: 10px;
-}
-
-.subject-page .exam-title {
-    font-size: 1.075rem;
-}
-
-.subject-page .exam-card.exam-card-soc-studies .exam-title {
-    font-size: 0.9rem;
-    line-height: 1.22;
-    letter-spacing: -0.03em;
-}
-
-.subject-page .exam-description {
-    font-size: 0.6875rem;
-    line-height: 1.25;
-}
-
-.subject-page .exam-badge {
-    font-size: 0.75rem;
-    padding: 0.3rem 0.65rem;
-}
-
-.subject-page .exam-card-footer {
-    padding-top: 0.65rem;
-    margin-top: auto;
-}
-
-.subject-page .exam-card-arrow-wrap {
-    width: 36px;
-    height: 36px;
-}
-
-.subject-page .exam-card-arrow-wrap .exam-arrow {
-    font-size: 1rem;
-}
-
-.subject-page .subject-page-subject-pair {
-    gap: 0.625rem;
-}
-
-/* Сетка: математика и информатика первыми, затем физика… литература; по 3 карточки в ряд */
-.subject-page-pick-groups {
-    display: flex;
-    flex-direction: column;
-    gap: 1.25rem;
-    margin-top: 0.65rem;
-    align-items: stretch;
-}
-
-.subject-page-pick-block {
+/* Обратный отсчёт до экзамена (локальное время устройства) */
+.subject-exam-countdowns {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 1.15rem;
-    align-items: start;
-    justify-items: stretch;
-}
-
-/* Узкая колонка: базовая математика сразу под профильной (DOM для десктопа — по-прежнему 2-й ряд) */
-@media (max-width: 639px) {
-    .subject-page-pick-block .subject-page-subject-pair--math {
-        order: 1;
-    }
-
-    .subject-page-pick-block .subject-page-subject-pair--math-base {
-        order: 2;
-    }
-
-    .subject-page-pick-block .subject-page-subject-pair--inf {
-        order: 3;
-    }
-
-    .subject-page-pick-block .subject-page-subject-pair--phys {
-        order: 4;
-    }
-
-    .subject-page-pick-block .subject-page-subject-pair--chem {
-        order: 5;
-    }
-
-    .subject-page-pick-block .subject-page-subject-pair--bio {
-        order: 6;
-    }
-
-    .subject-page-pick-block .subject-page-subject-pair--history {
-        order: 7;
-    }
-
-    .subject-page-pick-block .subject-page-subject-pair--rus {
-        order: 8;
-    }
-
-    .subject-page-pick-block .subject-page-subject-pair--lit {
-        order: 9;
-    }
+    gap: 1rem;
+    margin-top: 1.5rem;
 }
 
 @media (min-width: 640px) {
-    .subject-page-pick-block {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+    .subject-exam-countdowns {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 1.25rem;
-        align-items: stretch;
-    }
-
-    .subject-page-pick-block > .subject-page-subject-pair {
-        order: 0;
-    }
-
-    .subject-page-subject-pair {
-        align-self: stretch;
-        height: 100%;
-    }
-
-    .subject-page-subject-pair .exam-card {
-        height: 100%;
-        min-height: 0;
-    }
-}
-
-@media (max-width: 1023px) {
-    .subject-page .hero {
-        padding: 1.35rem 1rem 1.35rem;
-    }
-
-    .subject-page .hero h1 {
-        font-size: 1.28rem;
-        margin-bottom: 0.35rem;
-    }
-
-    .subject-page .hero p {
-        font-size: 0.8125rem;
-        line-height: 1.42;
-    }
-
-    .subject-page-pick-groups {
-        margin-top: 0.55rem;
-        gap: 1rem;
-    }
-
-    .subject-page-pick-block {
-        gap: 1rem;
-    }
-
-    .subject-page-subject-pair {
-        gap: 0.45rem;
     }
 }
 
@@ -2818,7 +2680,6 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    align-items: stretch;
     border-radius: 18px;
     padding: 1.1rem 1.15rem 1.15rem;
     background: #fff;
@@ -2826,24 +2687,9 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06), 0 1px 4px rgba(0, 0, 0, 0.04);
 }
 
-details.subject-exam-countdown-card--foldable {
-    display: block;
-    padding: 0;
-    overflow: visible;
-}
-
-details.subject-exam-countdown-card--foldable > summary {
-    list-style: none;
-}
-
-details.subject-exam-countdown-card--foldable > summary::-webkit-details-marker {
-    display: none;
-}
-
 .subject-exam-countdown-card__head {
     position: relative;
     z-index: 1;
-    flex-shrink: 0;
     margin-bottom: 0.85rem;
     text-align: center;
 }
@@ -2866,22 +2712,10 @@ details.subject-exam-countdown-card--foldable > summary::-webkit-details-marker 
     box-shadow: 0 1px 2px rgba(90, 107, 26, 0.12);
 }
 
-.subject-exam-countdown-card--math_base .subject-exam-countdown-card__badge {
-    background: rgba(61, 143, 154, 0.48);
-    color: #0f3d44;
-    box-shadow: 0 1px 2px rgba(15, 61, 68, 0.12);
-}
-
 .subject-exam-countdown-card--inf .subject-exam-countdown-card__badge {
     background: rgba(169, 154, 247, 0.5);
     color: #5b21b6;
     box-shadow: 0 1px 2px rgba(91, 33, 182, 0.12);
-}
-
-.subject-exam-countdown-card--history .subject-exam-countdown-card__badge {
-    background: rgba(201, 162, 39, 0.45);
-    color: #5c4308;
-    box-shadow: 0 1px 2px rgba(92, 67, 8, 0.12);
 }
 
 .subject-exam-countdown-card__title {
@@ -2905,7 +2739,7 @@ details.subject-exam-countdown-card--foldable > summary::-webkit-details-marker 
 .subject-exam-countdown-card__grid {
     position: relative;
     z-index: 1;
-    flex: 0 0 auto;
+    flex: 1 1 auto;
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 0.4rem;
@@ -2928,113 +2762,17 @@ details.subject-exam-countdown-card--foldable > summary::-webkit-details-marker 
     border-color: rgba(90, 107, 26, 0.22);
 }
 
-.subject-exam-countdown-card--math_base .subject-exam-countdown-card__cell {
-    background: rgba(61, 143, 154, 0.14);
-    border-color: rgba(15, 61, 68, 0.22);
-}
-
 .subject-exam-countdown-card--inf .subject-exam-countdown-card__cell {
     background: rgba(169, 154, 247, 0.16);
     border-color: rgba(91, 33, 182, 0.22);
-}
-
-.subject-exam-countdown-card--history .subject-exam-countdown-card__cell {
-    background: rgba(201, 162, 39, 0.14);
-    border-color: rgba(92, 67, 8, 0.22);
 }
 
 .subject-exam-countdown-card--math .subject-exam-countdown-card__value {
     color: #5a6b1a;
 }
 
-.subject-exam-countdown-card--math_base .subject-exam-countdown-card__value {
-    color: #0f5560;
-}
-
 .subject-exam-countdown-card--inf .subject-exam-countdown-card__value {
     color: #5b21b6;
-}
-
-.subject-exam-countdown-card--history .subject-exam-countdown-card__value {
-    color: #5c4308;
-}
-
-.subject-exam-countdown-card--rus .subject-exam-countdown-card__badge {
-    background: rgba(126, 184, 218, 0.5);
-    color: #1e4d6b;
-    box-shadow: 0 1px 2px rgba(30, 77, 107, 0.12);
-}
-.subject-exam-countdown-card--rus .subject-exam-countdown-card__cell {
-    background: rgba(126, 184, 218, 0.14);
-    border-color: rgba(30, 77, 107, 0.22);
-}
-.subject-exam-countdown-card--rus .subject-exam-countdown-card__value {
-    color: #1e4d6b;
-}
-
-.subject-exam-countdown-card--chem .subject-exam-countdown-card__badge {
-    background: rgba(45, 212, 191, 0.42);
-    color: #0f766e;
-    box-shadow: 0 1px 2px rgba(15, 118, 110, 0.15);
-}
-.subject-exam-countdown-card--chem .subject-exam-countdown-card__cell {
-    background: rgba(13, 148, 136, 0.12);
-    border-color: rgba(15, 118, 110, 0.28);
-}
-.subject-exam-countdown-card--chem .subject-exam-countdown-card__value {
-    color: #0f766e;
-}
-
-.subject-exam-countdown-card--phys .subject-exam-countdown-card__badge {
-    background: rgba(154, 163, 232, 0.5);
-    color: #312c85;
-    box-shadow: 0 1px 2px rgba(49, 44, 133, 0.12);
-}
-.subject-exam-countdown-card--phys .subject-exam-countdown-card__cell {
-    background: rgba(154, 163, 232, 0.14);
-    border-color: rgba(49, 44, 133, 0.22);
-}
-.subject-exam-countdown-card--phys .subject-exam-countdown-card__value {
-    color: #312c85;
-}
-
-.subject-exam-countdown-card--lit .subject-exam-countdown-card__badge {
-    background: rgba(232, 143, 163, 0.5);
-    color: #7a1f36;
-    box-shadow: 0 1px 2px rgba(122, 31, 54, 0.12);
-}
-.subject-exam-countdown-card--lit .subject-exam-countdown-card__cell {
-    background: rgba(232, 143, 163, 0.14);
-    border-color: rgba(122, 31, 54, 0.22);
-}
-.subject-exam-countdown-card--lit .subject-exam-countdown-card__value {
-    color: #7a1f36;
-}
-
-.subject-exam-countdown-card--soc_studies .subject-exam-countdown-card__badge {
-    background: rgba(196, 165, 116, 0.5);
-    color: #4a3418;
-    box-shadow: 0 1px 2px rgba(74, 52, 24, 0.12);
-}
-.subject-exam-countdown-card--soc_studies .subject-exam-countdown-card__cell {
-    background: rgba(196, 165, 116, 0.14);
-    border-color: rgba(74, 52, 24, 0.22);
-}
-.subject-exam-countdown-card--soc_studies .subject-exam-countdown-card__value {
-    color: #4a3418;
-}
-
-.subject-exam-countdown-card--bio .subject-exam-countdown-card__badge {
-    background: rgba(143, 212, 168, 0.5);
-    color: #1a5c2e;
-    box-shadow: 0 1px 2px rgba(26, 92, 46, 0.12);
-}
-.subject-exam-countdown-card--bio .subject-exam-countdown-card__cell {
-    background: rgba(143, 212, 168, 0.14);
-    border-color: rgba(26, 92, 46, 0.22);
-}
-.subject-exam-countdown-card--bio .subject-exam-countdown-card__value {
-    color: #1a5c2e;
 }
 
 .subject-exam-countdown-card__value {
@@ -3055,14 +2793,9 @@ details.subject-exam-countdown-card--foldable > summary::-webkit-details-marker 
 .subject-exam-countdown-card__footnote {
     position: relative;
     z-index: 1;
-    flex-shrink: 0;
-    margin-top: auto;
-    margin-bottom: 0;
-    margin-left: auto;
-    margin-right: 0;
-    padding-top: 1rem;
+    margin: 0.85rem 0 0 auto;
+    padding: 0;
     max-width: 95%;
-    min-height: 3.2em;
     text-align: right;
     font-size: 0.65rem;
     line-height: 1.4;
@@ -3081,6 +2814,97 @@ details.subject-exam-countdown-card--foldable > summary::-webkit-details-marker 
     font-style: italic;
 }
 
+/* Таймеры: те же кегли, что у карточек ОГЭ/ЕГЭ на главной */
+body.subject-page .subject-exam-countdown-card__badge {
+    font-family: "Montserrat", system-ui, sans-serif;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+
+body.subject-page .subject-exam-countdown-card__title {
+    font-family: "Unbounded", sans-serif;
+    font-optical-sizing: auto;
+    font-weight: 700;
+    font-size: 1.2rem;
+    letter-spacing: -0.025em;
+    line-height: 1.25;
+    color: var(--text-primary, #0f172a);
+}
+
+body.subject-page .subject-exam-countdown-card__date {
+    font-family: "Montserrat", system-ui, sans-serif;
+    font-size: 0.75rem;
+    line-height: 1.2;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+}
+
+body.subject-page .subject-exam-countdown-card__value {
+    font-size: 1.2rem;
+}
+
+body.subject-page .subject-exam-countdown-card__unit {
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+body.subject-page .subject-exam-countdown-card__value,
+body.subject-page .subject-exam-countdown-card__unit,
+body.subject-page .subject-exam-countdown-card__footnote,
+body.subject-page .subject-exam-countdown-card__footnote-text {
+    font-family: "Montserrat", system-ui, sans-serif;
+}
+
+@media (min-width: 1440px) {
+    body.subject-page .subject-exam-countdown-card__title {
+        font-size: 1.35rem;
+    }
+
+    body.subject-page .subject-exam-countdown-card__date {
+        font-size: 0.8125rem;
+    }
+
+    body.subject-page .subject-exam-countdown-card__value {
+        font-size: 1.35rem;
+    }
+}
+
+@media (min-width: 1600px) {
+    body.subject-page .subject-exam-countdown-card__title {
+        font-size: 1.45rem;
+    }
+
+    body.subject-page .subject-exam-countdown-card__date {
+        font-size: 0.875rem;
+    }
+
+    body.subject-page .subject-exam-countdown-card__value {
+        font-size: 1.45rem;
+    }
+}
+
+@media (max-width: 768px) {
+    body.subject-page .subject-exam-countdown-card__title {
+        font-size: clamp(0.8rem, 0.32rem + 2.2vw, 0.98rem);
+        line-height: 1.12;
+        letter-spacing: -0.035em;
+    }
+
+    body.subject-page .subject-exam-countdown-card__date {
+        font-size: clamp(0.65rem, 0.1rem + 1.85vw, 0.74rem);
+        line-height: 1.32;
+    }
+
+    body.subject-page .subject-exam-countdown-card__value {
+        font-size: clamp(0.8rem, 0.32rem + 2.2vw, 0.98rem);
+    }
+
+    body.subject-page .subject-exam-countdown-card__unit {
+        font-size: clamp(0.55rem, 0.08rem + 1.5vw, 0.62rem);
+    }
+}
+
 @media (min-width: 1024px) {
     .subject-page-layout {
         flex-direction: row;
@@ -3095,16 +2919,22 @@ details.subject-exam-countdown-card--foldable > summary::-webkit-details-marker 
         min-width: 0;
     }
 
-    .subject-page-pick-groups {
-        margin-top: 1.35rem;
-        gap: 1.35rem;
+    .subject-page .subject-exam-countdowns {
+        margin-top: 2rem;
     }
 
-    .subject-page-pick-block {
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 1.35rem;
+    .subject-page .subject-page-main .exam-grid,
+    body.subject-page .subject-page-main .exam-grid.exam-choice-pair {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1.25rem;
+        margin-top: 0.85rem;
         align-items: stretch;
-        justify-items: stretch;
+    }
+
+    .subject-page .subject-page-main .exam-grid .exam-card,
+    body.subject-page .subject-page-main .exam-grid.exam-choice-pair .exam-card {
+        height: auto;
+        min-height: 160px;
     }
 
     .subject-page-sidebar {
@@ -3219,6 +3049,17 @@ details.subject-exam-countdown-card--foldable > summary::-webkit-details-marker 
     margin: 0 0 0.25rem 0;
 }
 
+body.subject-page .subject-sidebar-title {
+    font-family: "Unbounded", sans-serif;
+    font-optical-sizing: auto;
+}
+
+body.subject-page .subject-sidebar-label,
+body.subject-page .subject-sidebar-text,
+body.subject-page .subject-sidebar-input {
+    font-family: "Montserrat", system-ui, sans-serif;
+}
+
 .subject-sidebar-text {
     font-size: 0.75rem;
     line-height: 1.5;
@@ -3326,67 +3167,6 @@ details.subject-exam-countdown-card--foldable > summary::-webkit-details-marker 
     text-align: right;
     margin-top: 0.5rem;
     margin-bottom: 1.25rem;
-}
-
-/* Урок (iframe): ученик прикрепляет фото решения к заданию части 2 */
-.lesson-solution-upload {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.5rem 0.75rem;
-    margin-bottom: 1rem;
-}
-
-.lesson-solution-file-input {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
-}
-
-.lesson-solution-upload-btn {
-    font-size: 0.85rem;
-    padding: 0.5rem 0.9rem;
-}
-
-.lesson-solution-upload-error {
-    font-size: 0.8rem;
-    color: #b91c1c;
-    flex-basis: 100%;
-}
-
-.lesson-solution-previews {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-    flex-basis: 100%;
-}
-
-.lesson-solution-preview-fig {
-    margin: 0;
-    max-width: 140px;
-}
-
-.lesson-solution-thumb {
-    display: block;
-    width: 100%;
-    max-height: 120px;
-    object-fit: contain;
-    border-radius: 6px;
-    border: 1px solid var(--border-color, #e5e7eb);
-    background: #f9fafb;
-}
-
-.lesson-solution-preview-cap {
-    margin-top: 0.25rem;
-    font-size: 0.7rem;
-    color: var(--text-secondary, #6b7280);
-    word-break: break-all;
 }
 
 .task-content {
@@ -4542,7 +4322,8 @@ mjx-container {
 }
 
 .report-error-hint {
-    font-size: 0.8rem;
+    font-size: 1rem;
+    font-weight: bold;
     line-height: 1.45;
     color: var(--text-secondary, #64748b);
     background: rgba(59, 130, 246, 0.06);
@@ -4853,12 +4634,38 @@ body {
     padding: 0;
 }
 
-body.home,
-body.index {
+body.home {
     display: flex;
     flex-direction: column;
     height: 100vh;
     overflow: hidden;
+}
+
+/* Главная длинная — страница должна прокручиваться целиком (не клипать main) */
+body.index {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    height: auto;
+    overflow-x: hidden;
+    overflow-y: auto;
+    /* «Обновления» и «Инструкция»: одни кегли на всех ширинах экрана */
+    --idx-section-title-size: 0.9rem;
+    --idx-item-title-size: 0.875rem;
+    --idx-body-size: 0.8125rem;
+    --idx-body-line-height: 1.48;
+    --idx-meta-size: 0.72rem;
+}
+
+@media (max-width: 1023px) {
+    body.index {
+        /* «Инструкция» / «Обновления»: чуть меньше кегль на узких экранах */
+        --idx-section-title-size: 0.82rem;
+        --idx-item-title-size: 0.8125rem;
+        --idx-body-size: 0.75rem;
+        --idx-body-line-height: 1.45;
+        --idx-meta-size: 0.65rem;
+    }
 }
 
 body.home header,
@@ -4866,14 +4673,23 @@ body.index header {
     flex-shrink: 0;
 }
 
-body.home main,
-body.index main {
+body.home main {
     flex: 1;
     display: flex;
     align-items: center;
     justify-content: center;
     min-height: 0;
     overflow: hidden;
+}
+
+body.index main {
+    flex: 1 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    min-height: 0;
+    overflow: visible;
 }
 
 body.home footer,
@@ -4894,6 +4710,10 @@ body.index .container {
     flex-direction: column;
     gap: 2rem;
     max-height: 100%;
+}
+
+body.index .container {
+    max-height: none;
 }
 
 body.home .hero,
@@ -4930,10 +4750,130 @@ body.index .exam-card {
     padding: 1.625rem 1.5rem 1.375rem;
 }
 
-/* На главной странице карточки экзаменов всегда одинаковой высоты */
+/* На главной карточки ОГЭ/ЕГЭ — одинаковой высоты */
 body.index .exam-grid .exam-card {
     height: 100%;
     min-height: 170px;
+}
+
+/* Главная — только ОГЭ/ЕГЭ (#exam-choice): спокойная глубина, ровные отступы, доступный фокус */
+.exam-grid.exam-choice-pair {
+    gap: clamp(1rem, 2.2vw, 1.75rem);
+}
+
+/* Страница предметов: сетка карточек — две колонки с min-width 1024 (см. .subject-page-layout); одна колонка только в max-width ниже */
+body.subject-page .subject-page-main .exam-grid.exam-choice-pair {
+    gap: 1rem;
+}
+
+body.subject-page .subject-page-main .exam-grid.exam-choice-pair .exam-card {
+    height: auto;
+    min-height: 160px;
+}
+
+@media (max-width: 1023px) {
+    body.subject-page .subject-page-main .exam-grid.exam-choice-pair {
+        grid-template-columns: 1fr;
+    }
+}
+
+.exam-grid.exam-choice-pair .exam-card.exam-card-oge,
+.exam-grid.exam-choice-pair .exam-card.exam-card-ege {
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.2) inset,
+        0 1px 2px rgba(15, 23, 42, 0.04),
+        0 8px 28px rgba(15, 23, 42, 0.08);
+    transition:
+        transform 0.22s cubic-bezier(0.33, 1, 0.68, 1),
+        box-shadow 0.22s cubic-bezier(0.33, 1, 0.68, 1),
+        border-color 0.2s ease;
+}
+
+.exam-grid.exam-choice-pair .exam-card.exam-card-oge {
+    background: #ea8d3d;
+}
+
+.exam-grid.exam-choice-pair .exam-card.exam-card-ege {
+    background: #a99af7;
+    border-color: rgba(255, 255, 255, 0.28);
+}
+
+.exam-grid.exam-choice-pair .exam-card-bg .exam-card-decor {
+    opacity: 0.07;
+}
+
+.exam-grid.exam-choice-pair .exam-card:hover {
+    transform: translateY(-2px);
+}
+
+.exam-grid.exam-choice-pair .exam-card.exam-card-oge:hover {
+    border-color: rgba(255, 255, 255, 0.32);
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.26) inset,
+        0 2px 6px rgba(15, 23, 42, 0.06),
+        0 14px 36px rgba(180, 85, 30, 0.18);
+}
+
+.exam-grid.exam-choice-pair .exam-card.exam-card-ege:hover {
+    border-color: rgba(255, 255, 255, 0.38);
+    box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.3) inset,
+        0 2px 6px rgba(67, 27, 140, 0.08),
+        0 14px 36px rgba(91, 33, 182, 0.16);
+}
+
+.exam-grid.exam-choice-pair .exam-card:focus-visible {
+    outline: 2px solid rgba(255, 255, 255, 0.95);
+    outline-offset: 3px;
+}
+
+.exam-grid.exam-choice-pair .exam-card.exam-card-ege:focus-visible {
+    outline-color: rgba(91, 33, 182, 0.55);
+}
+
+.exam-grid.exam-choice-pair .exam-card .exam-card-footer {
+    border-top-width: 1px;
+    border-top-style: solid;
+}
+
+.exam-grid.exam-choice-pair .exam-card.exam-card-oge .exam-card-footer {
+    border-top-color: rgba(0, 0, 0, 0.1);
+}
+
+.exam-grid.exam-choice-pair .exam-card.exam-card-ege .exam-card-footer {
+    border-top-color: rgba(67, 27, 140, 0.14);
+}
+
+.exam-grid.exam-choice-pair .exam-card .exam-card-arrow-wrap {
+    width: auto;
+    height: auto;
+    min-width: 2rem;
+    min-height: 2rem;
+    padding: 0.2rem;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.exam-grid.exam-choice-pair .exam-card.exam-card-ege .exam-card-arrow-wrap {
+    background: transparent;
+}
+
+.exam-grid.exam-choice-pair .exam-card.exam-card-oge .exam-description {
+    color: rgba(255, 250, 245, 0.92);
+}
+
+.exam-grid.exam-choice-pair .exam-card.exam-card-ege .exam-description {
+    color: rgba(45, 15, 95, 0.88);
+}
+
+.exam-grid.exam-choice-pair .exam-card.exam-card-oge .exam-title {
+    color: #fffbf7;
+}
+
+.exam-grid.exam-choice-pair .exam-card.exam-card-ege .exam-title {
+    color: #3d1d6e;
 }
 
 /* ========================================
@@ -5071,10 +5011,14 @@ body.index .exam-grid .exam-card {
         overflow-y: auto;
     }
 
-    body.home main,
-    body.index main {
+    body.home main {
         align-items: flex-start;
         overflow-y: auto;
+    }
+
+    body.index main {
+        align-items: stretch;
+        overflow: visible;
     }
 
     body.home .container,
@@ -5089,9 +5033,112 @@ body.index .exam-grid .exam-card {
     }
 
     body.home .exam-grid,
-    body.index .exam-grid {
+    body.index .exam-grid:not(.exam-choice-pair) {
         grid-template-columns: 1fr;
         gap: 1.5rem;
+    }
+
+    /* Главная: ОГЭ и ЕГЭ — две колонки на телефонах тоже; иконка слева, ровные шрифты */
+    body.index .exam-grid.exam-choice-pair,
+    body.index #exam-choice.exam-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: clamp(0.5rem, 2.5vw, 0.85rem);
+        align-items: stretch;
+        margin-top: clamp(0.35rem, 1.8vw, 0.65rem);
+    }
+
+    body.index .exam-grid.exam-choice-pair .exam-card.exam-card-oge,
+    body.index .exam-grid.exam-choice-pair .exam-card.exam-card-ege {
+        min-height: 0;
+        height: 100%;
+        padding: clamp(0.55rem, 2vw, 0.75rem) clamp(0.5rem, 1.8vw, 0.7rem) clamp(0.5rem, 1.8vw, 0.65rem);
+        border-radius: 18px;
+        display: flex;
+        flex-direction: column;
+    }
+
+    body.index .exam-grid.exam-choice-pair .exam-card .exam-card-main {
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: column;
+        gap: 0.45rem;
+        min-height: 0;
+    }
+
+    body.index .exam-grid.exam-choice-pair .exam-card .exam-card-left {
+        flex: 1 1 auto;
+        display: flex;
+        flex-direction: row;
+        align-items: flex-start;
+        gap: clamp(0.35rem, 2vw, 0.55rem);
+        min-width: 0;
+    }
+
+    body.index .exam-grid.exam-choice-pair .exam-card .exam-icon {
+        flex-shrink: 0;
+        width: clamp(2rem, 8.5vw, 2.45rem);
+        height: clamp(2rem, 8.5vw, 2.45rem);
+        font-size: clamp(1rem, 4.2vw, 1.2rem);
+    }
+
+    body.index .exam-grid.exam-choice-pair .exam-card .exam-card-text {
+        flex: 1 1 auto;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.5rem;
+        text-align: left;
+    }
+
+    body.index .exam-grid.exam-choice-pair .exam-card .exam-title,
+    body.index .exam-grid.exam-choice-pair .exam-card .exam-description {
+        hyphens: none;
+        -webkit-hyphens: none;
+        overflow-wrap: normal;
+        word-break: normal;
+        text-wrap: auto;
+        text-align: left;
+    }
+
+    body.index .exam-grid.exam-choice-pair .exam-card .exam-title {
+        font-family: "Unbounded", sans-serif;
+        font-optical-sizing: auto;
+        font-weight: 700;
+        font-size: clamp(0.8rem, 0.32rem + 2.2vw, 0.98rem);
+        line-height: 1.12;
+        letter-spacing: -0.035em;
+        margin: 0;
+    }
+
+    body.index .exam-grid.exam-choice-pair .exam-card .exam-description {
+        font-family: "Montserrat", system-ui, sans-serif;
+        font-size: clamp(0.65rem, 0.1rem + 1.85vw, 0.74rem);
+        line-height: 1.32;
+        font-weight: 400;
+        letter-spacing: 0;
+        opacity: 1;
+        margin: 0;
+    }
+
+    body.index .exam-grid.exam-choice-pair .exam-card .exam-card-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.35rem;
+        padding-top: 0.4rem;
+        margin-top: auto;
+        margin-bottom: 0;
+    }
+
+    body.index .exam-grid.exam-choice-pair .exam-card .exam-badge {
+        font-size: 0.625rem;
+        padding: 0.22rem 0.45rem;
+        letter-spacing: 0.01em;
+    }
+
+    body.index .exam-grid.exam-choice-pair .exam-card .exam-card-arrow-wrap {
+        flex-shrink: 0;
     }
 
     .hero h1 {
@@ -5102,7 +5149,24 @@ body.index .exam-grid .exam-card {
         font-size: 1rem;
     }
 
-    .exam-grid {
+    body.subject-page .hero.hero--subject-welcome h1 {
+        font-size: clamp(0.92rem, 0.52rem + 2.1vw, 1.2rem);
+        letter-spacing: -0.045em;
+        margin-bottom: 1.05rem;
+        font-weight: 700;
+        font-family: "Unbounded", sans-serif;
+        font-optical-sizing: auto;
+        line-height: 1.2;
+        color: #2563eb;
+    }
+
+    body.subject-page .hero.hero--subject-welcome .hero-subject-platform-text {
+        font-size: 0.8125rem;
+        line-height: 1.58;
+        color: rgba(37, 99, 235, 0.9);
+    }
+
+    .exam-grid:not(.exam-choice-pair) {
         grid-template-columns: 1fr;
         gap: 1.5rem;
     }
@@ -6018,52 +6082,8 @@ body.index .exam-grid .exam-card {
   border: 1px solid rgba(96, 165, 250, 0.2);
 }
 
-.exam-fixed-corner--all-collapsed {
-  gap: 0.2rem;
-  padding: 0.3rem 0.4rem;
-}
-
-.exam-fixed-corner__header {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  gap: 0.35rem;
-  width: 100%;
-}
-
-.exam-fixed-corner__header .exam-fixed-corner__drag {
-  flex: 1;
-  width: auto;
-  min-width: 0;
-  margin: 0;
-}
-
-.exam-fixed-corner__collapse-all,
-.exam-fixed-corner__expand-all {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 1px solid rgba(59, 130, 246, 0.35);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.98);
-  color: #1d4ed8;
-  font-size: 1.05rem;
-  line-height: 1;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: background 0.15s, border-color 0.15s;
-}
-
-.exam-fixed-corner__collapse-all:hover,
-.exam-fixed-corner__expand-all:hover {
-  background: #eff6ff;
-  border-color: #93c5fd;
-}
-
 .exam-fixed-corner__drag {
+  width: 100%;
   margin: -0.05rem 0 0.05rem 0;
   padding: 4px 8px;
   border: none;
@@ -6126,113 +6146,6 @@ body.index .exam-grid .exam-card {
 .exam-fixed-timer .variant-timer-btn svg {
   width: 16px;
   height: 16px;
-}
-
-/* Обратный отсчёт до экзамена: сворачиваемая карточка (summary = бейдж + дата + дни) */
-.exam-fixed-corner .subject-exam-countdown-card--foldable {
-  width: 100%;
-  max-width: 16.75rem;
-  padding: 0;
-  border-radius: 14px;
-  box-shadow: 0 1px 8px rgba(15, 23, 42, 0.07);
-}
-
-.exam-fixed-corner .subject-exam-countdown-card__summary {
-  display: flex;
-  flex-direction: row;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.35rem 0.5rem;
-  padding: 0.4rem 0.45rem 0.45rem;
-  cursor: pointer;
-  list-style: none;
-  user-select: none;
-}
-
-.exam-fixed-corner .subject-exam-countdown-card__summary::-webkit-details-marker {
-  display: none;
-}
-
-.exam-fixed-corner .subject-exam-countdown-card__summary .subject-exam-countdown-card__badge {
-  margin-bottom: 0;
-}
-
-.exam-fixed-corner .subject-exam-countdown-card__summary-main {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.05rem;
-  flex: 1;
-  min-width: 0;
-}
-
-.exam-fixed-corner .subject-exam-countdown-card__summary-days {
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: #0f172a;
-  letter-spacing: -0.02em;
-}
-
-.exam-fixed-corner .subject-exam-countdown-card__summary-chevron {
-  flex-shrink: 0;
-  font-size: 0.65rem;
-  opacity: 0.5;
-  transition: transform 0.2s ease;
-  align-self: center;
-}
-
-.exam-fixed-corner details.subject-exam-countdown-card--foldable[open] .subject-exam-countdown-card__summary-chevron {
-  transform: rotate(-180deg);
-}
-
-.exam-fixed-corner .subject-exam-countdown-card__fold-body {
-  padding: 0 0.45rem 0.45rem;
-  border-top: 1px solid rgba(15, 23, 42, 0.07);
-}
-
-.exam-fixed-corner .subject-exam-countdown-card__badge {
-  font-size: 0.65rem;
-  padding: 0.18rem 0.45rem;
-  margin-bottom: 0;
-}
-
-.exam-fixed-corner .subject-exam-countdown-card__date {
-  font-size: 0.72rem;
-  margin: 0;
-  line-height: 1.25;
-  font-weight: 600;
-}
-
-.exam-fixed-corner .subject-exam-countdown-card__title {
-  font-size: 0.65rem;
-  margin: 0.3rem 0 0.2rem;
-  text-align: center;
-}
-
-.exam-fixed-corner .subject-exam-countdown-card__grid {
-  gap: 0.22rem;
-}
-
-.exam-fixed-corner .subject-exam-countdown-card__cell {
-  padding: 0.22rem 0.12rem;
-  border-radius: 8px;
-}
-
-.exam-fixed-corner .subject-exam-countdown-card__value {
-  font-size: 0.72rem;
-}
-
-.exam-fixed-corner .subject-exam-countdown-card__unit {
-  font-size: 0.5rem;
-}
-
-.exam-fixed-corner .subject-exam-countdown-card__footnote {
-  font-size: 0.5rem;
-  line-height: 1.35;
-  padding-top: 0.35rem;
-  min-height: 0;
-  max-width: 100%;
-  text-align: right;
 }
 
 /* Баллы под таймером */
@@ -6897,6 +6810,11 @@ body.index .exam-grid .exam-card {
     display: flex;
     align-items: center;
     gap: 0.65rem;
+    padding: 0.25rem 0.35rem;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    backdrop-filter: blur(4px);
 }
 
 .theme-toggle {
@@ -6956,6 +6874,10 @@ body.index .exam-grid .exam-card {
 }
 
 .header-nav-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
     font-size: 0.95rem;
     font-weight: 500;
     color: rgba(255, 255, 255, 0.95);
@@ -6971,29 +6893,24 @@ body.index .exam-grid .exam-card {
 }
 
 .header-nav-cabinet {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: #fff;
-    text-decoration: none;
-    padding: 0.35rem 0.85rem;
-    border-radius: 20px;
-    background: rgba(255, 255, 255, 0.18);
-    border: 1.5px solid rgba(255, 255, 255, 0.45);
-    transition: background 0.2s ease, border-color 0.2s ease, transform 0.15s ease;
-    white-space: nowrap;
+    width: 38px;
+    height: 38px;
+    min-height: 38px;
+    padding: 0;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    background: rgba(255, 255, 255, 0.14);
+    box-shadow: 0 2px 10px rgba(15, 23, 42, 0.18);
+}
+
+.header-nav-cabinet svg {
+    width: 18px;
+    height: 18px;
 }
 
 .header-nav-cabinet:hover {
-    background: rgba(255, 255, 255, 0.3);
-    border-color: rgba(255, 255, 255, 0.75);
-    color: #fff;
-    transform: translateY(-1px);
-}
-
-button.header-nav-cabinet {
-    appearance: none;
-    cursor: pointer;
-    font-family: inherit;
+    background: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.52);
 }
 
 .about-page {
@@ -7399,8 +7316,6 @@ header.header--themed .theme-toggle > span {
         padding: 0.6rem 1rem;
         gap: 0.5rem;
         min-height: 52px;
-        flex-wrap: wrap;
-        row-gap: 0.45rem;
     }
 
     .logo-link {
@@ -7425,11 +7340,8 @@ header.header--themed .theme-toggle > span {
     }
 
     .header-nav {
-        gap: 0.4rem;
-        flex-wrap: wrap;
-        justify-content: flex-end;
-        flex: 1 1 auto;
-        min-width: 0;
+        gap: 0.35rem;
+        padding: 0.2rem 0.28rem;
     }
 
     .theme-toggle {
@@ -7446,16 +7358,22 @@ header.header--themed .theme-toggle > span {
         font-size: 0.82rem;
         padding: 0.3rem 0.45rem;
         border-radius: 7px;
+        min-height: 34px;
     }
 
     .header-nav-cabinet {
-        font-size: 0.78rem;
-        padding: 0.28rem 0.65rem;
+        width: 34px;
+        height: 34px;
+        min-height: 34px;
     }
 
-    /* было overflow:hidden — обрезало кнопку «Личный кабинет» при темах в шапке */
+    .header-nav-cabinet svg {
+        width: 16px;
+        height: 16px;
+    }
+
     header.header--themed {
-        overflow: visible;
+        overflow: hidden;
     }
 
     header.header--themed .header-wrapper {
@@ -7525,16 +7443,6 @@ header.header--themed .theme-toggle > span {
 .site-footer-link:hover {
     color: #4c51bf;
     text-decoration: underline;
-}
-
-button.site-footer-link {
-    appearance: none;
-    background: none;
-    border: none;
-    padding: 0;
-    cursor: pointer;
-    font: inherit;
-    text-align: inherit;
 }
 
 .site-footer-sep {
@@ -7763,297 +7671,4 @@ button.site-footer-link {
 
 .privacy-table tr:nth-child(even) td {
     background: rgba(248, 250, 252, 0.6);
-}
-
-/* ========================================
-   Мобильная адаптация варианта (урок/ДЗ/обычный)
-   Без изменения цветов и визуального стиля
-======================================== */
-@media (max-width: 768px) {
-    .main-wrapper.exam-page {
-        width: 100%;
-        max-width: 100vw;
-        overflow-x: hidden;
-    }
-
-    .exam-page .container,
-    .exam-page .page,
-    .exam-page .exam-page-container {
-        width: 100%;
-        max-width: 100%;
-        box-sizing: border-box;
-        overflow-x: hidden;
-    }
-
-    .exam-page .task,
-    .exam-page .task-group {
-        width: 100%;
-        max-width: 100%;
-        box-sizing: border-box;
-    }
-
-    .exam-page .task-content,
-    .exam-page .criteria-text,
-    .exam-page .correct-answer-content,
-    .exam-page .part2-answer-content {
-        min-width: 0;
-        max-width: 100%;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    .exam-page .task-text table,
-    .exam-page .criteria-text table,
-    .exam-page .correct-answer-content table,
-    .exam-page .part2-answer-content table {
-        min-width: 560px;
-    }
-
-    .exam-page .task-text pre,
-    .exam-page .task-text code {
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    .exam-page .task-text img,
-    .exam-page .task-text figure img,
-    .exam-page .correct-answer-content img,
-    .exam-page .part2-answer-content img,
-    .exam-page .criteria-text img {
-        max-width: 100%;
-        height: auto;
-    }
-
-    .exam-page .task-text mjx-container,
-    .exam-page .correct-answer-content mjx-container,
-    .exam-page .part2-answer-content mjx-container,
-    .exam-page .criteria-text mjx-container {
-        max-width: 100%;
-        overflow-x: auto;
-        overflow-y: hidden;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    .variant-hero-actions,
-    .exam-homework-finish__row,
-    .exam-homework-bar__actions,
-    .exam-page .answer-actions,
-    .part2-answer-criteria-buttons {
-        gap: 10px;
-    }
-
-    .variant-hero-actions > button,
-    .exam-homework-finish__btn,
-    .exam-homework-bar__btn,
-    .exam-finish-btn,
-    .exam-page .answer-actions .add-button,
-    .part2-answer-criteria-buttons .add-button {
-        min-height: 44px;
-    }
-
-    .exam-page .answer-input,
-    .exam-page textarea.answer-input,
-    .exam-page .answer-table-wrap,
-    .exam-page .lesson-solution-file-input,
-    .exam-homework-reviewed {
-        width: 100%;
-        max-width: 100%;
-        box-sizing: border-box;
-    }
-
-    /* Домашнее задание: мобильная компоновка без смены визуального стиля */
-    .main-wrapper.exam-page--homework {
-        overflow-x: hidden;
-    }
-
-    .exam-page--homework .variant-hero-content {
-        padding: 1.15rem 1rem;
-        gap: 0.85rem;
-    }
-
-    .exam-page--homework .exam-homework-bar__inner {
-        padding: 10px 12px;
-        gap: 8px 12px;
-    }
-
-    .exam-page--homework .exam-homework-bar__title,
-    .exam-page--homework .exam-homework-bar__actions,
-    .exam-page--homework .exam-homework-finish,
-    .exam-page--homework .exam-homework-reviewed {
-        width: 100%;
-        max-width: 100%;
-        box-sizing: border-box;
-    }
-
-    .exam-page--homework .exam-homework-bar__meta,
-    .exam-page--homework .exam-homework-bar__hint,
-    .exam-page--homework .exam-homework-bar__err,
-    .exam-page--homework .exam-homework-bar__notice {
-        overflow-wrap: anywhere;
-        word-break: break-word;
-    }
-
-    .exam-page--homework .task {
-        padding: 0.9rem;
-    }
-
-    .exam-page--homework .task-left {
-        width: 100%;
-        justify-content: flex-start;
-        gap: 0.6rem;
-    }
-
-    .exam-page--homework .answer-input-row {
-        flex-direction: column;
-        align-items: stretch !important;
-        gap: 0.6rem;
-    }
-
-    .exam-page--homework .answer-input-row .answer-status {
-        align-self: flex-start;
-    }
-
-    .exam-page--homework .answer-actions {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 8px;
-    }
-
-    .exam-page--homework .answer-actions .add-button,
-    .exam-page--homework .exam-homework-finish__btn,
-    .exam-page--homework .lesson-solution-upload-btn,
-    .exam-page--homework .lesson-solution-send-btn {
-        width: 100%;
-        min-width: 0;
-        min-height: 44px;
-        white-space: normal;
-        text-align: center;
-    }
-
-    .exam-page--homework .lesson-solution-upload,
-    .exam-page--homework .lesson-solution-pending {
-        width: 100%;
-    }
-
-    .exam-page--homework .lesson-solution-previews {
-        width: 100%;
-        gap: 0.65rem;
-    }
-
-    .exam-page--homework .lesson-solution-preview-fig {
-        max-width: min(44vw, 160px);
-    }
-
-    .exam-page--homework .lesson-solution-preview-cap,
-    .exam-page--homework .task-file-label {
-        overflow-wrap: anywhere;
-        word-break: break-word;
-    }
-
-    .exam-page--homework .task-file-link {
-        width: 100%;
-        min-height: 44px;
-        box-sizing: border-box;
-    }
-
-    /* Фикс-панель (таймер/баллы/справка) не должна выталкивать страницу по ширине */
-    .exam-fixed-corner {
-        right: 0.5rem;
-        max-width: min(92vw, 20rem);
-    }
-}
-
-@media (max-width: 480px) {
-    .exam-page .container {
-        padding-left: 0.75rem;
-        padding-right: 0.75rem;
-    }
-
-    .exam-page .task {
-        width: 100%;
-        max-width: 100%;
-        padding: 0.8rem;
-    }
-
-    .exam-page .answer-actions {
-        flex-direction: column;
-        align-items: stretch;
-    }
-
-    .exam-page .answer-actions .add-button,
-    .part2-answer-criteria-buttons .add-button,
-    .variant-hero-actions > button,
-    .exam-homework-finish__btn,
-    .exam-homework-bar__btn {
-        width: 100%;
-        min-width: 0;
-    }
-
-    .variant-hero-actions {
-        grid-template-columns: 1fr;
-    }
-
-    .variant-hero-content {
-        padding: 1rem 0.85rem;
-        gap: 0.9rem;
-    }
-
-    .exam-homework-bar__title,
-    .exam-homework-bar__actions {
-        width: 100%;
-    }
-
-    .exam-homework-bar__inner {
-        padding-left: 10px;
-        padding-right: 10px;
-    }
-
-    .exam-page--homework .container {
-        padding-left: 0.7rem;
-        padding-right: 0.7rem;
-    }
-
-    .exam-page--homework .variant-hero-content {
-        padding: 0.95rem 0.8rem;
-        gap: 0.75rem;
-    }
-
-    .exam-page--homework .exam-homework-bar__inner {
-        padding-left: 8px;
-        padding-right: 8px;
-    }
-
-    .exam-page--homework .task {
-        padding: 0.72rem;
-    }
-
-    .exam-page--homework .exam-homework-finish {
-        padding: 0.95rem 0.85rem;
-    }
-
-    .exam-page--homework .exam-homework-finish__hint {
-        font-size: 0.84rem;
-    }
-
-    .exam-page--homework .lesson-solution-preview-fig {
-        max-width: 100%;
-        width: 100%;
-    }
-
-    .exam-page--homework .lesson-solution-thumb {
-        max-height: 220px;
-    }
-
-    .exam-homework-reviewed {
-        padding: 0.95rem 0.85rem;
-    }
-
-    .exam-homework-reviewed__table {
-        min-width: 520px;
-    }
-
-    .exam-fixed-corner {
-        right: 0.25rem;
-        max-width: calc(100vw - 0.5rem);
-    }
 }
