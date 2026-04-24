@@ -962,3 +962,163 @@
     height: 3rem;
   }
 }
+
+@media (max-width: 768px) {
+  .vp-exam,
+  .vp-exam .main-wrapper.exam-page,
+  .vp-exam .container,
+  .vp-exam .page {
+    max-width: 100%;
+  }
+
+  .vp-exam .main-wrapper.exam-page,
+  .vp-exam .page {
+    overflow-x: hidden;
+  }
+
+  .vp-exam .container {
+    padding-left: 0.9rem;
+    padding-right: 0.9rem;
+    padding-bottom: 1rem;
+  }
+
+  .vp-exam .variant-hero-content {
+    gap: 0.85rem;
+  }
+
+  .vp-exam .variant-hero-right,
+  .vp-exam .variant-hero-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .vp-exam .task {
+    width: 100%;
+    max-width: 100%;
+    padding: 1.1rem;
+    gap: 0.95rem;
+    margin-bottom: 1rem;
+  }
+
+  .vp-exam .task-content {
+    width: 100%;
+  }
+
+  .vp-exam .task-text,
+  .vp-exam .correct-answer-content,
+  .vp-exam .part2-answer-content {
+    max-width: 100%;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .vp-exam .task-text mjx-container,
+  .vp-exam .correct-answer-content mjx-container,
+  .vp-exam .part2-answer-content mjx-container {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .vp-exam .task-text table {
+    display: block;
+    width: max-content;
+    max-width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .vp-exam .answer-input-row {
+    align-items: stretch;
+  }
+
+  .vp-exam .answer-input {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .vp-exam textarea.answer-input {
+    min-height: 132px;
+  }
+
+  .vp-exam .lesson-solution-upload {
+    width: 100%;
+    align-items: stretch;
+  }
+
+  .vp-exam .lesson-solution-upload-btn {
+    min-height: 44px;
+    padding-top: 0.58rem;
+    padding-bottom: 0.58rem;
+  }
+
+  .vp-exam .add-button,
+  .vp-exam .vp-task-revision-action {
+    min-height: 44px;
+  }
+
+  .vp-exam .vp-criteria-panel {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .vp-exam .vp-criteria-table {
+    min-width: 520px;
+  }
+}
+
+@media (max-width: 480px) {
+  .vp-exam .container {
+    padding-left: 0.6rem;
+    padding-right: 0.6rem;
+  }
+
+  .vp-exam .variant-hero-content {
+    padding: 0.78rem 0.72rem;
+  }
+
+  .vp-exam .variant-score-block {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .vp-exam .task {
+    padding: 0.9rem;
+    border-radius: 16px;
+  }
+
+  .vp-exam .task-left {
+    gap: 0.7rem;
+  }
+
+  .vp-exam .task-number {
+    width: 52px;
+    height: 52px;
+    font-size: 1.2rem;
+  }
+
+  .vp-exam .task-text {
+    font-size: 1rem;
+    line-height: 1.6;
+    margin-bottom: 1rem;
+  }
+
+  .vp-exam .answer-section {
+    gap: 0.7rem;
+  }
+
+  .vp-exam .lesson-solution-upload {
+    gap: 8px;
+  }
+
+  .vp-exam .lesson-solution-upload-btn {
+    width: 100%;
+  }
+
+  .vp-exam .add-button.vp-btn-compact {
+    width: 100%;
+  }
+}

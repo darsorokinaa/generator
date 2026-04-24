@@ -6,6 +6,8 @@ const GEN_RAW = (process.env.REACT_APP_GENERATOR_URL || 'https://test.genurok.ru
 const GEN = GEN_RAW.replace(/\/api$/, '');
 const VARIANT_PREVIEW_SITE = variantPreviewSiteBaseUrl();
 const TASK_BANK_PAGE = 100;
+const MOBILE_CREATE_PAGE_SIZE = 5;
+const MOBILE_BREAKPOINT = 640;
 
 
 const LEVEL_LABELS = {
@@ -76,6 +78,31 @@ function MathContent({ html, className }) {
 function LoadingBar({ active }) {
   if (!active) return null;
   return <div className="vp-loading-bar"><div className="vp-loading-bar-fill" /></div>;
+}
+
+function MobileListPager({ page, totalPages, onChange }) {
+  if (totalPages <= 1) return null;
+  return (
+    <div className="vp-mobile-pager">
+      <button
+        type="button"
+        className="vp-mobile-pager-btn"
+        onClick={() => onChange(page - 1)}
+        disabled={page <= 1}
+      >
+        Назад
+      </button>
+      <span className="vp-mobile-pager-label">Страница {page} из {totalPages}</span>
+      <button
+        type="button"
+        className="vp-mobile-pager-btn"
+        onClick={() => onChange(page + 1)}
+        disabled={page >= totalPages}
+      >
+        Далее
+      </button>
+    </div>
+  );
 }
 
 /* ── Single task row inside a card or group ──────────────────────────────────── */
@@ -545,6 +572,14 @@ export default function VariantsPage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const onResize = () => setIsMobile(window.innerWidth <= MOBILE_BREAKPOINT);
+    onResize();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
   // Catalog
   const [catalog, setCatalog]               = useState([]);
   const [catalogLoading, setCatalogLoading] = useState(true);
@@ -558,9 +593,14 @@ export default function VariantsPage() {
   const [selSubtopicId, setSelSubtopicId]   = useState('');
   const [tasks, setTasks]                   = useState([]);          // flat list for single
   const [groupInstances, setGroupInstances] = useState([]);          // full TaskGroup instances
+  const [mobileManualPage, setMobileManualPage] = useState(1);
   const [tasksTotal, setTasksTotal]         = useState(0);
   const [tasksLoading, setTasksLoading]     = useState(false);
   const [tasksError, setTasksError]         = useState(null);
+  const [isMobile, setIsMobile]             = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth <= MOBILE_BREAKPOINT;
+  });
 
   // Variant panel
   const [variantItems, setVariantItems]     = useState([]);
@@ -934,8 +974,28 @@ export default function VariantsPage() {
 
   const allLevels        = catalog.map(c => ({ level: c.level, level_rus: c.level_rus }));
   const subjectsForLevel = lv => catalog.find(c => c.level === lv?.level)?.subjects || [];
+  const manualSubjects   = subjectsForLevel(selLevel);
+  const randomSubjects   = subjectsForLevel(randLevel);
   const addedIds         = new Set(variantItems.map(i => i.id));
   const filterAny        = !!(selLevel || selSubject || selEntry);
+  const manualSourceCount = selEntry?.type === 'single' ? tasks.length : groupInstances.length;
+  const manualTotalPages = isMobile ? Math.max(1, Math.ceil(manualSourceCount / MOBILE_CREATE_PAGE_SIZE)) : 1;
+  const manualPageStart = isMobile ? (mobileManualPage - 1) * MOBILE_CREATE_PAGE_SIZE : 0;
+  const pagedTasks = isMobile ? tasks.slice(manualPageStart, manualPageStart + MOBILE_CREATE_PAGE_SIZE) : tasks;
+  const pagedGroupInstances = isMobile
+    ? groupInstances.slice(manualPageStart, manualPageStart + MOBILE_CREATE_PAGE_SIZE)
+    : groupInstances;
+
+  useEffect(() => {
+    setMobileManualPage(1);
+  }, [selLevel, selSubject, selEntry, selSubtopicId]);
+
+  useEffect(() => {
+    if (!isMobile) return;
+    if (mobileManualPage > manualTotalPages) {
+      setMobileManualPage(manualTotalPages);
+    }
+  }, [isMobile, mobileManualPage, manualTotalPages]);
 
   /* ── load catalog ── */
   useEffect(() => {
@@ -1472,15 +1532,17 @@ export default function VariantsPage() {
                   <div className="vp-filter-group">
                     <span className="vp-filter-label">Предмет</span>
                     <div className="vp-filter-select-wrap">
-                      <select className="vp-filter-select" disabled={!selLevel}
+                      <select className="vp-filter-select" disabled={!selLevel || manualSubjects.length === 0}
                         value={selSubject?.subject_short || ''}
                         onChange={e => {
-                          const s = subjectsForLevel(selLevel).find(x => x.subject_short === e.target.value) || null;
+                          const s = manualSubjects.find(x => x.subject_short === e.target.value) || null;
                           setSelSubject(s); setSelEntry(null);
                           setSubtopics([]); setSelSubtopicId(''); setTasks([]); setGroupInstances([]); setTasksError(null);
                         }}>
-                        <option value="">Все предметы</option>
-                        {subjectsForLevel(selLevel).map(s => (
+                        <option value="">
+                          {selLevel && manualSubjects.length === 0 ? 'Нет доступных предметов' : 'Все предметы'}
+                        </option>
+                        {manualSubjects.map(s => (
                           <option key={s.subject_short} value={s.subject_short}>{s.subject_name}</option>
                         ))}
                       </select>
@@ -1589,7 +1651,7 @@ export default function VariantsPage() {
               {/* Single entry: flat task list */}
               {selEntry?.type === 'single' && tasks.length > 0 && (
                 <div className="vp-task-list">
-                  {tasks.map(t => (
+                  {pagedTasks.map(t => (
                     <TaskCard key={t.id} task={t} added={addedIds.has(t.id)} onAdd={addToVariant} />
                   ))}
                 </div>
@@ -1600,12 +1662,22 @@ export default function VariantsPage() {
                 <div className="vp-task-list">
                   <GroupCard
                     entry={selEntry}
-                    groupInstances={groupInstances}
+                    groupInstances={pagedGroupInstances}
                     addedIds={addedIds}
                     onAddTask={addToVariant}
                     onAddGroupInstance={addGroupToVariant}
                   />
                 </div>
+              )}
+              {isMobile && selEntry && manualTotalPages > 1 && (
+                <MobileListPager
+                  page={mobileManualPage}
+                  totalPages={manualTotalPages}
+                  onChange={(nextPage) => {
+                    const normalized = Math.max(1, Math.min(manualTotalPages, nextPage));
+                    setMobileManualPage(normalized);
+                  }}
+                />
               )}
             </>
           )}
@@ -1634,14 +1706,16 @@ export default function VariantsPage() {
                   <div className="vp-field-group">
                     <label className="vp-field-label">Предмет</label>
                     <div className="vp-select-wrap">
-                      <select className="vp-select-field" disabled={!randLevel}
+                      <select className="vp-select-field" disabled={!randLevel || randomSubjects.length === 0}
                         value={randSubject?.subject_short || ''}
                         onChange={e => {
-                          const s = subjectsForLevel(randLevel).find(x => x.subject_short === e.target.value) || null;
+                          const s = randomSubjects.find(x => x.subject_short === e.target.value) || null;
                           setRandSubject(s);
                         }}>
-                        <option value="">Выберите предмет</option>
-                        {subjectsForLevel(randLevel).map(s => (
+                        <option value="">
+                          {randLevel && randomSubjects.length === 0 ? 'Нет доступных предметов' : 'Выберите предмет'}
+                        </option>
+                        {randomSubjects.map(s => (
                           <option key={s.subject_short} value={s.subject_short}>{s.subject_name}</option>
                         ))}
                       </select>

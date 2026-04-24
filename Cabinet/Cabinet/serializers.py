@@ -1,4 +1,5 @@
 from django.db import DatabaseError
+from django.utils import timezone
 from rest_framework import serializers
 from .models import (
     UserProfile, Subject, Level, TeachersStudent, Group,
@@ -83,6 +84,9 @@ class HomeworkSerializer(serializers.ModelSerializer):
     teacher_name   = serializers.SerializerMethodField()
     assigned_count = serializers.SerializerMethodField()
     all_cancelled  = serializers.SerializerMethodField()
+    pending_review_count = serializers.SerializerMethodField()
+    overdue_count = serializers.SerializerMethodField()
+    status_counts = serializers.SerializerMethodField()
 
     class Meta:
         model = Homework
@@ -90,6 +94,7 @@ class HomeworkSerializer(serializers.ModelSerializer):
             'id', 'variant_id', 'title', 'text', 'subject',
             'deadline', 'created_at',
             'teacher_name', 'attachments', 'assigned_count', 'all_cancelled',
+            'pending_review_count', 'overdue_count', 'status_counts',
         ]
 
     def get_teacher_name(self, obj):
@@ -103,6 +108,48 @@ class HomeworkSerializer(serializers.ModelSerializer):
         if total == 0:
             return False
         return obj.assignments.filter(status='cancelled').count() == total
+
+    def _status_stats(self, obj):
+        # Prefer prefetched assignments from HomeworkListView to avoid extra queries.
+        assignments = getattr(obj, '_prefetched_objects_cache', {}).get('assignments')
+        if assignments is None:
+            assignments = list(obj.assignments.all())
+        now = timezone.now()
+        overdue_by_deadline = bool(obj.deadline and obj.deadline < now)
+        stats = {
+            'sent': 0,
+            'submitted': 0,
+            'reviewing': 0,
+            'reviewed': 0,
+            'revision': 0,
+            'overdue': 0,
+            'cancelled': 0,
+            'pending_review': 0,  # submitted + reviewing
+            'active': 0,          # all non-cancelled
+            'total': len(assignments),
+        }
+        for a in assignments:
+            st = getattr(a, 'status', None) or ''
+            if st not in stats:
+                continue
+            stats[st] += 1
+            if st != 'cancelled':
+                stats['active'] += 1
+            if st in ('submitted', 'reviewing'):
+                stats['pending_review'] += 1
+            # Legacy rows may stay "sent" forever, so treat them as overdue if deadline passed.
+            if st == 'sent' and overdue_by_deadline:
+                stats['overdue'] += 1
+        return stats
+
+    def get_pending_review_count(self, obj):
+        return self._status_stats(obj).get('pending_review', 0)
+
+    def get_overdue_count(self, obj):
+        return self._status_stats(obj).get('overdue', 0)
+
+    def get_status_counts(self, obj):
+        return self._status_stats(obj)
 
 
 class HomeworkAnswerFileSerializer(serializers.ModelSerializer):

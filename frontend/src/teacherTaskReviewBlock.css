@@ -412,3 +412,63 @@
 .vp-exam .task-shell .teacher-block .tb-save-btn--saved {
   background: #15803d;
 }
+
+@media (max-width: 768px) {
+  .vp-exam .task-shell .teacher-block .tb-attachments {
+    padding-top: 10px;
+    padding-bottom: 12px;
+  }
+
+  .vp-exam .task-shell .teacher-block .tb-verdict {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .vp-exam .task-shell .teacher-block .tb-verdict-left {
+    width: 100%;
+    gap: 10px;
+  }
+
+  .vp-exam .tb-chips {
+    width: 100%;
+  }
+
+  .vp-exam .tb-return {
+    min-height: 44px;
+    width: 100%;
+    justify-content: center;
+  }
+
+  .vp-exam .task-shell .teacher-block .tb-comment textarea {
+    min-height: 96px;
+  }
+
+  .vp-exam .task-shell .teacher-block .tb-actions {
+    justify-content: stretch;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .vp-exam .task-shell .teacher-block .tb-save-hint {
+    justify-content: center;
+  }
+
+  .vp-exam .task-shell .teacher-block .tb-save-btn {
+    min-height: 44px;
+    width: 100%;
+  }
+}
+
+@media (max-width: 480px) {
+  .vp-exam .task-shell .teacher-block .tb-comment-label {
+    margin-bottom: 6px;
+  }
+
+  .vp-exam .tb-chip {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+}

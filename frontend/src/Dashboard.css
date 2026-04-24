@@ -4249,6 +4249,41 @@ input, select, textarea { font-family: var(--font); }
 }
 .vp-load-more:hover:not(:disabled) { background: #e6f1fb; }
 .vp-load-more:disabled { opacity: .5; cursor: default; }
+.vp-mobile-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+}
+.vp-mobile-pager-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #667085;
+  white-space: nowrap;
+}
+.vp-mobile-pager-btn {
+  border: 1px solid #dbe3f0;
+  background: #fff;
+  color: #334155;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: var(--font);
+  min-height: 36px;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.vp-mobile-pager-btn:hover:not(:disabled) {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+.vp-mobile-pager-btn:disabled {
+  opacity: .45;
+  cursor: default;
+}
 
 /* ══════ RANDOM form ══════ */
 .vp-variant-generator {
@@ -5598,6 +5633,71 @@ input, select, textarea { font-family: var(--font); }
   }
   .sp-row-menu-btn { opacity: 1; width: 32px; height: 32px; }
   .sp-row-dropdown { min-width: 180px; }
+  .sp-page { gap: 12px; }
+  .sp-topbar { margin-bottom: 2px; }
+  .sp-topbar-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .sp-btn-primary, .sp-btn-archive {
+    width: 100%;
+    justify-content: center;
+  }
+  .sp-section-card {
+    border-radius: 14px;
+    border-color: #e8ecf7;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, .04);
+  }
+  .sp-card-header-left {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .sp-card-title {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -.01em;
+  }
+  .sp-card-pill { margin-left: auto; }
+  .sp-tr {
+    border-radius: 14px;
+    border-color: #e6eaf5;
+    padding: 12px 12px 10px;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, .05);
+  }
+  .sp-drag-handle { display: none; }
+  .sp-avatar {
+    width: 36px;
+    height: 36px;
+    font-size: 12px;
+  }
+  .sp-name {
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.35;
+  }
+  .sp-status {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 10px;
+    border-radius: 999px;
+    background: #f8fafc;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .sp-status--active { color: #15803d; background: #ecfdf3; }
+  .sp-status--pause { color: #92400e; background: #fff7ed; }
+  .sp-td--actions::before { display: none; }
+  .sp-td--actions { justify-content: flex-end; }
+  .sp-row-menu-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: #f8fafc;
+    color: #667085;
+  }
+  .sp-row-menu-btn:hover { background: #eef2ff; color: #4f46e5; }
 
   /* Student profile mobile form flow */
   .sp-profile-hero { padding: 14px; border-radius: 14px; }
@@ -5626,6 +5726,17 @@ input, select, textarea { font-family: var(--font); }
   .vp-my-header { gap: 8px; }
   .vp-my-title { font-size: 15px; }
   .vp-my-subtitle { display: none; }
+  .vp-mobile-pager {
+    padding: 2px 0 4px;
+  }
+  .vp-mobile-pager-label {
+    font-size: 11px;
+  }
+  .vp-mobile-pager-btn {
+    flex: 1 1 0;
+    padding: 8px 10px;
+    min-height: 38px;
+  }
   .vp-my-header-actions { width: 100%; justify-content: space-between; }
   .vp-my-toolbar {
     display: flex;

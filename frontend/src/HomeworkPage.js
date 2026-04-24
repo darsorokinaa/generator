@@ -910,9 +910,11 @@ export default function HomeworkPage({ isStudent = false }) {
 
   const filteredHomeworks = homeworks.filter(hw => {
     const cancelled = hw.all_cancelled === true;
+    const pendingReviewCount = Number(hw.pending_review_count ?? hw.status_counts?.pending_review ?? 0);
+    const overdueCount = Number(hw.overdue_count ?? hw.status_counts?.overdue ?? 0);
     if (tab === 'cancelled') return cancelled;
-    if (tab === 'pending')   return !cancelled && hw.assigned_count > 0;
-    if (tab === 'overdue')   return !cancelled && isOverdue(hw.deadline);
+    if (tab === 'pending')   return !cancelled && pendingReviewCount > 0;
+    if (tab === 'overdue')   return !cancelled && overdueCount > 0;
     // 'all' = активные (без отменённых)
     return !cancelled;
   });

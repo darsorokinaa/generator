@@ -4058,6 +4058,12 @@ def save_teacher_variant(request):
 
     if not level or not subject:
         return Response({'error': 'level и subject обязательны'}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        allowed_subjects = _teacher_allowed_generator_subject_shorts(request)
+    except requests.exceptions.RequestException as e:
+        return Response({'error': str(e)}, status=status.HTTP_502_BAD_GATEWAY)
+    if subject not in allowed_subjects:
+        return _teacher_subject_forbidden_response()
     if not isinstance(task_ids, list):
         return Response({'error': 'task_ids должен быть массивом'}, status=status.HTTP_400_BAD_REQUEST)
     if tasks and not isinstance(tasks, list):
@@ -4195,6 +4201,55 @@ def _build_generator_url(path):
     return f'{base}/{normalized_path}'
 
 
+def _normalize_subject_key(value):
+    s = str(value or '').strip().lower().replace('ё', 'е')
+    return re.sub(r'[^a-z0-9а-я]+', '', s)
+
+
+def _teacher_subject_name_keys(request):
+    try:
+        teacher = request.user.profile
+    except Exception:
+        return set()
+    names = TeacherSubject.objects.filter(teacher=teacher).values_list('subject__subject_name', flat=True)
+    return {_normalize_subject_key(n) for n in names if str(n or '').strip()}
+
+
+def _teacher_allowed_generator_subject_shorts(request, catalog_data=None):
+    teacher_subject_keys = _teacher_subject_name_keys(request)
+    if not teacher_subject_keys:
+        return set()
+
+    payload = catalog_data
+    if payload is None:
+        last_err = None
+        for require_secret in (False, True):
+            try:
+                payload = _gen_proxy('api/catalog/', require_secret=require_secret)
+                break
+            except requests.exceptions.RequestException as e:
+                last_err = e
+        if payload is None:
+            raise last_err or requests.exceptions.RequestException('Не удалось загрузить каталог генератора')
+
+    catalog_rows = payload.get('catalog') if isinstance(payload, dict) else []
+    allowed = set()
+    for level_row in catalog_rows if isinstance(catalog_rows, list) else []:
+        subjects = level_row.get('subjects') if isinstance(level_row, dict) else []
+        for subj in subjects if isinstance(subjects, list) else []:
+            if not isinstance(subj, dict):
+                continue
+            short = str(subj.get('subject_short') or '').strip()
+            name_key = _normalize_subject_key(subj.get('subject_name'))
+            if short and name_key and name_key in teacher_subject_keys:
+                allowed.add(short)
+    return allowed
+
+
+def _teacher_subject_forbidden_response():
+    return Response({'error': 'Этот предмет недоступен для вашего профиля преподавателя'}, status=status.HTTP_403_FORBIDDEN)
+
+
 @api_view(['GET'])
 @drf_permission_classes([IsCabinetTeacher])
 def get_all_tasks(request):
@@ -4257,6 +4312,12 @@ def gen_generate_variant(request):
     subject = str(request.data.get('subject') or '').strip()
     if not level or not subject:
         return Response({'error': 'level и subject обязательны'}, status=status.HTTP_400_BAD_REQUEST)
+    try:
+        allowed_subjects = _teacher_allowed_generator_subject_shorts(request)
+    except requests.exceptions.RequestException as e:
+        return Response({'error': str(e)}, status=status.HTTP_502_BAD_GATEWAY)
+    if subject not in allowed_subjects:
+        return _teacher_subject_forbidden_response()
 
     payload = dict(request.data)
     payload.pop('level', None)
@@ -4323,7 +4384,26 @@ def gen_catalog(request):
     for require_secret in (False, True):
         try:
             data = _gen_proxy('api/catalog/', require_secret=require_secret)
-            return Response(data)
+            allowed_subjects = _teacher_allowed_generator_subject_shorts(request, catalog_data=data)
+            catalog_rows = data.get('catalog') if isinstance(data, dict) else []
+            filtered_catalog = []
+            for level_row in catalog_rows if isinstance(catalog_rows, list) else []:
+                if not isinstance(level_row, dict):
+                    continue
+                subjects = level_row.get('subjects')
+                if not isinstance(subjects, list):
+                    continue
+                filtered_subjects = [
+                    s for s in subjects
+                    if isinstance(s, dict) and str(s.get('subject_short') or '').strip() in allowed_subjects
+                ]
+                if filtered_subjects:
+                    row_copy = dict(level_row)
+                    row_copy['subjects'] = filtered_subjects
+                    filtered_catalog.append(row_copy)
+            payload = dict(data) if isinstance(data, dict) else {}
+            payload['catalog'] = filtered_catalog
+            return Response(payload)
         except requests.exceptions.RequestException as e:
             last_err = e
     return Response({'error': str(last_err)}, status=status.HTTP_502_BAD_GATEWAY)
