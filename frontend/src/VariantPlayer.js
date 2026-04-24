@@ -1179,6 +1179,15 @@ export default function VariantPlayer({
   const part2Tasks = variant
     ? variant.tasks.filter(t => String(t.part) === '2' || t.part === 2)
     : [];
+  const studentRevisionIds = (!readOnly && !isTeacher && Array.isArray(revisionTaskIds) && revisionTaskIds.length > 0)
+    ? new Set(revisionTaskIds.map((x) => String(x)))
+    : null;
+  const visiblePart1Tasks = studentRevisionIds
+    ? part1Tasks.filter((t) => studentRevisionIds.has(String(t.number ?? '')))
+    : part1Tasks;
+  const visiblePart2Tasks = studentRevisionIds
+    ? part2Tasks.filter((t) => studentRevisionIds.has(String(t.number ?? '')))
+    : part2Tasks;
 
   const part1CorrectCount = part1Tasks.filter(
     t => answers[String(t.number ?? '')]?.state === 'correct',
@@ -1828,23 +1837,23 @@ export default function VariantPlayer({
                     </div>
                   )}
 
-                  {part1Tasks.length > 0 && (
+                  {visiblePart1Tasks.length > 0 && (
                     <>
                       <div className="part-divider part-divider-1">
                         <h2>Часть 1</h2>
                         <p>Краткий ответ</p>
                       </div>
-                      {part1Tasks.map((task, idx) => renderTaskCard(task, idx))}
+                      {visiblePart1Tasks.map((task, idx) => renderTaskCard(task, idx))}
                     </>
                   )}
 
-                  {part2Tasks.length > 0 && (
+                  {visiblePart2Tasks.length > 0 && (
                     <>
                       <div className="part-divider part-divider-2">
                         <h2>Часть 2</h2>
                         <p>Развёрнутый ответ</p>
                       </div>
-                      {part2Tasks.map((task, idx) => renderTaskCard(task, part1Tasks.length + idx))}
+                      {visiblePart2Tasks.map((task, idx) => renderTaskCard(task, visiblePart1Tasks.length + idx))}
                     </>
                   )}
 

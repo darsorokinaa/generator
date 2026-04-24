@@ -454,6 +454,27 @@ def _merge_homework_result_for_revision(assignment, incoming_result):
     return incoming_result
 
 
+def _coerce_homework_result_payload(raw_result):
+    """
+    Нормализуем payload результата:
+    - dict -> как есть
+    - JSON-строка -> dict
+    - всё остальное -> None (игнор)
+    """
+    if isinstance(raw_result, dict):
+        return raw_result
+    if isinstance(raw_result, str):
+        txt = raw_result.strip()
+        if not txt:
+            return None
+        try:
+            parsed = json.loads(txt)
+            return parsed if isinstance(parsed, dict) else None
+        except Exception:
+            return None
+    return None
+
+
 def _lesson_ring_dismiss_mark(user_id=None, profile_id=None, profile_username=None, user_username=None, token=''):
     """Ученик вошёл в урок — больше не показываем ему звонок по этому JWT (важно для групп и вкладки только с генератором)."""
     if not token:
@@ -3246,10 +3267,10 @@ class HomeworkSaveDraftView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        result = request.data.get('result')
+        result = _coerce_homework_result_payload(request.data.get('result'))
         score = request.data.get('score')
         update_fields = []
-        if isinstance(result, dict):
+        if result is not None:
             assignment.result = _merge_homework_result_for_revision(assignment, result)
             update_fields.append('result')
         if score is not None:
@@ -3507,13 +3528,13 @@ class HomeworkSubmitView(APIView):
         if assignment.status not in ('sent', 'revision'):          # можно сдать только если статус sent или revision
             return Response({'error': f'Нельзя сдать ДЗ со статусом "{assignment.status}"'}, status=status.HTTP_400_BAD_REQUEST)
 
-        result = request.data.get('result')                        # JSON-результат выполнения варианта
+        result = _coerce_homework_result_payload(request.data.get('result'))  # JSON-результат выполнения варианта
         score  = request.data.get('score')                         # балл (опционально, может считаться автоматически)
 
         update_fields = ['status', 'submitted_at']                 # обязательные поля для обновления
         assignment.status       = 'submitted'                      # меняем статус на "сдано"
         assignment.submitted_at = timezone.now()                   # фиксируем время сдачи
-        if isinstance(result, dict):                               # сохраняем результат если это словарь
+        if result is not None:                                     # сохраняем результат (dict или JSON-строка)
             assignment.result = _merge_homework_result_for_revision(assignment, result)
             update_fields.append('result')
         assignment.revision_task_ids = []
