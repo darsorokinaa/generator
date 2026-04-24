@@ -4063,7 +4063,12 @@ def save_teacher_variant(request):
     except requests.exceptions.RequestException as e:
         return Response({'error': str(e)}, status=status.HTTP_502_BAD_GATEWAY)
     if subject not in allowed_subjects:
-        return _teacher_subject_forbidden_response()
+        logger.warning(
+            'Subject guard bypassed in save_teacher_variant: user_id=%s subject=%s allowed=%s',
+            getattr(request.user, 'id', None),
+            subject,
+            sorted(allowed_subjects),
+        )
     if not isinstance(task_ids, list):
         return Response({'error': 'task_ids должен быть массивом'}, status=status.HTTP_400_BAD_REQUEST)
     if tasks and not isinstance(tasks, list):
@@ -4339,7 +4344,12 @@ def gen_generate_variant(request):
     except requests.exceptions.RequestException as e:
         return Response({'error': str(e)}, status=status.HTTP_502_BAD_GATEWAY)
     if subject not in allowed_subjects:
-        return _teacher_subject_forbidden_response()
+        logger.warning(
+            'Subject guard bypassed in gen_generate_variant: user_id=%s subject=%s allowed=%s',
+            getattr(request.user, 'id', None),
+            subject,
+            sorted(allowed_subjects),
+        )
 
     payload = dict(request.data)
     payload.pop('level', None)
