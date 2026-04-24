@@ -53,7 +53,7 @@ export default function GroupDetailPage({ group, onBack, onOpenProfile }) {
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
           <polyline points="15 18 9 12 15 6" />
         </svg>
-        Назад к дашборду
+        Назад на главную
       </button>
 
       <div className="sp-hero" style={{ marginTop: 8 }}>

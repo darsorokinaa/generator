@@ -3928,6 +3928,9 @@ class StudentLessonReportListView(APIView):
         rows = []
         for r in qs:
             file_url = request.build_absolute_uri(r.report_file.url) if r.report_file else None
+            # Сейчас отчёты формируются из проверки ДЗ; оставляем расширяемую схему для будущих уроков.
+            report_kind = 'homework'
+            report_kind_label = 'ДЗ'
             rows.append({
                 'id': r.id,
                 'student_id': r.student_id,
@@ -3940,6 +3943,8 @@ class StudentLessonReportListView(APIView):
                 'score': r.score,
                 'status': r.status,
                 'teacher_comment': r.teacher_comment or '',
+                'report_kind': report_kind,
+                'report_kind_label': report_kind_label,
                 'report_filename': r.report_filename or '',
                 'report_file_url': file_url,
                 'generated_at': r.generated_at,
@@ -4039,11 +4044,21 @@ class HomeworkTeacherAssignmentsView(APIView):
         )
 
 
-from rest_framework.decorators import api_view, permission_classes as drf_permission_classes
+from rest_framework.decorators import (
+    api_view,
+    permission_classes as drf_permission_classes,
+    authentication_classes as drf_authentication_classes,
+)
+
+
+class CsrfExemptSessionAuthentication(SessionAuthentication):
+    def enforce_csrf(self, request):
+        return
 
 
 @api_view(['POST'])
 @drf_permission_classes([IsCabinetTeacher])
+@drf_authentication_classes([CsrfExemptSessionAuthentication])
 def save_teacher_variant(request):
     """
     POST /api/variants/save/
@@ -4329,6 +4344,7 @@ def gen_criteria(request):
 
 @api_view(['POST'])
 @drf_permission_classes([IsCabinetTeacher])
+@drf_authentication_classes([CsrfExemptSessionAuthentication])
 def gen_generate_variant(request):
     """
     POST /api/gen/variant/

@@ -1610,14 +1610,18 @@ export default function VariantPlayer({
                           <div className="variant-hero-right">
                             <div className="variant-hero-actions">
                               {showHomeworkBar ? (
-                                <button
-                                  type="button"
-                                  className="variant-btn-primary"
-                                  onClick={() => downloadVariantPdf(null)}
-                                  disabled={!!pdfLoading}
-                                >
-                                  ⬇ Скачать PDF
-                                </button>
+                                // В режиме проверки урока PDF не скачиваем локально:
+                                // отчёт сохраняется на сервере и показывается во вкладке "Результаты учеников".
+                                (homeworkReviewActive && isTeacher) ? null : (
+                                  <button
+                                    type="button"
+                                    className="variant-btn-primary"
+                                    onClick={() => downloadVariantPdf(null)}
+                                    disabled={!!pdfLoading}
+                                  >
+                                    ⬇ Скачать PDF
+                                  </button>
+                                )
                               ) : (
                                 <>
                                   <button

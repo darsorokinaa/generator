@@ -1013,6 +1013,7 @@ export default function Dashboard() {
                     <tr>
                       <th>Ученик</th>
                       <th>Вариант</th>
+                      <th>Формат</th>
                       <th>Оценка</th>
                       <th>Статус</th>
                       <th>Дата</th>
@@ -1022,11 +1023,11 @@ export default function Dashboard() {
                   <tbody>
                     {studentReportsLoading ? (
                       <tr>
-                        <td colSpan={6} className="table-empty">Загрузка отчётов…</td>
+                        <td colSpan={7} className="table-empty">Загрузка отчётов…</td>
                       </tr>
                     ) : studentReports.length === 0 ? (
                       <tr>
-                        <td colSpan={6} className="table-empty">Пока нет отчётов. Они создаются после проверки работы.</td>
+                        <td colSpan={7} className="table-empty">Пока нет отчётов. Они создаются после проверки работы.</td>
                       </tr>
                     ) : studentReports.map((row) => {
                       const statusLabel = row.status === 'reviewed'
@@ -1051,6 +1052,9 @@ export default function Dashboard() {
                           </td>
                           <td>
                             <span className="cell-plain">{row.title || `Вариант ${row.variant_id}`}</span>
+                          </td>
+                          <td>
+                            <span className="cell-plain">{row.report_kind_label || (row.report_kind === 'lesson' ? 'Урок' : 'ДЗ')}</span>
                           </td>
                           <td>
                             <span className="cell-plain">{row.score != null ? `${row.score} б` : '—'}</span>
