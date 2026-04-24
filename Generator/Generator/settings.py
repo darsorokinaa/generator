@@ -48,6 +48,12 @@ JITSI_APP_ID = os.environ.get("JITSI_APP_ID", "").strip()
 JITSI_APP_SECRET = os.environ.get("JITSI_APP_SECRET", "").strip()
 
 LK_PUBLIC_URL = os.environ.get("LK_PUBLIC_URL", "https://lk.genurok.tw1.ru").rstrip("/")
+# Базовый API-URL личного кабинета для server-to-server запросов генератора.
+# Если не задан, используем LK_PUBLIC_URL для обратной совместимости.
+CABINET_API_BASE = (
+    os.environ.get("CABINET_API_BASE", "").strip().rstrip("/")
+    or LK_PUBLIC_URL
+)
 # Полный URL страницы после входа (дашборд). Если пусто — кнопка «Личный кабинет» ведёт на LK_PUBLIC_URL.
 # Пример: http://lk.example.com/dashboard или http://lk.example.com/app/
 LK_DASHBOARD_URL = os.environ.get("LK_DASHBOARD_URL", "").strip().rstrip("/")

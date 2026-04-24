@@ -21,6 +21,7 @@ urlpatterns = [
     path("api/lesson/homework/assignment/<int:aid>/", views.api_lesson_homework_assignment, name="api_lesson_homework_get"),
     path("api/lesson/homework/assignment/<int:aid>/save-draft/", views.api_lesson_homework_save_draft, name="api_lesson_homework_draft"),
     path("api/lesson/homework/assignment/<int:aid>/submit/", views.api_lesson_homework_submit, name="api_lesson_homework_submit"),
+    path("api/lesson/homework/assignment/<int:aid>/upload-answer/", views.api_lesson_homework_upload_answer, name="api_lesson_homework_upload_answer"),
     path("api/lesson/teacher-joined/", views.api_lesson_teacher_joined, name="api_lesson_teacher_joined"),
     path("api/lesson/session-close/", views.api_lesson_session_close, name="api_lesson_session_close"),
     path("api/lesson/finalize/", views.api_lesson_finalize, name="api_lesson_finalize"),

@@ -2306,6 +2306,14 @@ def _lk_lesson_webhook_headers() -> dict:
     return headers
 
 
+def _cabinet_api_base_url() -> str:
+    """База API ЛК для server-to-server запросов генератора."""
+    return (
+        (getattr(django_settings, "CABINET_API_BASE", "") or "").strip().rstrip("/")
+        or (getattr(django_settings, "LK_PUBLIC_URL", "") or "").strip().rstrip("/")
+    )
+
+
 def _post_lk_lesson_webhook(endpoint: str, token: str, extra: dict | None = None) -> tuple[bool, str]:
     """
     POST { "token": ..., ...extra } на URL ЛК с X-Lesson-Webhook-Secret (как teacher-joined / student-joined).
@@ -2318,6 +2326,7 @@ def _post_lk_lesson_webhook(endpoint: str, token: str, extra: dict | None = None
             payload[k] = v
     body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     headers = _lk_lesson_webhook_headers()
+    headers["X-Lesson-Token"] = token
     import ssl as _ssl
 
     http_fallback: str | None = None
@@ -2392,7 +2401,7 @@ def notify_lk_teacher_joined(token: str, extra: dict | None = None) -> tuple[boo
     """
     endpoint = (getattr(django_settings, "LK_LESSON_NOTIFY_URL", "") or "").strip()
     if not endpoint:
-        lk_base = (getattr(django_settings, "LK_PUBLIC_URL", "") or "").rstrip("/")
+        lk_base = _cabinet_api_base_url()
         if lk_base:
             endpoint = f"{lk_base}/api/lesson/teacher-joined/"
     if not endpoint and bool(getattr(django_settings, "DEBUG", False)):
@@ -2409,7 +2418,7 @@ def notify_lk_student_joined(token: str, extra: dict | None = None) -> tuple[boo
     """
     endpoint = (getattr(django_settings, "LK_LESSON_STUDENT_NOTIFY_URL", "") or "").strip()
     if not endpoint:
-        lk_base = (getattr(django_settings, "LK_PUBLIC_URL", "") or "").rstrip("/")
+        lk_base = _cabinet_api_base_url()
         if lk_base:
             endpoint = f"{lk_base}/api/lesson/student-joined/"
     if not endpoint and bool(getattr(django_settings, "DEBUG", False)):
@@ -2934,7 +2943,7 @@ def _lk_homework_url_on_lk(aid: int, suffix: str, lesson_token: str | None = Non
     """
     suffix: "" | "save-draft/" | "submit/" — путь на ЛК после /api/homework/assignment/<id>/
     """
-    lk = (getattr(django_settings, "LK_PUBLIC_URL", "") or "").rstrip("/")
+    lk = _cabinet_api_base_url()
     if not lk and bool(getattr(django_settings, "DEBUG", False)):
         lk = "http://127.0.0.1:8001"
     if not lk:
@@ -2952,10 +2961,19 @@ def _lk_homework_url_on_lk(aid: int, suffix: str, lesson_token: str | None = Non
 
 
 def _forward_to_lk_homework(
-    method: str, aid: int, lesson_token: str, suffix: str, body: bytes | None
+    method: str,
+    aid: int,
+    lesson_token: str,
+    suffix: str,
+    body: bytes | None,
+    request_content_type: str | None = None,
 ) -> tuple[int, bytes, str]:
     """(status, body, content_type) — от ЛК на генератор (или ошибка 502/503)."""
     fetch_url = (getattr(django_settings, "LK_HOMEWORK_FETCH_URL", None) or "").strip()
+    if not fetch_url:
+        lk = _cabinet_api_base_url()
+        if lk:
+            fetch_url = f"{lk}/api/homework/assignment/fetch-by-token/"
     use_internal_fetch = fetch_url and method == "GET" and not (suffix or "").strip()
     if use_internal_fetch:
         url = fetch_url
@@ -2977,7 +2995,10 @@ def _forward_to_lk_homework(
         req_body = body
         headers = _lk_homework_request_headers(lesson_token)
         if body is not None:
-            headers["Content-Type"] = "application/json; charset=utf-8"
+            if request_content_type:
+                headers["Content-Type"] = request_content_type
+            else:
+                headers["Content-Type"] = "application/json; charset=utf-8"
         else:
             headers.setdefault("Accept", "application/json")
     import ssl as _ssl
@@ -3084,7 +3105,13 @@ def api_lesson_homework_submit(request, aid: int):
     bad = _assert_homework_token_matches_assignment(aid, payload)
     if bad:
         return JsonResponse({"error": bad}, status=403)
-    code, body, _ct = _forward_to_lk_homework("POST", aid, token, "submit/", b"{}")
+    code, body, _ct = _forward_to_lk_homework(
+        "POST",
+        aid,
+        token,
+        "submit/",
+        (request.body or b"") if (request.body or b"") else b"{}",
+    )
     if code and code >= 400:
         logger.warning(
             "Прокси ДЗ submit: ответ ЛК HTTP %s assignment=%s: %s",
@@ -3093,6 +3120,46 @@ def api_lesson_homework_submit(request, aid: int):
             (body[:500] or b"").decode("utf-8", errors="replace"),
         )
     return HttpResponse(body, content_type="application/json; charset=utf-8", status=code)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_lesson_homework_upload_answer(request, aid: int):
+    """
+    Прокси multipart-загрузки ответа в ЛК:
+    POST /api/homework/assignment/<aid>/upload-answer/
+    """
+    token = (request.GET.get("token") or "").strip()
+    if not token:
+        return JsonResponse({"error": "token required"}, status=400)
+    try:
+        payload = verify_lesson_token(token)
+    except ValueError as e:
+        return JsonResponse({"error": str(e)}, status=401)
+    bad = _assert_homework_token_matches_assignment(aid, payload)
+    if bad:
+        return JsonResponse({"error": bad}, status=403)
+    if "file" not in request.FILES:
+        return JsonResponse({"error": "file required"}, status=400)
+    if not str(request.POST.get("task_number") or "").strip():
+        return JsonResponse({"error": "task_number required"}, status=400)
+
+    code, body, ct = _forward_to_lk_homework(
+        "POST",
+        aid,
+        token,
+        "upload-answer/",
+        request.body or b"",
+        request.META.get("CONTENT_TYPE") or "",
+    )
+    if code and code >= 400:
+        logger.warning(
+            "Прокси ДЗ upload-answer: ответ ЛК HTTP %s assignment=%s: %s",
+            code,
+            aid,
+            (body[:500] or b"").decode("utf-8", errors="replace"),
+        )
+    return HttpResponse(body, content_type=ct or "application/json; charset=utf-8", status=code)
 
 
 @require_http_methods(["GET"])
@@ -4304,17 +4371,22 @@ def lesson_join(request):
     normalized["cabinet_assignment"] = cabinet_assignment
     normalized["homework_mode"] = homework_mode
 
-    # Уведомление ЛК: ученик зашёл в live-комнату. Для ДЗ (session_kind/lesson_format homework) не шлём —
-    # /api/lesson/student-joined/ в ЛК ждёт разрешимых «получателей» урока и иначе 400.
-    if (
-        str(normalized.get("lesson_type") or "").strip().lower() == "student"
-        and not homework_mode
-    ):
+    # Уведомление ЛК: ученик зашёл в комнату (в т.ч. homework).
+    if str(normalized.get("lesson_type") or "").strip().lower() == "student":
+        student_user_id = (
+            payload.get("student_user_id")
+            or payload.get("studentUserId")
+            or payload.get("target_id")
+            or payload.get("targetId")
+            or payload.get("user_id")
+            or payload.get("userId")
+        )
         _tkn = token
         _lk_student_extra = {
             "room_id": normalized.get("room_id"),
             "target_id": payload.get("target_id") or payload.get("targetId"),
             "teacher_id": payload.get("teacher_id") or payload.get("teacherId"),
+            "student_user_id": student_user_id,
         }
 
         def _notify_student_joined_room():

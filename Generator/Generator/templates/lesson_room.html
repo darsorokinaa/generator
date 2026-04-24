@@ -581,6 +581,9 @@
       overflow-x: auto;
       max-width: 90vw;
     }
+    .wb-toolbar.wb-toolbar--popover-open {
+      overflow: visible;
+    }
     .wb-toolbar::-webkit-scrollbar { display: none; }
     .wb-tool-btn {
       width: 36px;
@@ -705,10 +708,7 @@
     </div>
   </div>
 
-  <!-- Teacher: кнопка «Завершить урок» наверху + модалка итогов -->
-  <div id="lesson-teacher-ui">
-    <button type="button" id="lesson-finish-top-btn" class="lesson-ui-btn lesson-ui-btn--danger">Завершить урок</button>
-  </div>
+  <!-- Teacher: модалка итогов; кнопка завершения теперь только в меню iframe -->
   <div id="lesson-student-ui">
     <button type="button" id="lesson-student-results-top-btn" class="lesson-ui-btn lesson-ui-btn--primary" style="display:none;">Результаты</button>
   </div>
@@ -1010,6 +1010,7 @@
         let activePopover = null;
         const closePopovers = () => {
           document.querySelectorAll('.wb-tool-popover, .wb-color-popover').forEach(p => p.classList.remove('show'));
+          wbToolbar.classList.remove('wb-toolbar--popover-open');
         };
         document.addEventListener('click', closePopovers);
 
@@ -1035,6 +1036,7 @@
             if (WbState.tool === t.id && popover) {
               closePopovers();
               popover.classList.toggle('show');
+              if (popover.classList.contains('show')) wbToolbar.classList.add('wb-toolbar--popover-open');
             } else {
               closePopovers();
               WbState.tool = t.id;
@@ -1075,7 +1077,10 @@
           e.stopPropagation();
           const isShowing = colorPopover.classList.contains('show');
           closePopovers();
-          if (!isShowing) colorPopover.classList.add('show');
+          if (!isShowing) {
+            colorPopover.classList.add('show');
+            wbToolbar.classList.add('wb-toolbar--popover-open');
+          }
         };
         
         colorWrap.appendChild(colorBtn);
@@ -3593,8 +3598,6 @@
       // —— Завершить урок: итоги, комментарии, PDF / CSV, закрытие сессии ——
       const finishModalEl = document.getElementById('lesson-finish-modal');
       const finishModalBody = document.getElementById('lesson-finish-modal-body');
-      const teacherUiEl = document.getElementById('lesson-teacher-ui');
-      const finishTopBtn = document.getElementById('lesson-finish-top-btn');
       const studentUiEl = document.getElementById('lesson-student-ui');
       const studentResultsBtn = document.getElementById('lesson-student-results-top-btn');
       const studentResultsModalEl = document.getElementById('lesson-student-results-modal');
@@ -3842,14 +3845,9 @@
         }
       };
 
-      if (isTeacher && teacherUiEl) {
-        teacherUiEl.style.display = 'block';
-        if (finishTopBtn) finishTopBtn.style.display = 'inline-block';
-      }
       if (!isTeacher && studentUiEl) {
         studentUiEl.style.display = 'block';
       }
-      finishTopBtn?.addEventListener('click', openFinishModal);
       document.getElementById('lesson-finish-modal-close')?.addEventListener('click', closeFinishModal);
       finishModalEl?.addEventListener('click', (e) => { if (e.target === finishModalEl) closeFinishModal(); });
       document.getElementById('lesson-finish-download-pdf')?.addEventListener('click', downloadLessonPdf);

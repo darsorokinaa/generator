@@ -87,8 +87,8 @@ function TaskReportErrorButton({ taskId, taskNumber, onClick }) {
   );
 }
 
-/** Урок в iframe: ученик прикрепляет изображение решения (часть 2). */
-function LessonSolutionUpload({ taskNumber, taskId, lessonToken, enabled }) {
+/** Урок/ДЗ в iframe: ученик прикрепляет изображение решения (часть 2). */
+function LessonSolutionUpload({ taskNumber, taskId, lessonToken, assignmentId, homeworkMode, enabled }) {
   const fileInputRef = useRef(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
@@ -126,12 +126,18 @@ function LessonSolutionUpload({ taskNumber, taskId, lessonToken, enabled }) {
     setBusy(true);
     setErr(null);
     const fd = new FormData();
-    fd.append("lesson_token", lessonToken);
     fd.append("task_number", String(taskNumber));
-    if (taskId != null && String(taskId).trim() !== "") fd.append("task_id", String(taskId));
+    if (!homeworkMode) {
+      fd.append("lesson_token", lessonToken);
+      if (taskId != null && String(taskId).trim() !== "") fd.append("task_id", String(taskId));
+    }
     fd.append("file", pendingFile);
     try {
-      const res = await fetch("/api/lesson/attachment/", {
+      const uploadUrl =
+        homeworkMode && assignmentId
+          ? `/api/lesson/homework/assignment/${encodeURIComponent(String(assignmentId))}/upload-answer/?${new URLSearchParams({ token: lessonToken }).toString()}`
+          : "/api/lesson/attachment/";
+      const res = await fetch(uploadUrl, {
         method: "POST",
         body: fd,
         credentials: "include",
@@ -1625,7 +1631,7 @@ function ExamPage() {
     try {
       const r = buildHomeworkResultPayload(variant.tasks, userAnswers, scores, checkedTasks);
       await saveHomeworkDraft(cabinetAssignmentId, { result: r }, homeworkLkOpts);
-      await submitHomework(cabinetAssignmentId, homeworkLkOpts);
+      await submitHomework(cabinetAssignmentId, { result: r }, homeworkLkOpts);
       setHwNotice("Отправлено на проверку");
       const j = await fetchHomeworkAssignment(cabinetAssignmentId, homeworkLkOpts);
       setHwApiRaw(j);
@@ -2706,6 +2712,8 @@ function ExamPage() {
                               taskNumber={task.number}
                               taskId={task.id}
                               lessonToken={lessonEmbedParams.token}
+                              assignmentId={cabinetAssignmentId}
+                              homeworkMode={isHomework}
                               enabled={
                                 showLessonSolutionUpload && (!isHomework || (!hRead && !numLocked(task.number)))
                               }
@@ -2748,6 +2756,8 @@ function ExamPage() {
                         taskNumber={task.number}
                         taskId={task.id}
                         lessonToken={lessonEmbedParams.token}
+                        assignmentId={cabinetAssignmentId}
+                        homeworkMode={isHomework}
                         enabled={
                           showLessonSolutionUpload && (!isHomework || (!hRead && !numLocked(task.number)))
                         }

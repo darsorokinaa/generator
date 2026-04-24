@@ -243,9 +243,10 @@ export async function saveHomeworkDraft(assignmentId, body, opts) {
 
 /**
  * @param {string} assignmentId
+ * @param {{ result?: object, score?: number|null }} [body]
  * @param {HomeworkLkRequestOpts} [opts]
  */
-export async function submitHomework(assignmentId, opts) {
+export async function submitHomework(assignmentId, body, opts) {
   const useProxy = !!(opts && opts.lessonToken);
   if (!useProxy && !getLkPublicBase()) throw new Error("VITE_LK_PUBLIC_URL");
   const url = buildHomeworkApiUrl(assignmentId, "submit/", opts);
@@ -253,7 +254,7 @@ export async function submitHomework(assignmentId, opts) {
     method: "POST",
     credentials: "include",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({}),
+    body: JSON.stringify(body && typeof body === "object" ? body : {}),
   });
   if (!res.ok) {
     const t = await res.text().catch(() => "");
