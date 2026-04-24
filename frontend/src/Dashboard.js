@@ -84,6 +84,8 @@ export default function Dashboard() {
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [avatarEditorOpen, setAvatarEditorOpen] = useState(false);
   const [avatarDraft, setAvatarDraft] = useState({ emoji: '', bg: AVATAR_BG_OPTIONS[0].id });
+  const [mobileAvatarMenuOpen, setMobileAvatarMenuOpen] = useState(false);
+  const mobileAvatarMenuRef = useRef(null);
   const [incomingLesson, setIncomingLesson] = useState(null);
   const incomingLessonRef = useRef(null);
   const notifyWsRef = useRef(null);
@@ -167,6 +169,21 @@ export default function Dashboard() {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!mobileAvatarMenuOpen) return undefined;
+    const onDocPointerDown = (e) => {
+      if (mobileAvatarMenuRef.current && !mobileAvatarMenuRef.current.contains(e.target)) {
+        setMobileAvatarMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDocPointerDown);
+    document.addEventListener('touchstart', onDocPointerDown, { passive: true });
+    return () => {
+      document.removeEventListener('mousedown', onDocPointerDown);
+      document.removeEventListener('touchstart', onDocPointerDown);
+    };
+  }, [mobileAvatarMenuOpen]);
 
   // Notifications polling (used by NotificationBell badge count)
   // eslint-disable-next-line no-unused-vars
@@ -760,8 +777,24 @@ export default function Dashboard() {
           </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <NotificationBell />
-          <div className="mobile-avatar" style={{ background: avatarBgCss }}>
-            {avatarToken}
+          <div className="mobile-avatar-menu" ref={mobileAvatarMenuRef}>
+            <button
+              type="button"
+              className="mobile-avatar"
+              style={{ background: avatarBgCss }}
+              onClick={() => setMobileAvatarMenuOpen((v) => !v)}
+              aria-label="Профиль"
+              aria-expanded={mobileAvatarMenuOpen}
+            >
+              {avatarToken}
+            </button>
+            {mobileAvatarMenuOpen && (
+              <div className="mobile-avatar-dropdown">
+                <a href={`${API}/logout/`} className="mobile-avatar-dropdown-item" onClick={() => setMobileAvatarMenuOpen(false)}>
+                  Выйти из профиля
+                </a>
+              </div>
+            )}
           </div>
           </div>
         </header>
@@ -1330,11 +1363,12 @@ export default function Dashboard() {
           ] : [
             { id: 'dashboard', label: 'Главная',  icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>) },
             { id: 'students', label: 'Мои ученики',   icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>) },
+            { id: 'student-reports', label: 'Результаты', badge: studentReports.length || null, icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>) },
             // { id: 'homework', label: 'Задания', icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>) },
             { id: 'variants', label: 'Варианты',  icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="4" rx="1"/><rect x="2" y="10" width="20" height="4" rx="1"/><rect x="2" y="17" width="20" height="4" rx="1"/></svg>) },
           ]).map(item => (
             // eslint-disable-next-line jsx-a11y/anchor-is-valid
-            <a key={item.id} href="#" className={`bottom-nav-item${page === item.id ? ' bottom-nav-item--active' : ''}`} onClick={e => { e.preventDefault(); setPage(item.id); setSelectedGroup(null); }}>
+            <a key={item.id} href="#" className={`bottom-nav-item${page === item.id ? ' bottom-nav-item--active' : ''}`} onClick={e => { e.preventDefault(); setPage(item.id); setSelectedGroup(null); setMobileAvatarMenuOpen(false); }}>
               <span className="bottom-nav-item-wrap">
                 {item.icon}
                 {item.badge ? <span className="bottom-nav-badge">{item.badge}</span> : null}
