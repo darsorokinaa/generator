@@ -301,13 +301,22 @@ class HomeworkTeacherFeedbackFile(models.Model):
 
 class StudentLessonReport(models.Model):
     """PDF-отчёт по ученику после проверки работы (хранится на сервере)."""
+    REPORT_KIND_CHOICES = [
+        ('homework', 'Домашнее задание'),
+        ('lesson', 'Урок'),
+    ]
+
     teacher = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='student_lesson_reports')
     student = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='lesson_reports')
     assignment = models.OneToOneField(
         HomeworkAssignment,
         on_delete=models.CASCADE,
         related_name='lesson_report',
+        null=True,
+        blank=True,
     )
+    report_kind = models.CharField(max_length=20, choices=REPORT_KIND_CHOICES, default='homework')
+    lesson_token = models.CharField(max_length=2048, blank=True, default='')
     variant_id = models.IntegerField()
     title = models.CharField(max_length=255, blank=True, default='')
     score = models.IntegerField(null=True, blank=True)
@@ -319,6 +328,8 @@ class StudentLessonReport(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
+        if self.report_kind == 'lesson':
+            return f'Отчёт урока #{self.id} → {self.student}'
         return f'Отчёт #{self.assignment_id} → {self.student}'
 
     class Meta:

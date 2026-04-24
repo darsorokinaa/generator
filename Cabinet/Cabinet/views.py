@@ -301,11 +301,16 @@ def _homework_room_join_urls(assignment, request=None):
     token, _rid = _ensure_homework_room_credentials(assignment, save=True)
     aid = assignment.pk
     tok_q = quote(str(token), safe='')
-    if request is not None:
-        join_base = request.build_absolute_uri('/lesson/join/').rstrip('/')
-    else:
-        # Fallback для случаев без request (не должен срабатывать для обычного API /join-url).
-        join_base = f'{_generator_base_for_links(request).rstrip("/")}/lesson/join'
+    pub = _generator_public_site_url().rstrip('/')
+    if not pub:
+        base = _generator_base_for_links(request).rstrip('/')
+        if len(base) >= 4 and base.lower().endswith('/api'):
+            base = base[:-4].rstrip('/')
+        pub = base
+    if not pub and request is not None:
+        # Самый крайний fallback (нежелательно): текущий хост ЛК.
+        pub = request.build_absolute_uri('/').rstrip('/')
+    join_base = f'{pub}/lesson/join'
     base = f'{join_base}/?token={tok_q}&cabinet_session=homework&cabinet_assignment={aid}'
     return {
         'teacher': f'{base}&role=teacher',
@@ -422,6 +427,9 @@ def _upsert_student_lesson_report(assignment):
     )
     report.teacher = teacher
     report.student = student
+    report.assignment = assignment
+    report.report_kind = 'homework'
+    report.lesson_token = ''
     report.variant_id = int(hw.variant_id)
     report.title = title[:255]
     report.score = assignment.score
@@ -436,6 +444,53 @@ def _upsert_student_lesson_report(assignment):
         report.report_filename = file_name
 
     report.save()
+    return report
+
+
+def _upsert_lesson_report_by_token(*, token, payload, student_profile):
+    """
+    Сохраняет отчёт по завершению обычного урока (не ДЗ), если в токене есть variant_id.
+    """
+    if not student_profile:
+        return None
+    try:
+        variant_id = int(payload.get('variant_id'))
+    except Exception:
+        return None
+
+    teacher_user_id = payload.get('teacher_id')
+    try:
+        teacher = UserProfile.objects.get(user_id=int(teacher_user_id))
+    except Exception:
+        return None
+
+    target_name = str(payload.get('target_name') or '').strip()
+    title = f'Урок: {target_name}' if target_name else f'Урок (вариант {variant_id})'
+
+    report, _ = StudentLessonReport.objects.update_or_create(
+        teacher=teacher,
+        student=student_profile,
+        report_kind='lesson',
+        lesson_token=str(token or '').strip(),
+        defaults={
+            'assignment': None,
+            'variant_id': variant_id,
+            'title': title[:255],
+            'score': None,
+            'status': 'reviewed',
+            'teacher_comment': '',
+        },
+    )
+
+    # PDF отчёта урока: тот же PDF варианта, чтобы запись сразу была кликабельной в таблице результатов.
+    pdf_content = _fetch_variant_pdf_content(variant_id)
+    if pdf_content:
+        student_slug = slugify(f'{student_profile.name}-{student_profile.surname}') or f'student-{student_profile.id}'
+        token_hash = hashlib.sha1(str(token or '').encode('utf-8')).hexdigest()[:10]
+        file_name = f'lesson-report-{variant_id}-{student_slug}-{token_hash}.pdf'
+        report.report_file.save(file_name, ContentFile(pdf_content), save=False)
+        report.report_filename = file_name
+        report.save(update_fields=['report_file', 'report_filename', 'generated_at'])
     return report
 
 
@@ -742,10 +797,10 @@ def lesson_join_spa_redirect(request):
     role = str(request.GET.get('role') or '').strip().lower()
     assignment_raw = request.GET.get('cabinet_assignment')
     assignment_id = None
+    token = str(request.GET.get('token') or '').strip()
     try:
         assignment_id = int(assignment_raw)
     except (TypeError, ValueError):
-        token = str(request.GET.get('token') or '').strip()
         if token:
             try:
                 payload = jwt.decode(token, LESSON_SECRET, algorithms=['HS256'])
@@ -755,6 +810,14 @@ def lesson_join_spa_redirect(request):
 
     base = request.build_absolute_uri('/')
     if assignment_id is None:
+        # Если это не ДЗ-ссылка (assignment_id отсутствует), прокидываем на generator /lesson/join/ с тем же query,
+        # чтобы не было лишнего шага через главную ЛК.
+        pub = _generator_public_site_url().rstrip('/')
+        if pub and token:
+            qs = request.META.get('QUERY_STRING', '')
+            if qs:
+                return redirect(f'{pub}/lesson/join/?{qs}')
+            return redirect(f'{pub}/lesson/join/')
         return redirect(base)
 
     params = {'variant_play': str(assignment_id)}
@@ -2818,6 +2881,15 @@ class LessonTeacherLeftView(APIView):
             expires_at=timezone.now(),
         )
 
+        # После завершения обычного урока фиксируем запись в "Результаты учеников".
+        if lesson_type in ('student', 'group') and payload.get('variant_id') is not None and notify_profile_ids:
+            try:
+                students = UserProfile.objects.filter(id__in=notify_profile_ids)
+                for sp in students:
+                    _upsert_lesson_report_by_token(token=token, payload=payload, student_profile=sp)
+            except Exception:
+                logger.exception('Не удалось сохранить lesson-report при teacher-left token=%s', token[:16])
+
         return Response({'ok': True})
 
 
@@ -3532,6 +3604,14 @@ class HomeworkSubmitView(APIView):
         result = _coerce_homework_result_payload(request.data.get('result'))  # JSON-результат выполнения варианта
         score  = request.data.get('score')                         # балл (опционально, может считаться автоматически)
 
+        has_existing_result = isinstance(assignment.result, dict) and bool(assignment.result)
+        has_any_files = assignment.answer_files.exists()
+        if result is None and not has_existing_result and not has_any_files:
+            return Response(
+                {'error': 'Нельзя отправить пустую работу: заполните ответы или прикрепите файл.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         update_fields = ['status', 'submitted_at']                 # обязательные поля для обновления
         assignment.status       = 'submitted'                      # меняем статус на "сдано"
         assignment.submitted_at = timezone.now()                   # фиксируем время сдачи
@@ -3951,16 +4031,15 @@ class StudentLessonReportListView(APIView):
         for r in qs:
             # Для прод-надёжности отдаём ссылку через Django-эндпоинт, а не прямой /media/... (Nginx может быть настроен не везде).
             file_url = request.build_absolute_uri(f'/api/student-reports/{r.id}/download/')
-            # Сейчас отчёты формируются из проверки ДЗ; оставляем расширяемую схему для будущих уроков.
-            report_kind = 'homework'
-            report_kind_label = 'ДЗ'
+            report_kind = str(getattr(r, 'report_kind', '') or ('homework' if r.assignment_id else 'lesson'))
+            report_kind_label = 'Урок' if report_kind == 'lesson' else 'ДЗ'
             rows.append({
                 'id': r.id,
                 'student_id': r.student_id,
                 'student_name': r.student.name,
                 'student_surname': r.student.surname,
                 'assignment_id': r.assignment_id,
-                'homework_id': r.assignment.homework_id,
+                'homework_id': (r.assignment.homework_id if r.assignment_id else None),
                 'variant_id': r.variant_id,
                 'title': r.title,
                 'score': r.score,
@@ -3999,6 +4078,21 @@ class StudentLessonReportDownloadView(APIView):
                 file_exists = bool(report_name and default_storage.exists(report_name))
             except Exception:
                 logger.exception('Не удалось пересобрать PDF-отчёт report_id=%s assignment_id=%s', report.id, report.assignment_id)
+        elif not file_exists and report.report_kind == 'lesson' and report.variant_id:
+            try:
+                pdf_content = _fetch_variant_pdf_content(report.variant_id)
+                if pdf_content:
+                    student_slug = slugify(f'{report.student.name}-{report.student.surname}') or f'student-{report.student_id}'
+                    token_hash = hashlib.sha1(str(report.lesson_token or report.id).encode('utf-8')).hexdigest()[:10]
+                    file_name = f'lesson-report-{report.variant_id}-{student_slug}-{token_hash}.pdf'
+                    report.report_file.save(file_name, ContentFile(pdf_content), save=False)
+                    report.report_filename = file_name
+                    report.save(update_fields=['report_file', 'report_filename', 'generated_at'])
+                    report.refresh_from_db()
+                    report_name = str(getattr(report.report_file, 'name', '') or '').strip()
+                    file_exists = bool(report_name and default_storage.exists(report_name))
+            except Exception:
+                logger.exception('Не удалось пересобрать lesson PDF report_id=%s variant_id=%s', report.id, report.variant_id)
 
         if not file_exists:
             return Response({'error': 'PDF отчёт пока недоступен. Сформируйте отчёт повторно.'}, status=status.HTTP_404_NOT_FOUND)

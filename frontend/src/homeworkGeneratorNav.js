@@ -116,6 +116,11 @@ function fixGeneratorNavUrl(targetUrl) {
   return `${genOrigin}${path}${search}${hash}`;
 }
 
+/** Внешний helper: нормализует ссылку в сторону генератора (включая /lesson/join/). */
+export function normalizeGeneratorNavUrl(targetUrl) {
+  return fixGeneratorNavUrl(targetUrl);
+}
+
 /** Абсолютный http(s) URL и не тот же origin, что у страницы ЛК — иначе /ege/... откроется как маршрут CRA → дашборд. */
 function isSafeExternalGeneratorUrl(u) {
   if (!u || typeof u !== 'string') return false;
@@ -165,7 +170,7 @@ export async function fetchHomeworkGeneratorJoinUrl(assignmentId) {
 
 export function navigateToHomeworkRoomUrl(target, { newTab = false } = {}) {
   if (!target) return;
-  const url = fixGeneratorNavUrl(target);
+  const url = normalizeGeneratorNavUrl(target);
   if (newTab) window.open(url, '_blank', 'noopener,noreferrer');
   else window.location.replace(url);
 }

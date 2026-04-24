@@ -12,6 +12,7 @@ import {
   buildHomeworkReviewPlayUrl,
   cabinetSpaBasePathname,
   cabinetSpaPlayerOrigin,
+  normalizeGeneratorNavUrl,
 } from './homeworkGeneratorNav';
 
 const AVATAR_EMOJI_GROUPS = {
@@ -548,7 +549,8 @@ export default function Dashboard() {
 
   const acceptIncomingLesson = useCallback(() => {
     const currentInvite = incomingLesson;
-    const url = currentInvite?.student_url || currentInvite?.url;
+    const rawUrl = currentInvite?.student_url || currentInvite?.url;
+    const url = rawUrl ? normalizeGeneratorNavUrl(rawUrl) : '';
     if (!url) {
       return;
     }
@@ -698,8 +700,8 @@ export default function Dashboard() {
     return dashHomeworks.map(a => {
       const deadline = a.hw_deadline ? new Date(a.hw_deadline) : null;
       const deadlinePassed = deadline && deadline < now;
-      const submitted = ['submitted', 'reviewing'].includes(a.status);
-      const kind = submitted ? (deadlinePassed ? 'amber' : 'green') : 'red';
+      const done = ['submitted', 'reviewing', 'reviewed'].includes(a.status);
+      const kind = done ? (deadlinePassed ? 'amber' : 'green') : 'red';
       return { ...a, kind, deadlinePassed };
     }).sort((a, b) => ({ red: 0, amber: 1, green: 2 }[a.kind] - { red: 0, amber: 1, green: 2 }[b.kind]));
   })();
@@ -1244,7 +1246,15 @@ export default function Dashboard() {
                       const deadline = a.hw_deadline ? new Date(a.hw_deadline) : null;
                       const daysLeft = deadline ? Math.ceil((deadline - new Date()) / 86400000) : null;
                       const submitted = ['submitted', 'reviewing'].includes(a.status);
-                      const kindLabel = a.kind === 'green' ? 'Сдано вовремя' : a.kind === 'amber' ? 'Сдано с опозданием' : 'Не сдано';
+                      const kindLabel = a.status === 'reviewed'
+                        ? 'Проверено'
+                        : a.status === 'revision'
+                          ? 'На доработке'
+                          : a.kind === 'green'
+                            ? 'Сдано вовремя'
+                            : a.kind === 'amber'
+                              ? 'Сдано с опозданием'
+                              : 'Не сдано';
                       return (
                         <div key={a.id} className={`hw-event-row hw-event-row--${a.kind}`} style={{ animationDelay: `${idx * 40}ms` }}>
                           <div className={`hw-event-stripe hw-event-stripe--${a.kind}`} />
