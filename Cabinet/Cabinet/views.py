@@ -4217,8 +4217,6 @@ def _teacher_subject_name_keys(request):
 
 def _teacher_allowed_generator_subject_shorts(request, catalog_data=None):
     teacher_subject_keys = _teacher_subject_name_keys(request)
-    if not teacher_subject_keys:
-        return set()
 
     payload = catalog_data
     if payload is None:
@@ -4233,6 +4231,20 @@ def _teacher_allowed_generator_subject_shorts(request, catalog_data=None):
             raise last_err or requests.exceptions.RequestException('Не удалось загрузить каталог генератора')
 
     catalog_rows = payload.get('catalog') if isinstance(payload, dict) else []
+    all_subject_shorts = set()
+    for level_row in catalog_rows if isinstance(catalog_rows, list) else []:
+        subjects = level_row.get('subjects') if isinstance(level_row, dict) else []
+        for subj in subjects if isinstance(subjects, list) else []:
+            if not isinstance(subj, dict):
+                continue
+            short = str(subj.get('subject_short') or '').strip()
+            if short:
+                all_subject_shorts.add(short)
+
+    # Не блокируем legacy-учителей в проде, у которых предметы ещё не сопоставлены.
+    if not teacher_subject_keys:
+        return all_subject_shorts
+
     allowed = set()
     for level_row in catalog_rows if isinstance(catalog_rows, list) else []:
         subjects = level_row.get('subjects') if isinstance(level_row, dict) else []
@@ -4243,6 +4255,16 @@ def _teacher_allowed_generator_subject_shorts(request, catalog_data=None):
             name_key = _normalize_subject_key(subj.get('subject_name'))
             if short and name_key and name_key in teacher_subject_keys:
                 allowed.add(short)
+
+    # Если привязки есть, но не сматчились с каталогом генератора, временно не режем доступ.
+    # Иначе на проде ломаются генерация и сохранение варианта.
+    if not allowed and all_subject_shorts:
+        logger.warning(
+            'Teacher subject mapping mismatch for user_id=%s, fallback to full generator catalog',
+            getattr(request.user, 'id', None),
+        )
+        return all_subject_shorts
+
     return allowed
 
 
