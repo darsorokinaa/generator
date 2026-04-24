@@ -2505,6 +2505,87 @@ input.tasks-page-subtopic-num-input::-webkit-inner-spin-button {
     border: 1.5px solid #fcd34d !important;
 }
 
+.exam-homework-reviewed {
+    margin: 2rem auto 2.5rem;
+    max-width: 900px;
+    padding: 1.15rem 1.25rem;
+    border-radius: 16px;
+    border: 1.5px solid #c7d2fe;
+    background: #fff;
+    box-shadow: 0 4px 20px rgba(37, 99, 235, 0.08);
+}
+
+.exam-homework-reviewed__title {
+    margin: 0 0 0.8rem;
+    font-family: "Unbounded", system-ui, sans-serif;
+    font-size: 1rem;
+    color: #1e3a8a;
+}
+
+.exam-homework-reviewed__teacher-comment {
+    margin: 0 0 0.9rem;
+    padding: 0.72rem 0.82rem;
+    border-radius: 10px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    color: #1e40af;
+    line-height: 1.5;
+}
+
+.exam-homework-reviewed__table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.exam-homework-reviewed__table {
+    width: 100%;
+    border-collapse: collapse;
+    min-width: 640px;
+}
+
+.exam-homework-reviewed__table th,
+.exam-homework-reviewed__table td {
+    border-bottom: 1px solid #e2e8f0;
+    text-align: left;
+    vertical-align: top;
+    padding: 0.62rem 0.55rem;
+    font-size: 0.9rem;
+    color: #0f172a;
+}
+
+.exam-homework-reviewed__table th {
+    font-weight: 700;
+    color: #1e293b;
+    background: #f8fafc;
+}
+
+.exam-homework-reviewed__badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.exam-homework-reviewed__badge--correct {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.exam-homework-reviewed__badge--wrong {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.exam-homework-reviewed__badge--pending {
+    background: #e2e8f0;
+    color: #334155;
+}
+
 .subject-page {
     margin-top: -2rem;
 }
@@ -7773,9 +7854,105 @@ button.site-footer-link {
     .exam-page .answer-input,
     .exam-page textarea.answer-input,
     .exam-page .answer-table-wrap,
-    .exam-page .lesson-solution-file-input {
+    .exam-page .lesson-solution-file-input,
+    .exam-homework-reviewed {
         width: 100%;
         max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    /* Домашнее задание: мобильная компоновка без смены визуального стиля */
+    .main-wrapper.exam-page--homework {
+        overflow-x: hidden;
+    }
+
+    .exam-page--homework .variant-hero-content {
+        padding: 1.15rem 1rem;
+        gap: 0.85rem;
+    }
+
+    .exam-page--homework .exam-homework-bar__inner {
+        padding: 10px 12px;
+        gap: 8px 12px;
+    }
+
+    .exam-page--homework .exam-homework-bar__title,
+    .exam-page--homework .exam-homework-bar__actions,
+    .exam-page--homework .exam-homework-finish,
+    .exam-page--homework .exam-homework-reviewed {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    .exam-page--homework .exam-homework-bar__meta,
+    .exam-page--homework .exam-homework-bar__hint,
+    .exam-page--homework .exam-homework-bar__err,
+    .exam-page--homework .exam-homework-bar__notice {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    .exam-page--homework .task {
+        padding: 0.9rem;
+    }
+
+    .exam-page--homework .task-left {
+        width: 100%;
+        justify-content: flex-start;
+        gap: 0.6rem;
+    }
+
+    .exam-page--homework .answer-input-row {
+        flex-direction: column;
+        align-items: stretch !important;
+        gap: 0.6rem;
+    }
+
+    .exam-page--homework .answer-input-row .answer-status {
+        align-self: flex-start;
+    }
+
+    .exam-page--homework .answer-actions {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+
+    .exam-page--homework .answer-actions .add-button,
+    .exam-page--homework .exam-homework-finish__btn,
+    .exam-page--homework .lesson-solution-upload-btn,
+    .exam-page--homework .lesson-solution-send-btn {
+        width: 100%;
+        min-width: 0;
+        min-height: 44px;
+        white-space: normal;
+        text-align: center;
+    }
+
+    .exam-page--homework .lesson-solution-upload,
+    .exam-page--homework .lesson-solution-pending {
+        width: 100%;
+    }
+
+    .exam-page--homework .lesson-solution-previews {
+        width: 100%;
+        gap: 0.65rem;
+    }
+
+    .exam-page--homework .lesson-solution-preview-fig {
+        max-width: min(44vw, 160px);
+    }
+
+    .exam-page--homework .lesson-solution-preview-cap,
+    .exam-page--homework .task-file-label {
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    .exam-page--homework .task-file-link {
+        width: 100%;
+        min-height: 44px;
         box-sizing: border-box;
     }
 
@@ -7829,6 +8006,50 @@ button.site-footer-link {
     .exam-homework-bar__inner {
         padding-left: 10px;
         padding-right: 10px;
+    }
+
+    .exam-page--homework .container {
+        padding-left: 0.7rem;
+        padding-right: 0.7rem;
+    }
+
+    .exam-page--homework .variant-hero-content {
+        padding: 0.95rem 0.8rem;
+        gap: 0.75rem;
+    }
+
+    .exam-page--homework .exam-homework-bar__inner {
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+
+    .exam-page--homework .task {
+        padding: 0.72rem;
+    }
+
+    .exam-page--homework .exam-homework-finish {
+        padding: 0.95rem 0.85rem;
+    }
+
+    .exam-page--homework .exam-homework-finish__hint {
+        font-size: 0.84rem;
+    }
+
+    .exam-page--homework .lesson-solution-preview-fig {
+        max-width: 100%;
+        width: 100%;
+    }
+
+    .exam-page--homework .lesson-solution-thumb {
+        max-height: 220px;
+    }
+
+    .exam-homework-reviewed {
+        padding: 0.95rem 0.85rem;
+    }
+
+    .exam-homework-reviewed__table {
+        min-width: 520px;
     }
 
     .exam-fixed-corner {

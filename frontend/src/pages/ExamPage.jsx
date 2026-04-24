@@ -46,6 +46,26 @@ function isMathLikeSubject(subject) {
   return s === "math" || s === "math_base";
 }
 
+function parseMaybeJsonObject(value) {
+  if (!value) return null;
+  if (typeof value === "object") return value;
+  if (typeof value !== "string") return null;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function pickFirstNonEmptyString(values) {
+  for (const v of values) {
+    const s = typeof v === "string" ? v.trim() : "";
+    if (s) return s;
+  }
+  return "";
+}
+
 function TaskReportErrorButton({ taskId, taskNumber, onClick }) {
   return (
     <button
@@ -1667,6 +1687,72 @@ function ExamPage() {
   const hwRevisions = hwPicked?.revisionTaskIds || [];
   const hRead = homeworkIsReadonly(hwSt, isTeacherHomeworkView);
   const hSol = homeworkShowSolutions(hwSt);
+  const showHomeworkReviewedResults = isHomework && !isTeacherHomeworkView && hwSt === "reviewed";
+  const homeworkReviewData = useMemo(() => {
+    if (!showHomeworkReviewedResults || !variant?.tasks?.length) return null;
+    const rawObj = hwPicked?.raw && typeof hwPicked.raw === "object" ? hwPicked.raw : {};
+    const resultObj = parseMaybeJsonObject(hwPicked?.result);
+    const commentsByTaskId =
+      resultObj?.comments_by_task_id ||
+      resultObj?.commentsByTaskId ||
+      resultObj?.task_comments_by_id ||
+      rawObj.comments_by_task_id ||
+      rawObj.commentsByTaskId ||
+      {};
+    const commentsByNumber =
+      resultObj?.comments_by_number ||
+      resultObj?.commentsByNumber ||
+      resultObj?.task_comments_by_number ||
+      rawObj.comments_by_number ||
+      rawObj.commentsByNumber ||
+      {};
+    const normalizedTaskIdComments =
+      commentsByTaskId && typeof commentsByTaskId === "object" ? commentsByTaskId : {};
+    const normalizedNumberComments =
+      commentsByNumber && typeof commentsByNumber === "object" ? commentsByNumber : {};
+    const teacherComment = pickFirstNonEmptyString([
+      rawObj.teacher_comment,
+      rawObj.teacherComment,
+      rawObj.review_comment,
+      rawObj.reviewComment,
+      resultObj?.teacher_comment,
+      resultObj?.teacherComment,
+      resultObj?.review_comment,
+      resultObj?.reviewComment,
+      resultObj?.comment,
+      rawObj.comment,
+    ]);
+    const normalizeSimple = (s) =>
+      String(s || "")
+        .trim()
+        .replace(/\s+/g, "")
+        .toLowerCase();
+    const rows = [...variant.tasks]
+      .sort((a, b) => a.number - b.number)
+      .map((task) => {
+        const taskId = String(task.id);
+        const byIdComment = normalizedTaskIdComments[taskId];
+        const byNumComment =
+          normalizedNumberComments[String(task.number)] ??
+          normalizedNumberComments[String(Number(task.number))];
+        const taskComment = pickFirstNonEmptyString([byIdComment, byNumComment]);
+        const studentAnswer = String(userAnswers[task.id] ?? "").trim();
+        let isCorrect = typeof checkedTasks[task.id] === "boolean" ? checkedTasks[task.id] : null;
+        if (isCorrect == null && studentAnswer && task.answer) {
+          const expected = normalizeSimple(task.answer);
+          const actual = normalizeSimple(studentAnswer);
+          if (expected && actual) isCorrect = expected === actual;
+        }
+        return {
+          id: taskId,
+          number: task.number,
+          answer: studentAnswer,
+          isCorrect,
+          comment: taskComment,
+        };
+      });
+    return { teacherComment, rows };
+  }, [showHomeworkReviewedResults, variant, hwPicked, userAnswers, checkedTasks]);
   const numLocked = (n) =>
     isHomework && !homeworkTaskNumberEditable(hwSt, hwRevisions, n, isTeacherHomeworkView);
   const p1FieldDisabled = (task) => {
@@ -2142,7 +2228,7 @@ function ExamPage() {
                     {mode === "test" ? `Тестирование по ${subjectLabel} ${levelLabel}` : `${subjectLabel} ${levelLabel}`}
                   </div>
                   <div className="variant-number">
-                    {mode === "test" ? (() => {
+                    {(isHomework && !isTeacherHomeworkView) ? "Домашнее задание" : mode === "test" ? (() => {
                       const labels = testTaskLabels.length > 0
                         ? testTaskLabels
                         : [...new Set(variant.tasks.map((t) => t.number).filter(Boolean))].sort((a, b) => a - b).map(String);
@@ -2789,8 +2875,59 @@ function ExamPage() {
               </div>
             )}
 
+            {showHomeworkReviewedResults && homeworkReviewData && (
+              <div className="exam-homework-reviewed">
+                <h3 className="exam-homework-reviewed__title">Результаты проверки</h3>
+                {homeworkReviewData.teacherComment ? (
+                  <div className="exam-homework-reviewed__teacher-comment">
+                    <b>Комментарий учителя:</b> {homeworkReviewData.teacherComment}
+                  </div>
+                ) : null}
+                <div className="exam-homework-reviewed__table-wrap">
+                  <table className="exam-homework-reviewed__table">
+                    <thead>
+                      <tr>
+                        <th>Задание</th>
+                        <th>Ваш ответ</th>
+                        <th>Статус</th>
+                        <th>Комментарий</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {homeworkReviewData.rows.map((row) => {
+                        const rowStatus =
+                          row.isCorrect === true
+                            ? "correct"
+                            : row.isCorrect === false
+                              ? "wrong"
+                              : "pending";
+                        const rowStatusText =
+                          row.isCorrect === true
+                            ? "Правильно"
+                            : row.isCorrect === false
+                              ? "Неправильно"
+                              : "Проверено";
+                        return (
+                          <tr key={row.id}>
+                            <td>{row.number}</td>
+                            <td>{row.answer || "—"}</td>
+                            <td>
+                              <span className={`exam-homework-reviewed__badge exam-homework-reviewed__badge--${rowStatus}`}>
+                                {rowStatusText}
+                              </span>
+                            </td>
+                            <td>{row.comment || "—"}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
             {/* Кнопка Завершить — в обычном экзамене, не в ДЗ */}
-            {!isHomework && !lessonEmbedParams.embed && (
+            {!isHomework && !lessonEmbedParams.embed && !lessonEmbedParams.token && (
             <div className="exam-finish-section">
               <button
                 id="finish-btn"

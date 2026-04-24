@@ -19,12 +19,20 @@ function Layout() {
     query.get("homework_mode") === "1" ||
     String(query.get("cabinet_session") || "").toLowerCase() === "homework" ||
     !!query.get("cabinet_assignment");
-  const isLessonEmbedContext =
-    query.get("lesson_embed") === "1" &&
-    query.get("homework_mode") !== "1" &&
-    String(query.get("cabinet_session") || "").toLowerCase() !== "homework";
-  const isLessonTeacherEmbedContext =
-    isLessonEmbedContext && query.get("lesson_student") !== "1";
+  const isHomeworkContext =
+    query.get("homework_mode") === "1" ||
+    String(query.get("cabinet_session") || "").toLowerCase() === "homework" ||
+    !!query.get("cabinet_assignment");
+  const isLessonEmbedAny = query.get("lesson_embed") === "1";
+  const isHomeworkEmbedContext =
+    isLessonEmbedAny &&
+    (
+      query.get("homework_mode") === "1" ||
+      String(query.get("cabinet_session") || "").toLowerCase() === "homework" ||
+      !!query.get("cabinet_assignment")
+    );
+  const isLessonEmbedContext = isLessonEmbedAny && !isHomeworkEmbedContext;
+  const isLessonTeacherEmbedContext = isLessonEmbedContext && query.get("lesson_student") !== "1";
 
   const handleLessonFinishClick = () => {
     if (window.parent && window.parent !== window) {
@@ -266,23 +274,25 @@ function Layout() {
         </Link>
       </div>
       <nav className="header-nav">
-        {isLessonTeacherEmbedContext ? (
-          <button
-            type="button"
-            className="header-nav-cabinet"
-            onClick={handleLessonFinishClick}
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: "6px",
-              background: "#dc2626",
-              borderColor: "#dc2626",
-              color: "#fff",
-              boxShadow: "0 8px 18px rgba(220, 38, 38, 0.24)",
-            }}
-          >
-            Завершить
-          </button>
+        {isHomeworkContext ? null : isLessonEmbedAny ? (
+          isLessonTeacherEmbedContext ? (
+            <button
+              type="button"
+              className="header-nav-cabinet"
+              onClick={handleLessonFinishClick}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+                background: "#dc2626",
+                borderColor: "#dc2626",
+                color: "#fff",
+                boxShadow: "0 8px 18px rgba(220, 38, 38, 0.24)",
+              }}
+            >
+              Завершить
+            </button>
+          ) : null
         ) : (
           <>
             {activeThemeId && (
