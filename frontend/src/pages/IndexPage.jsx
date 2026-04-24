@@ -1,9 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 function IndexPage() {
   const navigate = useNavigate();
   const [updates, setUpdates] = useState([]);
+
+  useLayoutEffect(() => {
+    document.body.classList.add("index");
+    return () => document.body.classList.remove("index");
+  }, []);
 
   useEffect(() => {
     fetch("/api/updates/", { credentials: "include" })
@@ -14,77 +19,45 @@ function IndexPage() {
 
   return (
     <div>
-
-      <section className="welcome-banner" aria-label="О платформе">
-        <img
-          src={`${import.meta.env.BASE_URL}img/banner-owl.png`}
-          alt=""
-          className="welcome-banner-owl"
-          aria-hidden="true"
-        />
-        <h2 className="welcome-banner-title">
-          Платформа для подготовки к ОГЭ и ЕГЭ
-        </h2>
-        <p className="welcome-banner-text">
-          Удобные материалы и генератор заданий для уроков и домашней работы. Актуальная структура по предметам, готовые варианты и подборки по темам — чтобы готовить класс к экзаменам системно и с меньшими затратами времени.
-        </p>
-        <button
-          type="button"
-          className="welcome-banner-cta"
-          onClick={() => document.getElementById("exam-choice")?.scrollIntoView({ behavior: "smooth" })}
-        >
-          к материалам
-        </button>
+      {/*
+      Верхний welcome-banner (слайдер объявлений) отключён — текст, сова и CTA перенесены в блок «Добро пожаловать» ниже.
+      <section className={`welcome-banner${currentSlideIsLight ? " welcome-banner--light" : ""}`} aria-label="О платформе">
+        ...
       </section>
+      */}
 
       <div className="index-desktop-wrap">
         <div className="index-main">
           
 
-          <div className="hero">
-            <h1>Добро пожаловать!</h1>
-            <p>
-              Здесь вы можете подбирать задания и готовить материалы для уроков по ОГЭ и ЕГЭ.
-              Выберите формат экзамена и предмет — и приступайте к работе с классом.
-            </p>
+          <div className="hero hero--index-welcome" aria-label="Добро пожаловать">
+            <div className="hero-index-welcome-inner">
+              <h1>
+                {`Платформа для\u00A0подготовки\u00A0`}
+                <br className="hero-index-welcome-br-mobile" aria-hidden="true" />{`к\u00A0ОГЭ и\u00A0ЕГЭ`}
+              </h1> 
+
+              <p className="hero-index-platform-text">
+                {`Удобные материалы и\u00A0генератор заданий для\u00A0уроков и\u00A0домашней работы. Актуальная структура по\u00A0предметам, готовые варианты и\u00A0подборки по\u00A0темам, чтобы\u00A0готовить учеников к\u00A0экзаменам системно и\u00A0с\u00A0меньшими затратами времени.`}
+              </p>
+              <p className="hero-index-platform-title">Добро пожаловать!</p>
+              {/* <button
+                type="button"
+                className="hero-index-cta"
+                onClick={() => document.getElementById("exam-choice")?.scrollIntoView({ behavior: "smooth" })}
+              >
+                к материалам
+              </button> */}
+            </div>
+            <img
+              src={`${import.meta.env.BASE_URL}img/banner-owl.png`}
+              alt=""
+              className="hero-owl"
+              aria-hidden="true"
+            />
           </div>
-          <section className="steps-block" aria-label="Этапы подготовки">
-            <h2 className="steps-block-title">Инструкция</h2>
-            <ol className="steps-list">
-              <li className="steps-item">
-                <span className="steps-num" aria-hidden="true">1</span>
-                <div className="steps-content">
-                  <h3 className="steps-item-title">Выбирайте экзамен и предмет</h3>
-                  <p className="steps-item-text">Сейчас доступны математика и информатика, другие предметы уже на подходе!</p>
-                </div>
-              </li>
-              <li className="steps-item">
-                <span className="steps-num" aria-hidden="true">2</span>
-                <div className="steps-content">
-                  <h3 className="steps-item-title">Генерируйте уникальный тренировочный вариант</h3>
-                  <p className="steps-item-text">Все задания из актуальных материалов с автопроверкой. А еще платформа работает как онлайн-доска: записывайте решения прямо рядом с заданиями.</p>
-                </div>
-              </li>
-              <li className="steps-item">
-                <span className="steps-num" aria-hidden="true">3</span>
-                <div className="steps-content">
-                  <h3 className="steps-item-title">Сохраняйте вариант в PDF</h3>
-                  <p className="steps-item-text">Возвращайтесь к сохраненным файлам в любой момент с помощью поиска по вариантам и сверяйте ответы. Мы добавили функцию с красивым цветным оформлением, потому что учиться должно быть приятно.</p>
-                </div>
-              </li>
-              <li className="steps-item">
-                <span className="steps-num" aria-hidden="true">4</span>
-                <div className="steps-content">
-                  <h3 className="steps-item-title">Тренируйтесь на отдельных заданиях</h3>
-                  <p className="steps-item-text">Создавайте тесты с автопроверкой для разминки или целенаправленной отработки конкретных номеров, чтобы совершенствовать результаты.</p>
-                </div>
-              </li>
-            </ol>
-          </section>
 
-
-
-          <div id="exam-choice" className="exam-grid">
+          <div id="exam-choice" className="exam-grid exam-choice-pair">
 
             <div
               className="exam-card exam-card-oge"
@@ -106,9 +79,7 @@ function IndexPage() {
                   <div className="exam-icon exam-icon-oge">📝</div>
                   <div className="exam-card-text">
                     <h3 className="exam-title">ОГЭ</h3>
-                    <p className="exam-description">
-                      Основной государственный экзамен
-                    </p>
+                    <p className="exam-description">Основной государственный экзамен</p>
                   </div>
                 </div>
                 <div className="exam-card-footer">
@@ -140,9 +111,7 @@ function IndexPage() {
                   <div className="exam-icon exam-icon-ege">🎓</div>
                   <div className="exam-card-text">
                     <h3 className="exam-title">ЕГЭ</h3>
-                    <p className="exam-description">
-                      Единый государственный экзамен
-                    </p>
+                    <p className="exam-description">Единый государственный экзамен</p>
                   </div>
                 </div>
                 <div className="exam-card-footer">
@@ -155,6 +124,52 @@ function IndexPage() {
             </div>
 
           </div>
+
+          <section className="steps-block" aria-label="Этапы подготовки">
+            <h2 className="steps-block-title">Инструкция</h2>
+            <ol className="steps-list">
+              <li className="steps-item">
+                <span className="steps-num" aria-hidden="true">1</span>
+                <div className="steps-content">
+                  <h3 className="steps-item-title">
+                    Выбирайте экзамен{"\u00A0"}и предмет
+                  </h3>
+                  <p className="steps-item-text">
+                    Сейчас доступны профильная математика{"\u00A0"}и информатика, другие предметы уже на подходе!
+                  </p>
+                </div>
+              </li>
+              <li className="steps-item">
+                <span className="steps-num" aria-hidden="true">2</span>
+                <div className="steps-content">
+                  <h3 className="steps-item-title">Генерируйте уникальный тренировочный вариант</h3>
+                  <p className="steps-item-text">
+                    Все задания из актуальных материалов с автопроверкой. А{"\u00A0"}еще платформа работает как онлайн-доска:
+                    записывайте решения прямо рядом с заданиями.
+                  </p>
+                </div>
+              </li>
+              <li className="steps-item">
+                <span className="steps-num" aria-hidden="true">3</span>
+                <div className="steps-content">
+                  <h3 className="steps-item-title">Сохраняйте вариант в PDF</h3>
+                  <p className="steps-item-text">
+                    Возвращайтесь к сохраненным файлам в любой момент с помощью поиска по вариантам{"\u00A0"}и сверяйте ответы.
+                  </p>
+                </div>
+              </li>
+              <li className="steps-item">
+                <span className="steps-num" aria-hidden="true">4</span>
+                <div className="steps-content">
+                  <h3 className="steps-item-title">Тренируйтесь на отдельных заданиях</h3>
+                  <p className="steps-item-text">
+                    Создавайте тесты с автопроверкой для разминки или целенаправленной отработки конкретных номеров,
+                    {"\u00A0"}чтобы совершенствовать результаты.
+                  </p>
+                </div>
+              </li>
+            </ol>
+          </section>
         </div>
 
         {updates.length > 0 && (
