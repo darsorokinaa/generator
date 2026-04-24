@@ -34,6 +34,8 @@ class TeachersStudentSerializer(serializers.ModelSerializer):
     student_email    = serializers.CharField(source='student.email',       read_only=True)
     student_phone    = serializers.CharField(source='student.phone',       read_only=True)
     student_username = serializers.CharField(source='student.username',    read_only=True)
+    student_avatar_emoji = serializers.CharField(source='student.avatar_emoji', read_only=True)
+    student_avatar_bg = serializers.CharField(source='student.avatar_bg', read_only=True)
     gender           = serializers.CharField(source='student.gender',      read_only=True)
     birth_date       = serializers.DateField(source='student.birth_date',  read_only=True)
     subject_name     = serializers.CharField(source='subject.subject_name',read_only=True)
@@ -46,6 +48,7 @@ class TeachersStudentSerializer(serializers.ModelSerializer):
             'id',
             'student', 'student_name', 'student_surname', 'student_username',
             'student_email', 'student_phone',
+            'student_avatar_emoji', 'student_avatar_bg',
             'gender', 'birth_date',
             'subject', 'subject_name',
             'level', 'level_name',

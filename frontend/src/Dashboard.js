@@ -72,6 +72,7 @@ export default function Dashboard() {
   const [studentMyAssignments, setStudentMyAssignments] = useState([]);
   const [studentReports, setStudentReports] = useState([]);
   const [studentReportsLoading, setStudentReportsLoading] = useState(false);
+  const [variantsCount, setVariantsCount] = useState(0);
   const studentHwPollRef = useRef(null);
   const [searchFocused, setSearchFocused] = useState(false);
   const [reviewTab, setReviewTab] = useState('all');
@@ -294,6 +295,21 @@ export default function Dashboard() {
     }
   }, [authChecked, user]);
 
+  const fetchVariantsCount = useCallback(async () => {
+    if (!authChecked || !user || user.role === 'student') return;
+    try {
+      const r = await fetch(`${API}/api/variants/`, { credentials: 'include' });
+      if (!r.ok) {
+        setVariantsCount(0);
+        return;
+      }
+      const data = await r.json();
+      setVariantsCount(Array.isArray(data) ? data.length : 0);
+    } catch {
+      setVariantsCount(0);
+    }
+  }, [authChecked, user]);
+
   useEffect(() => {
     if (!authChecked || !user || user.role !== 'student') return undefined;
     fetchStudentMyHomework();
@@ -310,6 +326,15 @@ export default function Dashboard() {
   useEffect(() => {
     if (page === 'student-reports' && user?.role !== 'student') fetchStudentReports();
   }, [page, fetchStudentReports, user]);
+
+  useEffect(() => {
+    if (!authChecked || !user || user.role === 'student') return;
+    fetchVariantsCount();
+  }, [authChecked, user, fetchVariantsCount]);
+
+  useEffect(() => {
+    if (page === 'variants' && user?.role !== 'student') fetchVariantsCount();
+  }, [page, user, fetchVariantsCount]);
 
   /** Сразу на генератор (join-url), без промежуточной страницы ЛК ?homework_room=. */
   const goToStudentAssignment = useCallback((assignmentId) => {
@@ -680,7 +705,7 @@ export default function Dashboard() {
   })();
 
   const PAGE_TITLES = {
-    dashboard: 'Дашборд', students: 'Мои ученики', homework: 'Задания',
+    dashboard: 'Главная', students: 'Мои ученики', homework: 'Задания',
     schedule: 'Расписание', analytics: 'Аналитика', // generator: 'AI-Генератор',
     variants: 'Варианты',
     'student-reports': 'Результаты учеников',
@@ -834,7 +859,7 @@ export default function Dashboard() {
             <div className="nav-section-label">Учебный процесс</div>
             {[
               { id: 'students', label: 'Мои ученики', badge: activeStudents.length || null, icon: (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>) },
-              { id: 'student-reports', label: 'Результаты учеников', badge: studentReports.length || null, icon: (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>) },
+              { id: 'student-reports', label: 'Результаты учеников', badge: null, icon: (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>) },
               // { id: 'homework', label: 'Задания', badge: dashHwStats.needReview || null, icon: (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>) },
             ].map(({ id, label, badge, icon }) => (
               // eslint-disable-next-line jsx-a11y/anchor-is-valid
@@ -860,6 +885,7 @@ export default function Dashboard() {
                     </svg>
               </span>
               <span className="nav-item-label">Варианты</span>
+              {variantsCount > 0 ? <span className="nav-badge">{variantsCount}</span> : null}
             </a>
 
             <div className="nav-item nav-item--disabled" aria-disabled="true">
@@ -912,7 +938,7 @@ export default function Dashboard() {
                     <rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>
                   </svg>
                 </span>
-                <span className="nav-item-label">Дашборд</span>
+                <span className="nav-item-label">Главная</span>
               </a>
               {/* eslint-disable-next-line jsx-a11y/anchor-is-valid */}
               <a href="#" className={`nav-item${page === 'homework' ? ' nav-item--active' : ''}`} onClick={e => { e.preventDefault(); setPage('homework'); }}>
@@ -947,7 +973,7 @@ export default function Dashboard() {
         {/* TOP HEADER */}
         <header className="app-topbar">
           <div className="topbar-left">
-            <h1 className="topbar-title">{PAGE_TITLES[page] || 'Дашборд'}</h1>
+            <h1 className="topbar-title">{PAGE_TITLES[page] || 'Главная'}</h1>
             {page === 'dashboard' && <span className="topbar-date">{todayStr}</span>}
                 </div>
           <div className="topbar-right">
@@ -1362,14 +1388,14 @@ export default function Dashboard() {
       <nav className="mobile-bottom-nav">
         <div className="bottom-nav-inner">
           {(isStudent ? [
-            { id: 'dashboard', label: 'Дашборд', badge: null, icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>) },
+            { id: 'dashboard', label: 'Главная', badge: null, icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>) },
             { id: 'homework', label: 'Задания', badge: studentHwActionCount > 0 ? studentHwActionCount : null, icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>) },
           ] : [
             { id: 'dashboard', label: 'Главная',  icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>) },
             { id: 'students', label: 'Мои ученики',   icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>) },
-            { id: 'student-reports', label: 'Результаты', badge: studentReports.length || null, icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>) },
+            { id: 'student-reports', label: 'Результаты', badge: null, icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>) },
             // { id: 'homework', label: 'Задания', icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>) },
-            { id: 'variants', label: 'Варианты',  icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="4" rx="1"/><rect x="2" y="10" width="20" height="4" rx="1"/><rect x="2" y="17" width="20" height="4" rx="1"/></svg>) },
+            { id: 'variants', label: 'Варианты', badge: variantsCount > 0 ? variantsCount : null, icon: (<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="4" rx="1"/><rect x="2" y="10" width="20" height="4" rx="1"/><rect x="2" y="17" width="20" height="4" rx="1"/></svg>) },
           ]).map(item => (
             // eslint-disable-next-line jsx-a11y/anchor-is-valid
             <a key={item.id} href="#" className={`bottom-nav-item${page === item.id ? ' bottom-nav-item--active' : ''}`} onClick={e => { e.preventDefault(); setPage(item.id); setSelectedGroup(null); setMobileAvatarMenuOpen(false); }}>

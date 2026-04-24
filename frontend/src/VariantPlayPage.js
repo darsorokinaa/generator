@@ -325,6 +325,11 @@ export default function VariantPlayPage({ assignmentId }) {
               const updated = await res.json();
               setAssignment(updated);
             },
+            onReviewDone: (doneAction) => {
+              if (doneAction === 'reviewed') {
+                window.location.assign(cabinetSpaBasePathname());
+              }
+            },
           }
           : null
       }

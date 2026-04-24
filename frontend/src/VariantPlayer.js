@@ -1311,7 +1311,7 @@ export default function VariantPlayer({
         totalScore: previewTotalScore,
         revision_task_numbers: extra.revision_task_numbers,
       });
-      if (homeworkReview.onReviewDone) homeworkReview.onReviewDone();
+      if (homeworkReview.onReviewDone) homeworkReview.onReviewDone(action);
     } finally {
       setReviewBusy(false);
     }

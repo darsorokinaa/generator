@@ -48,6 +48,7 @@ from .views import (
     NotificationReadView,
     NotificationReadAllView,
     StudentLessonReportListView,
+    StudentLessonReportDownloadView,
 )
 
 router = DefaultRouter()
@@ -133,6 +134,7 @@ urlpatterns = [
     path('api/notifications/read-all/',                          NotificationReadAllView.as_view(),      name='api-notifications-read-all'),
     path('api/notifications/<int:pk>/read/',                     NotificationReadView.as_view(),         name='api-notification-read'),
     path('api/student-reports/',                                 StudentLessonReportListView.as_view(),  name='api-student-reports'),
+    path('api/student-reports/<int:pk>/download/',               StudentLessonReportDownloadView.as_view(),  name='api-student-reports-download'),
 
     path('api/get-all-tasks/',        views.get_all_tasks),
     path('api/gen/variant-lookup/<int:variant_id>/', views.gen_variant_lookup),

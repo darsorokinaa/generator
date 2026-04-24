@@ -14,6 +14,29 @@ function initials(name) {
   return (parts[0]?.[0] || '?').toUpperCase();
 }
 
+function fallbackAvatarColor(name) {
+  const palette = ['#4F6EF7', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4', '#EC4899', '#E87B35'];
+  const n = String(name || '');
+  let h = 0;
+  for (let i = 0; i < n.length; i += 1) h = n.charCodeAt(i) + ((h << 5) - h);
+  return palette[Math.abs(h) % palette.length];
+}
+
+function avatarBgCss(bgValue, fallbackName = '') {
+  const raw = String(bgValue || '').trim();
+  if (!raw) return fallbackAvatarColor(fallbackName);
+  if (raw.includes('gradient(') || raw.startsWith('#') || raw.startsWith('rgb')) return raw;
+  const MAP = {
+    violet: 'linear-gradient(135deg, #6D5EF8 0%, #9A8BFF 100%)',
+    ocean: 'linear-gradient(135deg, #0EA5E9 0%, #2563EB 100%)',
+    mint: 'linear-gradient(135deg, #10B981 0%, #34D399 100%)',
+    sunset: 'linear-gradient(135deg, #F59E0B 0%, #FB7185 100%)',
+    peach: 'linear-gradient(135deg, #FB7185 0%, #FDBA74 100%)',
+    forest: 'linear-gradient(135deg, #15803D 0%, #65A30D 100%)',
+  };
+  return MAP[raw] || fallbackAvatarColor(fallbackName);
+}
+
 const STATUS_LABELS = { '1': 'Активный', '2': 'На паузе', '3': 'Завершил', '4': 'Пробный урок' };
 
 export default function GroupDetailPage({ group, onBack, onOpenProfile }) {
@@ -110,29 +133,34 @@ export default function GroupDetailPage({ group, onBack, onOpenProfile }) {
                   <div className="table-empty">{loading ? 'Загрузка…' : 'В этой группе пока нет учеников'}</div>
                 </ResponsiveCard>
               )}
-              renderItem={(s) => (
-                <ResponsiveCard key={s.id} className="group-member-card">
-                  <button
-                    type="button"
-                    className="group-member-btn"
-                    onClick={() => onOpenProfile(s)}
-                  >
-                    <div className="student-cell">
-                      <div className="student-avatar-sm">{initials(`${s.student_name || ''} ${s.student_surname || ''}`)}</div>
-                      <div className="student-info">
-                        <span className="student-name">{s.student_name} {s.student_surname}</span>
-                        {s.student_email ? <span className="student-meta-sm" style={{ display: 'block' }}>{s.student_email}</span> : null}
+              renderItem={(s) => {
+                const fullName = `${s.student_name || ''} ${s.student_surname || ''}`.trim();
+                const avatarEmoji = String(s.student_avatar_emoji || '').trim();
+                const avatarBackground = avatarBgCss(s.student_avatar_bg, fullName);
+                return (
+                  <ResponsiveCard key={s.id} className="group-member-card">
+                    <button
+                      type="button"
+                      className="group-member-btn"
+                      onClick={() => onOpenProfile(s)}
+                    >
+                      <div className="student-cell">
+                        <div className="student-avatar-sm" style={{ background: avatarBackground }}>{avatarEmoji || initials(fullName)}</div>
+                        <div className="student-info">
+                          <span className="student-name">{s.student_name} {s.student_surname}</span>
+                          {s.student_email ? <span className="student-meta-sm" style={{ display: 'block' }}>{s.student_email}</span> : null}
+                        </div>
                       </div>
-                    </div>
-                    <div className="group-member-meta">
-                      <span className="cell-plain">{s.grade ? `${s.grade} класс` : '—'}</span>
-                      <span className={`status-badge status-badge--${s.status === '1' ? 'active' : s.status === '3' ? 'danger' : 'warning'}`}>
-                        {STATUS_LABELS[s.status] || s.status}
-                      </span>
-                    </div>
-                  </button>
-                </ResponsiveCard>
-              )}
+                      <div className="group-member-meta">
+                        <span className="cell-plain">{s.grade ? `${s.grade} класс` : '—'}</span>
+                        <span className={`status-badge status-badge--${s.status === '1' ? 'active' : s.status === '3' ? 'danger' : 'warning'}`}>
+                          {STATUS_LABELS[s.status] || s.status}
+                        </span>
+                      </div>
+                    </button>
+                  </ResponsiveCard>
+                );
+              }}
             />
           )}
           desktop={(
@@ -154,35 +182,40 @@ export default function GroupDetailPage({ group, onBack, onOpenProfile }) {
                     <tr>
                       <td colSpan={3} className="table-empty">В этой группе пока нет учеников</td>
                     </tr>
-                  ) : members.map(s => (
-                    <tr
-                      key={s.id}
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => onOpenProfile(s)}
-                      onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent-lt)'; }}
-                      onMouseLeave={e => { e.currentTarget.style.background = ''; }}
-                    >
-                      <td>
-                        <div className="student-cell">
-                          <div className="student-avatar-sm">{initials(`${s.student_name || ''} ${s.student_surname || ''}`)}</div>
-                          <div className="student-info">
-                            <span className="student-name">{s.student_name} {s.student_surname}</span>
-                            {s.student_email ? (
-                              <span className="student-meta-sm" style={{ display: 'block' }}>{s.student_email}</span>
-                            ) : null}
+                  ) : members.map((s) => {
+                    const fullName = `${s.student_name || ''} ${s.student_surname || ''}`.trim();
+                    const avatarEmoji = String(s.student_avatar_emoji || '').trim();
+                    const avatarBackground = avatarBgCss(s.student_avatar_bg, fullName);
+                    return (
+                      <tr
+                        key={s.id}
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => onOpenProfile(s)}
+                        onMouseEnter={e => { e.currentTarget.style.background = 'var(--accent-lt)'; }}
+                        onMouseLeave={e => { e.currentTarget.style.background = ''; }}
+                      >
+                        <td>
+                          <div className="student-cell">
+                            <div className="student-avatar-sm" style={{ background: avatarBackground }}>{avatarEmoji || initials(fullName)}</div>
+                            <div className="student-info">
+                              <span className="student-name">{s.student_name} {s.student_surname}</span>
+                              {s.student_email ? (
+                                <span className="student-meta-sm" style={{ display: 'block' }}>{s.student_email}</span>
+                              ) : null}
+                            </div>
                           </div>
-                        </div>
-                      </td>
-                      <td>
-                        <span className="cell-plain">{s.grade ? `${s.grade} класс` : '—'}</span>
-                      </td>
-                      <td>
-                        <span className={`status-badge status-badge--${s.status === '1' ? 'active' : s.status === '3' ? 'danger' : 'warning'}`}>
-                          {STATUS_LABELS[s.status] || s.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td>
+                          <span className="cell-plain">{s.grade ? `${s.grade} класс` : '—'}</span>
+                        </td>
+                        <td>
+                          <span className={`status-badge status-badge--${s.status === '1' ? 'active' : s.status === '3' ? 'danger' : 'warning'}`}>
+                            {STATUS_LABELS[s.status] || s.status}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

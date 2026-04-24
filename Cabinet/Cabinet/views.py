@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect          # render — рендер шаблона, redirect — перенаправление
-from django.http import JsonResponse                    # JSON для VK ID обмена токена → сессия
+from django.http import JsonResponse, FileResponse                    # JSON для VK ID обмена токена → сессия
 from django.views.decorators.http import require_POST  # только POST для /api/auth/vkid/
 from django.contrib.auth import authenticate, login, logout  # стандартная аутентификация Django
 from django.contrib.auth.models import User            # встроенная модель пользователя Django
@@ -15,6 +15,7 @@ from django.utils.dateparse import parse_date          # безопасный п
 from django.utils.text import slugify
 from django.db import transaction                      # атомарные операции при удалении группы
 from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 import os                                              # работа с файловой системой и переменными окружения
 import random                                          # генерация случайных чисел и выборок
 import string                                          # наборы символов (ascii_letters, digits)
@@ -3948,7 +3949,8 @@ class StudentLessonReportListView(APIView):
         ).filter(teacher=teacher).order_by('-generated_at')
         rows = []
         for r in qs:
-            file_url = request.build_absolute_uri(r.report_file.url) if r.report_file else None
+            # Для прод-надёжности отдаём ссылку через Django-эндпоинт, а не прямой /media/... (Nginx может быть настроен не везде).
+            file_url = request.build_absolute_uri(f'/api/student-reports/{r.id}/download/')
             # Сейчас отчёты формируются из проверки ДЗ; оставляем расширяемую схему для будущих уроков.
             report_kind = 'homework'
             report_kind_label = 'ДЗ'
@@ -3971,6 +3973,44 @@ class StudentLessonReportListView(APIView):
                 'generated_at': r.generated_at,
             })
         return Response(rows)
+
+
+class StudentLessonReportDownloadView(APIView):
+    """GET /api/student-reports/<id>/download/ — выдача PDF-отчёта по ученику текущего учителя."""
+    permission_classes = [IsCabinetTeacher]
+
+    def get(self, request, pk):
+        teacher = request.user.profile
+        try:
+            report = StudentLessonReport.objects.select_related(
+                'assignment', 'assignment__homework',
+            ).get(pk=pk, teacher=teacher)
+        except StudentLessonReport.DoesNotExist:
+            return Response({'error': 'Не найдено'}, status=status.HTTP_404_NOT_FOUND)
+
+        # Автовосстановление: если запись есть, а файл исчез/недоступен в media, пробуем пересобрать из assignment.
+        report_name = str(getattr(report.report_file, 'name', '') or '').strip()
+        file_exists = bool(report_name and default_storage.exists(report_name))
+        if not file_exists and report.assignment_id:
+            try:
+                _upsert_student_lesson_report(report.assignment)
+                report.refresh_from_db()
+                report_name = str(getattr(report.report_file, 'name', '') or '').strip()
+                file_exists = bool(report_name and default_storage.exists(report_name))
+            except Exception:
+                logger.exception('Не удалось пересобрать PDF-отчёт report_id=%s assignment_id=%s', report.id, report.assignment_id)
+
+        if not file_exists:
+            return Response({'error': 'PDF отчёт пока недоступен. Сформируйте отчёт повторно.'}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            fh = default_storage.open(report_name, mode='rb')
+        except Exception:
+            logger.exception('Не удалось открыть PDF-отчёт report_id=%s file=%s', report.id, report_name)
+            return Response({'error': 'Не удалось открыть файл отчёта'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        out_name = (report.report_filename or os.path.basename(report_name) or f'report-{report.id}.pdf').strip()
+        return FileResponse(fh, content_type='application/pdf', filename=out_name)
 
 
 class HomeworkCancelAssignmentView(APIView):

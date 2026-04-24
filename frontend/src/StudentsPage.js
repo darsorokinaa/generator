@@ -16,6 +16,21 @@ function initials(name) {
   return (name || '').split(' ').filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?';
 }
 
+function avatarBgCss(bgValue, fallbackName = '') {
+  const raw = String(bgValue || '').trim();
+  if (!raw) return avatarColor(fallbackName);
+  if (raw.includes('gradient(') || raw.startsWith('#') || raw.startsWith('rgb')) return raw;
+  const MAP = {
+    violet: 'linear-gradient(135deg, #6D5EF8 0%, #9A8BFF 100%)',
+    ocean: 'linear-gradient(135deg, #0EA5E9 0%, #2563EB 100%)',
+    mint: 'linear-gradient(135deg, #10B981 0%, #34D399 100%)',
+    sunset: 'linear-gradient(135deg, #F59E0B 0%, #FB7185 100%)',
+    peach: 'linear-gradient(135deg, #FB7185 0%, #FDBA74 100%)',
+    forest: 'linear-gradient(135deg, #15803D 0%, #65A30D 100%)',
+  };
+  return MAP[raw] || avatarColor(fallbackName);
+}
+
 function getStudentSubjectLabel(student, subjects) {
   const direct =
     student?.subject_name
@@ -50,7 +65,8 @@ function Toast({ msg }) {
 // ── Строка ученика ────────────────────────────────────────────────────
 function StudentRow({ student, dragging, onDragStart, onDragEnd, onOpenProfile, onArchive, onDelete, showSubject = false, subjectLabel = '—' }) {
   const name   = `${student.student_name || ''} ${student.student_surname || ''}`.trim();
-  const color  = avatarColor(name);
+  const avatarEmoji = String(student.student_avatar_emoji || '').trim();
+  const avatarBackground = avatarBgCss(student.student_avatar_bg, name);
   const active = student.status === '1';
   const [menuPos, setMenuPos] = useState(null);
   const menuRef = useRef(null);
@@ -78,7 +94,7 @@ function StudentRow({ student, dragging, onDragStart, onDragEnd, onOpenProfile, 
     >
       <td className="sp-td sp-td--student" data-label="Ученик">
         <span className="sp-drag-handle" title="Перетащить">⠿</span>
-        <span className="sp-avatar" style={{ background: color }}>{initials(name)}</span>
+        <span className="sp-avatar" style={{ background: avatarBackground }}>{avatarEmoji || initials(name)}</span>
         <span className="sp-name">{name || '—'}</span>
       </td>
       {showSubject && <td className="sp-td sp-td--subject" data-label="Предмет">{subjectLabel}</td>}
@@ -668,12 +684,13 @@ export default function StudentsPage({ onOpenProfile }) {
               <tbody>
                 {archivedStudents.map(s => {
                   const name  = `${s.student_name || ''} ${s.student_surname || ''}`.trim();
-                  const color = avatarColor(name);
+                  const avatarEmoji = String(s.student_avatar_emoji || '').trim();
+                  const avatarBackground = avatarBgCss(s.student_avatar_bg, name);
                   return (
                     <tr key={s.id} className="sp-tr sp-tr--archived" onClick={() => onOpenProfile && onOpenProfile(s)}>
                       <td className="sp-td sp-td--student">
                         <span className="sp-drag-handle" style={{ opacity: 0, pointerEvents: 'none' }}>⠿</span>
-                        <span className="sp-avatar sp-avatar--archived" style={{ background: color }}>{initials(name)}</span>
+                        <span className="sp-avatar sp-avatar--archived" style={{ background: avatarBackground }}>{avatarEmoji || initials(name)}</span>
                         <span className="sp-name">{name || '—'}</span>
                       </td>
                       <td className="sp-td sp-td--grade">{s.grade ? `${s.grade} кл.` : '—'}</td>
