@@ -71,6 +71,8 @@ export default function TeacherTaskReviewBlock({
 
   const statusCls = verdict === 'correct' || verdict === 'scored'
     ? 'tb-status--correct'
+    : verdict === 'partial'
+      ? 'tb-status--partial'
     : verdict === 'wrong'
       ? 'tb-status--wrong'
       : verdict === 'pending'
@@ -80,6 +82,8 @@ export default function TeacherTaskReviewBlock({
     ? 'Верно'
     : verdict === 'scored'
       ? 'Оценено'
+      : verdict === 'partial'
+        ? 'Частично верно'
       : verdict === 'wrong'
         ? 'Неверно'
         : verdict === 'pending'
@@ -88,6 +92,8 @@ export default function TeacherTaskReviewBlock({
 
   const studentChipCls = verdict === 'correct' || verdict === 'scored'
     ? 'tb-chip tb-chip--answer-correct'
+    : verdict === 'partial'
+      ? 'tb-chip tb-chip--answer-partial'
     : verdict === 'wrong'
       ? 'tb-chip tb-chip--answer-wrong'
       : verdict === 'pending'

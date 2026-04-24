@@ -24,6 +24,7 @@ export default function VariantPlayPage({ assignmentId }) {
   const [redirectBusy, setRedirectBusy] = useState(false);
   const [useLocalPlayer, setUseLocalPlayer] = useState(false);
   const homeworkRedirectStartedRef = useRef(false);
+  const reviewedAutoRedirectRef = useRef(false);
 
   useEffect(() => {
     if (!assignmentId) return;
@@ -226,6 +227,18 @@ export default function VariantPlayPage({ assignmentId }) {
   const readOnly = isTeacher || ['submitted', 'reviewing', 'reviewed'].includes(assignment.status);
   const showCorrectAnswers = isTeacher || assignment.status === 'reviewed';
 
+  useEffect(() => {
+    if (!assignment?.id) return;
+    if (!profile?.role || profile.role !== 'student') return;
+    if (assignment.status !== 'reviewed') return;
+    if (reviewedAutoRedirectRef.current) return;
+    reviewedAutoRedirectRef.current = true;
+    const timer = setTimeout(() => {
+      window.location.assign(cabinetSpaBasePathname());
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [assignment?.id, assignment?.status, profile?.role]);
+
   if (!assignment.variant_id) {
     return (
       <div style={{
@@ -273,67 +286,89 @@ export default function VariantPlayPage({ assignmentId }) {
   const homeworkStudentLine = [assignment.student_name, assignment.student_surname].filter(Boolean).join(' ').trim();
 
   const variantPlayer = (
-    <VariantPlayer
-      key={assignment.id}
-      variantId={assignment.variant_id}
-      readOnly={readOnly}
-      savedResult={assignment.result || {}}
-      showCorrectAnswers={showCorrectAnswers}
-      assignmentId={assignment.id}
-      answerFiles={assignment.answer_files || []}
-      isTeacher={!!isTeacher}
-      taskTeacherComments={assignment.task_teacher_comments || {}}
-      whiteboardStrokes={assignment.whiteboard_strokes || []}
-      revisionTaskIds={Array.isArray(assignment.revision_task_ids) ? assignment.revision_task_ids : []}
-      cabinetHomework={!isTeacher}
-      homeworkCabinetStatus={assignment.status}
-      homeworkStudentLabel={homeworkStudentLine}
-      cabinetHomeHref={appHome}
-      onMetaUpdated={handleMetaUpdated}
-      standalone
-      onSaveDraft={
-        !readOnly && !saved && !isTeacher && ['sent', 'revision'].includes(assignment.status)
-          ? handleSaveDraft
-          : null
-      }
-      onSubmit={!readOnly && !saved ? handleSubmit : null}
-      homeworkReview={
-        isTeacher && ['submitted', 'reviewing'].includes(assignment.status)
-          ? {
-            assignmentStatus: assignment.status,
-            initialTeacherComment: assignment.teacher_comment || '',
-            onReview: async (action, payload) => {
-              const body = {
-                action,
-                comment: payload.comment,
-                part2_scores: payload.part2_scores,
-                score: payload.totalScore,
-              };
-              if (action === 'revision') {
-                body.revision_task_numbers = payload.revision_task_numbers ?? [];
-              }
-              const res = await fetch(
-                `${API}/api/homework/assignment/${assignment.id}/review/`,
-                {
-                  method: 'POST',
-                  credentials: 'include',
-                  headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
-                  body: JSON.stringify(body),
-                },
-              );
-              if (!res.ok) throw new Error('review');
-              const updated = await res.json();
-              setAssignment(updated);
-            },
-            onReviewDone: (doneAction) => {
-              if (doneAction === 'reviewed') {
-                window.location.assign(cabinetSpaBasePathname());
-              }
-            },
-          }
-          : null
-      }
-    />
+    <>
+      {!isTeacher && assignment.status === 'reviewed' && (
+        <div style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 20,
+          margin: '0 auto',
+          maxWidth: 900,
+          padding: '10px 14px',
+          borderRadius: 10,
+          border: '1px solid #dbeafe',
+          background: '#eff6ff',
+          color: '#1e3a8a',
+          fontSize: 13,
+          fontWeight: 600,
+          textAlign: 'center',
+        }}
+        >
+          Урок завершен. Показываем результаты, затем возвращаем на главную…
+        </div>
+      )}
+      <VariantPlayer
+        key={assignment.id}
+        variantId={assignment.variant_id}
+        readOnly={readOnly}
+        savedResult={assignment.result || {}}
+        showCorrectAnswers={showCorrectAnswers}
+        assignmentId={assignment.id}
+        answerFiles={assignment.answer_files || []}
+        isTeacher={!!isTeacher}
+        taskTeacherComments={assignment.task_teacher_comments || {}}
+        whiteboardStrokes={assignment.whiteboard_strokes || []}
+        revisionTaskIds={Array.isArray(assignment.revision_task_ids) ? assignment.revision_task_ids : []}
+        cabinetHomework={!isTeacher}
+        homeworkCabinetStatus={assignment.status}
+        homeworkStudentLabel={homeworkStudentLine}
+        cabinetHomeHref={appHome}
+        onMetaUpdated={handleMetaUpdated}
+        standalone
+        onSaveDraft={
+          !readOnly && !saved && !isTeacher && ['sent', 'revision'].includes(assignment.status)
+            ? handleSaveDraft
+            : null
+        }
+        onSubmit={!readOnly && !saved ? handleSubmit : null}
+        homeworkReview={
+          isTeacher && ['submitted', 'reviewing'].includes(assignment.status)
+            ? {
+              assignmentStatus: assignment.status,
+              initialTeacherComment: assignment.teacher_comment || '',
+              onReview: async (action, payload) => {
+                const body = {
+                  action,
+                  comment: payload.comment,
+                  part2_scores: payload.part2_scores,
+                  score: payload.totalScore,
+                };
+                if (action === 'revision') {
+                  body.revision_task_numbers = payload.revision_task_numbers ?? [];
+                }
+                const res = await fetch(
+                  `${API}/api/homework/assignment/${assignment.id}/review/`,
+                  {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                    body: JSON.stringify(body),
+                  },
+                );
+                if (!res.ok) throw new Error('review');
+                const updated = await res.json();
+                setAssignment(updated);
+              },
+              onReviewDone: (doneAction) => {
+                if (doneAction === 'reviewed') {
+                  window.location.assign(cabinetSpaBasePathname());
+                }
+              },
+            }
+            : null
+        }
+      />
+    </>
   );
 
   /* Разметка как ExamPage.jsx (01 generator): только VariantPlayer, без отдельной шапки ЛК */

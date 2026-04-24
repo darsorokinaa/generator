@@ -149,9 +149,22 @@ function teacherReviewPart1Verdict(task, savedEntry) {
 }
 
 /** Часть 2: развёрнутый ответ, баллы по критериям */
-function teacherReviewPart2Verdict(savedEntry, teacherPart2Selection) {
+function teacherReviewPart2Verdict(task, savedEntry, teacherPart2Selection) {
   const raw = stripHtml(savedEntry?.answer || '').trim();
   if (!raw) return 'empty';
+  const scoreRaw = teacherPart2Selection?.score ?? savedEntry?.teacher_score;
+  const maxRaw = teacherPart2Selection?.max_score ?? savedEntry?.teacher_max_score ?? task?.max_score;
+  const score = Number(scoreRaw);
+  const maxScore = Number(maxRaw);
+  if (Number.isFinite(score)) {
+    if (Number.isFinite(maxScore) && maxScore > 0) {
+      if (score >= maxScore) return 'correct';
+      if (score <= 0) return 'wrong';
+      return 'partial';
+    }
+    if (score <= 0) return 'wrong';
+    return 'partial';
+  }
   if (teacherPart2Selection?.criterion_id != null) return 'scored';
   return 'pending';
 }
@@ -462,7 +475,7 @@ function TaskCard({
 
   const showTeacherReviewBlock = readOnly && teacherGradingMode && isTeacher;
   const tbVerdict = isPart2
-    ? teacherReviewPart2Verdict(savedEntry, teacherPart2Selection)
+    ? teacherReviewPart2Verdict(task, savedEntry, teacherPart2Selection)
     : teacherReviewPart1Verdict(task, savedEntry);
   const chipMax = isPart2 ? 96 : 48;
   const tbRef = teacherReviewChipLine(task.answer, chipMax);
@@ -487,6 +500,7 @@ function TaskCard({
         onSelectCriterion={(c) => onTeacherPart2CriterionSelect && onTeacherPart2CriterionSelect({
           score: c.criteria_score ?? 0,
           criterion_id: c.id,
+          max_score: Number(task.max_score ?? 3),
         })}
       />
     </div>
@@ -983,6 +997,7 @@ export default function VariantPlayer({
         next[nk] = {
           score: ent.teacher_score,
           criterion_id: ent.teacher_criterion_id ?? null,
+          max_score: ent.teacher_max_score != null ? Number(ent.teacher_max_score) : Number(t.max_score ?? 3),
         };
       }
     });
@@ -1301,6 +1316,7 @@ export default function VariantPlayer({
             part2_scores[k] = {
               score: v.score,
               criterion_id: v.criterion_id ?? undefined,
+              max_score: v.max_score ?? undefined,
             };
           }
         });

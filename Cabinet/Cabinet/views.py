@@ -2817,37 +2817,33 @@ class LessonTeacherLeftView(APIView):
 
         target_id = payload.get('target_id')
         lesson_type = str(payload.get('lesson_format') or payload.get('type') or 'student').strip() or 'student'
-        notify_user_ids = []
-        notify_profile_ids = []
-        notify_usernames = []
+        teacher_uid = payload.get('teacher_id')
+        notify_user_ids, notify_profile_ids, notify_usernames = _lesson_jwt_recipients_for_ring_stop(
+            lesson_type,
+            target_id,
+            teacher_uid=teacher_uid,
+        )
+        if notify_user_ids is None:
+            notify_user_ids, notify_profile_ids, notify_usernames = [], [], []
 
-        if target_id is not None and lesson_type == 'student':
-            try:
-                ts = TeachersStudent.objects.select_related('student__user').get(pk=target_id)
-            except TeachersStudent.DoesNotExist:
-                ts = TeachersStudent.objects.select_related('student__user').filter(student_id=target_id).first()
-            if ts and ts.student:
-                notify_profile_ids.append(int(ts.student.id))
-                if ts.student.user_id:
-                    notify_user_ids.append(int(ts.student.user_id))
-                if ts.student.username:
-                    notify_usernames.append(str(ts.student.username))
-                if ts.student.user and ts.student.user.username:
-                    notify_usernames.append(str(ts.student.user.username))
-        elif target_id is not None and lesson_type == 'group':
-            for student in _group_students_for_lesson(target_id):
-                sid = getattr(student, 'id', None)
-                uid = getattr(student, 'user_id', None)
-                susername = getattr(student, 'username', None)
-                uusername = getattr(getattr(student, 'user', None), 'username', None)
-                if sid:
-                    notify_profile_ids.append(int(sid))
-                if uid:
-                    notify_user_ids.append(int(uid))
-                if susername:
-                    notify_usernames.append(str(susername))
-                if uusername:
-                    notify_usernames.append(str(uusername))
+        # Фолбэк для персонализированных токенов (группа): если состав группы изменился,
+        # всё равно сохраняем отчёт хотя бы по ученику, чей user_id пришёл в токене/вебхуке.
+        if not notify_profile_ids:
+            student_user_id_raw = request.data.get('student_user_id')
+            if student_user_id_raw is None or str(student_user_id_raw).strip() == '':
+                student_user_id_raw = payload.get('student_user_id')
+            if student_user_id_raw is not None and str(student_user_id_raw).strip() != '':
+                try:
+                    sp = UserProfile.objects.get(user_id=int(student_user_id_raw))
+                    notify_profile_ids = [int(sp.id)]
+                    notify_user_ids = [int(sp.user_id)] if sp.user_id else []
+                    notify_usernames = list(dict.fromkeys([
+                        str(getattr(sp, 'username', '') or '').strip(),
+                        str(getattr(getattr(sp, 'user', None), 'username', '') or '').strip(),
+                    ]))
+                    notify_usernames = [u for u in notify_usernames if u]
+                except Exception:
+                    pass
 
         notify_user_ids = list(dict.fromkeys(notify_user_ids))
         notify_profile_ids = list(dict.fromkeys(notify_profile_ids))
@@ -3719,7 +3715,7 @@ class HomeworkReviewView(APIView):
     Тело: {
       action: 'reviewed'|'revision',
       comment: '...',
-      part2_scores: { "19": {"score": 3, "criterion_id": 42}, ... },  # только для reviewed
+      part2_scores: { "19": {"score": 3, "criterion_id": 42, "max_score": 3}, ... },  # только для reviewed
       score: 12  # итог (часть 1 + 2), опционально
       revision_task_numbers: [3, 7]  # только для revision: номера заданий на доработку; [] — вся работа
     }
@@ -3775,10 +3771,13 @@ class HomeworkReviewView(APIView):
                     prev = base_result.get(kn)
                     cell = dict(prev) if isinstance(prev, dict) else {}
                     if isinstance(tv, dict):
+                        parsed_score = None
+                        parsed_max_score = None
                         sc = tv.get('score')
                         if sc is not None:
                             try:
-                                cell['teacher_score'] = int(sc)
+                                parsed_score = int(sc)
+                                cell['teacher_score'] = parsed_score
                             except (TypeError, ValueError):
                                 pass
                         cid = tv.get('criterion_id')
@@ -3787,9 +3786,38 @@ class HomeworkReviewView(APIView):
                                 cell['teacher_criterion_id'] = int(cid)
                             except (TypeError, ValueError):
                                 pass
+                        mx = tv.get('max_score')
+                        if mx is not None:
+                            try:
+                                parsed_max_score = int(mx)
+                                if parsed_max_score < 0:
+                                    parsed_max_score = 0
+                                cell['teacher_max_score'] = parsed_max_score
+                            except (TypeError, ValueError):
+                                pass
+                        if parsed_score is not None:
+                            max_for_state = parsed_max_score
+                            if max_for_state is None:
+                                old_max = cell.get('teacher_max_score')
+                                if old_max is not None:
+                                    try:
+                                        max_for_state = int(old_max)
+                                    except (TypeError, ValueError):
+                                        max_for_state = None
+                            if max_for_state is not None and max_for_state > 0 and parsed_score >= max_for_state:
+                                cell['state'] = 'correct'
+                            elif parsed_score <= 0:
+                                cell['state'] = 'wrong'
+                            else:
+                                cell['state'] = 'partial'
                     else:
                         try:
-                            cell['teacher_score'] = int(tv)
+                            parsed_score = int(tv)
+                            cell['teacher_score'] = parsed_score
+                            if parsed_score <= 0:
+                                cell['state'] = 'wrong'
+                            else:
+                                cell['state'] = 'partial'
                         except (TypeError, ValueError):
                             pass
                     base_result[kn] = cell

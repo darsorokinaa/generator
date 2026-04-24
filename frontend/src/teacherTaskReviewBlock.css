@@ -146,6 +146,14 @@
   color: var(--tb-red);
 }
 
+.vp-exam .tb-status--partial .tb-status-dot {
+  background: #d97706;
+}
+
+.vp-exam .tb-status--partial .tb-status-label {
+  color: #b45309;
+}
+
 .vp-exam .tb-status--empty .tb-status-dot {
   background: var(--tb-border);
   border: 1.5px solid var(--tb-muted);
@@ -191,6 +199,12 @@
 .vp-exam .tb-chip--answer-wrong {
   background: var(--tb-red-dim);
   color: var(--tb-red);
+}
+
+.vp-exam .tb-chip--answer-partial {
+  background: #fffbeb;
+  color: #b45309;
+  border: 1px solid #fde68a;
 }
 
 .vp-exam .tb-chip--answer-empty {
