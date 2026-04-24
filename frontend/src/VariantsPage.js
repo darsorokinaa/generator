@@ -1352,7 +1352,10 @@ export default function VariantsPage() {
       const r = await fetch('/api/gen/variant/', {
         method: 'POST',
         credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie('csrftoken'),
+        },
         body: JSON.stringify({
           level: randLevel.level,
           subject: randSubject.subject_short,
