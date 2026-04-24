@@ -3715,6 +3715,13 @@ def api_lesson_student_comment(request):
 
 def _lesson_report_pdf_response(request, room_id: str, variant_id: int | None, results, answers) -> HttpResponse:
     """PDF-отчёт по уроку (WeasyPrint)."""
+    def _format_mmss(seconds: int | None) -> str:
+        if seconds is None:
+            return "—"
+        s = max(0, int(seconds))
+        mm, ss = divmod(s, 60)
+        return f"{mm:02d}:{ss:02d}"
+
     by_task_id = {}
     by_task_number = {}
     if variant_id and int(variant_id) > 0:
@@ -3789,6 +3796,7 @@ def _lesson_report_pdf_response(request, room_id: str, variant_id: int | None, r
                 "is_correct": bool(a.is_correct),
                 "is_empty": bool(a.is_empty),
                 "elapsed_seconds": elapsed,
+                "elapsed_mmss": _format_mmss(elapsed),
                 "updated_at": a.updated_at,
             }
         )
@@ -3807,6 +3815,8 @@ def _lesson_report_pdf_response(request, room_id: str, variant_id: int | None, r
                 "student": student_name,
                 "rows": rows,
                 "total_elapsed_seconds": student_elapsed,
+                "total_elapsed_mmss": _format_mmss(student_elapsed),
+                "wrong_rows": [r for r in rows if not bool(r.get("is_correct"))],
             }
         )
     context = {

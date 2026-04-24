@@ -7683,3 +7683,156 @@ button.site-footer-link {
 .privacy-table tr:nth-child(even) td {
     background: rgba(248, 250, 252, 0.6);
 }
+
+/* ========================================
+   Мобильная адаптация варианта (урок/ДЗ/обычный)
+   Без изменения цветов и визуального стиля
+======================================== */
+@media (max-width: 768px) {
+    .main-wrapper.exam-page {
+        width: 100%;
+        max-width: 100vw;
+        overflow-x: hidden;
+    }
+
+    .exam-page .container,
+    .exam-page .page,
+    .exam-page .exam-page-container {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+        overflow-x: hidden;
+    }
+
+    .exam-page .task,
+    .exam-page .task-group {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    .exam-page .task-content,
+    .exam-page .criteria-text,
+    .exam-page .correct-answer-content,
+    .exam-page .part2-answer-content {
+        min-width: 0;
+        max-width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .exam-page .task-text table,
+    .exam-page .criteria-text table,
+    .exam-page .correct-answer-content table,
+    .exam-page .part2-answer-content table {
+        min-width: 560px;
+    }
+
+    .exam-page .task-text pre,
+    .exam-page .task-text code {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .exam-page .task-text img,
+    .exam-page .task-text figure img,
+    .exam-page .correct-answer-content img,
+    .exam-page .part2-answer-content img,
+    .exam-page .criteria-text img {
+        max-width: 100%;
+        height: auto;
+    }
+
+    .exam-page .task-text mjx-container,
+    .exam-page .correct-answer-content mjx-container,
+    .exam-page .part2-answer-content mjx-container,
+    .exam-page .criteria-text mjx-container {
+        max-width: 100%;
+        overflow-x: auto;
+        overflow-y: hidden;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .variant-hero-actions,
+    .exam-homework-finish__row,
+    .exam-homework-bar__actions,
+    .exam-page .answer-actions,
+    .part2-answer-criteria-buttons {
+        gap: 10px;
+    }
+
+    .variant-hero-actions > button,
+    .exam-homework-finish__btn,
+    .exam-homework-bar__btn,
+    .exam-finish-btn,
+    .exam-page .answer-actions .add-button,
+    .part2-answer-criteria-buttons .add-button {
+        min-height: 44px;
+    }
+
+    .exam-page .answer-input,
+    .exam-page textarea.answer-input,
+    .exam-page .answer-table-wrap,
+    .exam-page .lesson-solution-file-input {
+        width: 100%;
+        max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    /* Фикс-панель (таймер/баллы/справка) не должна выталкивать страницу по ширине */
+    .exam-fixed-corner {
+        right: 0.5rem;
+        max-width: min(92vw, 20rem);
+    }
+}
+
+@media (max-width: 480px) {
+    .exam-page .container {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+    }
+
+    .exam-page .task {
+        width: 100%;
+        max-width: 100%;
+        padding: 0.8rem;
+    }
+
+    .exam-page .answer-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .exam-page .answer-actions .add-button,
+    .part2-answer-criteria-buttons .add-button,
+    .variant-hero-actions > button,
+    .exam-homework-finish__btn,
+    .exam-homework-bar__btn {
+        width: 100%;
+        min-width: 0;
+    }
+
+    .variant-hero-actions {
+        grid-template-columns: 1fr;
+    }
+
+    .variant-hero-content {
+        padding: 1rem 0.85rem;
+        gap: 0.9rem;
+    }
+
+    .exam-homework-bar__title,
+    .exam-homework-bar__actions {
+        width: 100%;
+    }
+
+    .exam-homework-bar__inner {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+
+    .exam-fixed-corner {
+        right: 0.25rem;
+        max-width: calc(100vw - 0.5rem);
+    }
+}

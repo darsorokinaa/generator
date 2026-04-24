@@ -63,9 +63,19 @@
   <h2 style="font-size:12px;margin-top:12px;">
     {{ sec.student }}
     {% if sec.total_elapsed_seconds != None %}
-      <span style="font-size:10px;color:#64748b;font-weight:400;">(время: {{ sec.total_elapsed_seconds }} сек.)</span>
+      <span style="font-size:10px;color:#64748b;font-weight:400;">(время: {{ sec.total_elapsed_mmss }})</span>
     {% endif %}
   </h2>
+  {% if sec.wrong_rows %}
+  <div class="ans" style="background:#fff7ed;border-color:#fdba74;">
+    <div style="font-weight:700;color:#9a3412;margin-bottom:4px;">Ошибки по задачам</div>
+    {% for w in sec.wrong_rows %}
+      <div style="margin:2px 0;color:#7c2d12;">
+        №{{ w.task_number }}{% if w.subtopic_title %} — {{ w.subtopic_title }}{% endif %}
+      </div>
+    {% endfor %}
+  </div>
+  {% endif %}
   {% for a in sec.rows %}
   <div class="ans">
     <span class="ans-num">№{{ a.task_number }}</span>
@@ -82,7 +92,7 @@
     <div class="ans-answer">Ответ ученика: {{ a.answer|default:"—"|truncatechars:400 }}</div>
     <div class="ans-correct">Правильный ответ: {{ a.correct_answer|default:"—"|truncatechars:400 }}</div>
     {% if a.elapsed_seconds != None %}
-      <div class="ans-time">Время на момент ответа: {{ a.elapsed_seconds }} сек.</div>
+      <div class="ans-time">Время на момент ответа: {{ a.elapsed_mmss }}</div>
     {% endif %}
   </div>
   {% endfor %}
