@@ -5,7 +5,7 @@ from .models import (
     UserProfile, TeacherSubject,
     TeachersStudent, Group, TeachersGroup,
     Homework, HomeworkAttachment, HomeworkAssignment, HomeworkAnswerFile, HomeworkTeacherFeedbackFile,
-    TeacherVariant,
+    StudentLessonReport, TeacherVariant,
     Notification, UserPlatformConsent, LessonInvite, Lesson,
 )
 
@@ -70,6 +70,15 @@ class HomeworkTeacherFeedbackFileAdmin(admin.ModelAdmin):
     list_filter = ('file_type', 'created_at')
     search_fields = ('filename', 'assignment__student__name', 'assignment__student__surname')
     ordering = ('-created_at',)
+
+
+@admin.register(StudentLessonReport)
+class StudentLessonReportAdmin(admin.ModelAdmin):
+    list_display = ('id', 'student', 'teacher', 'variant_id', 'score', 'status', 'generated_at')
+    list_display_links = ('id', 'student')
+    list_filter = ('status', 'generated_at')
+    search_fields = ('student__name', 'student__surname', 'teacher__name', 'teacher__surname', 'variant_id')
+    ordering = ('-generated_at',)
 
 
 @admin.register(Group)

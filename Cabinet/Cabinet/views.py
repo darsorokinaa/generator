@@ -12,7 +12,9 @@ from django.utils import timezone                      # timezone.now() — те
 from django.utils.decorators import method_decorator
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.dateparse import parse_date          # безопасный парсинг строки "YYYY-MM-DD" → date
+from django.utils.text import slugify
 from django.db import transaction                      # атомарные операции при удалении группы
+from django.core.files.base import ContentFile
 import os                                              # работа с файловой системой и переменными окружения
 import random                                          # генерация случайных чисел и выборок
 import string                                          # наборы символов (ascii_letters, digits)
@@ -42,6 +44,7 @@ from .models import (                                  # импорт всех �
     HomeworkAnswerFile,                                # файл ответа от ученика
     HomeworkTeacherFeedbackFile,                       # файл обратной связи от учителя
     Notification,                                      # уведомление пользователю
+    StudentLessonReport,                               # PDF-отчёты по ученикам
     TeacherVariant,                                    # сохранённый вариант учителя
     UserPlatformConsent,                               # согласия пользователя с платформой
 )
@@ -363,6 +366,76 @@ def _homework_direct_exam_urls(assignment):
         return f'{base}?{urlencode({**qbase, "role": r})}'
 
     return {'teacher': with_role('teacher'), 'student': with_role('student')}
+
+
+def _resolve_variant_level_subject_slugs(variant_id, fallback_subject=''):
+    """Определяем level/subject slug для доступа к PDF варианта на генераторе."""
+    data = None
+    for require_secret in (False, True):
+        try:
+            data = _gen_proxy(f'api/variant-lookup/{int(variant_id)}/', require_secret=require_secret)
+            break
+        except Exception:
+            data = None
+    level = str((data or {}).get('level') or (data or {}).get('level_slug') or '').strip().lower().strip('/')
+    subject = str((data or {}).get('subject') or (data or {}).get('subject_slug') or '').strip().lower().strip('/')
+    if not subject and fallback_subject:
+        subject = slugify(str(fallback_subject).strip().lower()).replace('-', '')
+    if not level or not subject:
+        return None, None
+    return level, subject
+
+
+def _fetch_variant_pdf_content(variant_id, homework_subject=''):
+    """Скачивает PDF варианта с генератора. Возвращает bytes или None."""
+    level, subject = _resolve_variant_level_subject_slugs(variant_id, fallback_subject=homework_subject)
+    if not level or not subject:
+        return None
+    pdf_url = _build_generator_url(f'api/{level}/{subject}/variant/{int(variant_id)}/pdf/')
+    try:
+        resp = requests.get(pdf_url, timeout=25, verify=False, allow_redirects=True)
+        if resp.status_code >= 400 or not resp.content:
+            return None
+        return resp.content
+    except requests.RequestException:
+        return None
+
+
+def _upsert_student_lesson_report(assignment):
+    """
+    Создаёт/обновляет отчёт по ученику после проверки работы.
+    PDF хранится в media/student_reports/.
+    """
+    hw = assignment.homework
+    student = assignment.student
+    teacher = hw.teacher
+    title = hw.title or f'Вариант {hw.variant_id}'
+
+    report, _ = StudentLessonReport.objects.get_or_create(
+        assignment=assignment,
+        defaults={
+            'teacher': teacher,
+            'student': student,
+            'variant_id': int(hw.variant_id),
+        },
+    )
+    report.teacher = teacher
+    report.student = student
+    report.variant_id = int(hw.variant_id)
+    report.title = title[:255]
+    report.score = assignment.score
+    report.status = assignment.status
+    report.teacher_comment = assignment.teacher_comment or ''
+
+    pdf_content = _fetch_variant_pdf_content(hw.variant_id, homework_subject=hw.subject or '')
+    if pdf_content:
+        student_slug = slugify(f'{student.name}-{student.surname}') or f'student-{student.id}'
+        file_name = f'report-{assignment.id}-{student_slug}.pdf'
+        report.report_file.save(file_name, ContentFile(pdf_content), save=False)
+        report.report_filename = file_name
+
+    report.save()
+    return report
 
 
 def _merge_homework_result_for_revision(assignment, incoming_result):
@@ -3640,6 +3713,10 @@ class HomeworkReviewView(APIView):
             if snip:
                 msg = f'{msg}. {snip}'
             _notify(assignment.student, msg, 'reviewed', assignment=assignment)  # уведомляем ученика: принято
+            try:
+                _upsert_student_lesson_report(assignment)
+            except Exception:
+                logger.exception('Не удалось сформировать PDF-отчёт по assignment=%s', assignment.id)
         else:
             msg = f'ДЗ направлено на доработку: {title}'
             if snip:
@@ -3837,6 +3914,37 @@ class NotificationReadAllView(APIView):
             return Response({'error': 'Профиль не найден'}, status=status.HTTP_400_BAD_REQUEST)
         Notification.objects.filter(user=profile).delete()         # массовое удаление всех уведомлений
         return Response({'ok': True})
+
+
+class StudentLessonReportListView(APIView):
+    """GET /api/student-reports/ — отчёты по ученикам текущего учителя."""
+    permission_classes = [IsCabinetTeacher]
+
+    def get(self, request):
+        teacher = request.user.profile
+        qs = StudentLessonReport.objects.select_related(
+            'student', 'assignment', 'assignment__homework',
+        ).filter(teacher=teacher).order_by('-generated_at')
+        rows = []
+        for r in qs:
+            file_url = request.build_absolute_uri(r.report_file.url) if r.report_file else None
+            rows.append({
+                'id': r.id,
+                'student_id': r.student_id,
+                'student_name': r.student.name,
+                'student_surname': r.student.surname,
+                'assignment_id': r.assignment_id,
+                'homework_id': r.assignment.homework_id,
+                'variant_id': r.variant_id,
+                'title': r.title,
+                'score': r.score,
+                'status': r.status,
+                'teacher_comment': r.teacher_comment or '',
+                'report_filename': r.report_filename or '',
+                'report_file_url': file_url,
+                'generated_at': r.generated_at,
+            })
+        return Response(rows)
 
 
 class HomeworkCancelAssignmentView(APIView):

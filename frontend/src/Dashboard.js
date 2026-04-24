@@ -70,6 +70,8 @@ export default function Dashboard() {
   const [dashHwStats, setDashHwStats] = useState({ total: 0, needReview: 0, overdue: 0 });
   const hwPollRef = useRef(null);
   const [studentMyAssignments, setStudentMyAssignments] = useState([]);
+  const [studentReports, setStudentReports] = useState([]);
+  const [studentReportsLoading, setStudentReportsLoading] = useState(false);
   const studentHwPollRef = useRef(null);
   const [searchFocused, setSearchFocused] = useState(false);
   const [reviewTab, setReviewTab] = useState('all');
@@ -257,6 +259,24 @@ export default function Dashboard() {
     }
   }, [authChecked, user]);
 
+  const fetchStudentReports = useCallback(async () => {
+    if (!authChecked || !user || user.role === 'student') return;
+    setStudentReportsLoading(true);
+    try {
+      const r = await fetch(`${API}/api/student-reports/`, { credentials: 'include' });
+      if (!r.ok) {
+        setStudentReports([]);
+        return;
+      }
+      const data = await r.json();
+      setStudentReports(Array.isArray(data) ? data : []);
+    } catch {
+      setStudentReports([]);
+    } finally {
+      setStudentReportsLoading(false);
+    }
+  }, [authChecked, user]);
+
   useEffect(() => {
     if (!authChecked || !user || user.role !== 'student') return undefined;
     fetchStudentMyHomework();
@@ -269,6 +289,10 @@ export default function Dashboard() {
   useEffect(() => {
     if (page === 'dashboard' && user?.role === 'student') fetchStudentMyHomework();
   }, [page, fetchStudentMyHomework, user]);
+
+  useEffect(() => {
+    if (page === 'student-reports' && user?.role !== 'student') fetchStudentReports();
+  }, [page, fetchStudentReports, user]);
 
   /** Сразу на генератор (join-url), без промежуточной страницы ЛК ?homework_room=. */
   const goToStudentAssignment = useCallback((assignmentId) => {
@@ -642,6 +666,7 @@ export default function Dashboard() {
     dashboard: 'Дашборд', students: 'Мои ученики', homework: 'Задания',
     schedule: 'Расписание', analytics: 'Аналитика', // generator: 'AI-Генератор',
     variants: 'Варианты',
+    'student-reports': 'Результаты учеников',
     'student-profile': 'Профиль ученика', 'group-detail': 'Группа',
   };
 
@@ -776,6 +801,7 @@ export default function Dashboard() {
             <div className="nav-section-label">Учебный процесс</div>
             {[
               { id: 'students', label: 'Мои ученики', badge: activeStudents.length || null, icon: (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>) },
+              { id: 'student-reports', label: 'Результаты учеников', badge: studentReports.length || null, icon: (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/></svg>) },
               // { id: 'homework', label: 'Задания', badge: dashHwStats.needReview || null, icon: (<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>) },
             ].map(({ id, label, badge, icon }) => (
               // eslint-disable-next-line jsx-a11y/anchor-is-valid
@@ -938,6 +964,89 @@ export default function Dashboard() {
             <HomeworkPage isStudent={isStudent} />
           )}
           {page === 'variants' && isTeacher && <VariantsPage />}
+          {page === 'student-reports' && isTeacher && (
+            <div className="section-block">
+              <div className="section-header">
+                <div className="section-title-wrap">
+                  <h3 className="section-title">Отчёты по ученикам</h3>
+                </div>
+                <button type="button" className="btn-page-secondary" onClick={fetchStudentReports}>
+                  Обновить
+                </button>
+              </div>
+              <div className="table-wrap">
+                <table className="students-table">
+                  <thead>
+                    <tr>
+                      <th>Ученик</th>
+                      <th>Вариант</th>
+                      <th>Оценка</th>
+                      <th>Статус</th>
+                      <th>Дата</th>
+                      <th>PDF отчёт</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {studentReportsLoading ? (
+                      <tr>
+                        <td colSpan={6} className="table-empty">Загрузка отчётов…</td>
+                      </tr>
+                    ) : studentReports.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="table-empty">Пока нет отчётов. Они создаются после проверки работы.</td>
+                      </tr>
+                    ) : studentReports.map((row) => {
+                      const statusLabel = row.status === 'reviewed'
+                        ? 'Проверено'
+                        : row.status === 'revision'
+                          ? 'На доработке'
+                          : row.status || '—';
+                      const when = row.generated_at
+                        ? new Date(row.generated_at).toLocaleString('ru-RU', {
+                          day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+                        })
+                        : '—';
+                      return (
+                        <tr key={row.id}>
+                          <td>
+                            <div className="student-cell">
+                              <div className="student-avatar-sm">{((row.student_name?.[0] || '') + (row.student_surname?.[0] || '')).toUpperCase()}</div>
+                              <div className="student-info">
+                                <span className="student-name">{row.student_name} {row.student_surname}</span>
+                              </div>
+                            </div>
+                          </td>
+                          <td>
+                            <span className="cell-plain">{row.title || `Вариант ${row.variant_id}`}</span>
+                          </td>
+                          <td>
+                            <span className="cell-plain">{row.score != null ? `${row.score} б` : '—'}</span>
+                          </td>
+                          <td>
+                            <span className={`status-badge status-badge--${row.status === 'reviewed' ? 'active' : row.status === 'revision' ? 'warning' : 'danger'}`}>
+                              {statusLabel}
+                            </span>
+                          </td>
+                          <td>
+                            <span className="cell-plain">{when}</span>
+                          </td>
+                          <td>
+                            {row.report_file_url ? (
+                              <a href={row.report_file_url} className="row-btn" target="_blank" rel="noopener noreferrer">
+                                Открыть PDF
+                              </a>
+                            ) : (
+                              <span className="cell-plain" style={{ color: 'var(--text-3)' }}>Файл недоступен</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           {/* ── DASHBOARD TEACHER ── */}
           {page === 'dashboard' && isTeacher && (

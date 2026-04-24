@@ -299,6 +299,34 @@ class HomeworkTeacherFeedbackFile(models.Model):
         ordering = ['created_at']
 
 
+class StudentLessonReport(models.Model):
+    """PDF-отчёт по ученику после проверки работы (хранится на сервере)."""
+    teacher = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='student_lesson_reports')
+    student = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='lesson_reports')
+    assignment = models.OneToOneField(
+        HomeworkAssignment,
+        on_delete=models.CASCADE,
+        related_name='lesson_report',
+    )
+    variant_id = models.IntegerField()
+    title = models.CharField(max_length=255, blank=True, default='')
+    score = models.IntegerField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=ASSIGNMENT_STATUS_CHOICES, default='reviewed')
+    teacher_comment = models.TextField(blank=True, default='')
+    report_file = models.FileField(upload_to='student_reports/', null=True, blank=True)
+    report_filename = models.CharField(max_length=255, blank=True, default='')
+    generated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f'Отчёт #{self.assignment_id} → {self.student}'
+
+    class Meta:
+        verbose_name = "Отчёт по ученику"
+        verbose_name_plural = "Отчёты по ученикам"
+        ordering = ['-generated_at']
+
+
 class TeacherVariant(models.Model):
     """Сохранённый вариант учителя (ссылка на variant_id в генераторе)."""
     teacher = models.ForeignKey(UserProfile, on_delete=models.CASCADE, related_name='saved_variants')
