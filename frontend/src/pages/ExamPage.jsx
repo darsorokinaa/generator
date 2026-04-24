@@ -1688,7 +1688,7 @@ function ExamPage() {
   const hRead = homeworkIsReadonly(hwSt, isTeacherHomeworkView);
   const hSol = homeworkShowSolutions(hwSt);
   const showHomeworkReviewedResults = isHomework && !isTeacherHomeworkView && hwSt === "reviewed";
-  const homeworkReviewData = useMemo(() => {
+  const homeworkReviewData = (() => {
     if (!showHomeworkReviewedResults || !variant?.tasks?.length) return null;
     const rawObj = hwPicked?.raw && typeof hwPicked.raw === "object" ? hwPicked.raw : {};
     const resultObj = parseMaybeJsonObject(hwPicked?.result);
@@ -1752,7 +1752,7 @@ function ExamPage() {
         };
       });
     return { teacherComment, rows };
-  }, [showHomeworkReviewedResults, variant, hwPicked, userAnswers, checkedTasks]);
+  })();
   const numLocked = (n) =>
     isHomework && !homeworkTaskNumberEditable(hwSt, hwRevisions, n, isTeacherHomeworkView);
   const p1FieldDisabled = (task) => {
