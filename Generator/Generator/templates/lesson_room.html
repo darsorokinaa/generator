@@ -548,7 +548,7 @@
       position: absolute;
       inset: 0;
       pointer-events: none;
-      z-index: 100;
+      z-index: 700;
       overflow: hidden;
     }
     #whiteboard-canvas {
@@ -577,12 +577,9 @@
       align-items: center;
       box-shadow: 0 4px 20px rgba(0,0,0,0.1);
       pointer-events: auto;
-      z-index: 101;
+      z-index: 701;
       overflow-x: auto;
       max-width: 90vw;
-    }
-    .wb-toolbar.wb-toolbar--popover-open {
-      overflow: visible;
     }
     .wb-toolbar::-webkit-scrollbar { display: none; }
     .wb-tool-btn {
@@ -671,7 +668,7 @@
     .wb-text-btn.danger:hover { background: #FEF2F2; color: #E24B4A; border-color: #E24B4A; }
     .wb-text-input-overlay {
       position: absolute; border: 1px solid var(--wb-blue); border-radius: 4px; padding: 4px 8px;
-      background: rgba(255,255,255,0.9); outline: none; display: none; z-index: 102; min-width: 100px;
+      background: rgba(255,255,255,0.9); outline: none; display: none; z-index: 702; min-width: 100px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.1); pointer-events: auto; font-family: sans-serif;
     }
 
@@ -1010,7 +1007,6 @@
         let activePopover = null;
         const closePopovers = () => {
           document.querySelectorAll('.wb-tool-popover, .wb-color-popover').forEach(p => p.classList.remove('show'));
-          wbToolbar.classList.remove('wb-toolbar--popover-open');
         };
         document.addEventListener('click', closePopovers);
 
@@ -1036,7 +1032,6 @@
             if (WbState.tool === t.id && popover) {
               closePopovers();
               popover.classList.toggle('show');
-              if (popover.classList.contains('show')) wbToolbar.classList.add('wb-toolbar--popover-open');
             } else {
               closePopovers();
               WbState.tool = t.id;
@@ -1077,10 +1072,7 @@
           e.stopPropagation();
           const isShowing = colorPopover.classList.contains('show');
           closePopovers();
-          if (!isShowing) {
-            colorPopover.classList.add('show');
-            wbToolbar.classList.add('wb-toolbar--popover-open');
-          }
+          if (!isShowing) colorPopover.classList.add('show');
         };
         
         colorWrap.appendChild(colorBtn);
