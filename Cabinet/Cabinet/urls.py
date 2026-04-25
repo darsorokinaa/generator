@@ -73,8 +73,10 @@ def home_view(request):
         if user_can_use_lk(request.user):
             # ЛК открывается на корне без префикса /app.
             return react_app(request)
-        return redirect('login')
-    return redirect('login')
+        # Для учёток без доступа к ЛК не делаем второй redirect-цикл через /login/.
+        return views.login_view(request)
+    # Неавторизованный пользователь: сразу рендерим страницу входа без hop / -> /login/ -> /.
+    return views.login_view(request)
 
 
 urlpatterns = [
