@@ -87,6 +87,8 @@ urlpatterns = [
     path('register/student/', views.register_student_invite_view, name='register-student-invite'),
     path('logout/',   views.logout_view,   name='logout'),
     path('settings/', views.settings_view, name='settings'),
+    path('legal/user-agreement/', TemplateView.as_view(template_name='legal_user_agreement.html'), name='legal-user-agreement'),
+    path('legal/privacy-policy/', TemplateView.as_view(template_name='legal_privacy_policy.html'), name='legal-privacy-policy'),
 
     # REST API
     path('api/', include(router.urls)),

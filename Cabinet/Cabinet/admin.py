@@ -154,11 +154,12 @@ class NotificationAdmin(admin.ModelAdmin):
 
 @admin.register(UserPlatformConsent)
 class UserPlatformConsentAdmin(admin.ModelAdmin):
-    list_display = ('id', 'user', 'consent_code', 'accepted', 'version', 'updated_at')
+    list_display = ('id', 'user', 'consent_code', 'accepted', 'version', 'source', 'ip_address', 'updated_at')
     list_display_links = ('id', 'user')
-    list_filter = ('consent_code', 'accepted', 'updated_at')
+    list_filter = ('consent_code', 'accepted', 'source', 'updated_at')
     search_fields = ('user__name', 'user__surname', 'user__email', 'consent_code', 'version')
     ordering = ('-updated_at',)
+    readonly_fields = ('created_at', 'updated_at', 'accepted_at', 'revoked_at')
 
 
 @admin.register(LessonInvite)

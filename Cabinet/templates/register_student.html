@@ -74,6 +74,46 @@
       cursor: pointer;
       margin-top: 8px;
     }
+    .consents {
+      margin: 2px 0 14px;
+      display: grid;
+      gap: 10px;
+    }
+    .consent-item {
+      display: grid;
+      grid-template-columns: 18px 1fr;
+      gap: 9px;
+      align-items: flex-start;
+      padding: 10px 12px;
+      border: 1px solid #E8EBF5;
+      border-radius: 12px;
+      background: #FBFCFF;
+    }
+    .consent-item input {
+      width: 16px;
+      height: 16px;
+      margin-top: 1px;
+      accent-color: #4B65F5;
+    }
+    .consent-item label {
+      margin: 0;
+      font-size: 12px;
+      line-height: 1.45;
+      color: #374151;
+      font-weight: 600;
+    }
+    .consent-item a {
+      color: #4B65F5;
+      text-decoration: none;
+      font-weight: 700;
+    }
+    .consent-item a:hover { text-decoration: underline; }
+    .consent-note {
+      margin-top: -2px;
+      font-size: 11px;
+      line-height: 1.5;
+      color: #9CA3AF;
+    }
     .invalid {
       text-align: center;
       color: #6B7280;
@@ -148,6 +188,32 @@
           <div class="field">
             <label for="password2">Повторите пароль *</label>
             <input id="password2" name="password2" type="password" minlength="8" maxlength="128" required />
+          </div>
+        </div>
+
+        <div class="consents" aria-label="Юридические согласия">
+          <div class="consent-item">
+            <input id="consent_user_agreement" name="user_agreement" type="checkbox" required {% if request.POST.user_agreement %}checked{% endif %} />
+            <label for="consent_user_agreement">
+              Я принимаю условия
+              <a href="{{ user_agreement_url }}" target="_blank" rel="noopener noreferrer">Пользовательского соглашения</a>
+            </label>
+          </div>
+          <div class="consent-item">
+            <input id="consent_personal_data" name="personal_data" type="checkbox" required {% if request.POST.personal_data %}checked{% endif %} />
+            <label for="consent_personal_data">
+              Я даю согласие на обработку персональных данных в соответствии с
+              <a href="{{ privacy_policy_url }}" target="_blank" rel="noopener noreferrer">Политикой конфиденциальности</a>
+            </label>
+          </div>
+          <div class="consent-item">
+            <input id="consent_marketing" name="marketing" type="checkbox" {% if request.POST.marketing %}checked{% endif %} />
+            <label for="consent_marketing">
+              Я согласен получать уведомления и информационные рассылки
+            </label>
+          </div>
+          <div class="consent-note">
+            Версия документов: {{ legal_document_version }}. Фиксируем дату, время, IP и выбранные согласия.
           </div>
         </div>
 

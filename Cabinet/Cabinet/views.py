@@ -30,6 +30,7 @@ import urllib.request                                  # HTTP-запросы б�
 import urllib.error                                    # HTTPError при проксировании запросов
 import urllib.parse
 import jwt                                             # PyJWT — создание и верификация JWT-токенов
+from io import BytesIO
 from .models import (                                  # импорт всех моделей приложения
     UserProfile,                                       # профиль пользователя (учитель / ученик)
     FunnyWord,                                         # словарь слов для генерации логинов
@@ -89,8 +90,25 @@ LESSON_TTL    = 60 * 60 * 2  # время жизни токена урока —
 STUDENT_INVITE_TTL = 60 * 60 * 24 * 7  # срок жизни ссылки-приглашения ученика — 7 дней
 HW_ROOM_TTL   = int(getattr(settings, 'HOMEWORK_ROOM_TTL', 60 * 60 * 24 * 30))  # JWT «комнаты» ДЗ для генератора
 CONSENT_CODE_PLATFORM_USAGE = 'platform_usage'
+CONSENT_CODE_USER_AGREEMENT = 'user_agreement'
+CONSENT_CODE_PERSONAL_DATA = 'personal_data'
+CONSENT_CODE_STUDENT_DATA_BASIS = 'student_data_basis'
+CONSENT_CODE_MARKETING = 'marketing'
+LEGAL_DOCUMENT_VERSION = getattr(settings, 'LEGAL_DOCUMENT_VERSION', '2026-04-25')
+LEGAL_USER_AGREEMENT_URL = getattr(settings, 'LEGAL_USER_AGREEMENT_URL', '/legal/user-agreement/')
+LEGAL_PRIVACY_POLICY_URL = getattr(settings, 'LEGAL_PRIVACY_POLICY_URL', '/legal/privacy-policy/')
+CONSENT_LABELS = {
+    CONSENT_CODE_USER_AGREEMENT: 'Я принимаю условия Пользовательского соглашения',
+    CONSENT_CODE_PERSONAL_DATA: 'Я даю согласие на обработку персональных данных в соответствии с Политикой конфиденциальности',
+    CONSENT_CODE_STUDENT_DATA_BASIS: 'Я подтверждаю, что при добавлении учеников имею законные основания и согласие на обработку их персональных данных',
+    CONSENT_CODE_MARKETING: 'Я согласен получать уведомления и информационные рассылки',
+}
 ALLOWED_PLATFORM_CONSENT_CODES = {
     CONSENT_CODE_PLATFORM_USAGE,
+    CONSENT_CODE_USER_AGREEMENT,
+    CONSENT_CODE_PERSONAL_DATA,
+    CONSENT_CODE_STUDENT_DATA_BASIS,
+    CONSENT_CODE_MARKETING,
 }
 
 AVATAR_EMOJI_POOL = {
@@ -102,6 +120,166 @@ AVATAR_EMOJI_POOL = {
     '🌵', '🌿', '🍀', '🌱', '🌷', '🌸', '🌺', '🌻', '🌼', '🌴', '🍁', '🍃',
 }
 AVATAR_BG_POOL = {'violet', 'ocean', 'mint', 'sunset', 'peach', 'forest'}
+_PDF_FONT_READY = False
+
+
+def _ensure_pdf_font():
+    try:
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.ttfonts import TTFont
+    except ImportError:
+        return
+
+    global _PDF_FONT_READY
+    if _PDF_FONT_READY:
+        return
+    font_candidates = [
+        '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf',
+        '/usr/local/share/fonts/DejaVuSans.ttf',
+        '/Library/Fonts/Arial Unicode.ttf',
+        '/Library/Fonts/Arial.ttf',
+    ]
+    for fp in font_candidates:
+        try:
+            if os.path.exists(fp):
+                pdfmetrics.registerFont(TTFont('LKReport', fp))
+                _PDF_FONT_READY = True
+                return
+        except Exception:
+            continue
+    _PDF_FONT_READY = True
+
+
+def _lesson_result_rows_from_assignment(assignment):
+    rows = []
+    result = assignment.result if isinstance(assignment.result, dict) else {}
+    homework = getattr(assignment, 'homework', None)
+    task_max_map = {}
+    if homework and getattr(homework, 'variant_data', None):
+        try:
+            tasks = list((homework.variant_data or {}).get('tasks') or [])
+            for t in tasks:
+                num = str(t.get('number') if isinstance(t, dict) else '').strip()
+                if not num:
+                    continue
+                raw_max = (t.get('max_score') if isinstance(t, dict) else None)
+                try:
+                    task_max_map[num] = int(raw_max) if raw_max is not None else None
+                except Exception:
+                    task_max_map[num] = None
+        except Exception:
+            task_max_map = {}
+    for k, v in result.items():
+        num = str(k).strip()
+        if not num:
+            continue
+        cell = v if isinstance(v, dict) else {}
+        ans = str(cell.get('answer') or '').strip()
+        st = str(cell.get('state') or '').strip().lower()
+        t_score = cell.get('teacher_score')
+        t_max = cell.get('teacher_max_score')
+        max_guess = task_max_map.get(num)
+        try:
+            t_score_num = int(t_score) if t_score is not None else None
+        except Exception:
+            t_score_num = None
+        try:
+            t_max_num = int(t_max) if t_max is not None else (int(max_guess) if max_guess is not None else None)
+        except Exception:
+            t_max_num = None
+        if st == 'correct':
+            status_label = 'Правильно'
+        elif st == 'wrong':
+            status_label = 'Неправильно'
+        elif st == 'partial':
+            status_label = 'Частично верно'
+        elif t_score_num is not None:
+            if t_max_num is not None and t_max_num > 0 and t_score_num >= t_max_num:
+                status_label = 'Правильно'
+            elif t_score_num <= 0:
+                status_label = 'Неправильно'
+            else:
+                status_label = 'Частично верно'
+        elif st == 'empty':
+            status_label = 'Пусто'
+        elif st:
+            status_label = 'Без автопроверки'
+        else:
+            status_label = 'Пусто'
+        display_answer = ans or '—'
+        if t_score_num is not None:
+            if t_max_num is not None:
+                display_answer = f'Оценка: {t_score_num} из {t_max_num}'
+            else:
+                display_answer = f'Оценка: {t_score_num}'
+        rows.append({
+            'task_num': num,
+            'answer': display_answer,
+            'status': status_label,
+        })
+    try:
+        rows.sort(key=lambda x: int(str(x.get('task_num') or '0')))
+    except Exception:
+        rows.sort(key=lambda x: str(x.get('task_num') or ''))
+    return rows
+
+
+def _build_student_report_pdf(assignment):
+    try:
+        try:
+            from reportlab.pdfgen import canvas
+            from reportlab.lib.pagesizes import A4
+            from reportlab.pdfbase import pdfmetrics
+        except ImportError:
+            logger.warning('reportlab is not installed; falling back to generator variant PDF.')
+            return None
+
+        _ensure_pdf_font()
+        font_name = 'LKReport' if 'LKReport' in pdfmetrics.getRegisteredFontNames() else 'Helvetica'
+        buf = BytesIO()
+        c = canvas.Canvas(buf, pagesize=A4)
+        width, height = A4
+        y = height - 48
+
+        def draw_line(text, size=12, dy=18):
+            nonlocal y
+            if y < 48:
+                c.showPage()
+                c.setFont(font_name, size)
+                y = height - 48
+            c.setFont(font_name, size)
+            c.drawString(42, y, str(text))
+            y -= dy
+
+        hw = assignment.homework
+        student_name = f'{assignment.student.name} {assignment.student.surname}'.strip() or f'Ученик #{assignment.student_id}'
+        teacher_name = f'{hw.teacher.name} {hw.teacher.surname}'.strip() or f'Учитель #{hw.teacher_id}'
+        title = hw.title or f'Вариант {hw.variant_id}'
+        draw_line('Отчет по результатам ученика', size=16, dy=24)
+        draw_line(f'Ученик: {student_name}')
+        draw_line(f'Учитель: {teacher_name}')
+        draw_line(f'Задание: {title}')
+        draw_line(f'Вариант ID: {hw.variant_id}')
+        draw_line(f'Статус: {assignment.status}')
+        draw_line(f'Баллы: {assignment.score if assignment.score is not None else "—"}')
+        draw_line(f'Проверено: {timezone.localtime(assignment.reviewed_at).strftime("%d.%m.%Y %H:%M") if assignment.reviewed_at else "—"}')
+        comment = (assignment.teacher_comment or '').strip()
+        draw_line(f'Комментарий учителя: {comment or "—"}', dy=22)
+        draw_line('Результаты по заданиям:', size=13, dy=20)
+        rows = _lesson_result_rows_from_assignment(assignment)
+        if not rows:
+            draw_line('Детальные ответы не найдены.', size=11, dy=16)
+        for row in rows:
+            draw_line(f'Задание {row["task_num"]}: {row["answer"]} | {row["status"]}', size=10, dy=14)
+
+        c.showPage()
+        c.save()
+        data = buf.getvalue()
+        buf.close()
+        return data if data else None
+    except Exception:
+        logger.exception('Не удалось собрать PDF-отчет assignment=%s', getattr(assignment, 'id', None))
+        return None
 
 
 def _random_avatar_emoji():
@@ -110,6 +288,59 @@ def _random_avatar_emoji():
 
 def _random_avatar_bg():
     return random.choice(tuple(AVATAR_BG_POOL))
+
+
+def _registration_legal_context():
+    return {
+        'legal_document_version': LEGAL_DOCUMENT_VERSION,
+        'user_agreement_url': LEGAL_USER_AGREEMENT_URL,
+        'privacy_policy_url': LEGAL_PRIVACY_POLICY_URL,
+    }
+
+
+def _client_ip(request):
+    forwarded = (request.META.get('HTTP_X_FORWARDED_FOR') or '').split(',')
+    if forwarded and forwarded[0].strip():
+        return forwarded[0].strip()[:45]
+    return (request.META.get('REMOTE_ADDR') or '').strip()[:45] or None
+
+
+def _save_registration_consents(request, profile, *, required_codes, optional_codes=(), source='registration'):
+    now = timezone.now()
+    ip = _client_ip(request)
+    user_agent = (request.META.get('HTTP_USER_AGENT') or '').strip()[:1000]
+    doc_urls = {
+        CONSENT_CODE_USER_AGREEMENT: LEGAL_USER_AGREEMENT_URL,
+        CONSENT_CODE_PERSONAL_DATA: LEGAL_PRIVACY_POLICY_URL,
+        CONSENT_CODE_STUDENT_DATA_BASIS: LEGAL_PRIVACY_POLICY_URL,
+        CONSENT_CODE_MARKETING: LEGAL_PRIVACY_POLICY_URL,
+    }
+    rows = []
+    for code in [*required_codes, *optional_codes]:
+        accepted = request.POST.get(code) == 'on'
+        row, _ = UserPlatformConsent.objects.get_or_create(
+            user=profile,
+            consent_code=code,
+            defaults={'accepted': False},
+        )
+        row.accepted = accepted
+        row.version = LEGAL_DOCUMENT_VERSION
+        row.source = source[:32]
+        row.ip_address = ip
+        row.user_agent = user_agent
+        row.document_url = str(doc_urls.get(code) or '')[:500]
+        row.checkbox_label = CONSENT_LABELS.get(code, '')
+        row.updated_at = now
+        if accepted:
+            row.accepted_at = now
+            row.revoked_at = None
+        else:
+            row.revoked_at = now
+        rows.append(row)
+    UserPlatformConsent.objects.bulk_update(
+        rows,
+        ['accepted', 'version', 'source', 'ip_address', 'user_agent', 'document_url', 'checkbox_label', 'accepted_at', 'revoked_at', 'updated_at'],
+    )
 
 
 def _ensure_profile_avatar(profile):
@@ -436,7 +667,9 @@ def _upsert_student_lesson_report(assignment):
     report.status = assignment.status
     report.teacher_comment = assignment.teacher_comment or ''
 
-    pdf_content = _fetch_variant_pdf_content(hw.variant_id, homework_subject=hw.subject or '')
+    pdf_content = _build_student_report_pdf(assignment)
+    if not pdf_content:
+        pdf_content = _fetch_variant_pdf_content(hw.variant_id, homework_subject=hw.subject or '')
     if pdf_content:
         student_slug = slugify(f'{student.name}-{student.surname}') or f'student-{student.id}'
         file_name = f'report-{assignment.id}-{student_slug}.pdf'
@@ -1118,6 +1351,7 @@ def register_view(request):
         return redirect('login')
 
     subjects = Subject.objects.all().order_by('subject_name')              # все предметы для чекбоксов формы
+    register_context = {'subjects': subjects, **_registration_legal_context()}
 
     if request.method == 'POST':                                            # отправка формы регистрации
         name        = (request.POST.get('name') or '').strip()[:100]       # имя (макс. 100 символов)
@@ -1126,15 +1360,22 @@ def register_view(request):
         password1   = (request.POST.get('password1') or '')[:128]          # пароль
         password2   = (request.POST.get('password2') or '')[:128]          # подтверждение пароля
         subject_ids = request.POST.getlist('subjects')                     # список выбранных ID предметов
+        required_consents = (
+            CONSENT_CODE_USER_AGREEMENT,
+            CONSENT_CODE_PERSONAL_DATA,
+            CONSENT_CODE_STUDENT_DATA_BASIS,
+        )
 
         try:
             subj_ints = [int(x) for x in subject_ids]                      # конвертируем строки в int
         except (TypeError, ValueError):
             messages.error(request, 'Некорректный выбор предметов')
-            return render(request, 'register.html', {'subjects': subjects}) # показываем форму с ошибкой
+            return render(request, 'register.html', register_context) # показываем форму с ошибкой
 
         if not all([name, surname, email, password1]):                      # проверяем обязательные поля
             messages.error(request, 'Заполните все обязательные поля')
+        elif any(request.POST.get(code) != 'on' for code in required_consents):
+            messages.error(request, 'Подтвердите обязательные юридические согласия')
         elif not subj_ints:                                                 # хотя бы один предмет должен быть выбран
             messages.error(request, 'Выберите хотя бы один предмет')
         elif password1 != password2:                                        # пароли должны совпадать
@@ -1149,12 +1390,12 @@ def register_view(request):
             except ValidationError as e:
                 for err in e.messages:                                      # показываем каждую ошибку валидатора
                     messages.error(request, err)
-                return render(request, 'register.html', {'subjects': subjects})
+                return render(request, 'register.html', register_context)
 
             valid_subject_ids = set(Subject.objects.filter(id__in=subj_ints).values_list('id', flat=True))  # ID предметов из БД
             if valid_subject_ids != set(subj_ints):                        # кто-то подделал ID предметов
                 messages.error(request, 'Выбран неизвестный предмет')
-                return render(request, 'register.html', {'subjects': subjects})
+                return render(request, 'register.html', register_context)
 
             username = generate_username()                                  # генерируем случайный уникальный логин
             user = User.objects.create_user(                               # создаём Django-пользователя
@@ -1180,10 +1421,17 @@ def register_view(request):
             TeacherSubject.objects.bulk_create([                           # массово создаём связи учитель → предмет
                 TeacherSubject(teacher=profile, subject=s) for s in selected
             ])
+            _save_registration_consents(
+                request,
+                profile,
+                required_codes=required_consents,
+                optional_codes=(CONSENT_CODE_MARKETING,),
+                source='teacher_registration',
+            )
             login(request, user)                                           # сразу авторизуем после регистрации
             return render(request, 'register_success.html', {'username': username})  # страница с логином
 
-    return render(request, 'register.html', {'subjects': subjects})        # GET или ошибки → форма регистрации
+    return render(request, 'register.html', register_context)        # GET или ошибки → форма регистрации
 
 
 def register_student_invite_view(request):
@@ -1224,12 +1472,18 @@ def register_student_invite_view(request):
         grade = (request.POST.get('grade') or '').strip()
         password1 = (request.POST.get('password1') or '')[:128]
         password2 = (request.POST.get('password2') or '')[:128]
+        required_consents = (
+            CONSENT_CODE_USER_AGREEMENT,
+            CONSENT_CODE_PERSONAL_DATA,
+        )
 
         valid_grades = {c[0] for c in TeachersStudent.GRADE_CHOICES}
         if not name:
             messages.error(request, 'Введите имя')
         elif not email:
             messages.error(request, 'Введите email')
+        elif any(request.POST.get(code) != 'on' for code in required_consents):
+            messages.error(request, 'Подтвердите обязательные юридические согласия')
         elif grade not in valid_grades:
             messages.error(request, 'Выберите корректный класс')
         elif password1 != password2:
@@ -1286,6 +1540,13 @@ def register_student_invite_view(request):
                                 lesson_type='group' if lesson_type == 'group' else 'individual',
                                 group=group if lesson_type == 'group' else None,
                             )
+                            _save_registration_consents(
+                                request,
+                                profile,
+                                required_codes=required_consents,
+                                optional_codes=(CONSENT_CODE_MARKETING,),
+                                source='student_invite_registration',
+                            )
                             cache.set(used_cache_key, 1, timeout=_student_invite_used_ttl(payload))
                     finally:
                         cache.delete(lock_cache_key)
@@ -1304,6 +1565,7 @@ def register_student_invite_view(request):
             'group_name': group.group_name if group else '',
             'is_group': lesson_type == 'group',
             'grade_choices': [c[0] for c in TeachersStudent.GRADE_CHOICES],
+            **_registration_legal_context(),
         },
     )
 
@@ -1767,6 +2029,9 @@ class MePlatformConsentView(APIView):
             'revoked_at': row.revoked_at,
             'version': row.version or '',
             'source': row.source or '',
+            'ip_address': row.ip_address or '',
+            'document_url': row.document_url or '',
+            'checkbox_label': row.checkbox_label or '',
             'updated_at': row.updated_at,
         }
 
@@ -1804,6 +2069,9 @@ class MePlatformConsentView(APIView):
                     'revoked_at': None,
                     'version': '',
                     'source': '',
+                    'ip_address': '',
+                    'document_url': '',
+                    'checkbox_label': CONSENT_LABELS.get(code, ''),
                     'updated_at': None,
                 })
             else:
@@ -1838,6 +2106,8 @@ class MePlatformConsentView(APIView):
             accepted = bool(item.get('accepted'))
             version = str(item.get('version') or '').strip()[:32]
             source = str(item.get('source') or 'lk').strip()[:32] or 'lk'
+            document_url = str(item.get('document_url') or '').strip()[:500]
+            checkbox_label = str(item.get('checkbox_label') or CONSENT_LABELS.get(code, '')).strip()
 
             row, _ = UserPlatformConsent.objects.get_or_create(
                 user=profile,
@@ -1847,6 +2117,10 @@ class MePlatformConsentView(APIView):
             row.accepted = accepted
             row.version = version
             row.source = source
+            row.ip_address = _client_ip(request)
+            row.user_agent = (request.META.get('HTTP_USER_AGENT') or '').strip()[:1000]
+            row.document_url = document_url
+            row.checkbox_label = checkbox_label
             if accepted:
                 row.accepted_at = now
                 row.revoked_at = None

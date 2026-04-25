@@ -726,6 +726,8 @@ export default function VariantsPage() {
         return fullName || `Ученик #${targetId}`;
       })();
 
+    // Важно: открываем окно синхронно в обработчике клика, иначе браузер может заблокировать popup.
+    const lessonWindow = window.open('', '_blank', 'noopener,noreferrer');
     setLessonStarting(true);
     setLessonError('');
     try {
@@ -770,11 +772,17 @@ export default function VariantsPage() {
 
       const teacherRoomUrl = data?.url;
       if (!teacherRoomUrl) {
+        if (lessonWindow && !lessonWindow.closed) lessonWindow.close();
         setLessonError('Сервер не вернул ссылку комнаты урока');
         setLessonStarting(false);
         return;
       }
-      window.open(teacherRoomUrl, '_blank', 'noopener,noreferrer');
+      if (lessonWindow && !lessonWindow.closed) {
+        lessonWindow.location.href = teacherRoomUrl;
+      } else {
+        // Фолбэк, если браузер всё же заблокировал предварительное окно.
+        window.location.assign(teacherRoomUrl);
+      }
       closeLessonModal();
       const ringTargets = Array.isArray(data?.debug_notify_usernames) ? data.debug_notify_usernames : [];
       if (ringTargets.length) {
@@ -783,6 +791,7 @@ export default function VariantsPage() {
         showToast(`Урок для «${targetName}» запущен`);
       }
     } catch (e) {
+      if (lessonWindow && !lessonWindow.closed) lessonWindow.close();
       setLessonError(e.message || 'Ошибка сети');
     } finally {
       setLessonStarting(false);

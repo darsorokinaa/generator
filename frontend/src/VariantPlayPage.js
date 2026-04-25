@@ -135,6 +135,18 @@ export default function VariantPlayPage({ assignmentId }) {
     setAssignment((prev) => (prev ? { ...prev, ...data } : prev));
   }, []);
 
+  useEffect(() => {
+    if (!assignment?.id) return;
+    if (!profile?.role || profile.role !== 'student') return;
+    if (assignment.status !== 'reviewed') return;
+    if (reviewedAutoRedirectRef.current) return;
+    reviewedAutoRedirectRef.current = true;
+    const timer = setTimeout(() => {
+      window.location.assign(cabinetSpaBasePathname());
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, [assignment?.id, assignment?.status, profile?.role]);
+
   if (loading) {
     return (
       <div style={{
@@ -226,18 +238,6 @@ export default function VariantPlayPage({ assignmentId }) {
   // Teacher always sees as readonly; student — readonly after submission (локальный плеер / сбой редиректа)
   const readOnly = isTeacher || ['submitted', 'reviewing', 'reviewed'].includes(assignment.status);
   const showCorrectAnswers = isTeacher || assignment.status === 'reviewed';
-
-  useEffect(() => {
-    if (!assignment?.id) return;
-    if (!profile?.role || profile.role !== 'student') return;
-    if (assignment.status !== 'reviewed') return;
-    if (reviewedAutoRedirectRef.current) return;
-    reviewedAutoRedirectRef.current = true;
-    const timer = setTimeout(() => {
-      window.location.assign(cabinetSpaBasePathname());
-    }, 5000);
-    return () => clearTimeout(timer);
-  }, [assignment?.id, assignment?.status, profile?.role]);
 
   if (!assignment.variant_id) {
     return (

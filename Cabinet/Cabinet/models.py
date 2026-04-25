@@ -396,6 +396,10 @@ class UserPlatformConsent(models.Model):
     revoked_at = models.DateTimeField(null=True, blank=True)
     version = models.CharField(max_length=32, blank=True, default='')
     source = models.CharField(max_length=32, blank=True, default='lk')
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True, default='')
+    document_url = models.CharField(max_length=500, blank=True, default='')
+    checkbox_label = models.TextField(blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
