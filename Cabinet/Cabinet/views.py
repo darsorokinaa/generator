@@ -4340,6 +4340,8 @@ class StudentLessonReportListView(APIView):
                 'student_id': r.student_id,
                 'student_name': r.student.name,
                 'student_surname': r.student.surname,
+                'student_avatar_emoji': getattr(r.student, 'avatar_emoji', '') or '',
+                'student_avatar_bg': getattr(r.student, 'avatar_bg', '') or '',
                 'assignment_id': r.assignment_id,
                 'homework_id': (r.assignment.homework_id if r.assignment_id else None),
                 'variant_id': r.variant_id,

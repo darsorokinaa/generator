@@ -34,6 +34,22 @@ const AVATAR_BG_OPTIONS = [
   { id: 'forest', label: 'Лес', css: 'linear-gradient(135deg, #15803D 0%, #65A30D 100%)' },
 ];
 
+function initials(name, surname = '') {
+  return `${name?.[0] || ''}${surname?.[0] || ''}`.toUpperCase() || '🙂';
+}
+
+function avatarBgCssById(bgId) {
+  return AVATAR_BG_OPTIONS.find((x) => x.id === bgId)?.css || AVATAR_BG_OPTIONS[0].css;
+}
+
+function avatarTokenAndBg(person = {}) {
+  return {
+    token: String(person.avatar_emoji || person.student_avatar_emoji || '').trim()
+      || initials(person.name || person.student_name || '', person.surname || person.student_surname || ''),
+    bg: avatarBgCssById(person.avatar_bg || person.student_avatar_bg || ''),
+  };
+}
+
 // const GENUROK_URL = (process.env.REACT_APP_GENERATOR_URL || 'https://test.genurok.ru').replace(/\/$/, '');
 
 function getCookie(name) {
@@ -65,6 +81,7 @@ export default function Dashboard() {
   const [students, setStudents] = useState([]);
   const [user, setUser] = useState(null);
   const [authChecked, setAuthChecked] = useState(false);
+  const [authError, setAuthError] = useState('');
   const [groups, setGroups] = useState([]);
   const today = new Date();
   const [dashHomeworks, setDashHomeworks] = useState([]);
@@ -373,11 +390,15 @@ export default function Dashboard() {
   }, [authChecked, user]);
 
   useEffect(() => {
+    setAuthError('');
     fetch(`${API}/api/me/`, { credentials: 'include' })
       .then(r => {
         if (r.status === 401 || r.status === 403) {
           window.location.href = `${API}/login/`;
           return null;
+        }
+        if (!r.ok) {
+          throw new Error(`HTTP ${r.status}`);
         }
         return r.json();
       })
@@ -386,7 +407,9 @@ export default function Dashboard() {
         setAuthChecked(true);
       })
       .catch(() => {
-        window.location.href = `${API}/login/`;
+        // Не уходим на /login/ при серверных сбоях (500), иначе получаем цикл редиректов.
+        setAuthError('Не удалось загрузить профиль. Проверьте миграции и перезапустите сервер.');
+        setAuthChecked(true);
       });
   }, []);
 
@@ -746,10 +769,25 @@ export default function Dashboard() {
     );
   }
 
+  if (authError && !user) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0f2fb', padding: 16 }}>
+        <div style={{ width: '100%', maxWidth: 520, background: '#fff', border: '1px solid #e2e8f0', borderRadius: 14, padding: 20, boxShadow: '0 8px 24px rgba(15,23,42,.06)' }}>
+          <div style={{ fontWeight: 700, color: '#0f172a', marginBottom: 8 }}>Не удалось открыть личный кабинет</div>
+          <div style={{ fontSize: 13, color: '#64748b', lineHeight: 1.5 }}>{authError}</div>
+          <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+            <button type="button" className="btn-page-secondary" onClick={() => window.location.reload()}>Обновить</button>
+            <a href={`${API}/login/`} className="btn-page-secondary" style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>Войти снова</a>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const avatarFallback = user ? (user.name?.[0] || '') + (user.surname?.[0] || '') : '??';
   const avatarToken = user?.avatar_emoji || avatarFallback;
   const avatarBgId = user?.avatar_bg || AVATAR_BG_OPTIONS[0].id;
-  const avatarBgCss = AVATAR_BG_OPTIONS.find(x => x.id === avatarBgId)?.css || AVATAR_BG_OPTIONS[0].css;
+  const avatarBgCss = avatarBgCssById(avatarBgId);
 
   const updateAvatarProfile = async ({ emoji, bg }) => {
     if (!user) return;
@@ -987,10 +1025,10 @@ export default function Dashboard() {
                 <div className="search-dropdown">
                   {filteredStudents.slice(0, 6).map(s => {
                     const name = `${s.student_name || ''} ${s.student_surname || ''}`.trim();
-                    const ini = ((s.student_name?.[0] || '') + (s.student_surname?.[0] || '')).toUpperCase();
+                    const av = avatarTokenAndBg(s);
                 return (
                       <div key={s.id} className="search-dropdown-item" onMouseDown={() => { setSearch(''); setProfileBackPage('dashboard'); setSelectedStudent(s); setPage('student-profile'); }}>
-                        <div className="search-dropdown-avatar">{ini}</div>
+                        <div className="search-dropdown-avatar" style={{ background: av.bg }}>{av.token}</div>
                         <div><div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-1)' }}>{name}</div><div style={{ fontSize: 11, color: 'var(--text-3)' }}>{s.subject_name} · {s.grade} класс</div></div>
                   </div>
                 );
@@ -1058,6 +1096,7 @@ export default function Dashboard() {
                         <td colSpan={7} className="table-empty">Пока нет отчётов. Они создаются после проверки работы.</td>
                       </tr>
                     ) : studentReports.map((row) => {
+                      const av = avatarTokenAndBg(row);
                       const statusLabel = row.status === 'reviewed'
                         ? 'Проверено'
                         : row.status === 'revision'
@@ -1072,7 +1111,7 @@ export default function Dashboard() {
                         <tr key={row.id}>
                           <td>
                             <div className="student-cell">
-                              <div className="student-avatar-sm">{((row.student_name?.[0] || '') + (row.student_surname?.[0] || '')).toUpperCase()}</div>
+                              <div className="student-avatar-sm" style={{ background: av.bg }}>{av.token}</div>
                               <div className="student-info">
                                 <span className="student-name">{row.student_name} {row.student_surname}</span>
                               </div>
@@ -1242,7 +1281,7 @@ export default function Dashboard() {
                   <div className="hw-events-list">
                     {(reviewShowAll ? hwEvents : hwEvents.slice(0, 6)).map((a, idx) => {
                       const name = `${a.student_name || ''} ${a.student_surname || ''}`.trim();
-                      const ini  = ((a.student_name?.[0] || '') + (a.student_surname?.[0] || '')).toUpperCase();
+                      const av = avatarTokenAndBg(a);
                       const deadline = a.hw_deadline ? new Date(a.hw_deadline) : null;
                       const daysLeft = deadline ? Math.ceil((deadline - new Date()) / 86400000) : null;
                       const submitted = ['submitted', 'reviewing'].includes(a.status);
@@ -1258,7 +1297,7 @@ export default function Dashboard() {
                       return (
                         <div key={a.id} className={`hw-event-row hw-event-row--${a.kind}`} style={{ animationDelay: `${idx * 40}ms` }}>
                           <div className={`hw-event-stripe hw-event-stripe--${a.kind}`} />
-                          <div className="hw-event-avatar">{ini}</div>
+                          <div className="hw-event-avatar" style={{ background: av.bg, color: '#fff' }}>{av.token}</div>
                           <div className="hw-event-info">
                             <div className="hw-event-name">{name || '—'}</div>
                             <div className="hw-event-subject">

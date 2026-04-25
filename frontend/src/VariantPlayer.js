@@ -100,6 +100,94 @@ function homeworkCabinetStatusRu(status) {
   return '';
 }
 
+/**
+ * JSON результата с генератора (01): { by_number, by_task_id, scores?, checked? } —
+ * приводим к плоскому { taskNum: { answer, state, …} }, как в локальном плеере ЛК.
+ * См. buildHomeworkResultPayload / pickHomeworkFields в 01 generator (cabinetHomework.js).
+ */
+function normalizeGeneratorHomeworkResultToPlayerState(raw, tasks) {
+  if (raw == null) return {};
+  let r = raw;
+  if (typeof r === 'string') {
+    try {
+      r = JSON.parse(r);
+    } catch {
+      return {};
+    }
+  }
+  if (typeof r !== 'object' || Array.isArray(r)) return {};
+  const byNum = r.by_number ?? r.byNumber ?? r.answersByNumber;
+  const rawAns = r.answers;
+  const byId = r.by_task_id ?? r.byTaskId
+    ?? (rawAns && typeof rawAns === 'object' && !Array.isArray(rawAns) && Object.keys(rawAns).length
+      ? rawAns
+      : null);
+  const isGenerator = (byNum && typeof byNum === 'object' && !Array.isArray(byNum))
+    || (byId && typeof byId === 'object' && !Array.isArray(byId));
+  if (!isGenerator) {
+    const o = { ...r };
+    delete o.by_number;
+    delete o.byNumber;
+    delete o.answersByNumber;
+    delete o.by_task_id;
+    delete o.byTaskId;
+    delete o.scores;
+    delete o.checked;
+    return o;
+  }
+  const idToNumber = new Map();
+  if (Array.isArray(tasks)) {
+    for (const t of tasks) {
+      idToNumber.set(String(t.id), String(t.number ?? ''));
+    }
+  }
+  const out = {};
+  if (byNum && typeof byNum === 'object' && !Array.isArray(byNum)) {
+    for (const [num, val] of Object.entries(byNum)) {
+      const nk = String(num);
+      if (val == null) continue;
+      if (typeof val === 'string') {
+        out[nk] = { answer: val, state: 'saved' };
+      } else if (val && typeof val === 'object' && 'answer' in val) {
+        out[nk] = { ...val, state: val.state && val.state !== 'empty' ? val.state : (val.state || 'saved') };
+      } else if (val && typeof val === 'object' && 'text' in val) {
+        out[nk] = { answer: String(val.text), state: 'saved' };
+      } else {
+        out[nk] = { answer: String(val), state: 'saved' };
+      }
+    }
+  }
+  if (byId && typeof byId === 'object' && idToNumber.size) {
+    for (const [id, val] of Object.entries(byId)) {
+      const nk = idToNumber.get(String(id));
+      if (!nk) continue;
+      if (out[nk] != null && String(out[nk].answer || '').trim()) continue;
+      if (typeof val === 'string') {
+        out[nk] = { answer: val, state: 'saved' };
+      } else {
+        out[nk] = { answer: String(val), state: 'saved' };
+      }
+    }
+  }
+  if (r.checked && typeof r.checked === 'object' && idToNumber.size) {
+    for (const [id, c] of Object.entries(r.checked)) {
+      const nk = idToNumber.get(String(id));
+      if (!nk || !out[nk]) continue;
+      if (typeof c === 'boolean') {
+        out[nk] = { ...out[nk], state: c ? 'correct' : 'wrong' };
+      }
+    }
+  }
+  for (const k of Object.keys(r)) {
+    if (['by_number', 'byNumber', 'by_task_id', 'byTaskId', 'answersByNumber', 'answers', 'scores', 'checked'].includes(k)) continue;
+    const v = r[k];
+    if (v != null && typeof v === 'object' && !Array.isArray(v) && (v.answer != null || v.teacher_score != null)) {
+      out[k] = { ...v };
+    }
+  }
+  return out;
+}
+
 function stripHtml(str) {
   const tmp = document.createElement('div');
   tmp.innerHTML = String(str || '');
@@ -864,6 +952,11 @@ export default function VariantPlayer({
   const wbSaveTimer = useRef(null);
   const containerRef = useRef(null);
 
+  const savedResultForPlayer = useMemo(
+    () => normalizeGeneratorHomeworkResultToPlayerState(savedResult, variant?.tasks),
+    [savedResult, variant?.tasks],
+  );
+
   const useExamPageChrome = standalone && !embedded;
   const useCompactChrome = !useExamPageChrome;
 
@@ -967,10 +1060,12 @@ export default function VariantPlayer({
   }, []);
 
   useEffect(() => {
-    if (savedResult && typeof savedResult === 'object') {
-      setAnswers(savedResult);
+    if (savedResultForPlayer && typeof savedResultForPlayer === 'object') {
+      setAnswers(savedResultForPlayer);
+    } else {
+      setAnswers({});
     }
-  }, [savedResult]);
+  }, [savedResultForPlayer]);
 
   useEffect(() => {
     if (homeworkReview?.initialTeacherComment != null) {
@@ -983,7 +1078,7 @@ export default function VariantPlayer({
   }, [assignmentId, homeworkReview?.assignmentStatus]);
 
   useEffect(() => {
-    if (!variant?.tasks || !savedResult || typeof savedResult !== 'object') {
+    if (!variant?.tasks || !savedResultForPlayer || typeof savedResultForPlayer !== 'object') {
       setTeacherPart2Grades({});
       return;
     }
@@ -992,7 +1087,7 @@ export default function VariantPlayer({
       const isP2 = String(t.part) === '2' || t.part === 2;
       if (!isP2) return;
       const nk = String(t.number ?? '');
-      const ent = savedResult[nk];
+      const ent = savedResultForPlayer[nk];
       if (ent && typeof ent === 'object' && ent.teacher_score != null) {
         next[nk] = {
           score: ent.teacher_score,
@@ -1002,7 +1097,7 @@ export default function VariantPlayer({
       }
     });
     setTeacherPart2Grades(next);
-  }, [assignmentId, variant?.id, savedResult]);
+  }, [assignmentId, variant?.id, savedResultForPlayer]);
 
   useEffect(() => {
     setLoading(true);
