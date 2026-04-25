@@ -63,6 +63,8 @@ LK_LESSON_NOTIFY_URL = os.environ.get("LK_LESSON_NOTIFY_URL", "").strip()
 # POST при открытии комнаты учеником на генераторе (иначе LK_PUBLIC_URL + /api/lesson/student-joined/).
 # Тот же X-Lesson-Webhook-Secret, что для teacher-joined.
 LK_LESSON_STUDENT_NOTIFY_URL = os.environ.get("LK_LESSON_STUDENT_NOTIFY_URL", "").strip()
+# POST при завершении урока — отчёт «Урок» в ЛК (иначе LK_PUBLIC_URL + /api/lesson/teacher-left/).
+LK_LESSON_TEACHER_LEFT_URL = os.environ.get("LK_LESSON_TEACHER_LEFT_URL", "").strip()
 # Кнопка «Личный кабинет»: если переменная не задана — пароль 100326; пустая строка LK_NAVIGATION_PASSWORD= — без пароля.
 _lk_nav_env = os.environ.get("LK_NAVIGATION_PASSWORD")
 

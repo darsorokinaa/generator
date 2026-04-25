@@ -3634,6 +3634,11 @@
         document.body.style.overflow = '';
       };
 
+      const hideStudentResultsButton = () => {
+        if (!studentResultsBtn) return;
+        studentResultsBtn.style.display = 'none';
+      };
+
       const loadStudentResultsModal = async () => {
         if (!studentResultsModalBody) return;
         if (!lessonPageToken) {
@@ -3854,6 +3859,7 @@
       document.getElementById('lesson-finish-download-pdf')?.addEventListener('click', downloadLessonPdf);
       document.getElementById('lesson-finish-close-session')?.addEventListener('click', closeLessonSession);
       studentResultsBtn?.addEventListener('click', async () => {
+        hideStudentResultsButton();
         openStudentResultsModal();
         await loadStudentResultsModal();
       });

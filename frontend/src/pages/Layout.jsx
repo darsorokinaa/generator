@@ -222,17 +222,8 @@ function Layout() {
           isLessonTeacherEmbedContext ? (
             <button
               type="button"
-              className="header-nav-cabinet"
+              className="header-nav-finish"
               onClick={handleLessonFinishClick}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "6px",
-                background: "#dc2626",
-                borderColor: "#dc2626",
-                color: "#fff",
-                boxShadow: "0 8px 18px rgba(220, 38, 38, 0.24)",
-              }}
             >
               Завершить
             </button>
@@ -272,9 +263,10 @@ function Layout() {
         <Outlet />
       </main>
 
-      <footer className="site-footer">
+      <footer className={`site-footer${isLessonOrHomeworkContext ? " site-footer--embed" : ""}`}>
         <div className="site-footer-inner">
           <span className="site-footer-copy">© 2026 ГенУрок</span>
+          {!isLessonOrHomeworkContext && (
           <div className="site-footer-links">
             <button type="button" className="site-footer-link" onClick={handleCabinetClick}>
               Личный кабинет
@@ -284,6 +276,7 @@ function Layout() {
             <span className="site-footer-sep" aria-hidden="true">·</span>
             <Link to="/privacy#pd" className="site-footer-link">Согласие на обработку ПД</Link>
           </div>
+          )}
         </div>
       </footer>
 

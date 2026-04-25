@@ -2428,6 +2428,23 @@ def notify_lk_student_joined(token: str, extra: dict | None = None) -> tuple[boo
     return _post_lk_lesson_webhook(endpoint, token, extra)
 
 
+def notify_lk_teacher_left(token: str, extra: dict | None = None) -> tuple[bool, str]:
+    """
+    Сообщает ЛК, что сессия урока завершена (как в POST /api/lesson/teacher-left/ в 02_lk),
+    чтобы появились записи «Урок» во вкладке «Результаты учеников».
+    """
+    endpoint = (getattr(django_settings, "LK_LESSON_TEACHER_LEFT_URL", "") or "").strip()
+    if not endpoint:
+        lk_base = _cabinet_api_base_url()
+        if lk_base:
+            endpoint = f"{lk_base}/api/lesson/teacher-left/"
+    if not endpoint and bool(getattr(django_settings, "DEBUG", False)):
+        endpoint = "http://127.0.0.1:8001/api/lesson/teacher-left/"
+    if not endpoint:
+        return False, "LK_PUBLIC_URL не задан — неизвестно куда отправить teacher-left"
+    return _post_lk_lesson_webhook(endpoint, token, extra)
+
+
 def verify_lesson_token(token: str) -> dict:
     secret = (getattr(django_settings, "LESSON_SECRET", None) or "").strip() or os.environ.get(
         "LESSON_SECRET", ""
@@ -3271,6 +3288,17 @@ def api_lesson_session_close(request):
     first_close = mark_lesson_session_closed(room_id)
     if first_close:
         _broadcast_lesson_session_closed(room_id)
+    if first_close and normalized.get("lesson_type") == "teacher":
+        _ok_tl, _err_tl = notify_lk_teacher_left(
+            token,
+            extra={
+                "room_id": normalized.get("room_id"),
+                "target_id": payload.get("target_id") or payload.get("targetId"),
+                "teacher_id": payload.get("teacher_id") or payload.get("teacherId"),
+            },
+        )
+        if not _ok_tl:
+            logger.warning("ЛК teacher-left не доставлен: %s", _err_tl)
     return JsonResponse({"ok": True, "closed": True})
 
 
@@ -3362,6 +3390,18 @@ def api_lesson_finalize(request):
 
     results = _lesson_results_payload(room_id, variant_id=variant_id)
     _save_lesson_finalize_snapshot(room_id, results)
+
+    # Запись «Урок» в ЛК (Результаты учеников): POST /api/lesson/teacher-left/
+    _ok_tl, _err_tl = notify_lk_teacher_left(
+        token,
+        extra={
+            "room_id": room_id,
+            "target_id": payload.get("target_id") or payload.get("targetId"),
+            "teacher_id": payload.get("teacher_id") or payload.get("teacherId"),
+        },
+    )
+    if not _ok_tl:
+        logger.warning("ЛК teacher-left (finalize) не доставлен: %s", _err_tl)
 
     return JsonResponse(
         {

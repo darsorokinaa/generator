@@ -89,6 +89,8 @@ function TaskReportErrorButton({ taskId, taskNumber, onClick }) {
 
 /** Урок/ДЗ в iframe: ученик прикрепляет изображение решения (часть 2). */
 function LessonSolutionUpload({ taskNumber, taskId, lessonToken, assignmentId, homeworkMode, enabled }) {
+  const FILE_ACCEPT =
+    ".kum,.xls,.xlsx,.xlsm,.xlsb,.csv,.tsv,.ods,.ots,.numbers,.png,.jpg,.jpeg,.webp,.gif,.bmp,.heic,.heif,.txt,.pdf,.doc,.docx,.odt,.rtf,.zip,.7z,.rar";
   const fileInputRef = useRef(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
@@ -103,13 +105,12 @@ function LessonSolutionUpload({ taskNumber, taskId, lessonToken, assignmentId, h
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      setErr("Выберите изображение");
-      return;
-    }
     setErr(null);
     setPendingFile(file);
-    setPendingPreview(URL.createObjectURL(file));
+    setPendingPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return file.type.startsWith("image/") ? URL.createObjectURL(file) : null;
+    });
   };
 
   const onCancel = (e) => {
@@ -143,12 +144,12 @@ function LessonSolutionUpload({ taskNumber, taskId, lessonToken, assignmentId, h
         credentials: "include",
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.ok) {
+      if (!res.ok || (Object.prototype.hasOwnProperty.call(data, "ok") && !data.ok)) {
         throw new Error(data.error || "Не удалось загрузить файл");
       }
       const url = String(data.url || "");
       const filename = String(data.filename || pendingFile.name);
-      setSentPreviews((prev) => [...prev, { url, filename }]);
+      setSentPreviews((prev) => [...prev, { url, filename, isImage: pendingFile.type.startsWith("image/") }]);
       setPendingFile(null);
       if (pendingPreview) URL.revokeObjectURL(pendingPreview);
       setPendingPreview(null);
@@ -164,33 +165,49 @@ function LessonSolutionUpload({ taskNumber, taskId, lessonToken, assignmentId, h
       <input
         ref={fileInputRef}
         type="file"
-        accept="image/*"
+        accept={FILE_ACCEPT}
         className="lesson-solution-file-input"
         tabIndex={-1}
         onChange={onFileSelect}
       />
-      
-      {!pendingFile ? (
+
+      <div className="lesson-solution-picker">
         <button
           type="button"
-          className="add-button lesson-solution-upload-btn"
+          className="lesson-solution-picker-btn"
           disabled={busy}
-          style={{ width: "100%" }}
           onClick={(e) => {
             e.stopPropagation();
             fileInputRef.current?.click();
           }}
         >
-          {busy ? "Загрузка…" : "Прикрепить решение"}
+          Выбрать файл
         </button>
-      ) : (
-        <div className="lesson-solution-pending" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-          <div style={{ position: "relative", display: "inline-block", width: "fit-content" }}>
-            <img src={pendingPreview} alt="Preview" style={{ maxWidth: "100%", maxHeight: "200px", borderRadius: "8px", border: "1px solid #e2e8f0" }} />
-            <button 
-              type="button" 
+        <span className={`lesson-solution-picker-name${pendingFile ? " is-selected" : ""}`}>
+          {pendingFile?.name || "Файл не выбран"}
+        </span>
+      </div>
+
+      {pendingFile ? (
+        <div className="lesson-solution-pending">
+          <div className="lesson-solution-pending-preview">
+            {pendingPreview ? (
+              <img
+                src={pendingPreview}
+                alt="Preview"
+                className="lesson-solution-pending-image"
+              />
+            ) : (
+              <div className="lesson-solution-pending-file">
+                <span className="lesson-solution-pending-file-icon" aria-hidden="true">📄</span>
+                <span className="lesson-solution-pending-file-name">{pendingFile.name}</span>
+              </div>
+            )}
+            <button
+              type="button"
+              className="lesson-solution-pending-remove"
               onClick={onCancel}
-              style={{ position: "absolute", top: "-8px", right: "-8px", background: "#ef4444", color: "white", border: "none", borderRadius: "50%", width: "24px", height: "24px", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", padding: 0, lineHeight: 1 }}
+              aria-label="Убрать выбранный файл"
             >
               ✕
             </button>
@@ -199,13 +216,12 @@ function LessonSolutionUpload({ taskNumber, taskId, lessonToken, assignmentId, h
             type="button"
             className="add-button lesson-solution-send-btn"
             disabled={busy}
-            style={{ width: "100%", background: "#10b981", color: "white", borderColor: "#059669" }}
             onClick={onSend}
           >
-            {busy ? "Отправка…" : "Отправить"}
+            {busy ? "Отправка…" : "Прикрепить решение"}
           </button>
         </div>
-      )}
+      ) : null}
 
       {err ? <span className="lesson-solution-upload-error" style={{ display: "block", marginTop: "8px" }}>{err}</span> : null}
       
@@ -215,8 +231,15 @@ function LessonSolutionUpload({ taskNumber, taskId, lessonToken, assignmentId, h
             const src = `${p.url}${p.url.includes("?") ? "&" : "?"}t=${encodeURIComponent(lessonToken)}`;
             return (
               <figure key={`${p.url}-${i}`} className="lesson-solution-preview-fig">
-                <img src={src} alt="" className="lesson-solution-thumb" />
-                {p.filename ? (
+                {p.isImage ? (
+                  <img src={src} alt="" className="lesson-solution-thumb" />
+                ) : (
+                  <a href={src} target="_blank" rel="noreferrer" className="lesson-solution-file-item">
+                    <span className="lesson-solution-file-item__icon" aria-hidden="true">📎</span>
+                    <span className="lesson-solution-file-item__name">{p.filename || "Файл"}</span>
+                  </a>
+                )}
+                {p.isImage && p.filename ? (
                   <figcaption className="lesson-solution-preview-cap">{p.filename}</figcaption>
                 ) : null}
               </figure>
@@ -2247,9 +2270,11 @@ function ExamPage() {
                   </div>
                 </div>
 
+                {!(isHomework && !isTeacherHomeworkView) && (
                 <div className="variant-hero-right">
                   <div className="variant-hero-actions">
                     <button
+                      type="button"
                       className="variant-btn-primary"
                       onClick={() => openPdf(variant.id)}
                       disabled={!!pdfLoading}
@@ -2257,6 +2282,7 @@ function ExamPage() {
                       ⬇ Скачать PDF
                     </button>
                     <button
+                      type="button"
                       className="variant-btn-cosmos"
                       onClick={() => openThemedPdf(variant.id, "cosmos")}
                       disabled={!!pdfLoading}
@@ -2264,6 +2290,7 @@ function ExamPage() {
                       🪐 Космический вариант
                     </button>
                     <button
+                      type="button"
                       className="variant-btn-easter"
                       onClick={() => openThemedPdf(variant.id, "easter")}
                       disabled={!!pdfLoading}
@@ -2291,6 +2318,7 @@ function ExamPage() {
                     </button>
                   </div>
                 </div>
+                )}
               </div>
             </div>
 
@@ -2959,7 +2987,7 @@ function ExamPage() {
       </div>
 
       {/* ===== КНОПКА ДОСКИ ===== */}
-      <button id="open-board-btn" onClick={() => setBoardOpen(true)} style={{ display: boardOpen ? "none" : undefined }}>
+      <button type="button" id="open-board-btn" onClick={() => setBoardOpen(true)} style={{ display: boardOpen ? "none" : undefined }}>
           <svg
             className="board-icon"
             viewBox="0 0 24 24"
@@ -2982,6 +3010,7 @@ function ExamPage() {
           <canvas ref={canvasRef} id="board" style={{ cursor: tool === "eraser" ? "pointer" : "crosshair" }} />
           <div id="board-toolbar">
             <button
+              type="button"
               id="penBtn"
               className={tool === "pen" ? "active" : ""}
               onClick={() => setTool("pen")}
@@ -3002,6 +3031,7 @@ function ExamPage() {
             </button>
 
             <button
+              type="button"
               id="eraserBtn"
               className={tool === "eraser" ? "active" : ""}
               onClick={() => setTool("eraser")}
@@ -3024,6 +3054,7 @@ function ExamPage() {
             </button>
 
             <button
+              type="button"
               className={tool === "line" ? "active" : ""}
               onClick={() => setTool("line")}
               title="Линия"
@@ -3034,6 +3065,7 @@ function ExamPage() {
             </button>
 
             <button
+              type="button"
               className={tool === "triangle" ? "active" : ""}
               onClick={() => setTool("triangle")}
               title="Треугольник"
@@ -3044,6 +3076,7 @@ function ExamPage() {
             </button>
 
             <button
+              type="button"
               className={tool === "circle" ? "active" : ""}
               onClick={() => setTool("circle")}
               title="Круг"
@@ -3054,6 +3087,7 @@ function ExamPage() {
             </button>
 
             <button
+              type="button"
               className={tool === "square" ? "active" : ""}
               onClick={() => setTool("square")}
               title="Квадрат"
@@ -3085,6 +3119,7 @@ function ExamPage() {
 
             <div className="board-undo-redo-group">
               <button
+                type="button"
                 onClick={undoBoard}
                 disabled={!canUndo}
                 title="Отменить (Ctrl+Z)"
@@ -3096,6 +3131,7 @@ function ExamPage() {
                 </svg>
               </button>
               <button
+                type="button"
                 onClick={redoBoard}
                 disabled={!canRedo}
                 title="Вернуть (Ctrl+Shift+Z)"
@@ -3110,7 +3146,7 @@ function ExamPage() {
 
             <div className="board-divider" />
 
-            <button id="clear-board-btn" onClick={clearBoard} title="Очистить">
+            <button type="button" id="clear-board-btn" onClick={clearBoard} title="Очистить">
               <svg
                 className="board-toolbar-icon"
                 viewBox="0 0 24 24"
@@ -3127,7 +3163,7 @@ function ExamPage() {
               </svg>
             </button>
 
-            <button id="close-board-btn" onClick={() => setBoardOpen(false)} title="Закрыть">
+            <button type="button" id="close-board-btn" onClick={() => setBoardOpen(false)} title="Закрыть">
               <svg
                 className="board-toolbar-icon"
                 viewBox="0 0 24 24"

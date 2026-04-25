@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import NotFoundPage from "./NotFoundPage";
 
@@ -6,6 +7,8 @@ const KNOWN_LEVELS = ["oge", "ege"];
 function SubjectPage() {
   const { level } = useParams();
   const navigate = useNavigate();
+  const [blockedNotice, setBlockedNotice] = useState(false);
+  const blockedNoticeTimeoutRef = useRef(null);
 
   if (!KNOWN_LEVELS.includes(level)) return <NotFoundPage />;
 
@@ -27,6 +30,26 @@ function SubjectPage() {
     }
   }
 
+  function handleLockedSubjectClick(e) {
+    e.preventDefault();
+    if (blockedNoticeTimeoutRef.current) {
+      window.clearTimeout(blockedNoticeTimeoutRef.current);
+    }
+    setBlockedNotice(true);
+    blockedNoticeTimeoutRef.current = window.setTimeout(() => {
+      setBlockedNotice(false);
+      blockedNoticeTimeoutRef.current = null;
+    }, 2200);
+  }
+
+  useEffect(() => {
+    return () => {
+      if (blockedNoticeTimeoutRef.current) {
+        window.clearTimeout(blockedNoticeTimeoutRef.current);
+      }
+    };
+  }, []);
+
   return (
     <div className="subject-page">
       <div className="container subject-page-container">
@@ -38,9 +61,48 @@ function SubjectPage() {
                   Выберите предмет для работы с учениками. Готовые задания и варианты для уроков, контрольных и домашней работы.
                 </p>
               </div>
+              {blockedNotice ? (
+                <div className="subject-lock-notice" role="status" aria-live="polite">
+                  Доступ заблокирован. Предмет скоро появится.
+                </div>
+              ) : null}
 
               <div className="subject-page-pick-groups">
                 <div className="subject-page-pick-block">
+                  {level === "ege" && (
+                  <div className="subject-page-subject-pair subject-page-subject-pair--math-base">
+                    <Link
+                      to={`/${level}/math_base`}
+                      className="exam-card exam-card-math-base"
+                    >
+                      <div className="exam-card-bg" aria-hidden="true">
+                        <span className="exam-card-decor exam-card-decor-calc">📐</span>
+                        <span className="exam-card-decor exam-card-decor-ruler">📏</span>
+                        <span className="exam-card-decor exam-card-decor-sparkle">✦</span>
+                        <span className="exam-card-decor exam-card-decor-sparkle exam-card-decor-sparkle-2">✦</span>
+                        <span className="exam-card-decor exam-card-decor-sparkle exam-card-decor-sparkle-3">✦</span>
+                      </div>
+                      <div className="exam-card-main">
+                        <div className="exam-card-left">
+                          <div className="exam-icon exam-icon-math">🔢</div>
+                          <div className="exam-card-text">
+                            <h3 className="exam-title">Математика (базовая)</h3>
+                            <p className="exam-description">
+                              Вычисления, уравнения и прикладные задачи базового уровня.
+                            </p>
+                          </div>
+                        </div>
+                        <div className="exam-card-footer">
+                          <span className="exam-badge">Перейти</span>
+                          <div className="exam-card-arrow-wrap">
+                            <span className="exam-arrow" aria-hidden="true">→</span>
+                          </div>
+                        </div>
+                      </div>
+                    </Link>
+                  </div>
+                  )}
+
                   <div className="subject-page-subject-pair subject-page-subject-pair--math">
                     <Link
                       to={`/${level}/math`}
@@ -58,11 +120,11 @@ function SubjectPage() {
                           <div className="exam-icon exam-icon-math">🔢</div>
                           <div className="exam-card-text">
                             <h3 className="exam-title">
-                              {level === "ege" ? "Математика (профильная)" : "Математика"}
+                              {level === "ege" ? "Математика (профиль)" : "Математика"}
                             </h3>
-                            {/* <p className="exam-description">
-                              Алгебра и начала анализа, геометрия, вероятность и статистика
-                            </p> */}
+                            <p className="exam-description">
+                              Алгебра, геометрия и задачи с реальными экзаменационными форматами.
+                            </p>
                           </div>
                         </div>
                         <div className="exam-card-footer">
@@ -92,9 +154,9 @@ function SubjectPage() {
                           <div className="exam-icon exam-icon-inf">💻</div>
                           <div className="exam-card-text">
                             <h3 className="exam-title">Информатика</h3>
-                            {/* <p className="exam-description">
-                              Алгоритмы, программирование, моделирование и информационные системы
-                            </p> */}
+                            <p className="exam-description">
+                              Алгоритмы, программирование и практические задания по логике решений.
+                            </p>
                           </div>
                         </div>
                         <div className="exam-card-footer">
@@ -110,7 +172,9 @@ function SubjectPage() {
                   <div className="subject-page-subject-pair subject-page-subject-pair--phys">
                     <Link
                       to={`/${level}/phys`}
-                      className="exam-card exam-card-phys"
+                      className="exam-card exam-card-phys exam-card--locked"
+                      onClick={handleLockedSubjectClick}
+                      aria-disabled="true"
                     >
                       <div className="exam-card-bg" aria-hidden="true">
                         <span className="exam-card-decor exam-card-decor-calc">⚡</span>
@@ -124,13 +188,13 @@ function SubjectPage() {
                           <div className="exam-icon exam-icon-phys">🌡️</div>
                           <div className="exam-card-text">
                             <h3 className="exam-title">Физика</h3>
-                            {/* <p className="exam-description">
-                              Механика, молекулярная физика, электричество и оптика
-                            </p> */}
+                            <p className="exam-description">
+                              Механика, электродинамика и расчётные задачи с пояснением шагов.
+                            </p>
                           </div>
                         </div>
                         <div className="exam-card-footer">
-                          <span className="exam-badge">Перейти</span>
+                          <span className="exam-badge exam-badge--soon">Скоро</span>
                           <div className="exam-card-arrow-wrap">
                             <span className="exam-arrow" aria-hidden="true">→</span>
                           </div>
@@ -138,45 +202,13 @@ function SubjectPage() {
                       </div>
                     </Link>
                   </div>
-
-                  {level === "ege" && (
-                  <div className="subject-page-subject-pair subject-page-subject-pair--math-base">
-                    <Link
-                      to={`/${level}/math_base`}
-                      className="exam-card exam-card-math-base"
-                    >
-                      <div className="exam-card-bg" aria-hidden="true">
-                        <span className="exam-card-decor exam-card-decor-calc">📐</span>
-                        <span className="exam-card-decor exam-card-decor-ruler">📏</span>
-                        <span className="exam-card-decor exam-card-decor-sparkle">✦</span>
-                        <span className="exam-card-decor exam-card-decor-sparkle exam-card-decor-sparkle-2">✦</span>
-                        <span className="exam-card-decor exam-card-decor-sparkle exam-card-decor-sparkle-3">✦</span>
-                      </div>
-                      <div className="exam-card-main">
-                        <div className="exam-card-left">
-                          <div className="exam-icon exam-icon-math">🔢</div>
-                          <div className="exam-card-text">
-                            <h3 className="exam-title">Математика (базовая)</h3>
-                            {/* <p className="exam-description">
-                              Числа и вычисления, уравнения, текстовые задачи и планиметрия
-                            </p> */}
-                          </div>
-                        </div>
-                        <div className="exam-card-footer">
-                          <span className="exam-badge">Перейти</span>
-                          <div className="exam-card-arrow-wrap">
-                            <span className="exam-arrow" aria-hidden="true">→</span>
-                          </div>
-                        </div>
-                      </div>
-                    </Link>
-                  </div>
-                  )}
 
                   <div className="subject-page-subject-pair subject-page-subject-pair--chem">
                     <Link
                       to={`/${level}/chem`}
-                      className="exam-card exam-card-chem"
+                      className="exam-card exam-card-chem exam-card--locked"
+                      onClick={handleLockedSubjectClick}
+                      aria-disabled="true"
                     >
                       <div className="exam-card-bg" aria-hidden="true">
                         <span className="exam-card-decor exam-card-decor-calc">🧪</span>
@@ -190,13 +222,13 @@ function SubjectPage() {
                           <div className="exam-icon exam-icon-chem">🧬</div>
                           <div className="exam-card-text">
                             <h3 className="exam-title">Химия</h3>
-                            {/* <p className="exam-description">
-                              Неорганика, органика, высшая химия и расчётные задачи
-                            </p> */}
+                            <p className="exam-description">
+                              Неорганика, органика и расчётные задачи с типовыми схемами.
+                            </p>
                           </div>
                         </div>
                         <div className="exam-card-footer">
-                          <span className="exam-badge">Перейти</span>
+                          <span className="exam-badge exam-badge--soon">Скоро</span>
                           <div className="exam-card-arrow-wrap">
                             <span className="exam-arrow" aria-hidden="true">→</span>
                           </div>
@@ -208,7 +240,9 @@ function SubjectPage() {
                   <div className="subject-page-subject-pair subject-page-subject-pair--bio">
                     <Link
                       to={`/${level}/bio`}
-                      className="exam-card exam-card-bio"
+                      className="exam-card exam-card-bio exam-card--locked"
+                      onClick={handleLockedSubjectClick}
+                      aria-disabled="true"
                     >
                       <div className="exam-card-bg" aria-hidden="true">
                         <span className="exam-card-decor exam-card-decor-calc">🌿</span>
@@ -222,13 +256,13 @@ function SubjectPage() {
                           <div className="exam-icon exam-icon-bio">🦠</div>
                           <div className="exam-card-text">
                             <h3 className="exam-title">Биология</h3>
-                            {/* <p className="exam-description">
-                              Клетка и генетика, организмы, экология и эволюция
-                            </p> */}
+                            <p className="exam-description">
+                              Клетка, генетика, экология и задания на анализ биологических процессов.
+                            </p>
                           </div>
                         </div>
                         <div className="exam-card-footer">
-                          <span className="exam-badge">Перейти</span>
+                          <span className="exam-badge exam-badge--soon">Скоро</span>
                           <div className="exam-card-arrow-wrap">
                             <span className="exam-arrow" aria-hidden="true">→</span>
                           </div>
@@ -240,7 +274,9 @@ function SubjectPage() {
                   <div className="subject-page-subject-pair subject-page-subject-pair--history">
                     <Link
                       to={`/${level}/history`}
-                      className="exam-card exam-card-history"
+                      className="exam-card exam-card-history exam-card--locked"
+                      onClick={handleLockedSubjectClick}
+                      aria-disabled="true"
                     >
                       <div className="exam-card-bg" aria-hidden="true">
                         <span className="exam-card-decor exam-card-decor-calc">📜</span>
@@ -254,13 +290,13 @@ function SubjectPage() {
                           <div className="exam-icon exam-icon-history">🏛️</div>
                           <div className="exam-card-text">
                             <h3 className="exam-title">История</h3>
-                            {/* <p className="exam-description">
-                              Россия и мир, периодизация, историческое мышление и источники
-                            </p> */}
+                            <p className="exam-description">
+                              Россия и мир: даты, события, источники и причинно-следственные связи.
+                            </p>
                           </div>
                         </div>
                         <div className="exam-card-footer">
-                          <span className="exam-badge">Перейти</span>
+                          <span className="exam-badge exam-badge--soon">Скоро</span>
                           <div className="exam-card-arrow-wrap">
                             <span className="exam-arrow" aria-hidden="true">→</span>
                           </div>
@@ -272,7 +308,9 @@ function SubjectPage() {
                   <div className="subject-page-subject-pair subject-page-subject-pair--rus">
                     <Link
                       to={`/${level}/rus`}
-                      className="exam-card exam-card-rus"
+                      className="exam-card exam-card-rus exam-card--locked"
+                      onClick={handleLockedSubjectClick}
+                      aria-disabled="true"
                     >
                       <div className="exam-card-bg" aria-hidden="true">
                         <span className="exam-card-decor exam-card-decor-calc">📖</span>
@@ -286,13 +324,13 @@ function SubjectPage() {
                           <div className="exam-icon exam-icon-rus">📚</div>
                           <div className="exam-card-text">
                             <h3 className="exam-title">Русский язык</h3>
-                            {/* <p className="exam-description">
-                              Норма языка, орфография, пунктуация и анализ текста
-                            </p> */}
+                            <p className="exam-description">
+                              Орфография, пунктуация и практика работы с текстом и аргументацией.
+                            </p>
                           </div>
                         </div>
                         <div className="exam-card-footer">
-                          <span className="exam-badge">Перейти</span>
+                          <span className="exam-badge exam-badge--soon">Скоро</span>
                           <div className="exam-card-arrow-wrap">
                             <span className="exam-arrow" aria-hidden="true">→</span>
                           </div>
@@ -304,7 +342,9 @@ function SubjectPage() {
                   <div className="subject-page-subject-pair subject-page-subject-pair--lit">
                     <Link
                       to={`/${level}/lit`}
-                      className="exam-card exam-card-lit"
+                      className="exam-card exam-card-lit exam-card--locked"
+                      onClick={handleLockedSubjectClick}
+                      aria-disabled="true"
                     >
                       <div className="exam-card-bg" aria-hidden="true">
                         <span className="exam-card-decor exam-card-decor-calc">📕</span>
@@ -318,13 +358,13 @@ function SubjectPage() {
                           <div className="exam-icon exam-icon-lit">📖</div>
                           <div className="exam-card-text">
                             <h3 className="exam-title">Литература</h3>
-                            {/* <p className="exam-description">
-                              Поэзия и проза, теория литературы, сочинение и анализ
-                            </p> */}
+                            <p className="exam-description">
+                              Поэзия и проза, анализ произведений и подготовка к сочинению.
+                            </p>
                           </div>
                         </div>
                         <div className="exam-card-footer">
-                          <span className="exam-badge">Перейти</span>
+                          <span className="exam-badge exam-badge--soon">Скоро</span>
                           <div className="exam-card-arrow-wrap">
                             <span className="exam-arrow" aria-hidden="true">→</span>
                           </div>
