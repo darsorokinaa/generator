@@ -187,6 +187,17 @@ export async function openHomeworkOnGenerator(assignmentId, { newTab = false } =
  * `...?page=homework&variant_play=...` с лишними query от дашборда.
  */
 export function cabinetSpaBasePathname() {
+  const api = (API || '').trim();
+  if (api) {
+    try {
+      return new URL('/', api).toString();
+    } catch {
+      /* fallback below */
+    }
+  }
+  if (typeof window !== 'undefined') {
+    return `${window.location.origin}/`;
+  }
   return '/';
 }
 
