@@ -2,8 +2,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Outlet, Link, useLocation } from "react-router-dom";
 import {
   readPersistedTheme,
-  writePersistedTheme,
-  clearPersistedTheme,
 } from "../utils/themeStorage";
 import { LK_PUBLIC_URL } from "../config/publicUrls";
 
@@ -55,7 +53,6 @@ function Layout() {
     try { localStorage.setItem(COOKIE_CONSENT_KEY, "1"); } catch { /* ignore */ }
     setCookieAccepted(true);
   }
-  const [themeSlides, setThemeSlides] = useState([]);
   const [activeThemeId, setActiveThemeId] = useState(() => readPersistedTheme().activeThemeId);
 
   const themeDataRef = useRef(themeData);
@@ -130,7 +127,11 @@ function Layout() {
   const cabinetHref =
     typeof lkHref === "string" && lkHref.trim() ? lkHref.trim() : LK_PUBLIC_URL;
 
-  const openCabinetInNewTab = useCallback(() => {
+  const openCabinetInNewTab = useCallback((preOpenedWindow = null) => {
+    if (preOpenedWindow && !preOpenedWindow.closed) {
+      preOpenedWindow.location.href = cabinetHref;
+      return;
+    }
     window.open(cabinetHref, "_blank", "noopener,noreferrer");
   }, [cabinetHref]);
 
@@ -147,6 +148,8 @@ function Layout() {
 
   async function submitLkNavUnlock() {
     setLkModalError("");
+    const pendingWindow = window.open("", "_blank");
+    if (pendingWindow) pendingWindow.opener = null;
     try {
       const r = await fetch("/api/lk-nav-unlock/", {
         method: "POST",
@@ -156,77 +159,18 @@ function Layout() {
       });
       const data = await r.json().catch(() => ({}));
       if (!r.ok) {
+        if (pendingWindow && !pendingWindow.closed) pendingWindow.close();
         setLkModalError(data.error || "Неверный пароль");
         return;
       }
       setLkNavUnlocked(true);
       setLkModalOpen(false);
       setLkModalPassword("");
-      openCabinetInNewTab();
+      openCabinetInNewTab(pendingWindow);
     } catch {
+      if (pendingWindow && !pendingWindow.closed) pendingWindow.close();
       setLkModalError("Не удалось проверить пароль");
     }
-  }
-
-  useEffect(() => {
-    fetch("/api/announcements/", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : { announcements: [] }))
-      .then((data) => {
-        const items = Array.isArray(data.announcements) ? data.announcements : [];
-        const themed = items
-          .filter((a) => {
-            const has = [
-              a.theme_overlay_url,
-              a.theme_header_bg_url,
-              a.theme_logo_url,
-              a.theme_decor_url,
-              a.theme_worksheet_bg_url,
-            ].some((u) => (u || "").trim());
-            return has;
-          })
-          .map((a) => {
-            const title = (a.title || "").toLowerCase();
-            let kind = "theme";
-            if (/пасх|easter/i.test(title)) kind = "easter";
-            else if (/косм|cosmos|space/i.test(title)) kind = "cosmos";
-            return {
-              id: a.id,
-              kind,
-              title: a.title,
-              overlay: (a.theme_overlay_url || "").trim(),
-              headerBg: (a.theme_header_bg_url || "").trim(),
-              logo: (a.theme_logo_url || "").trim(),
-              decor: (a.theme_decor_url || "").trim(),
-              worksheetBg: (a.theme_worksheet_bg_url || "").trim(),
-            };
-          });
-        setThemeSlides(themed);
-      })
-      .catch(() => {});
-  }, []);
-
-  const easterSlide = themeSlides.find((s) => s.kind === "easter");
-  const cosmosSlide = themeSlides.find((s) => s.kind === "cosmos");
-
-  function toggleTheme(slide) {
-    if (!slide) return;
-    if (String(activeThemeId) === String(slide.id)) {
-      clearPersistedTheme();
-      setActiveThemeId(null);
-      setThemeData(null);
-    } else {
-      const data = {
-        overlay: slide.overlay,
-        headerBg: slide.headerBg,
-        logo: slide.logo,
-        decor: slide.decor,
-        worksheetBg: slide.worksheetBg,
-      };
-      writePersistedTheme(data, String(slide.id));
-      setActiveThemeId(String(slide.id));
-      setThemeData(data);
-    }
-    window.dispatchEvent(new Event("theme-change"));
   }
 
   useEffect(() => {
@@ -295,61 +239,20 @@ function Layout() {
           ) : null
         ) : (
           <>
-            {activeThemeId && (
-              <button
-                type="button"
-                className="theme-toggle theme-toggle-reset"
-                onClick={() => {
-                  clearPersistedTheme();
-                  setActiveThemeId(null);
-                  setThemeData(null);
-                  const e = new Event("theme-change");
-                  e.resetToDefault = true;
-                  window.dispatchEvent(e);
-                }}
-                aria-label="Обычный стиль"
-                title="Обычный стиль"
-              >
-                <span aria-hidden="true">🏠</span>
-              </button>
-            )}
-            {easterSlide && (
-              <button
-                type="button"
-                className={`theme-toggle${activeThemeId === String(easterSlide.id) ? " theme-toggle--active" : ""}`}
-                onClick={() => toggleTheme(easterSlide)}
-                aria-pressed={activeThemeId === String(easterSlide.id)}
-                aria-label="Пасхальная тема"
-                title="Пасхальная тема"
-              >
-                <span aria-hidden="true">🐣</span>
-              </button>
-            )}
-            {cosmosSlide && (
-              <button
-                type="button"
-                className={`theme-toggle${activeThemeId === String(cosmosSlide.id) ? " theme-toggle--active" : ""}`}
-                onClick={() => toggleTheme(cosmosSlide)}
-                aria-pressed={activeThemeId === String(cosmosSlide.id)}
-                aria-label="Космическая тема"
-                title="Космическая тема"
-              >
-                <span aria-hidden="true">🪐</span>
-              </button>
-            )}
             {!lessonJoinMode ? (
               <>
                 <Link to="/about" className="header-nav-link">От авторов</Link>
                 <button
                   type="button"
-                  className="header-nav-cabinet"
+                  className="header-nav-link header-nav-cabinet"
                   onClick={handleCabinetClick}
-                  style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <circle cx="12" cy="8" r="4" />
-                    <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
-                  </svg>
+                  <span className="header-nav-cabinet__icon-circle" aria-hidden="true">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <circle cx="12" cy="8" r="4" />
+                      <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+                    </svg>
+                  </span>
                   Личный кабинет
                 </button>
               </>

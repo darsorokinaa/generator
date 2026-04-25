@@ -3803,8 +3803,13 @@
         }
       };
 
-      const downloadLessonPdf = () => {
-        window.open(buildLessonReportDownloadUrl('pdf'), '_blank', 'noopener');
+      const downloadLessonPdf = (preOpenedWindow = null) => {
+        const pdfUrl = buildLessonReportDownloadUrl('pdf');
+        if (preOpenedWindow && !preOpenedWindow.closed) {
+          preOpenedWindow.location.href = pdfUrl;
+          return;
+        }
+        window.open(pdfUrl, '_blank', 'noopener');
       };
 
       const closeLessonSession = async () => {
@@ -3813,6 +3818,8 @@
           return;
         }
         if (!confirm('Закрыть урок для всех? Откроется PDF-отчёт, затем переход в личный кабинет. Повторный вход по той же ссылке будет недоступен.')) return;
+        const pendingPdfWindow = window.open('', '_blank');
+        if (pendingPdfWindow) pendingPdfWindow.opener = null;
         try {
           const res = await fetch('/api/lesson/finalize/', {
             method: 'POST',
@@ -3822,6 +3829,7 @@
           });
           const data = await res.json();
           if (!res.ok || !data.ok) {
+            if (pendingPdfWindow && !pendingPdfWindow.closed) pendingPdfWindow.close();
             alert(data.error || 'Не удалось закрыть урок');
             return;
           }
@@ -3829,10 +3837,11 @@
           showLessonStatusToast('Проверено. Результаты сохранены.');
           openFinishModal();
           try {
-            downloadLessonPdf();
+            downloadLessonPdf(pendingPdfWindow);
           } catch (_) {}
           redirectToLkAfterLessonEnd();
         } catch (_) {
+          if (pendingPdfWindow && !pendingPdfWindow.closed) pendingPdfWindow.close();
           alert('Ошибка сети');
         }
       };
